@@ -1,9 +1,11 @@
 # 微信小程序 + 企业微信第三方应用 + 多租户企业名片 SaaS 开发文档
 
-版本：v0.2  
+版本：v0.3  
 日期：2026-07-01  
 文档定位：产品技术方案 / 架构设计草案 / 研发启动文档  
 适用对象：产品负责人、技术负责人、后端、前端、小程序、测试、运维、企业微信服务商配置人员
+
+> v0.3 变更说明：依据设计审计（见 `docs/audits/audit_01_dev-doc.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 26 章。
 
 ---
 
@@ -324,6 +326,24 @@ accounts
 - updated_at
 ```
 
+**⚠️ unionid 获取前置条件（审计 D-P0-1）**
+
+`wx.login` → code2session 只保证返回 `openid` 与 `session_key`；`unionid` 仅在以下条件满足时才返回：
+
+- 小程序已绑定到微信开放平台（open.weixin.qq.com）账号下，且
+- 该用户曾在同一开放平台主体下的任一小程序 / 公众号有过授权 / 关注记录。
+
+因此 `wx_unionid` 允许为空，account 识别必须有 **openid-only 降级路径**：
+
+- 若拿不到 unionid，先以 `primary_wx_openid` 建立临时 account。
+- 后续该用户在同主体下产生 unionid 时，再做 openid → unionid 归并（主动确认，不自动合并，见 §4.4）。
+- 一人多企业身份绑定（§5.5）在 openid-only 状态下降级为「单端可用」，待 unionid 到位后补全跨端。
+
+**⚠️ 昵称 / 头像 / 手机号获取方式（审计 D-P1-6）**
+
+- `getUserProfile` 自 2022 年起不再返回真实昵称 / 头像；应改用「头像昵称填写能力」（`open-type="chooseAvatar"` + `type="nickname"` 的 input）让用户主动填写，`nickname` / `avatar` 由用户输入而非接口获取。
+- `getPhoneNumber` 为**付费能力**，且必须由 `button open-type="getPhoneNumber"` 触发；`phone_hash` 仅在用户主动授权手机号后写入。基础名片体验不得强依赖手机号授权。
+
 ### 5.3 企业租户 tenant
 
 代表一个授权企业。
@@ -377,6 +397,12 @@ member_identities
 UNIQUE(tenant_id, userid)
 UNIQUE(tenant_id, open_userid)
 ```
+
+**⚠️ 主键选择（审计 D-P1-3）**：第三方应用在多数权限组合下**只能拿到 `open_userid`**，明文 `userid` 需要企业授予通讯录权限（自建应用场景）。因此：
+
+- 以 `open_userid` 作为成员在本系统的**主稳定标识**，`UNIQUE(tenant_id, open_userid)` 为强约束。
+- `userid` 允许为空，仅在有通讯录权限时补齐；`UNIQUE(tenant_id, userid)` 需允许多个 NULL（MySQL 唯一索引允许多 NULL）。
+- 回调、登录态、绑定关系一律以 `open_userid` 关联，避免因 `userid` 缺失断链。
 
 ### 5.5 自然人与企业身份绑定
 
@@ -498,12 +524,15 @@ UNIQUE(tenant_id, pending_id)
 ```text
 员工在微信打开小程序
 → 调用 wx.login
-→ 后端获取 openid / unionid
-→ 查找 account
+→ 后端 code2session 获取 openid（unionid 可能为空，见 §5.2）
+→ 优先用 unionid 查找 account；unionid 为空时用 openid 查找
 → 查询绑定的所有 member_identity
 → 如果只有一个身份，直接进入该身份名片
 → 如果有多个身份，显示身份选择器
+→ 若 openid 尚未绑定任何 member_identity，引导绑定（§6.1 末步）
 ```
+
+注意：unionid 缺失时只能看到「当前 openid 已绑定」的身份；跨端完整身份列表需 unionid 到位后补全。
 
 身份选择器示例：
 
@@ -573,7 +602,11 @@ UNIQUE(tenant_id, pending_id)
 → 记录访问与动作
 ```
 
-注意：查看名片和保存电话不应强制授权。
+注意：
+
+- 查看名片和保存电话不应强制授权。
+- 访客昵称 / 头像若需展示，须走「头像昵称填写能力」由访客主动填写，不再依赖 `getUserProfile`（审计 D-P1-6）。
+- 任何身份授权动作前必须弹出**个人信息处理告知**（用途、范围、留存期限），见 §26 合规章。
 
 ### 7.3 可选添加企业微信
 
@@ -599,12 +632,15 @@ UNIQUE(tenant_id, pending_id)
 - 第三方应用。
 - 微信小程序主体。
 - 小程序与第三方应用关联。
-- 回调 URL。
-- Token。
-- EncodingAESKey。
+- **两个独立回调 URL**（审计 D-P0-3）：
+  - **指令回调 URL**：接收 suite_ticket 推送、企业授权 / 变更 / 取消授权等**套件级**事件。
+  - **数据回调 URL**：接收各授权企业的通讯录变更、客户添加 / 删除、欢迎语等**企业级**消息。
+  - 两者各有独立的 Token 与 EncodingAESKey，验签 / 解密不可混用。
 - SuiteID。
 - SuiteSecret。
 - 权限范围配置。
+
+> ⚠️ 小程序与企业微信第三方应用建议置于**同一微信开放平台主体**下，否则 §10 的 unionid → external_userid 映射无法打通（审计 D-P0-5）。
 
 ### 8.2 企业授权流程
 
@@ -630,42 +666,80 @@ UNIQUE(tenant_id, pending_id)
 - 可见成员 / 部门。
 - 授权状态。
 
-### 8.3 Token 缓存
+### 8.3 suite_ticket 与 Token 缓存
+
+**⚠️ suite_ticket 是第三方应用一切 token 的起点（审计 D-P0-2）**
+
+- 企业微信每约 10 分钟向**指令回调 URL** 推送一次 `suite_ticket`。
+- 收到后立即解密并写入 Redis（如 `wecom:suite_ticket`，TTL 略大于 30 分钟做兜底）。
+- `suite_access_token` = f(suite_id, suite_secret, **suite_ticket**)；没有最新 suite_ticket 就换不到 suite_access_token，第三方应用授权链路整体不可用。
+- 服务冷启动若 Redis 无 suite_ticket，需等待下一次推送或走「主动触发」预案，并对该状态告警。
 
 需要缓存：
 
-- suite_access_token。
+- suite_ticket（来源：指令回调推送）。
+- suite_access_token（依赖 suite_ticket）。
 - provider_access_token。
-- 企业 access_token。
+- 企业 access_token（每个 tenant 一份，依赖 permanent_code + suite_access_token）。
 - jsapi_ticket。
 - agent_jsapi_ticket。
 
 缓存策略：
 
-- Redis 保存。
-- 过期前提前刷新。
+- Redis 保存，key 按 tenant / 类型分离。
+- 过期前提前刷新（如剩余 1/5 有效期触发）。
 - 刷新失败时保留旧 token 短时间兜底。
 - 不允许把 access_token 返回给小程序前端。
 
+**⚠️ 刷新并发控制（审计 D-P1-4）**：token 刷新必须加**分布式锁 / 单飞（singleflight）**，避免多实例同时刷新导致互相失效：
+
+- 刷新前 `SET lock NX PX <ttl>` 抢锁；抢不到的实例读旧值或短暂等待重试。
+- 刷新成功后统一写回并释放锁。
+- 企业微信侧 token 有并发失效风险，务必串行化每个 (tenant, token 类型) 的刷新。
+
 ### 8.4 回调事件
 
-需要处理：
+**指令回调 URL**（套件级）处理：
 
-- 授权成功。
-- 授权变更。
-- 取消授权。
-- 通讯录成员变更。
-- 客户添加事件。
-- 客户删除事件。
-- 欢迎语事件。
+- suite_ticket 推送。
+- 授权成功（create_auth）。
+- 授权变更（change_auth）。
+- 取消授权（cancel_auth）。
+
+**数据回调 URL**（企业级）处理：
+
+- 通讯录成员变更（change_contact：create_user / update_user / delete_user / 部门变更）。
+- 客户添加事件（add_external_contact）。
+- 客户删除事件（del_external_contact）。
+- 欢迎语相关事件。
 
 回调安全要求：
 
-- 校验签名。
+- 校验签名（各回调用各自 Token / EncodingAESKey）。
 - 解密消息。
-- 幂等处理。
-- 快速返回。
-- 耗时逻辑放入队列。
+- **幂等处理**：以事件唯一标识去重，落地去重表（见下）。
+- 快速返回（同步阶段仅验签 + 入库 + 返回 success，5s 内）。
+- 耗时逻辑放入队列异步处理。
+
+**⚠️ 幂等落地设计（审计 D-P1-2）**：企业微信会重推回调，必须有去重表。
+
+```text
+callback_events
+- id
+- source            -- command | data
+- event_key         -- 幂等键：优先 msg_id；无则 hash(corpid+event+changetype+时间戳+关键字段)
+- tenant_id         -- 套件级事件可为空
+- event_type
+- change_type
+- payload_encrypted
+- status            -- received | processing | done | failed
+- retry_count
+- received_at
+- processed_at
+UNIQUE(event_key)
+```
+
+处理流程：先按 `event_key` 尝试插入（冲突即视为重复，直接返回 success），再投递队列；消费端按 `status` 推进并支持重试。
 
 ---
 
@@ -751,6 +825,18 @@ contact_way_states
 - 不允许跨企业复用 external_userid。
 - pending_id 也必须按 tenant_id 存储。
 - 映射失败不影响客户查看名片。
+
+**⚠️ 映射前置条件矩阵（审计 D-P0-5）**：unionid → external_userid 接口对以下条件**缺一即恒失败**，M4 排期前必须逐项确认：
+
+| 前置条件 | 缺失后果 | 降级 |
+|----------|----------|------|
+| 企业已完成企业微信认证 | 接口无权限 | 隐藏加企微入口，仅走基础名片 |
+| 企业已开通 / 授权客户联系能力 | 接口无权限 | 同上 |
+| 小程序与第三方应用在同一微信开放平台主体绑定 | 拿不到可用 unionid | 只记 visitor_account，不做映射 |
+| 成功获取到访客 unionid | 无入参 | 记 openid，待 unionid 到位重试 |
+| 员工具备互通 / 接口调用许可 | 接口无权限 | 隐藏该员工加企微入口 |
+
+任一不满足时，映射流程静默降级并记日志，**绝不阻塞客户查看名片与保存电话**。
 
 ### 10.3 映射流程
 
@@ -963,6 +1049,14 @@ visitor_account_9001
 - 一人多企业身份绑定。
 - 离职状态处理。
 - 员工许可状态维护。
+
+通讯录同步细节（审计 D-P1-7）：
+
+- **权限依赖**：需企业授权通讯录读取范围；无权限时仅能拿到登录换取的 open_userid，做「按需建档」。
+- **全量 + 增量**：授权成功后拉一次全量；之后由数据回调 `change_contact` 事件驱动增量。
+- **change_type 分支**：`create_user` 建档并生成默认名片；`update_user` 更新资料（尊重字段编辑权限）；`delete_user` 置员工为离职、停用其名片但保留历史统计。
+- **部门变更**：`create_party` / `update_party` / `delete_party` 更新 `department_json`。
+- **离职处理**：离职后名片停用、加企微入口隐藏，external_userid 归属按平台规则处理（可迁移 / 冻结），不得跨租户外泄。
 
 ### 13.4 Card Service
 
@@ -1302,6 +1396,110 @@ CREATE TABLE card_actions (
   KEY idx_action_created (created_at)
 );
 ```
+
+### 15.1 补全表（审计 D-P1-1）
+
+以下表在正文中被引用（§9 客户联系、§12.3 后台、§13 服务）但原 DDL 缺失，现补齐。
+
+```sql
+CREATE TABLE contact_ways (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  member_identity_id BIGINT NOT NULL,
+  config_id VARCHAR(128) NULL,        -- 企业微信返回的 config_id
+  qr_code TEXT NULL,
+  state VARCHAR(128) NULL,
+  type VARCHAR(32) NULL,              -- single / multi
+  scene VARCHAR(32) NULL,             -- 1 小程序 / 2 二维码
+  is_temp TINYINT NOT NULL DEFAULT 0,
+  expires_at DATETIME NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  KEY idx_cw_tenant (tenant_id),
+  KEY idx_cw_member (tenant_id, member_identity_id)
+);
+```
+
+```sql
+CREATE TABLE contact_way_states (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  state VARCHAR(128) NOT NULL,
+  card_id BIGINT NOT NULL,
+  member_identity_id BIGINT NOT NULL,
+  channel VARCHAR(64) NULL,
+  scene VARCHAR(64) NULL,
+  expires_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uk_cws_state (tenant_id, state),
+  KEY idx_cws_card (tenant_id, card_id)
+);
+```
+
+```sql
+CREATE TABLE templates (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  scope VARCHAR(32) NOT NULL DEFAULT 'tenant',  -- tenant / department / default
+  department_id VARCHAR(64) NULL,
+  logo_url TEXT NULL,
+  color_scheme_json JSON NULL,
+  background_url TEXT NULL,
+  layout_json JSON NULL,
+  is_default TINYINT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  KEY idx_tpl_tenant (tenant_id)
+);
+```
+
+```sql
+CREATE TABLE licenses (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  member_identity_id BIGINT NULL,      -- 空表示企业级套餐
+  license_type VARCHAR(32) NOT NULL,   -- base / interflow / plan_basic / plan_wecom / plan_contact
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  activated_at DATETIME NULL,
+  expires_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  KEY idx_lic_tenant (tenant_id),
+  KEY idx_lic_member (tenant_id, member_identity_id),
+  KEY idx_lic_expire (expires_at)
+);
+```
+
+```sql
+CREATE TABLE audit_logs (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NULL,               -- 平台级操作可为空
+  actor_type VARCHAR(32) NOT NULL,     -- platform_admin / tenant_admin / member / system
+  actor_id BIGINT NULL,
+  action VARCHAR(64) NOT NULL,
+  target_type VARCHAR(64) NULL,
+  target_id VARCHAR(64) NULL,
+  detail_json JSON NULL,
+  ip_hash VARCHAR(128) NULL,
+  created_at DATETIME NOT NULL,
+  KEY idx_audit_tenant (tenant_id, created_at),
+  KEY idx_audit_action (action)
+);
+```
+
+`callback_events`（回调幂等去重表）DDL 见 §8.4。
+
+### 15.2 通用字段规范（审计 D-P1-5）
+
+所有业务表统一追加以下字段与约定，本节 DDL 为简洁未逐一展开：
+
+- `deleted_at DATETIME NULL`：软删除；所有查询默认 `WHERE deleted_at IS NULL`。PIPL 删除权（§26）与误删恢复都依赖软删除。
+- `created_by` / `updated_by BIGINT NULL`：操作人留痕，配合 `audit_logs`。
+- 时间统一以 **UTC** 存储，展示层按企业时区转换；如用 MySQL 建议 `TIMESTAMP` 或应用层保证 UTC。
+- 所有含 PII 的加密字段（`*_encrypted`）采用信封加密（KMS 数据密钥），并**额外保留可检索的 `*_hash`（HMAC）列**用于去重 / 精确匹配查询，避免「加密后无法查询」的矛盾（见 §17.1）。
 
 ---
 
@@ -1770,3 +1968,123 @@ business-card-saas/
 3. **企业微信预研组**：第三方应用授权、wx.qy.login、客户联系、许可规则。
 
 先完成 M1 + M2，产品就能跑起来；M3 + M4 再逐步补齐企业微信增强能力。这样既不会被企业微信权限和许可卡住，也能尽快让领导看到一个能分享、能保存电话、能体现品牌统一性的产品原型。
+
+---
+
+## 26. 合规与个人信息保护（PIPL）（审计 D-P0-4）
+
+本系统处理手机号、邮箱、微信号、客户 external_userid、访客行为埋点等个人信息，面向中国境内企业运营，**必须满足《个人信息保护法》(PIPL) 与微信 / 企业微信平台规范**，否则不可上线。
+
+### 26.1 告知与同意
+
+- 首次收集前弹出**个人信息处理告知**：处理者、目的、种类、留存期限、对外提供情况、拒绝的影响。
+- 敏感个人信息（手机号等）需**单独、明确**同意，不得默认勾选。
+- 平台方（服务商）与企业租户的角色需在协议中界定：多数场景平台为**受托处理方**，企业为个人信息处理者。
+
+### 26.2 数据主体权利
+
+- 提供**查询 / 更正 / 删除 / 导出**入口（访客与员工）。
+- 删除依赖 §15.2 软删除 + 定期物理清理 / 匿名化。
+- 员工离职、企业取消授权后，按约定时限清理或匿名化对应个人信息。
+
+### 26.3 留存与最小化
+
+- 定义各类数据留存期限（如访问日志 N 个月、埋点聚合后清明细）。
+- 只收集名片分发所必需字段，非必要不收集。
+- 跨企业隔离在合规上等同「不同处理者」，严禁跨租户画像（呼应 §4.3 / §16）。
+
+### 26.4 出境与第三方
+
+- 若使用境外云 / SDK，需评估数据出境合规。
+- 第三方 SDK 清单与其收集的个人信息需登记并在隐私政策披露。
+
+### 26.5 合规验收清单
+
+- [ ] 隐私政策 / 用户协议已上线并可在小程序内查看。
+- [ ] 敏感信息单独同意弹窗。
+- [ ] 数据主体删除 / 导出功能可用。
+- [ ] 留存期限策略与自动清理任务落地。
+- [ ] 第三方 SDK 与数据出境登记完成。
+
+---
+
+## 27. 可观测性与 SLO（审计 D-P2-2）
+
+原 §3 仅列「监控告警」一行，此处细化。
+
+### 27.1 三大信号
+
+- **指标（Metrics）**：QPS、P95/P99 延迟、错误率、队列积压、token 刷新成功率、回调处理时延、映射成功率。
+- **日志（Logging）**：结构化日志，脱敏（见 §17.4），带 trace_id / tenant_id。
+- **链路（Tracing）**：小程序 → 网关 → 服务 → 企业微信接口全链路串联。
+
+### 27.2 关键 SLO（建议初值）
+
+- 名片详情页公开读取可用性 ≥ 99.9%，P95 < 300ms。
+- 回调同步返回 < 3s（企业微信要求 5s 内）。
+- token 刷新失败率 < 0.1%，失败即告警。
+
+### 27.3 关键告警
+
+- suite_ticket 超过 20 分钟未更新。
+- 任一 tenant 的 access_token 连续刷新失败。
+- 回调队列积压超阈值。
+- 越权 / 跨租户访问被拦截（安全告警）。
+
+---
+
+## 28. API 规范补充（审计 D-P2-1）
+
+§14 为接口草案，补充统一规范。
+
+### 28.1 版本与路径
+
+- 统一前缀 `/api/v1`，破坏性变更升 `/api/v2`。
+
+### 28.2 统一响应与错误码
+
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {},
+  "trace_id": "..."
+}
+```
+
+- `code = 0` 成功，非 0 为业务错误码；HTTP 状态码同时正确使用。
+- 错误码分段：`1xxxx` 鉴权、`2xxxx` 参数、`3xxxx` 权限/租户、`4xxxx` 企业微信侧、`5xxxx` 系统。
+
+### 28.3 分页与鉴权
+
+- 列表接口统一 `page` / `page_size`（或 cursor），返回 `total`。
+- 管理端接口一律经租户中间件注入并强制 `tenant_id`（§16.1）。
+- 公开名片接口只返回公开字段并限流（§17.3）。
+
+---
+
+## 29. 审计对照表
+
+本文档 v0.3 依据设计审计（`docs/audits/audit_01_dev-doc.md`）修订，逐条对照：
+
+| 审计 ID | 级别 | 处理位置 | 状态 |
+|---------|------|----------|------|
+| D-P0-1 unionid 前置/降级 | P0 | §5.2, §6.2 | 已补 |
+| D-P0-2 suite_ticket | P0 | §8.3 | 已补 |
+| D-P0-3 指令/数据双回调 | P0 | §8.1, §8.4 | 已补 |
+| D-P0-4 PIPL 合规 | P0 | §26 | 已补 |
+| D-P0-5 映射前置条件 | P0 | §8.1, §10.2 | 已补 |
+| D-P1-1 DDL 缺表 | P1 | §15.1 | 已补 |
+| D-P1-2 回调幂等 | P1 | §8.4 | 已补 |
+| D-P1-3 member 主键 | P1 | §5.4 | 已补 |
+| D-P1-4 token 刷新锁 | P1 | §8.3 | 已补 |
+| D-P1-5 软删除/审计字段 | P1 | §15.2 | 已补 |
+| D-P1-6 昵称/手机号获取 | P1 | §5.2, §7.2 | 已补 |
+| D-P1-7 通讯录同步 | P1 | §13.3 | 已补 |
+| D-P2-1 API 规范 | P2 | §28 | 已补 |
+| D-P2-2 可观测性 | P2 | §27 | 已补 |
+| D-P2-3 备份/灾备 | P2 | — | 待实现阶段细化 |
+| D-P2-4 海报生成/SSRF | P2 | §17.3 | 待实现阶段细化 |
+| D-P2-5 接口配额管理 | P2 | §13.9 | 待实现阶段细化 |
+| D-P2-6 测试 CI/覆盖率 | P2 | §20 | 待实现阶段细化 |
+| D-P2-7 一身份一名片张力 | P2 | §5.6 | 设计决策，M5 前复核 |
