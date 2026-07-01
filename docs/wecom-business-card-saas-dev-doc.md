@@ -1,11 +1,13 @@
 # 微信小程序 + 企业微信第三方应用 + 多租户企业名片 SaaS 开发文档
 
-版本：v0.3  
+版本：v0.4（落地版）  
 日期：2026-07-01  
 文档定位：产品技术方案 / 架构设计草案 / 研发启动文档  
 适用对象：产品负责人、技术负责人、后端、前端、小程序、测试、运维、企业微信服务商配置人员
 
-> v0.3 变更说明：依据设计审计（见 `docs/audits/audit_01_dev-doc.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 26 章。
+> v0.3 变更说明：依据设计审计（`docs/audits/audit_01_dev-doc.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 26 章。
+>
+> v0.4 变更说明：吸收落地性深度审计（`docs/audits/audit_02_dev-doc-v0.3-landability.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、MVP-A/MVP-B 边界拆分、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
 
 ---
 
@@ -51,18 +53,29 @@
 
 第一阶段重点做“企业电子名片分发”，不是一开始就做完整 CRM。
 
-第一阶段包含：
+**⚠️ MVP 拆成两个明确版本（审计 A2-P0-4）**，避免第一版被企业微信授权 / 许可 / 客户联系拖死，也避免“MVP 到底是什么”前后不一致。两份验收清单见 §23。
+
+**MVP-A：可演示名片 MVP（不依赖企业微信授权）**
 
 - 小程序名片详情页。
-- 员工名片管理。
+- 员工手动建档 / 后台导入。
 - 企业品牌模板。
-- 小程序分享。
+- 小程序分享（会话 / 群 / 海报小程序码）。
 - 保存到通讯录。
 - 拨打电话。
 - 名片海报。
 - 基础访问统计。
-- 企业微信第三方应用授权与员工身份识别。
+
+**MVP-B：SaaS 商业 MVP（引入多租户与企业微信）**
+
+- 多租户与 tenant_id 隔离。
+- 企业微信第三方应用授权。
+- wx.qy.login 与 open_userid 身份识别。
 - 一人多企业身份切换。
+- 企业后台基础版。
+- 基础许可状态。
+
+先交付 MVP-A 证明分发价值，再进 MVP-B 打通 SaaS 与企业微信增强。
 
 第二阶段增强：
 
@@ -204,6 +217,8 @@ SaaS 后端
 
 - Node.js NestJS / Java Spring Boot / Go / Python FastAPI 均可。
 - 不绑定特定语言，核心是服务分层清晰。
+
+> ⚠️ 架构粒度（审计补充 A3-2）：§3 列出的 11 个 Service 是**逻辑模块**，M1–M4 建议以**模块化单体（modular monolith）单部署**落地，不要在 MVP 阶段拆成 11 个可独立部署的微服务。待流量与团队规模上来后，再按 Callback / Stats 等高吞吐模块优先拆分。过早微服务化会拖垮 3 人并行小组的交付节奏。
 
 数据库：
 
@@ -432,7 +447,9 @@ cards
 - id
 - tenant_id
 - member_identity_id
-- slug
+- public_id          -- 全局唯一公开 ID，用于所有公网分享（审计 A2-P0-1）
+- slug               -- 企业内自定义短名，仅租户内唯一
+- card_type          -- primary / recruiting / event / sales，MVP 仅 primary（审计 A2-P1-8）
 - display_name
 - title
 - phone_encrypted
@@ -440,7 +457,7 @@ cards
 - wechat_id_encrypted
 - intro
 - tags_json
-- links_json
+- links_json         -- 仅允许 https，入库审核，见 §11.4（审计 A2-P1-12）
 - template_id
 - privacy_json
 - contact_way_config_id
@@ -452,9 +469,12 @@ cards
 唯一键建议：
 
 ```text
-UNIQUE(tenant_id, slug)
-UNIQUE(member_identity_id)
+UNIQUE(public_id)                       -- 全局唯一，公网定位
+UNIQUE(tenant_id, slug)                 -- 租户内短名
+UNIQUE(member_identity_id, card_type)   -- 一身份每类型一张，MVP 即一张 primary
 ```
+
+**⚠️ 为什么需要 public_id（审计 A2-P0-1）**：`slug` 仅在租户内唯一，但公开接口 `GET /api/public/cards/{...}` 与分享链接在打开时**没有 tenant 上下文**，若只用 slug 会跨租户撞名、查错或被迫全表扫描破坏隔离。因此所有公网分享一律用全局唯一、不可枚举的 `public_id`（如 `pub_8k3h29x2`，非自增），`slug` 只留企业内部使用。
 
 ### 5.7 客户访客 visitor_account
 
@@ -534,6 +554,8 @@ UNIQUE(tenant_id, pending_id)
 
 注意：unionid 缺失时只能看到「当前 openid 已绑定」的身份；跨端完整身份列表需 unionid 到位后补全。
 
+身份选择体验（审计补充 A3-6）：多身份时默认进入 `account_preferences.last_member_identity_id`（无则 `default_member_identity_id`），选择器仅在用户主动切换时展示，不每次强弹。默认身份唯一性由 `account_preferences` 表保证，见 §15.3。
+
 身份选择器示例：
 
 ```text
@@ -551,21 +573,39 @@ UNIQUE(tenant_id, pending_id)
 
 ### 6.3 员工分享名片
 
-分享必须指向具体 card。
+分享必须指向具体 card，且**只暴露全局 public_id 与不可枚举的 share_id**，不暴露任何内部自增 ID（审计 A2-P0-2）。
 
 正确：
 
 ```text
-/pages/card/detail?card=8k3h29&from=identity_1024&channel=wx_session
+/pages/card/detail?card=pub_8k3h29x2&share=shr_a9K2mQ
 ```
 
 错误：
 
 ```text
 /pages/card/detail?account=1001
+/pages/card/detail?card=8k3h29&from=identity_1024&channel=wx_session
 ```
 
-原因：一个自然人可能有多张名片，客户打开后不能猜。
+原因：
+
+- 一个自然人可能有多张名片，客户打开后不能猜 → 必须带 `public_id`。
+- `from=identity_1024` 这类参数**暴露内部 member_identity_id、可枚举**，且客户端可随意篡改 `from` / `channel`，会污染来源统计、误导销售归因（与 §17.3「不暴露自增 ID」自相矛盾）。
+- 正确做法：来源由服务端签发 `share_id`（见 §15.3 `card_shares` 表），服务端凭 `share` 反查真实来源身份与渠道；客户端提交的 `channel` 仅作辅助，不作可信来源。
+
+**⚠️ 分享矩阵（审计补充 A3-7 / A3-8）**：小程序卡片**不能直接分享到朋友圈**，需覆盖多渠道：
+
+| 渠道 | 机制 | 备注 |
+|------|------|------|
+| 微信会话 / 群 | `onShareAppMessage`，携带 `card` + `share` | 标题/封面按名片个性化（姓名+公司） |
+| 朋友圈 | 小程序码海报图片 | 小程序不能直接转发朋友圈，只能发海报 |
+| 复制链接 / 短信 / 邮件 | H5 兜底页 `https://card.example.com/c/{public_id}` | 见 §30；微信内引导打开小程序 |
+| 线下 / 展会 | 海报小程序码 | scene 见下 |
+
+海报小程序码的 `scene` 参数**上限 32 字符**，不能塞 `card:{id}:member:{id}:channel:{}:nonce:{}` 长串；`scene` 只放短 `share_id`，服务端反查完整上下文。
+
+二次转发（A3-9）：客户再转发时生成派生 `share_id`（记录 `parent_share_id`），保持归因链完整，避免来源丢失。
 
 ---
 
@@ -614,11 +654,18 @@ UNIQUE(tenant_id, pending_id)
 客户点击“添加企业微信”
 → 显示该员工对应的联系我二维码或按钮
 → 客户主动添加
-→ 企业微信推送添加客户事件
-→ 后端处理回调
-→ 可发送欢迎语
+→ 企业微信推送添加客户事件（add_external_contact，含 welcome_code）
+→ 后端回调同步阶段仅快速返回，welcome_code 投递高优先级队列
+→ 欢迎语 worker 尽快发送（见下时间约束）
 → 尝试建立 external_userid 映射
 ```
+
+**⚠️ 欢迎语 welcome_code 约束（审计 A2-P1-1）**：
+
+- `welcome_code` 有效期约 **20 秒**且**一次性**，必须走高优先级队列，worker 目标 < 3s 完成，> 10s 告警。
+- 若企业**管理端已配置欢迎语**，回调不返回 welcome_code——此时不发，记录原因，不报错。
+- 无 welcome_code 的其它原因（权限不足 / 非本应用可见范围）分别记录。
+- 发送必须幂等：同一 welcome_code 只尝试一次，失败记 errcode，不在有效窗口外重试。
 
 ---
 
@@ -749,6 +796,18 @@ UNIQUE(event_key)
 
 每个员工可以有一个或多个联系我配置。
 
+**⚠️ 配置策略：禁止「每次访问动态创建」（审计 A2-P0-3）**
+
+企业微信「联系我」config 有**数量上限**，config_id 需持久保存（丢失可能无法编辑/删除），临时会话模式还有**每日数量限制**。若为每次分享/每张海报/每次点击动态建 config，会迅速撑爆配额并造成运维灾难。策略如下：
+
+```text
+默认 per_member_static：每个员工每个渠道最多一个长期 contact_way（名片页“添加企业微信”按钮用）。
+活动 per_campaign_static：每个活动/海报/展会渠道一个 contact_way（线下物料、投放用）。
+临时 temp_session：仅强来源追踪/短期活动/单人接待，必须经过配额检查（§15.3 api_quota_counters）。
+```
+
+对应约束：`UNIQUE(tenant_id, member_identity_id, strategy, channel)` 保证静态配置不重复生成（DDL 见 §15.3）。
+
 ```text
 contact_ways
 - id
@@ -776,11 +835,13 @@ contact_ways
 
 state 用于追踪来源。
 
-建议结构：
+**⚠️ state 必须是短 opaque token，不能是结构化长串（审计 A2-P0-3 / A3-8）**：
 
 ```text
-card:{card_id}:member:{member_identity_id}:channel:{channel}:nonce:{random}
+state = cwst_x7K2pQ9a        -- 不透明短 token
 ```
+
+不要把 `card:{card_id}:member:{member_identity_id}:...` 这类明文结构直接传给企业微信——它会**暴露内部 ID**，且海报小程序码 `scene` 上限 32 字符也放不下。服务端用短 token 反查下表：
 
 存储映射：
 
@@ -911,14 +972,14 @@ visitor_account_9001
 
 ### 11.3 字段隐私
 
-每张名片有 privacy_json：
+每张名片有 privacy_json。**⚠️ 默认保守（审计 A2-P1-5，升 P0）**：手机号等高敏字段默认**不**展示，避免试用期投诉与合规问题。
 
 ```json
 {
-  "show_mobile": true,
+  "show_mobile": false,
   "show_email": true,
   "show_wechat_id": false,
-  "show_wecom_contact": true,
+  "show_wecom_contact": false,
   "show_address": true
 }
 ```
@@ -930,6 +991,26 @@ visitor_account_9001
 - 是否允许员工自定义头像。
 - 是否需要审核后发布。
 - 是否允许外部访问名片。
+
+**⚠️ 展示优先级（审计 A2-P1-5）**——企业规则是硬边界，员工不能自行放开企业禁用的字段：
+
+```text
+最终展示 = 企业字段规则允许
+        AND 员工名片 privacy_json 允许
+        AND 字段本身存在
+        AND 名片状态 active
+```
+
+企业禁用某字段时，员工端只显示“企业不允许展示”，无法自行打开。任何返回该字段的接口（含 §14.3 `/vcard`）都必须走同一套判定。
+
+### 11.4 链接字段安全（审计 A2-P1-12）
+
+`links_json`（官网、案例、预约等）是员工可填内容，属品牌与平台审核风险面，必须约束：
+
+- 只允许 `https://`，入库时解析协议，拒绝 `javascript:`、`data:`、明文 `http`。
+- 后台维护企业级**允许域名白名单**；小程序内跳转外部网页需符合业务域名配置。
+- 禁止未展开的短链域名，或要求展开后审核。
+- `links_json` 每条增加 `review_status`（pending / approved / rejected），未通过不对外展示。
 
 ---
 
@@ -1171,18 +1252,27 @@ GET /api/employee/cards/current/stats
 ### 14.3 客户访问
 
 ```text
-GET /api/public/cards/{slug}
-公开读取名片
+GET /api/public/cards/{public_id}
+公开读取名片；仅返回按 §11.3 隐私判定后的公开字段
+首次加载同时下发 visit_token（短期有效，服务端签发）
 
-POST /api/public/cards/{slug}/visit
-记录访问
+POST /api/public/cards/{public_id}/visit
+记录访问；请求携带 share（来源归因由服务端反查，见 §6.3）
 
-POST /api/public/cards/{slug}/actions
-记录动作，例如 save_phone、call_phone、copy_email、add_wecom
+POST /api/public/cards/{public_id}/actions
+记录动作（save_phone/call_phone/copy_email/add_wecom）
+必须携带 visit_token；按 visit_id + action_type 短时幂等
 
-GET /api/public/cards/{slug}/vcard
-生成通讯录 vCard
+GET /api/public/cards/{public_id}/vcard
+生成通讯录 vCard；⚠️ 只输出隐私开关允许的字段，
+show_mobile=false 时 vCard 不得包含手机号（审计 A3-3）
 ```
+
+**⚠️ 埋点可信度（审计 A2-P1-10）**：公开接口无登录，客户端可伪造动作刷统计。所有公开路由改用 `public_id`（非租户内 slug，见 §5.6），并：
+
+- 详情页首次加载下发服务端签发的 `visit_token`，动作上报必须携带。
+- 统计标注 `trust_level`：`anonymous_client` / `session_verified` / `wecom_callback_verified`。
+- 只有企业微信回调产生的“客户添加成功”才计入**强可信转化**。统计口径见 §32。
 
 ### 14.4 客户联系
 
@@ -1501,6 +1591,168 @@ CREATE TABLE audit_logs (
 - 时间统一以 **UTC** 存储，展示层按企业时区转换；如用 MySQL 建议 `TIMESTAMP` 或应用层保证 UTC。
 - 所有含 PII 的加密字段（`*_encrypted`）采用信封加密（KMS 数据密钥），并**额外保留可检索的 `*_hash`（HMAC）列**用于去重 / 精确匹配查询，避免「加密后无法查询」的矛盾（见 §17.1）。
 
+### 15.3 v0.4 落地表与字段变更（审计 #02）
+
+**cards 字段变更（A2-P0-1 / A2-P1-8）：**
+
+```sql
+ALTER TABLE cards
+  ADD COLUMN public_id VARCHAR(32) NOT NULL AFTER member_identity_id,
+  ADD COLUMN card_type VARCHAR(32) NOT NULL DEFAULT 'primary',
+  ADD UNIQUE KEY uk_cards_public_id (public_id),
+  DROP INDEX uk_cards_identity,
+  ADD UNIQUE KEY uk_cards_identity_type (member_identity_id, card_type);
+```
+
+**分享归因表（A2-P0-2）：**
+
+```sql
+CREATE TABLE card_shares (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  card_id BIGINT NOT NULL,
+  member_identity_id BIGINT NOT NULL,
+  public_share_id VARCHAR(64) NOT NULL,   -- shr_xxx，对外
+  parent_share_id VARCHAR(64) NULL,       -- 二次转发归因链（A3-9）
+  channel VARCHAR(64) NULL,               -- 服务端记录的可信渠道
+  scene VARCHAR(64) NULL,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uk_public_share_id (public_share_id),
+  KEY idx_share_card (tenant_id, card_id),
+  KEY idx_share_member (tenant_id, member_identity_id)
+);
+```
+
+**联系我策略字段（A2-P0-3）：**
+
+```sql
+ALTER TABLE contact_ways
+  ADD COLUMN strategy VARCHAR(32) NOT NULL DEFAULT 'per_member_static',
+  ADD COLUMN campaign_id BIGINT NULL,
+  ADD COLUMN quota_policy_json JSON NULL,
+  ADD UNIQUE KEY uk_cw_static_member_channel (tenant_id, member_identity_id, strategy, channel);
+```
+
+**account openid 绑定与去重（A2-P1-2）：**
+
+```sql
+CREATE TABLE account_openid_bindings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  account_id BIGINT NOT NULL,
+  appid VARCHAR(64) NOT NULL,
+  openid VARCHAR(128) NOT NULL,
+  unionid VARCHAR(128) NULL,
+  bind_source VARCHAR(32) NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  UNIQUE KEY uk_app_openid (appid, openid),
+  KEY idx_unionid (unionid)
+);
+```
+
+account 合并规则：自动合并仅允许同一 `appid + openid`；unionid 冲突进入待合并队列，由用户确认或客服审核；合并需迁移 `account_identity_bindings`、登录态、偏好并留 audit log。
+
+**visitor 去重（A2-P1-3）：**
+
+```sql
+ALTER TABLE visitor_accounts
+  ADD COLUMN appid VARCHAR(64) NOT NULL AFTER id,
+  ADD UNIQUE KEY uk_visitor_app_openid (appid, wx_openid),
+  ADD UNIQUE KEY uk_visitor_unionid (wx_unionid);   -- 允许多 NULL；PG 用 partial index
+```
+
+**默认身份唯一性（A2-P1-4）：**
+
+```sql
+CREATE TABLE account_preferences (
+  account_id BIGINT PRIMARY KEY,
+  default_member_identity_id BIGINT NULL,
+  last_member_identity_id BIGINT NULL,
+  updated_at DATETIME NOT NULL
+);
+```
+
+**租户管理员（A2-P1-6）：**
+
+```sql
+CREATE TABLE tenant_admins (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  member_identity_id BIGINT NULL,
+  open_userid VARCHAR(128) NULL,
+  role VARCHAR(32) NOT NULL,          -- owner / admin / operator / auditor
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  UNIQUE KEY uk_tenant_admin_user (tenant_id, open_userid)
+);
+```
+
+管理端登录：企业管理员优先企业微信扫码 / OAuth 登录；平台管理员独立后台账号 + MFA；第一版不做纯密码式企业管理员登录。
+
+**客户归属（A2-P1-7）：**
+
+```sql
+CREATE TABLE tenant_customer_owners (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NOT NULL,
+  tenant_external_customer_id BIGINT NOT NULL,
+  owner_member_identity_id BIGINT NULL,
+  source_member_identity_id BIGINT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',  -- active / pending_transfer
+  assigned_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  KEY idx_owner_member (tenant_id, owner_member_identity_id)
+);
+```
+
+员工离职：名片停用、contact_way 停用、历史统计保留、客户所有权进入 `pending_transfer` 等待企业管理员或企业微信继承结果，**不自动跨企业迁移客户**。
+
+**接口配额计数（A2-P1-9，提前到 M3 前置）：**
+
+```sql
+CREATE TABLE api_quota_counters (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tenant_id BIGINT NULL,
+  api_name VARCHAR(128) NOT NULL,
+  window_type VARCHAR(32) NOT NULL,   -- minute / hour / day / month
+  window_start DATETIME NOT NULL,
+  count_used BIGINT NOT NULL DEFAULT 0,
+  limit_value BIGINT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  UNIQUE KEY uk_quota_window (tenant_id, api_name, window_type, window_start)
+);
+```
+
+企业微信 API 调用前先走本地 quota guard；接近阈值降级，不让客户链路报错；429 / 限频类 errcode 走指数退避。
+
+**suite 状态持久化（A2-P1-11）：**
+
+```sql
+CREATE TABLE wecom_suite_state (
+  suite_id VARCHAR(128) PRIMARY KEY,
+  suite_ticket_encrypted TEXT NULL,
+  suite_ticket_updated_at DATETIME NULL,
+  suite_access_token_encrypted TEXT NULL,
+  suite_access_token_expires_at DATETIME NULL,
+  updated_at DATETIME NOT NULL
+);
+```
+
+冷启动先读 DB 中未过期 suite_ticket 加载到 Redis，过期才进入等待并告警（改进 §8.3 纯 Redis 方案）。
+
+**card_actions 字段变更（A2-P1-10）：**
+
+```sql
+ALTER TABLE card_actions
+  ADD COLUMN share_id VARCHAR(64) NULL,
+  ADD COLUMN visit_id VARCHAR(64) NULL,
+  ADD COLUMN trust_level VARCHAR(32) NOT NULL DEFAULT 'anonymous_client',
+  ADD UNIQUE KEY uk_action_idem (visit_id, action_type);
+```
+
 ---
 
 ## 16. 权限与数据隔离
@@ -1512,6 +1764,12 @@ CREATE TABLE audit_logs (
 ```text
 WHERE tenant_id = 当前管理员所属企业
 ```
+
+**⚠️ 隔离必须在数据层强制，不能靠开发自觉（审计补充 A3-4）**：仅靠人工在每条 SQL 写 `WHERE tenant_id` 迟早会漏。要求：
+
+- ORM 层注入**全局租户 scope**（如请求上下文自动追加 tenant 条件），默认拒绝无 tenant 上下文的业务查询。
+- 数据库支持时启用**行级安全（RLS）** 作为第二道防线（PostgreSQL RLS / MySQL 视图或应用层）。
+- 编写自动化越权测试（§20.3）在 CI 常态运行，任何跨租户读写立即失败并告警。
 
 禁止：
 
@@ -1912,23 +2170,30 @@ WHERE tenant_id = 当前管理员所属企业
 
 ## 23. MVP 验收清单
 
-MVP 达成时，应满足：
+拆成两份清单，与 §1.2 MVP-A / MVP-B 对应，不再混用（审计 A2-P0-4）。
+
+### 23.1 MVP-A 验收（可演示名片，不依赖企业微信授权）
+
+- [ ] 员工可手动建档 / 后台导入生成一张名片。
+- [ ] 名片有全局唯一 public_id，公网可唯一定位。
+- [ ] 客户可微信打开名片（小程序卡片 / 海报小程序码）。
+- [ ] 客户不登录也能查看公开字段。
+- [ ] 客户可保存电话到通讯录、拨打电话。
+- [ ] 员工可转发小程序卡片，来源由 share_id 归因。
+- [ ] 名片海报可生成。
+- [ ] 有基础访问统计，动作埋点带 visit_token 与 trust_level。
+- [ ] 敏感字段有展示开关，手机号默认不展示。
+
+### 23.2 MVP-B 验收（SaaS 商业 MVP，引入多租户与企业微信）
 
 - [ ] 企业可以授权成为租户。
-- [ ] 员工从企业微信打开小程序可以识别身份。
-- [ ] 员工从微信打开小程序可以选择已绑定身份。
-- [ ] 一个自然人可以绑定多个企业身份。
-- [ ] 每个企业身份拥有独立名片。
-- [ ] 员工可以分享指定名片。
-- [ ] 客户可以微信打开名片。
-- [ ] 客户不登录也能查看公开字段。
-- [ ] 客户可以保存电话到通讯录。
-- [ ] 客户可以拨打电话。
-- [ ] 企业管理员只能管理本企业员工和名片。
-- [ ] A 企业看不到 B 企业数据。
-- [ ] 可选显示添加企业微信按钮。
-- [ ] 有基础访问统计。
-- [ ] 敏感字段有展示开关。
+- [ ] 员工从企业微信打开小程序可识别身份（open_userid）。
+- [ ] 员工从微信打开小程序可选择已绑定身份，默认进上次身份。
+- [ ] 一个自然人可以绑定多个企业身份，每个身份独立名片。
+- [ ] 企业管理员只能管理本企业员工和名片（数据层强制隔离）。
+- [ ] A 企业看不到 B 企业数据（越权测试通过）。
+- [ ] 可选显示添加企业微信按钮（按能力/许可降级）。
+- [ ] 基础许可状态可见。
 
 ---
 
@@ -2087,4 +2352,148 @@ business-card-saas/
 | D-P2-4 海报生成/SSRF | P2 | §17.3 | 待实现阶段细化 |
 | D-P2-5 接口配额管理 | P2 | §13.9 | 待实现阶段细化 |
 | D-P2-6 测试 CI/覆盖率 | P2 | §20 | 待实现阶段细化 |
-| D-P2-7 一身份一名片张力 | P2 | §5.6 | 设计决策，M5 前复核 |
+| D-P2-7 一身份一名片张力 | P2 | §5.6, §15.3 | 已补 card_type |
+
+### 29.1 v0.4 对照（落地性审计 audit_02 + 交叉复核）
+
+| 审计 ID | 级别 | 处理位置 | 状态 |
+|---------|------|----------|------|
+| A2-P0-1 public_id 唯一定位 | P0 | §5.6, §14.3, §15.3 | 已补 |
+| A2-P0-2 share_id 归因/不暴露内部 ID | P0 | §6.3, §15.3 | 已补 |
+| A2-P0-3 联系我配置策略/opaque token | P0 | §9.1, §9.2, §15.3 | 已补 |
+| A2-P0-4 MVP-A/MVP-B 边界拆分 | P0 | §1.2, §23 | 已补 |
+| A2-P1-1 欢迎语 welcome_code 调度 | P1 | §7.3 | 已补 |
+| A2-P1-2 account openid 唯一/合并 | P1 | §15.3 | 已补 |
+| A2-P1-3 visitor 去重约束 | P1 | §15.3 | 已补 |
+| A2-P1-4 默认身份唯一性 | P1 | §6.2, §15.3 | 已补 |
+| A2-P1-5 隐私默认收紧+优先级（升 P0） | P0 | §11.3 | 已补 |
+| A2-P1-6 tenant_admins | P1 | §15.3 | 已补 |
+| A2-P1-7 客户归属模型 | P1 | §13.3, §15.3 | 已补 |
+| A2-P1-8 card_type | P1 | §5.6, §15.3 | 已补 |
+| A2-P1-9 配额前置到 M3 | P1 | §15.3 | 已补 |
+| A2-P1-10 埋点 visit_token/trust_level | P1 | §14.3, §15.3 | 已补 |
+| A2-P1-11 suite_ticket 落库 | P1 | §8.3, §15.3 | 已补 |
+| A2-P1-12 links_json URL 安全 | P1 | §11.4 | 已补 |
+| A2-P2-1 备份/灾备 RPO/RTO | P2 | §31 | 已补 |
+| A2-P2-2 海报生成方案 | P2 | §31 | 已补 |
+| A2-P2-3 上线前置清单 | P2 | §31 | 已补 |
+| A2-P2-4 audit_logs 结构化 | P2 | §31 | 已补 |
+| A2-P2-5 统计口径 | P2 | §32 | 已补 |
+| A2-P2-6 环境与发布策略 | P2 | §31 | 已补 |
+| A2-P2-7 H5 兜底页 | P2 | §30 | 已补 |
+| A3-1 缓存/CDN 失效 | P1 | §32 | 已补 |
+| A3-2 架构粒度（模块化单体） | P2 | §3 | 已补 |
+| A3-3 vcard 隐私一致 | P1 | §14.3 | 已补 |
+| A3-4 隔离数据层强制/RLS | P1 | §16.1 | 已补 |
+| A3-5 授权失效/离职降级 UX | P1 | §30 | 已补 |
+| A3-6 身份选择器默认 | P2 | §6.2 | 已补 |
+| A3-7 分享矩阵（朋友圈/群） | P1 | §6.3, §30 | 已补 |
+| A3-8 小程序码 scene 32 限制 | P1 | §6.3, §9.2 | 已补 |
+| A3-9 二次转发归因 | P2 | §6.3, §15.3 | 已补 |
+
+---
+
+## 30. 分享与公开访问模型（审计 A2-P0-1/2、A3-5/7）
+
+### 30.1 标识分层
+
+- `public_id`：全局唯一、不可枚举，所有公网分享与公开接口的唯一入口。
+- `slug`：仅租户内唯一，企业内部自定义短名，不用于公网定位。
+- `share_id`：服务端签发的来源归因票据，客户端不可伪造；支持 `parent_share_id` 派生链。
+- 内部自增 `id`、`member_identity_id` **绝不出现在任何对外 URL / state / scene**。
+
+### 30.2 分享渠道矩阵
+
+见 §6.3 表格：会话/群走 `onShareAppMessage`，朋友圈走海报小程序码，短信/邮件/浏览器走 H5 兜底页，线下走海报小程序码（scene 仅放短 share_id）。
+
+### 30.3 H5 兜底页
+
+```text
+https://card.example.com/c/{public_id}
+```
+
+- 微信内打开：引导跳转小程序（主路径）。
+- 普通浏览器打开：展示基础名片（公开字段 + 保存 vCard + 拨打），不含需授权动作。
+- 遵守同一套隐私判定（§11.3）。
+
+### 30.4 异常态与降级 UX（审计 A3-5）
+
+客户打开旧分享链接时，服务端可能遇到名片停用 / 员工离职 / 企业取消授权，必须有友好态而非报错：
+
+| 情况 | 展示 |
+|------|------|
+| 名片已停用 | “该名片已停用”，可选跳企业公开主页 |
+| 员工离职 | “该员工已离开，可联系企业”，隐藏加企微入口 |
+| 企业取消授权 | 保留 MVP-A 基础名片只读，隐藏企业微信增强动作 |
+| public_id 不存在 | 统一“名片不存在或已删除” |
+
+---
+
+## 31. 上线前置、发布与灾备（审计 A2-P2-1/2/3/4/6）
+
+### 31.1 上线前置清单
+
+- 小程序主体认证；类目适配（企业服务 / 效率 / 商业服务等需确认）。
+- 服务器域名、业务域名、downloadFile 域名配置；HTTPS、ICP 备案、公安备案按域名要求处理。
+- 隐私协议与用户协议上线（呼应 §26）。
+- 企业微信服务商账号、第三方应用、指令/数据回调 URL、客户联系权限申请。
+- 若用「联系我」按钮而非二维码，确认小程序插件接入要求。
+
+### 31.2 环境与发布
+
+- dev / staging / production 三套环境，企业微信回调 URL 分环境。
+- 小程序体验版 / 预览版 / 正式版分离。
+- 数据库迁移工具管理 schema 变更。
+- 灰度发布与回滚；Feature flag 独立开关：`contact_way`、`welcome_msg`、`external_mapping`。
+
+### 31.3 备份与灾备
+
+```text
+RPO：≤ 15 分钟        RTO：≤ 4 小时
+数据库：每日全量 + 15 分钟增量 binlog
+对象存储：版本控制 + 生命周期
+密钥：KMS 托管，不导出明文
+```
+
+定期灾难恢复演练；版本回滚流程文档化。
+
+### 31.4 海报生成
+
+- M1 优先小程序端 Canvas 生成，减少服务端 SSRF 面。
+- 服务端生成时只读对象存储白名单资源。
+- 图片上传统一转码、压缩、去 EXIF。
+- 生成任务幂等键 `card_id + template_id + version_hash`；配失败重试与死信队列。
+
+### 31.5 审计日志结构化
+
+`audit_logs.detail_json` 标准化，敏感字段只记 hash / 掩码：
+
+```json
+{ "before": {}, "after": {}, "reason": "", "request_id": "", "operator_ip_hash": "" }
+```
+
+---
+
+## 32. 统计口径与缓存一致性（审计 A2-P2-5、A3-1）
+
+### 32.1 统计口径定义
+
+无统一口径，数据看板必然产生争议。定义：
+
+```text
+PV：每次名片页展示。
+UV：同 openid / unionid / anonymous_fingerprint 去重访客。
+保存电话：wx.addPhoneContact 成功回调才计 strong action。
+拨打电话：点击拨号按钮，仅算意向动作。
+添加企微：仅企业微信 add_external_contact 回调才算成功转化。
+trust_level：anonymous_client < session_verified < wecom_callback_verified，看板按可信度分层展示。
+```
+
+### 32.2 缓存与 CDN 一致性（审计 A3-1）
+
+名片公开读是最热路径，必须定义失效策略，避免员工改名片后 CDN 仍返回旧数据：
+
+- `cards` 增加内容版本号 / `updated_at` 参与缓存 key 或 ETag。
+- 名片编辑、停用、模板变更后**主动失效** CDN / 应用缓存对应 public_id。
+- 公开读缓存设合理 TTL + 主动失效双保险；强一致字段（如停用状态）不长缓存。
+- 海报等派生资源随 `version_hash` 变更失效。
