@@ -9,6 +9,8 @@
 >
 > v0.4 变更说明：吸收落地性深度审计（`docs/audits/audit_02_dev-doc-v0.3-landability.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
 >
+> v0.4.4 变更说明：**docs/ 按类目分子目录治理**。本主文档移至 `docs/architecture/`；新增 `docs/README.md` 索引与治理规范、`guides/ product/ ops/ compliance/ audits/` 类目；更新 §24 仓库结构。
+>
 > v0.4.3 变更说明：**技术栈全面选定并去歧义**。后端选定 Node.js 20 LTS + TypeScript + NestJS；对象存储腾讯云 COS、队列 BullMQ、加密腾讯云 KMS 等散落多选项一律收敛为单一选定；新增 **§33 技术栈与工程决策（单一事实源）**，实现期不再重新选型。见 §3.1、§17.1、§33。
 >
 > v0.4.2 变更说明：**数据库选定 PostgreSQL（面向企业级）**。全部 DDL 转 PostgreSQL 方言（`BIGSERIAL` / `TIMESTAMPTZ` / `JSONB` / `BOOLEAN`、可空列部分唯一索引、独立 `CREATE INDEX`、RLS 租户隔离），DDL 约定见 §15.0；顺带修正 `contact_ways` 静态唯一约束缺 `channel` 列的隐患。见 §3.1。
@@ -2253,12 +2255,20 @@ MVP（M1 闭环骨架）达成时，应满足**单条端到端闭环全部打通
 ```text
 business-card-saas/
   README.md
-  docs/
-    wecom-business-card-saas-dev-doc.md
-    api.md
-    database.md
-    wecom-integration.md
-    mini-program-pages.md
+  docs/                         # 按类目分子目录，禁止平铺堆放（治理规范见 docs/README.md）
+    README.md                   # 文档总索引 + 命名/版本/归属规范
+    architecture/               # 架构与技术决策（本主文档、未来 ADR）
+      wecom-business-card-saas-dev-doc.md
+    guides/                     # 开发执行指引
+      wecom-integration.md
+      database.md
+      api-spec.md
+      miniprogram-guide.md
+      admin-web-guide.md
+    product/                    # 产品（PRD、需求、原型说明）
+    ops/                        # 运维（部署、环境、灾备、监控、上线清单）
+    compliance/                 # 合规（PIPL、隐私政策、用户协议、SDK 清单）
+    audits/                     # 审计报告
   apps/
     mini-program/
     admin-web/
@@ -2272,6 +2282,8 @@ business-card-saas/
   scripts/
   tests/
 ```
+
+> 文档治理：`docs/` 一律按上述类目分子目录，**不得在 `docs/` 根平铺散放**（除 `README.md` 索引）。每份文档单一归属、单一事实源，主文档只保留决策与指针、不复制执行细节。详见 `docs/README.md`。
 
 ---
 
