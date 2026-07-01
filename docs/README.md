@@ -25,7 +25,7 @@
 | 文档 | 内容 |
 |------|------|
 | [`00_01_Dev_Doc.md`](00-core/00_01_Dev_Doc.md) | 主开发文档：架构、身份模型、DDL(§15)、里程碑、技术栈决策(§33)、审计对照 —— **全项目事实源** |
-| [`00_02_Database_Schema.md`](00-core/00_02_Database_Schema.md) | 迁移顺序、RLS 策略、ER、枚举取值、索引口径（表定义仍以 §15 为准） |
+| [`00_02_Database_Schema.md`](00-core/00_02_Database_Schema.md) | 迁移顺序、RLS 策略（含跨租户敏感绑定表与 public_card_directory）、外键策略、ER、枚举取值、索引口径（表定义仍以 §15/§15.4 为准） |
 
 ### 01-specs（功能规格 / 执行指引）
 
@@ -42,9 +42,15 @@
 |------|------|
 | [`03_01_PIPL.md`](03-compliance/03_01_PIPL.md) | 个人信息保护：告知同意、主体权利、留存最小化、SDK/出境、上线验收清单（扩展 §26） |
 
+### 02-tasks（任务执行）
+
+| 文档 | 内容 |
+|------|------|
+| [`02_00_M0_Platform_Verification.md`](02-tasks/02_00_M0_Platform_Verification.md) | M0 平台接入 + 企业微信关键接口实测 Spike（M1 开工门槛，扩展 §19；审计 A4-P0-5） |
+| [`02_01_M1_Walking_Skeleton.md`](02-tasks/02_01_M1_Walking_Skeleton.md) | M1 垂直切片阻塞项与验收（扩展 §19/§23） |
+
 > 后续待建（进入对应线时，不提前、不复制正文）：
 > `88-planning/`（产品愿景/路线图/商业化/部署运维）、
-> `02-tasks/`（里程碑任务拆分，扩展 §19/§21）、
 > `03-compliance/03_02_SDK_Inventory.md`。
 
 ### 99-audits（审计）
@@ -54,6 +60,8 @@
 | [`99_01_Design_Audit.md`](99-audits/99_01_Design_Audit.md) | 设计审计（原 audit_01） |
 | [`99_02_Landability_Audit.md`](99-audits/99_02_Landability_Audit.md) | 落地性深度审计（原 audit_02） |
 | [`99_03_Docs_Split_Audit.md`](99-audits/99_03_Docs_Split_Audit.md) | 文档拆分一致性审计 |
+| [`99_04_Implementation_Readiness_Audit.md`](99-audits/99_04_Implementation_Readiness_Audit.md) | 实施就绪深度审计（P0/P1/P2） |
+| [`99_05_Verification_And_New_Findings.md`](99-audits/99_05_Verification_And_New_Findings.md) | 核验 #04 + 新发现（N-1/N-2）；修复见 §15.4 |
 
 ## 建议阅读顺序
 

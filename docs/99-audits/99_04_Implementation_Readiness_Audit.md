@@ -16,6 +16,8 @@
 审计类型：实施就绪 / 多租户安全 / 企业微信关键链路 / PostgreSQL RLS / 技术栈生命周期 / 合规边界  
 结论等级：**可以进入 M0/M1 预研与脚手架阶段，但不建议直接进入完整 M1 编码。先修 P0，再开主干开发。**
 
+> ✅ **修复状态（2026-07-01，v0.4.6）**：本报告 P0 全部 + P1/P2 全部已落地文档。修复清单与位置见 [`99_05_Verification_And_New_Findings.md`](99_05_Verification_And_New_Findings.md) §5「修复落地」。核心：Node 24 / PG 17+ / WAL-PITR（§3.1/§33/§31.3）、`public_card_directory`（§15.4）、account 绑定表 RLS 分级（§15.4 / DB 指引 §2）、`contact_ways.channel` NOT NULL + active 部分唯一（§15.3）、关键外键 Plan A（§15.4）、软删除部分唯一（§15.4）、owner bootstrap（§15.4）、visit_token 契约（§14.6）、growth_leads 双角色（PIPL §1 + §15.3 字段）、Prisma RLS 事务硬约束（§33.2）、API 路径收口（§14）。
+
 ---
 
 ## 0. 总体判断

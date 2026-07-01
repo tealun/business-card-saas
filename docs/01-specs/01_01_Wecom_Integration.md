@@ -316,6 +316,8 @@ welcome_code 约束（§7.3）：20s/一次性;管理端已配欢迎语则不返
 
 ## 待核对（实现前对官方文档确认，确认后回改本文件）
 
+> ⚠️ 审计 A4-P0-5：以下不是普通实现细节，而是 M1 闭环的前置事实。已提升为 **M0 阻塞任务**，官方接口实测 Spike 见 [`../02-tasks/02_00_M0_Platform_Verification.md`](../02-tasks/02_00_M0_Platform_Verification.md)；该文件完成前 M1 企业微信部分不得开工。
+
 - 各接口精确入参/返回字段与最新版本。
 - 第三方小程序 `jscode2session` 返回是否含 `open_userid`、`session_key` 有效期。
 - `unionid_to_external_userid` 对「同一开放平台主体」与客户联系权限的确切要求。

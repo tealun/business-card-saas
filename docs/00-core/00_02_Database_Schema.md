@@ -8,7 +8,7 @@
 
 ## 1. 迁移顺序（按依赖，Prisma Migrate）
 
-无数据库级外键（多租户 + 软删除下用应用层/触发器约束），但建表与初始化按逻辑依赖分批：
+外键策略（审计 A4-P1-4，方案 A）：M1 对关键关系启用**复合外键**（父表先建 `(tenant_id, id)` 唯一键），防孤儿数据与跨租户错配；软删除用 `deleted_at`，FK 不做级联删除。流量上来后再评估是否拆除；若拆除必须补 invariant validator + CI 完整性测试 + orphan scanner + 后台健康检查（FK 清单见主文档 §15.4）。建表与初始化按逻辑依赖分批：
 
 ```text
 批次1 基础：accounts, tenants, wecom_suite_state
@@ -17,8 +17,8 @@
 批次4 访客/客户：visitor_accounts, tenant_external_customers, tenant_customer_owners
 批次5 行为/分享：card_visits, card_actions, card_shares
 批次6 联系我/许可/配额：contact_ways, contact_way_states, licenses, api_quota_counters
-批次7 系统：audit_logs, callback_events, growth_leads
-批次8 §15.3 变更：cards(public_id/card_type)、contact_ways(strategy/channel)、visitor_accounts(appid)、card_actions(share_id/visit_id/trust_level) —— 若为全新库可并入建表
+批次7 系统：audit_logs, callback_events, growth_leads, public_card_directory, admin_claim_tokens
+批次8 §15.3/§15.4 变更：cards(public_id/card_type)、contact_ways(strategy/channel NOT NULL)、visitor_accounts(appid)、card_actions(share_id/visit_id/trust_level)、关键外键、软删除部分唯一索引 —— 若为全新库可并入建表
 ```
 
 > 建议全新库直接以最终形态建表（含 §15.3 字段），批次8 仅用于存量演进。
@@ -39,7 +39,9 @@ CREATE POLICY tenant_isolation ON cards
 - 应用鉴权中间件在事务内 `SET LOCAL app.tenant_id = <当前租户>`；业务代码**禁止手写 `WHERE tenant_id`**（§16.1）。
 - 平台级作业（跨租户运维）用**独立角色 + `BYPASSRLS`**，仅限审计通过的后台任务，默认应用角色不得 bypass。
 - 无租户上下文的连接默认查不到任何租户数据（默认拒绝）。
-- `audit_logs`、`api_quota_counters`、`growth_leads`、`callback_events`、`wecom_suite_state`、`accounts`、`account_*` 为平台/跨租户表，不启用租户 RLS，改由应用鉴权控制。
+- `audit_logs`、`api_quota_counters`、`growth_leads`、`callback_events`、`wecom_suite_state`、`accounts`、`admin_claim_tokens` 为平台/跨租户表，不启用租户 RLS，改由应用鉴权控制。
+- **跨租户敏感绑定表（审计 A4-P0-2）**：`account_identity_bindings` 记录「一人绑定多家企业身份」，**不能**笼统归为非 RLS 平台表。它启用 RLS 并支持两类上下文——租户上下文 `USING (tenant_id = current_setting('app.tenant_id', true)::bigint)` 与个人上下文 `USING (account_id = current_setting('app.account_id', true)::bigint)`；`account_preferences` 只允许 `account_id = current_setting('app.account_id')` 访问，租户管理员不得直接访问（策略见主文档 §15.4）。
+- **公开目录表（审计 A4-P0-1）**：`public_card_directory` 是不含 PII 的全局解析表，**不启用租户 RLS**（公开访问开始时无 tenant 上下文）；public service role 只能查该表并执行公开读取流程，不给 `BYPASSRLS`、不得任意跨租户查业务表。
 
 ## 3. ER 概览
 
@@ -61,7 +63,7 @@ erDiagram
   tenant_external_customers ||--o{ tenant_customer_owners : owned_by
 ```
 
-（关系为逻辑关系，非数据库外键；一身份一主名片 = `UNIQUE(member_identity_id, card_type)`。）
+（多数关系为逻辑关系；其中 cards/card_visits/contact_ways 等**关键关系在 M1 用复合外键**落地，见 §1 与主文档 §15.4。一身份一主名片 = 部分唯一索引 `uk_cards_identity_type_active ON cards(member_identity_id, card_type) WHERE deleted_at IS NULL`。）
 
 ## 4. 枚举 / 状态取值目录
 
