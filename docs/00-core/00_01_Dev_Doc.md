@@ -712,6 +712,8 @@ UNIQUE(tenant_id, pending_id)
 
 ## 8. 企业微信第三方应用接入
 
+> 📎 执行细节（凭据体系、双回调时序、授权闭环、wx.qy.login、通讯录同步、客户映射、错误/配额、任务拆分）见执行指引 [`../01-specs/01_01_Wecom_Integration.md`](../01-specs/01_01_Wecom_Integration.md)。本章仅保留架构决策与要点。
+
 ### 8.1 服务商侧准备
 
 需要准备：
