@@ -53,6 +53,7 @@
 |------|------|
 | [`99_01_Design_Audit.md`](99-audits/99_01_Design_Audit.md) | 设计审计（原 audit_01） |
 | [`99_02_Landability_Audit.md`](99-audits/99_02_Landability_Audit.md) | 落地性深度审计（原 audit_02） |
+| [`99_03_Docs_Split_Audit.md`](99-audits/99_03_Docs_Split_Audit.md) | 文档拆分一致性审计 |
 
 ## 建议阅读顺序
 
