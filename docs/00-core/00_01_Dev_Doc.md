@@ -969,6 +969,8 @@ visitor_account_9001
 
 ## 11. 名片详情页设计
 
+> 📎 小程序页面/路由/分享/状态降级执行细节见 [`../01-specs/01_03_Miniprogram_Guide.md`](../01-specs/01_03_Miniprogram_Guide.md)。
+
 ### 11.1 信息结构
 
 第一屏：
@@ -1104,6 +1106,8 @@ visitor_account_9001
 ```
 
 ### 12.3 管理端页面
+
+> 📎 后台登录/RBAC/页面/隔离执行细节见 [`../01-specs/01_04_Admin_Web_Guide.md`](../01-specs/01_04_Admin_Web_Guide.md)。
 
 管理端建议使用 Web 后台，而不是强行塞进小程序。
 
@@ -1257,6 +1261,8 @@ visitor_account_9001
 
 ## 14. API 草案
 
+> 📎 完整接口契约（路径、鉴权、请求/响应、错误码、分页）见 [`../01-specs/01_02_Api_Spec.md`](../01-specs/01_02_Api_Spec.md)。
+
 ### 14.1 登录相关
 
 ```text
@@ -1360,6 +1366,8 @@ GET /api/admin/stats/overview
 ## 15. 数据库核心表 DDL 草案
 
 以下为草案（**PostgreSQL 方言**），实际开发时按迁移工具细化。
+
+> 📎 迁移顺序、RLS 策略、ER、枚举取值、索引口径见 [`../00-core/00_02_Database_Schema.md`](../00-core/00_02_Database_Schema.md)。本章为表定义 DDL 事实源。
 
 ### 15.0 PostgreSQL 约定
 
@@ -2301,6 +2309,8 @@ business-card-saas/
 ## 26. 合规与个人信息保护（PIPL）（审计 D-P0-4）
 
 本系统处理手机号、邮箱、微信号、客户 external_userid、访客行为埋点等个人信息，面向中国境内企业运营，**必须满足《个人信息保护法》(PIPL) 与微信 / 企业微信平台规范**，否则不可上线。
+
+> 📎 合规执行细节（同意、主体权利、留存、SDK、出境、上线验收清单）见 [`../03-compliance/03_01_PIPL.md`](../03-compliance/03_01_PIPL.md)。
 
 ### 26.1 告知与同意
 
