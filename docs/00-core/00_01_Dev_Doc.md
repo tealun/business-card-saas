@@ -5,11 +5,11 @@
 文档定位：产品技术方案 / 架构设计草案 / 研发启动文档  
 适用对象：产品负责人、技术负责人、后端、前端、小程序、测试、运维、企业微信服务商配置人员
 
-> v0.3 变更说明：依据设计审计（`docs/audits/audit_01_dev-doc.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 26 章。
+> v0.3 变更说明：依据设计审计（`docs/99-audits/99_01_Design_Audit.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 26 章。
 >
-> v0.4 变更说明：吸收落地性深度审计（`docs/audits/audit_02_dev-doc-v0.3-landability.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
+> v0.4 变更说明：吸收落地性深度审计（`docs/99-audits/99_02_Landability_Audit.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
 >
-> v0.4.4 变更说明：**docs/ 按类目分子目录治理**。本主文档移至 `docs/architecture/`；新增 `docs/README.md` 索引与治理规范、`guides/ product/ ops/ compliance/ audits/` 类目；更新 §24 仓库结构。
+> v0.4.5 变更说明：**docs/ 参考 moread 编号体系重构**。采用 `00-core / 01-specs / 02-tasks / 03-compliance / 88-planning / 99-audits / design` + `NN_MM_Title` 命名。本主文档移至 `docs/00-core/00_01_Dev_Doc.md`；审计移至 `docs/99-audits/99_01_Design_Audit.md`、`99_02_Landability_Audit.md`；`docs/README.md` 重写为索引 + 目录约定 + 维护规则；更新 §24 仓库结构。
 >
 > v0.4.3 变更说明：**技术栈全面选定并去歧义**。后端选定 Node.js 20 LTS + TypeScript + NestJS；对象存储腾讯云 COS、队列 BullMQ、加密腾讯云 KMS 等散落多选项一律收敛为单一选定；新增 **§33 技术栈与工程决策（单一事实源）**，实现期不再重新选型。见 §3.1、§17.1、§33。
 >
@@ -2255,20 +2255,16 @@ MVP（M1 闭环骨架）达成时，应满足**单条端到端闭环全部打通
 ```text
 business-card-saas/
   README.md
-  docs/                         # 按类目分子目录，禁止平铺堆放（治理规范见 docs/README.md）
-    README.md                   # 文档总索引 + 命名/版本/归属规范
-    architecture/               # 架构与技术决策（本主文档、未来 ADR）
-      wecom-business-card-saas-dev-doc.md
-    guides/                     # 开发执行指引
-      wecom-integration.md
-      database.md
-      api-spec.md
-      miniprogram-guide.md
-      admin-web-guide.md
-    product/                    # 产品（PRD、需求、原型说明）
-    ops/                        # 运维（部署、环境、灾备、监控、上线清单）
-    compliance/                 # 合规（PIPL、隐私政策、用户协议、SDK 清单）
-    audits/                     # 审计报告
+  docs/                         # 参考 moread 编号体系；禁止平铺散放（治理见 docs/README.md）
+    README.md                   # 文档索引 + 目录约定 + 命名/维护规范
+    00-core/                    # 核心技术文档
+      00_01_Dev_Doc.md          # 本主文档（事实源）
+    01-specs/                   # 功能规格 / 开发执行指引（wecom-integration、api-spec…）
+    02-tasks/                   # 任务执行记录与计划（里程碑拆分、Deferred）
+    03-compliance/              # 合规（PIPL、隐私政策、SDK 清单）
+    88-planning/                # 中长期规划（愿景、路线图、商业化、部署运维、灾备）
+    99-audits/                  # 审计报告（99_NN_<desc>.md）
+    design/                     # 设计交付与素材
   apps/
     mini-program/
     admin-web/
@@ -2394,7 +2390,7 @@ business-card-saas/
 
 ## 29. 审计对照表
 
-本文档 v0.3 依据设计审计（`docs/audits/audit_01_dev-doc.md`）修订，逐条对照：
+本文档 v0.3 依据设计审计（`docs/99-audits/99_01_Design_Audit.md`）修订，逐条对照：
 
 | 审计 ID | 级别 | 处理位置 | 状态 |
 |---------|------|----------|------|
