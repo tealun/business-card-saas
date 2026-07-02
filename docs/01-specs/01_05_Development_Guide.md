@@ -33,6 +33,7 @@ npm run typecheck
 npm test
 npm run lint
 npm run prisma:validate
+npm run rls:validate
 npm audit --omit=dev
 ```
 

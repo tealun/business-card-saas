@@ -12,7 +12,8 @@
     "test": "jest --runInBand",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:validate": "node scripts/prisma-validate.cjs"
+    "prisma:validate": "node scripts/prisma-validate.cjs",
+    "rls:validate": "node scripts/validate-rls.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.27",
