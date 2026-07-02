@@ -9,7 +9,8 @@ const tenantTables = [
   "member_identities",
   "card_visits",
   "card_actions",
-  "card_shares"
+  "card_shares",
+  "tenant_admins"
 ];
 
 const accountTables = ["account_preferences"];

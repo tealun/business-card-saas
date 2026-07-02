@@ -21,7 +21,7 @@
 | 5 | 员工名片读取/更新（01_02 §3.2） | | ◐ 当前读取 + 分享签发完成 |
 | 6 | 公开访问：public_card_directory 解析 public_id → RLS 查 cards → 隐私判定输出 | A4-P0-1 | ◐ demo 公开读取完成 |
 | 7 | `visit_token` 签发与动作幂等（§14.6） | A4-P1-7 | ◐ 内存骨架完成 |
-| 8 | owner bootstrap 最小闭环（§15.4） | A4-P1-5 | ☐ |
+| 8 | owner bootstrap 最小闭环（§15.4） | A4-P1-5 | ◐ 模型/迁移/服务骨架完成 |
 
 ## 当前落地记录
 
@@ -32,6 +32,7 @@
 - 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等。
 - 已生成 `backend/prisma/migrations/000001_m1_core/migration.sql`，覆盖 M1 core 表、`public_card_directory`、访问/动作/分享归因字段、关键唯一索引与外键；真实 PostgreSQL apply/rollback 验证待数据库容器接入。
 - 已补 `TenantTx` 单测，验证事务内先注入 `app.tenant_id` / `app.account_id` 再执行查询；已补 `npm run rls:validate`，静态校验 RLS SQL 必须使用 `current_setting(..., true)` 且 `public_card_directory` 不启用租户 RLS。真实 A/B 租户数据库越权测试待 PostgreSQL 测试库接入。
+- 已补 `tenant_admins` / `admin_claim_tokens` Prisma 模型与 `000002_owner_bootstrap` 迁移；`tenant_admins` 纳入 RLS 静态校验。已实现 owner bootstrap 服务骨架：拿到 `open_userid` 时创建首个 owner，拿不到时生成短期一次性 claim token（只持久化 hash）。真实企业微信 OAuth 绑定入口待 M0 凭据与后台登录页接入。
 
 ## 验收标准（对齐主文档 §23）
 

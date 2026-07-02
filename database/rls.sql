@@ -21,6 +21,10 @@ ALTER TABLE card_shares ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_card_shares ON card_shares
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+ALTER TABLE tenant_admins ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_tenant_admins ON tenant_admins
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
 ALTER TABLE account_identity_bindings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY aib_tenant_ctx ON account_identity_bindings
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
