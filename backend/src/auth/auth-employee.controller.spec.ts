@@ -87,4 +87,43 @@ describe("Auth and employee card flow", () => {
     expect(share.path).toContain(`card=${share.public_id}`);
     expect(share.path).toContain(`share=${share.share_id}`);
   });
+
+  it("updates the current employee card fields and privacy", async () => {
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/qy-login",
+      payload: { code: "demo-qy-code" }
+    });
+    const login = JSON.parse(loginResponse.body) as { access_token: string };
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: "/api/v1/employee/cards/current",
+      headers: { authorization: `Bearer ${login.access_token}` },
+      payload: {
+        display_name: "Updated Demo Employee",
+        title: "Account Director",
+        fields: {
+          email: "updated@example.com"
+        },
+        privacy: {
+          show_mobile: true
+        }
+      }
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    const updated = JSON.parse(updateResponse.body) as {
+      display_name: string;
+      title: string;
+      fields: { email: string; mobile: string };
+      privacy: { show_mobile: boolean; show_email: boolean };
+    };
+    expect(updated.display_name).toBe("Updated Demo Employee");
+    expect(updated.title).toBe("Account Director");
+    expect(updated.fields.email).toBe("updated@example.com");
+    expect(updated.fields.mobile).toBe("13800000000");
+    expect(updated.privacy.show_mobile).toBe(true);
+    expect(updated.privacy.show_email).toBe(true);
+  });
 });
