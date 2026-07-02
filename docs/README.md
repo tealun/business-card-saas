@@ -35,6 +35,7 @@
 | [`01_02_Api_Spec.md`](01-specs/01_02_Api_Spec.md) | 接口契约：路径、鉴权、请求/响应、错误码、分页（扩展 §14/§28） |
 | [`01_03_Miniprogram_Guide.md`](01-specs/01_03_Miniprogram_Guide.md) | 小程序：环境/登录、页面路由、分享矩阵、详情页、状态降级、埋点（扩展 §6/§7/§11/§12/§30） |
 | [`01_04_Admin_Web_Guide.md`](01-specs/01_04_Admin_Web_Guide.md) | 管理后台：登录鉴权、RBAC、页面清单、隔离约束（扩展 §12.3/§16/§15.3） |
+| [`01_05_Development_Guide.md`](01-specs/01_05_Development_Guide.md) | 开发执行指引：仓库结构、脚手架习惯、验证命令、部署边界、文档同步规则 |
 
 ### 03-compliance（合规）
 

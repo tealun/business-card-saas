@@ -28,7 +28,7 @@
 
 ## 3. 接口清单（契约）
 
-> R=请求关键字段，S=响应关键字段。完整 schema 由 Zod 定义并生成类型至 `packages/shared-types`。
+> R=请求关键字段，S=响应关键字段。完整 schema 由 Zod 定义；M1 阶段先落在 `backend/src/contracts`，小程序 / 后台需要复用时再按实际边界抽出共享包。
 
 ### 3.1 登录 / 身份（Auth）
 
@@ -86,5 +86,5 @@
 
 ## 4. 待核对
 
-- 各接口完整 Zod schema 落地在 `packages/shared-types` 后回链本文件。
+- 各接口完整 Zod schema 落地在 `backend/src/contracts` 后回链本文件；若后续小程序 / 后台直接复用，再抽独立共享包。
 - 分页统一 offset 还是 cursor（热表建议 cursor），实现前定稿。

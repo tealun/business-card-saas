@@ -1,0 +1,64 @@
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  actionResponseSchema,
+  type ActionRequest,
+  type ActionResponse,
+  type PublicCardResponse,
+  type VisitRequest,
+  type VisitResponse,
+  visitResponseSchema
+} from "../contracts/public-card.js";
+import { PublicCardRepository } from "./public-card.repository.js";
+import { VisitTokenService } from "./visit-token.service.js";
+import { randomToken } from "../common/id.js";
+
+@Injectable()
+export class PublicCardService {
+  constructor(
+    private readonly repository: PublicCardRepository,
+    private readonly visitTokens: VisitTokenService
+  ) {}
+
+  getPublicCard(publicId: string): PublicCardResponse {
+    return this.repository.findPublicCard(publicId);
+  }
+
+  createVisit(publicId: string, request: VisitRequest): VisitResponse {
+    const visitInput: { publicId: string; shareId?: string; anonId?: string } = { publicId };
+    if (request.share) {
+      visitInput.shareId = request.share;
+    }
+    if (request.anon_id) {
+      visitInput.anonId = request.anon_id;
+    }
+    const visit = this.repository.createVisit(visitInput);
+    const visitToken = this.visitTokens.sign({
+      visitId: visit.visitId,
+      publicId,
+      shareId: visit.shareId,
+      nonce: randomToken("nonce", 12)
+    });
+
+    return visitResponseSchema.parse({
+      visit_id: visit.visitId,
+      visit_token: visitToken,
+      anon_id: visit.anonId,
+      expires_in: this.visitTokens.expiresIn
+    });
+  }
+
+  recordAction(publicId: string, token: string, request: ActionRequest): ActionResponse {
+    const payload = this.visitTokens.verify(token);
+    if (payload.publicId !== publicId) {
+      throw new UnauthorizedException("visit_token scope mismatch");
+    }
+    if (!this.repository.findVisit(payload.visitId)) {
+      throw new UnauthorizedException("visit not found");
+    }
+    const result = this.repository.recordAction(payload.visitId, request.action_type);
+    return actionResponseSchema.parse({
+      accepted: true,
+      idempotent: result.idempotent
+    });
+  }
+}
