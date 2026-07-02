@@ -1,6 +1,6 @@
 # 01_02 API 契约（执行指引）
 
-版本：v1 · 日期：2026-07-01 · 归属：后端
+版本：v1.1 · 日期：2026-07-02 · 归属：后端
 关联主文档：[`../00-core/00_01_Dev_Doc.md`](../00-core/00_01_Dev_Doc.md) 的 §14（接口草案）、§28（API 规范）、§16（隔离）、§14.3/§32（埋点与口径）
 职责：本文件是**接口契约的执行事实源**（路径、鉴权、请求/响应、错误码、分页）；主文档 §14/§28 保留规范要点。
 
@@ -56,9 +56,10 @@
 
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
-| GET `/api/v1/public/cards/{public_id}` | 无 | 仅返回隐私判定后的公开字段（§11.3）；下发 `visit_token` |
-| POST `/api/v1/public/cards/{public_id}/visit` | 无 | 记访问；携带 `share` 由服务端反查归因 |
+| GET `/api/v1/public/cards/{public_id}` | 无 | 仅返回隐私判定后的公开字段（§11.3）；**纯内容读取，可缓存（CDN/ETag），不下发 token（A6-P0-1）** |
+| POST `/api/v1/public/cards/{public_id}/visit` | 无（IP/public_id 限流） | 记访问（落 card_visits：visit_id/share_id/anon_id）；携带 `share` 由服务端反查归因；**响应签发 `visit_token`（§14.6）**，不缓存 |
 | POST `/api/v1/public/cards/{public_id}/actions` | visit_token | 记动作；`(visit_id, action_type)` 幂等 |
+| POST `/api/v1/public/cards/{public_id}/shares/derive` | visit_token | 二次转发派生 `share_id`：R=`parent_share_id`；校验父 share 归属本名片，深度上限 3，超限返回父 share（§6.3 / A6-P1-2）；限流 |
 | GET `/api/v1/public/cards/{public_id}/vcard` | 无 | vCard；⚠️ 遵守隐私开关，`show_mobile=false` 不含手机号（A3-3） |
 
 **只用 `public_id`，不暴露内部自增 ID / slug（§30.1）。**
@@ -68,8 +69,8 @@
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
 | GET `/api/v1/contact-way/cards/{public_id}` | 无/visit_token | 该名片联系我配置（按能力降级 §9.3） |
-| POST `/api/v1/customer-mapping/map` | visit_token | unionid→external_userid；前置矩阵不满足则降级返回 `4xxxx`（§10） |
-| POST `/api/v1/leads` | 无/visit_token | 引流留资"我也想要名片"，写 `growth_leads`（§7.4，阶段二+） |
+| POST `/api/v1/customer-mapping/map` | visit_token | unionid→external_userid；⚠️ **unionid 一律取服务端会话（code2session 结果），不接受客户端上送**——客户端可伪造 unionid 污染他人映射（A6-P1-6）；前置矩阵不满足则降级返回 `4xxxx`（§10） |
+| POST `/api/v1/leads` | **visit_token（必须）** | 引流留资"我也想要名片"，写 `growth_leads`（§7.4，阶段二+）；限流 + 蜜罐字段防机器人刷 PII 垃圾数据（A6-P1-5） |
 
 ### 3.5 企业后台（Admin，JWT + 租户中间件）
 

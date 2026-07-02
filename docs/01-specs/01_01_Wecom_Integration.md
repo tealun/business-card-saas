@@ -1,6 +1,6 @@
 # 01_01 企业微信第三方应用对接（执行指引）
 
-版本：v1 · 日期：2026-07-01 · 归属：企业微信对接组
+版本：v1.1 · 日期：2026-07-02 · 归属：企业微信对接组
 关联主文档：[`../00-core/00_01_Dev_Doc.md`](../00-core/00_01_Dev_Doc.md) 的 §8 / §10 / §13.3 / §15.3 / §33.2
 定位：本文件是**企业微信对接执行细节的事实源**；主文档只保留决策与指针，不复制此处正文。凡与企业微信官方最新文档冲突，以官方文档为准并回改本文件（见末尾「待核对」）。
 
@@ -225,6 +225,7 @@ welcome_code 约束（§7.3）：20s/一次性;管理端已配欢迎语则不返
 - 结果三态：`external_userid`（已是客户）/ `pending_id`（暂非，加企微后关联）/ 失败（仅记日志）。
 - 存储 `tenant_external_customers`，按 `tenant_id` 隔离，`external_userid`/`pending_id` 部分唯一（§15）。
 - **映射失败绝不阻塞客户查看名片/保存电话**。
+- ⚠️ 入参可信性（审计 A6-P1-6）：`unionid` 一律取**服务端会话**（code2session 落 Redis 的结果），映射接口不接受客户端上送 unionid/openid——否则可伪造他人 unionid 污染 `tenant_external_customers` 归因。
 - 接口：`externalcontact/unionid_to_external_userid`（需 corp access_token + 客户联系权限）。
 
 ---
