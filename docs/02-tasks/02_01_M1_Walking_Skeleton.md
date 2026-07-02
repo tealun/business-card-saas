@@ -15,7 +15,7 @@
 | # | 事项 | 依赖 | 状态 |
 |---|------|------|------|
 | 1 | 脚手架：NestJS(Node 24) + Prisma(PG 17+) + Redis，独立子项目 contracts | §33 | ☑ |
-| 2 | 迁移建表最终形态（含 §15.4：public_card_directory、关键 FK、部分唯一索引、channel NOT NULL） | §15/§15.4 | ☐ |
+| 2 | 迁移建表最终形态（含 §15.4：public_card_directory、关键 FK、部分唯一索引；`contact_ways.channel NOT NULL` 随客户联系模块迁移） | §15/§15.4 | ◐ 初始迁移已生成 |
 | 3 | `TenantTx.run` RLS 事务包装器 + 越权测试基线（§33.2 / §20.3） | A4-P1-10 | ☐ |
 | 4 | `qy-login`：jscode2session → 定位 tenant + member_identity → 按需建档 + 默认名片 | 02_00 #2/#3 | ◐ 骨架完成 |
 | 5 | 员工名片读取/更新（01_02 §3.2） | | ◐ 当前读取 + 分享签发完成 |
@@ -30,6 +30,7 @@
 - 已实现 `POST /api/v1/auth/qy-login` 的 demo code 登录骨架，返回员工 access token、当前身份和默认 `public_id`；真实企业微信 `jscode2session` 待 M0 实测凭据完成后替换 repository。
 - 已实现 `GET /api/v1/employee/cards/current` 和 `POST /api/v1/employee/cards/current/share`，可用 bearer token 读取当前员工默认名片并签发 `share_id`。
 - 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等。
+- 已生成 `backend/prisma/migrations/000001_m1_core/migration.sql`，覆盖 M1 core 表、`public_card_directory`、访问/动作/分享归因字段、关键唯一索引与外键；真实 PostgreSQL apply/rollback 验证待数据库容器接入。
 
 ## 验收标准（对齐主文档 §23）
 
