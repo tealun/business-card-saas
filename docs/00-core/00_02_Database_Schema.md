@@ -41,7 +41,8 @@ CREATE POLICY tenant_isolation ON cards
 - 平台级作业（跨租户运维）用**独立角色 + `BYPASSRLS`**，仅限审计通过的后台任务，默认应用角色不得 bypass。
 - 无租户上下文的连接默认查不到任何租户数据（默认拒绝）。
 - `audit_logs`、`api_quota_counters`、`growth_leads`、`callback_events`、`wecom_suite_state`、`accounts`、`admin_claim_tokens` 为平台/跨租户表，不启用租户 RLS，改由应用鉴权控制。
-- **跨租户敏感绑定表（审计 A4-P0-2）**：`account_identity_bindings` 记录「一人绑定多家企业身份」，**不能**笼统归为非 RLS 平台表。它启用 RLS 并支持两类上下文——租户上下文 `USING (tenant_id = current_setting('app.tenant_id', true)::bigint)` 与个人上下文 `USING (account_id = current_setting('app.account_id', true)::bigint)`；`account_preferences` 只允许 `account_id = current_setting('app.account_id')` 访问，租户管理员不得直接访问（策略见主文档 §15.4）。
+- **访客身份平台敏感表（审计 A7-P1-1）**：`visitor_accounts` 不含 `tenant_id`，但含 `wx_openid` / `wx_unionid` / 昵称头像，不能当普通平台表任意查。它只允许两类访问：当前访客上下文自查（如服务端会话绑定的 `visitor_account_id`）或平台脱敏运维；租户侧只能经 `tenant_external_customers`、`card_visits`、`card_actions` 的本租户关联视图读取必要投影，不得直接查询全局访客主档。
+- **跨租户敏感绑定表（审计 A4-P0-2 / A7-P1-2）**：`account_identity_bindings` 记录「一人绑定多家企业身份」，**不能**笼统归为非 RLS 平台表。它启用 RLS 并支持两类上下文——租户上下文 `USING (tenant_id = current_setting('app.tenant_id', true)::bigint)` 与个人上下文 `USING (account_id = current_setting('app.account_id', true)::bigint)`；`account_preferences` 只允许 `account_id = current_setting('app.account_id', true)::bigint` 访问，租户管理员不得直接访问（策略见主文档 §15.4）。所有 `current_setting` 均带 `missing_ok=true`，缺上下文时默认拒绝而非 SQL 报错。
 - **tenant_admins（审计 A6-P1-3）**：含 `tenant_id` 但此前既不在 RLS 清单也不在平台表清单，属隔离盲区，现纳入租户 RLS。登录时序：企业管理员企业微信 OAuth / 扫码返回 `corpid` → 先由 `tenants(open_corpid)` 定位 tenant → 事务内 `SET LOCAL app.tenant_id` → 再查 `tenant_admins(open_userid)` 建会话；即**登录查找始终有租户上下文**，无需跨租户按 open_userid 扫描（open_userid 本就按企业隔离，跨租户扫描无意义）。
 - **公开目录表（审计 A4-P0-1）**：`public_card_directory` 是不含 PII 的全局解析表，**不启用租户 RLS**（公开访问开始时无 tenant 上下文）；public service role 只能查该表并执行公开读取流程，不给 `BYPASSRLS`、不得任意跨租户查业务表。
 

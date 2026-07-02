@@ -852,7 +852,7 @@ UNIQUE(event_key)
 临时 temp_session：仅强来源追踪/短期活动/单人接待，必须经过配额检查（§15.3 api_quota_counters）。
 ```
 
-对应约束：`UNIQUE(tenant_id, member_identity_id, strategy, channel)` 保证静态配置不重复生成（DDL 见 §15.3）。
+对应约束：active/未删除部分唯一索引 `uk_cw_static_member_channel_active` 保证静态配置不重复生成，同时允许停用旧配置后重建同渠道配置（DDL 见 §15.3，审计 A7-P2-1）。
 
 ```text
 contact_ways
@@ -933,7 +933,7 @@ contact_way_states
 - pending_id 也必须按 tenant_id 存储。
 - 映射失败不影响客户查看名片。
 
-**⚠️ 映射前置条件矩阵（审计 D-P0-5）**：unionid → external_userid 接口对以下条件**缺一即恒失败**，M4 排期前必须逐项确认：
+**⚠️ 映射前置条件矩阵（审计 D-P0-5 / A7-P2-3）**：unionid → external_userid 接口对以下条件**缺一即恒失败**，M3 排期前必须逐项确认：
 
 | 前置条件 | 缺失后果 | 降级 |
 |----------|----------|------|
@@ -1888,7 +1888,7 @@ CREATE POLICY aib_account_ctx ON account_identity_bindings
 ```
 
 - `accounts` 本体仍为平台表，但接口只允许当前 account 自查或平台脱敏运维。
-- `account_preferences` 只允许 `account_id = current_setting('app.account_id')` 访问；租户管理员不得直接访问。
+- `account_preferences` 只允许 `account_id = current_setting('app.account_id', true)::bigint` 访问；租户管理员不得直接访问。个人上下文缺失时默认查不到数据（拒绝），不得抛 SQL 错误到公开端 / 后台端（审计 A7-P1-2）。
 - 平台运营跨租户排障走独立 service role + `audit_logs` + 默认脱敏。
 - 数据库指引 §2 已把 `account_identity_bindings` 移出「普通平台表」，归入「跨租户敏感绑定表」。
 

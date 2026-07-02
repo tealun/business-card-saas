@@ -12,7 +12,7 @@
 - 统一响应：`{ code, message, data, trace_id }`，`code=0` 成功；HTTP 状态码同时正确使用。
 - 校验：请求/响应用 **Zod**（`nestjs-zod`），枚举用 `z.enum` 作硬边界（§33.2）。
 - 鉴权：员工/后台走 **JWT**；公开名片接口无登录但动作上报需 **visit_token**（§14.3）。
-- 隔离：所有 `/api/admin/*` 与员工接口经租户中间件注入 `tenant_id` + RLS（§16.1）；**禁止**接受前端传入 tenant_id。
+- 隔离：所有 `/api/v1/admin/*` 与 `/api/v1/employee/*` 接口经租户中间件注入 `tenant_id` + RLS（§16.1）；**禁止**接受前端传入 tenant_id。
 - 分页：`page` / `page_size`（或 cursor），返回 `total`。
 - 限流：公开接口按 IP/`public_id` 限流防刷（§17.3）。
 
@@ -57,7 +57,7 @@
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
 | GET `/api/v1/public/cards/{public_id}` | 无 | 仅返回隐私判定后的公开字段（§11.3）；**纯内容读取，可缓存（CDN/ETag），不下发 token（A6-P0-1）** |
-| POST `/api/v1/public/cards/{public_id}/visit` | 无（IP/public_id 限流） | 记访问（落 card_visits：visit_id/share_id/anon_id）；携带 `share` 由服务端反查归因；**响应签发 `visit_token`（§14.6）**，不缓存 |
+| POST `/api/v1/public/cards/{public_id}/visit` | 无（IP/public_id 限流） | R=`share?`、`anon_id?`；记访问（落 card_visits：visit_id/share_id/anon_id）；`share` 由服务端反查归因；客户端回传的 `anon_id` 仅接受服务端签发格式，非法则忽略并重签；S=`visit_id`、`visit_token`、`anon_id`、`expires_in`；**响应签发 `visit_token`（§14.6）**，不缓存（A7-P1-3） |
 | POST `/api/v1/public/cards/{public_id}/actions` | visit_token | 记动作；`(visit_id, action_type)` 幂等 |
 | POST `/api/v1/public/cards/{public_id}/shares/derive` | visit_token | 二次转发派生 `share_id`：R=`parent_share_id`；校验父 share 归属本名片，深度上限 3，超限返回父 share（§6.3 / A6-P1-2）；限流 |
 | GET `/api/v1/public/cards/{public_id}/vcard` | 无 | vCard；⚠️ 遵守隐私开关，`show_mobile=false` 不含手机号（A3-3） |
@@ -68,7 +68,7 @@
 
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
-| GET `/api/v1/contact-way/cards/{public_id}` | 无/visit_token | 该名片联系我配置（按能力降级 §9.3） |
+| GET `/api/v1/contact-way/cards/{public_id}` | visit_token | 返回可操作联系配置 / state 时必须绑定本次访问会话；不得无 token 暴露 `config_id`、state 明文或内部能力原因（按能力降级 §9.3，A7-P2-2） |
 | POST `/api/v1/customer-mapping/map` | visit_token | unionid→external_userid；⚠️ **unionid 一律取服务端会话（code2session 结果），不接受客户端上送**——客户端可伪造 unionid 污染他人映射（A6-P1-6）；前置矩阵不满足则降级返回 `4xxxx`（§10） |
 | POST `/api/v1/leads` | **visit_token（必须）** | 引流留资"我也想要名片"，写 `growth_leads`（§7.4，阶段二+）；限流 + 蜜罐字段防机器人刷 PII 垃圾数据（A6-P1-5） |
 

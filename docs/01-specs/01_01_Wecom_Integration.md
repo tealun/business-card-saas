@@ -188,7 +188,7 @@ sequenceDiagram
 ### 8.1 联系我配置（禁止动态爆量，§9.1）
 
 - 策略：`per_member_static`（默认，名片按钮）/ `per_campaign_static`（活动物料）/ `temp_session`（受配额限制）。
-- `config_id` 必须持久化；`UNIQUE(tenant_id, member_identity_id, strategy, channel)`。
+- `config_id` 必须持久化；active/未删除部分唯一索引 `uk_cw_static_member_channel_active(tenant_id, member_identity_id, strategy, channel)` 保证静态配置不重复生成，同时允许停用后重建（§15.3，审计 A7-P2-1）。
 - `state` 用短 opaque token（`cwst_xxx`），不塞明文结构串（§9.2 / A3-8）。
 - 接口：`externalcontact/add_contact_way` / `get_contact_way` / `update_contact_way`。
 
@@ -317,9 +317,9 @@ welcome_code 约束（§7.3）：20s/一次性;管理端已配欢迎语则不返
 
 ## 待核对（实现前对官方文档确认，确认后回改本文件）
 
-> ⚠️ 审计 A4-P0-5：以下不是普通实现细节，而是 M1 闭环的前置事实。已提升为 **M0 阻塞任务**，官方接口实测 Spike 见 [`../02-tasks/02_00_M0_Platform_Verification.md`](../02-tasks/02_00_M0_Platform_Verification.md)；该文件完成前 M1 企业微信部分不得开工。
+> ⚠️ 审计 A4-P0-5 / A7-P1-4：以下分为 M1 前置与 M3 前置。`jscode2session` / `open_userid` / 可见范围是 **M0-M1 gate**，完成前 M1 企业微信部分不得开工；`unionid_to_external_userid`、`contact_way`、`welcome_msg` 是 **M0-M3 gate**，不得阻塞 M1 walking skeleton。
 
 - 各接口精确入参/返回字段与最新版本。
 - 第三方小程序 `jscode2session` 返回是否含 `open_userid`、`session_key` 有效期。
-- `unionid_to_external_userid` 对「同一开放平台主体」与客户联系权限的确切要求。
-- 各接口频率上限与限频错误码清单（补充 §10 退避策略）。
+- M3 前确认：`unionid_to_external_userid` 对「同一开放平台主体」与客户联系权限的确切要求。
+- M3 前确认：`contact_way` / `welcome_msg` 频率上限与限频错误码清单（补充 §10 退避策略）。

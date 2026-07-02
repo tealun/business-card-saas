@@ -63,6 +63,7 @@
 | [`99_04_Implementation_Readiness_Audit.md`](99-audits/99_04_Implementation_Readiness_Audit.md) | 实施就绪深度审计（P0/P1/P2） |
 | [`99_05_Verification_And_New_Findings.md`](99-audits/99_05_Verification_And_New_Findings.md) | 核验 #04 + 新发现（N-1/N-2）；修复见 §15.4 |
 | [`99_06_Deep_Audit_And_Fixes.md`](99-audits/99_06_Deep_Audit_And_Fixes.md) | 九维度深度审计（架构/平台对接/安全/代码高效/运行流畅/信息隔离/数据准确/参数传递/用户体验）+ 修复落地（v0.4.7） |
+| [`99_07_Nine_Dimension_Docs_Reaudit.md`](99-audits/99_07_Nine_Dimension_Docs_Reaudit.md) | 九维度开发文档复审（#06 后）：无新 P0；4 个 P1、5 个 P2 已修复落地 |
 
 ## 建议阅读顺序
 
