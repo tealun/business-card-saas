@@ -14,14 +14,22 @@
 
 | # | 事项 | 依赖 | 状态 |
 |---|------|------|------|
-| 1 | 脚手架：NestJS(Node 24) + Prisma(PG 17+) + Redis，monorepo 共享 types | §33 | ☐ |
+| 1 | 脚手架：NestJS(Node 24) + Prisma(PG 17+) + Redis，独立子项目 contracts | §33 | ☑ |
 | 2 | 迁移建表最终形态（含 §15.4：public_card_directory、关键 FK、部分唯一索引、channel NOT NULL） | §15/§15.4 | ☐ |
 | 3 | `TenantTx.run` RLS 事务包装器 + 越权测试基线（§33.2 / §20.3） | A4-P1-10 | ☐ |
-| 4 | `qy-login`：jscode2session → 定位 tenant + member_identity → 按需建档 + 默认名片 | 02_00 #2/#3 | ☐ |
-| 5 | 员工名片读取/更新（01_02 §3.2） | | ☐ |
-| 6 | 公开访问：public_card_directory 解析 public_id → RLS 查 cards → 隐私判定输出 | A4-P0-1 | ☐ |
-| 7 | `visit_token` 签发与动作幂等（§14.6） | A4-P1-7 | ☐ |
+| 4 | `qy-login`：jscode2session → 定位 tenant + member_identity → 按需建档 + 默认名片 | 02_00 #2/#3 | ◐ 骨架完成 |
+| 5 | 员工名片读取/更新（01_02 §3.2） | | ◐ 当前读取 + 分享签发完成 |
+| 6 | 公开访问：public_card_directory 解析 public_id → RLS 查 cards → 隐私判定输出 | A4-P0-1 | ◐ demo 公开读取完成 |
+| 7 | `visit_token` 签发与动作幂等（§14.6） | A4-P1-7 | ◐ 内存骨架完成 |
 | 8 | owner bootstrap 最小闭环（§15.4） | A4-P1-5 | ☐ |
+
+## 当前落地记录
+
+- 2026-07-02：提交 `befc204` 后继续落地 M1 骨架。
+- `backend/` 已具备 NestJS + Fastify + Prisma 独立 npm 子项目，contracts 暂放 `backend/src/contracts/`。
+- 已实现 `POST /api/v1/auth/qy-login` 的 demo code 登录骨架，返回员工 access token、当前身份和默认 `public_id`；真实企业微信 `jscode2session` 待 M0 实测凭据完成后替换 repository。
+- 已实现 `GET /api/v1/employee/cards/current` 和 `POST /api/v1/employee/cards/current/share`，可用 bearer token 读取当前员工默认名片并签发 `share_id`。
+- 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等。
 
 ## 验收标准（对齐主文档 §23）
 
