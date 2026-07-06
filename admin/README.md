@@ -16,6 +16,7 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 
 - API 健康检查
 - demo `qy-login`
+- Admin 企业微信 code 登录，可选 owner claim token 认领首个企业 owner
 - Admin token 保存与 `admin/session/me`
 - 后台概览、成员列表、成员名片读取/配置
 - 字段规则、企业资料、模板配置联调入口

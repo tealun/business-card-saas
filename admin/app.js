@@ -23,6 +23,8 @@ const cardForm = document.querySelector("#cardForm");
 const companyForm = document.querySelector("#companyForm");
 const sharePath = document.querySelector("#sharePath");
 const adminTokenInput = document.querySelector("#adminToken");
+const adminLoginCodeInput = document.querySelector("#adminLoginCode");
+const adminClaimTokenInput = document.querySelector("#adminClaimToken");
 const adminMemberIdInput = document.querySelector("#adminMemberId");
 const adminCardStatusInput = document.querySelector("#adminCardStatus");
 const templateNameInput = document.querySelector("#templateName");
@@ -192,6 +194,28 @@ document.querySelector("#saveAdminToken").addEventListener("click", () => {
   state.adminToken = adminTokenInput.value.trim();
   localStorage.setItem("bc_admin_token", state.adminToken);
   adminStatus.textContent = state.adminToken ? "已保存" : "未连接";
+});
+
+document.querySelector("#adminQyLogin").addEventListener("click", async () => {
+  const code = adminLoginCodeInput.value.trim();
+  const claimToken = adminClaimTokenInput.value.trim();
+  const body = { code };
+  if (claimToken) {
+    body.claim_token = claimToken;
+  }
+  const result = await run("admin logging in", adminOutput, async () =>
+    request("/admin/auth/qy-login", {
+      method: "POST",
+      auth: false,
+      body
+    })
+  );
+  state.adminToken = result.access_token;
+  adminTokenInput.value = state.adminToken;
+  localStorage.setItem("bc_admin_token", state.adminToken);
+  adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
+  state.adminMemberId = result.admin.member_identity_id || "";
+  adminMemberIdInput.value = state.adminMemberId;
 });
 
 document.querySelector("#loadAdminMe").addEventListener("click", async () => {

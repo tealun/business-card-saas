@@ -14,7 +14,7 @@ export class OwnerBootstrapService {
 
   constructor(private readonly repository: OwnerBootstrapRepository) {}
 
-  bootstrapOwner(input: BootstrapOwnerInput): BootstrapOwnerResult {
+  async bootstrapOwner(input: BootstrapOwnerInput): Promise<BootstrapOwnerResult> {
     if (input.open_userid) {
       const ownerInput: { tenantId: string; memberIdentityId?: string; openUserid: string } = {
         tenantId: input.tenant_id,
@@ -23,7 +23,7 @@ export class OwnerBootstrapService {
       if (input.member_identity_id) {
         ownerInput.memberIdentityId = input.member_identity_id;
       }
-      const owner = this.repository.createOwner(ownerInput);
+      const owner = await this.repository.createOwner(ownerInput);
       return bootstrapOwnerResultSchema.parse({
         mode: "owner_created",
         tenant_id: owner.tenantId,
@@ -36,7 +36,7 @@ export class OwnerBootstrapService {
     const claimToken = randomToken("admclaim", 24);
     const tokenHash = this.hashClaimToken(claimToken);
     const expiresAt = new Date(Date.now() + this.claimTokenTtlMs);
-    const record = this.repository.createClaimToken({
+    const record = await this.repository.createClaimToken({
       tenantId: input.tenant_id,
       tokenHash,
       expiresAt
@@ -51,5 +51,22 @@ export class OwnerBootstrapService {
 
   hashClaimToken(token: string): string {
     return createHash("sha256").update(token).digest("hex");
+  }
+
+  async claimOwner(input: {
+    tenant_id: string;
+    claim_token: string;
+    member_identity_id?: string | null;
+    open_userid: string;
+  }) {
+    const ownerInput: { tenantId: string; tokenHash: string; memberIdentityId?: string; openUserid: string } = {
+      tenantId: input.tenant_id,
+      tokenHash: this.hashClaimToken(input.claim_token),
+      openUserid: input.open_userid
+    };
+    if (input.member_identity_id) {
+      ownerInput.memberIdentityId = input.member_identity_id;
+    }
+    return this.repository.claimOwner(ownerInput);
   }
 }

@@ -12,6 +12,7 @@
 - **平台管理员**：独立后台账号 + **MFA**；分级 超级管理员 / 客服运营 / 技术运维 / 只读审计（§16.2）。
 - 会话：MVP 已落地签名 Admin token；生产增强再接 Redis 会话/撤销。后台接口经租户中间件注入 `tenant_id`，配合 RLS（§16.1）。
 - 登录时序（审计 A6-P1-3）：OAuth 返回 `corpid` → 定位 tenant → 事务内 `SET LOCAL app.tenant_id` → 查 `tenant_admins`（该表已纳入租户 RLS，见 [`../00-core/00_02_Database_Schema.md`](../00-core/00_02_Database_Schema.md) §2）。
+- 首个 owner 认领：若授权后暂时无法直接拿到管理员 `open_userid`，服务端生成短期一次性 `admin_claim_tokens`；管理员后续登录 `POST /api/v1/admin/auth/qy-login` 时可携带 `claim_token`，服务端在当前 tenant 事务内 hash 校验、消费 token 并创建首个 owner。
 
 ## 2. 角色与权限（RBAC）
 
@@ -48,5 +49,5 @@
 
 ## 5. 待核对
 
-- 企业微信管理员 OAuth 登录与 `tenant_admins` 首次绑定流程细节（见 [`01_01_Wecom_Integration.md`](01_01_Wecom_Integration.md)）。
+- 企业微信管理员真实 OAuth/扫码跳转 URL、回跳参数与企业微信后台配置仍需在试点企业环境核对（见 [`01_01_Wecom_Integration.md`](01_01_Wecom_Integration.md)）。
 - 平台管理员 MFA 方案（TOTP / 短信）选型。

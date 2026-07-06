@@ -438,6 +438,9 @@ CREATE INDEX "idx_tenant_admin_tenant" ON "tenant_admins"("tenant_id");
 CREATE UNIQUE INDEX "uk_tenant_admin_user" ON "tenant_admins"("tenant_id", "open_userid");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "uk_tenant_owner_active" ON "tenant_admins"("tenant_id") WHERE "role" = 'owner' AND "status" = 'active';
+
+-- CreateIndex
 CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
 
 -- CreateIndex

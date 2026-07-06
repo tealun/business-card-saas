@@ -31,6 +31,11 @@ DROP POLICY IF EXISTS tenant_isolation_tenant_admins ON tenant_admins;
 CREATE POLICY tenant_isolation_tenant_admins ON tenant_admins
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+ALTER TABLE admin_claim_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_admin_claim_tokens ON admin_claim_tokens;
+CREATE POLICY tenant_isolation_admin_claim_tokens ON admin_claim_tokens
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_templates ON templates;
 CREATE POLICY tenant_isolation_templates ON templates

@@ -3,11 +3,11 @@ import { OwnerBootstrapRepository } from "./owner-bootstrap.repository.js";
 import { OwnerBootstrapService } from "./owner-bootstrap.service.js";
 
 describe("OwnerBootstrapService", () => {
-  it("creates the first tenant owner when open_userid is available", () => {
+  it("creates the first tenant owner when open_userid is available", async () => {
     const repository = new OwnerBootstrapRepository();
     const service = new OwnerBootstrapService(repository);
 
-    const result = service.bootstrapOwner({
+    const result = await service.bootstrapOwner({
       tenant_id: "1",
       member_identity_id: "10",
       open_userid: "ou_owner"
@@ -22,11 +22,11 @@ describe("OwnerBootstrapService", () => {
     });
   });
 
-  it("creates a short-lived claim token when open_userid is unavailable", () => {
+  it("creates a short-lived claim token when open_userid is unavailable", async () => {
     const repository = new OwnerBootstrapRepository();
     const service = new OwnerBootstrapService(repository);
 
-    const result = service.bootstrapOwner({ tenant_id: "2" });
+    const result = await service.bootstrapOwner({ tenant_id: "2" });
 
     expect(result.mode).toBe("claim_token_created");
     if (result.mode !== "claim_token_created") {
@@ -39,20 +39,45 @@ describe("OwnerBootstrapService", () => {
     expect(new Date(result.expires_at).getTime()).toBeGreaterThan(Date.now());
   });
 
-  it("rejects creating a second owner for the same tenant", () => {
+  it("claims owner with a short-lived token and marks the token used", async () => {
     const repository = new OwnerBootstrapRepository();
     const service = new OwnerBootstrapService(repository);
 
-    service.bootstrapOwner({
+    const created = await service.bootstrapOwner({ tenant_id: "2" });
+    if (created.mode !== "claim_token_created") {
+      throw new Error("expected claim token result");
+    }
+
+    const owner = await service.claimOwner({
+      tenant_id: "2",
+      claim_token: created.claim_token,
+      member_identity_id: "20",
+      open_userid: "ou_claimed"
+    });
+
+    expect(owner).toEqual({
+      tenantId: "2",
+      role: "owner",
+      openUserid: "ou_claimed",
+      memberIdentityId: "20"
+    });
+    expect(repository.findClaimToken(service.hashClaimToken(created.claim_token))?.usedAt).toBeInstanceOf(Date);
+  });
+
+  it("rejects creating a second owner for the same tenant", async () => {
+    const repository = new OwnerBootstrapRepository();
+    const service = new OwnerBootstrapService(repository);
+
+    await service.bootstrapOwner({
       tenant_id: "3",
       open_userid: "ou_first"
     });
 
-    expect(() =>
+    await expect(
       service.bootstrapOwner({
         tenant_id: "3",
         open_userid: "ou_second"
       })
-    ).toThrow(ConflictException);
+    ).rejects.toThrow(ConflictException);
   });
 });
