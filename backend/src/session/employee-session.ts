@@ -6,4 +6,5 @@ export interface EmployeeSession {
   displayName?: string;
   openUserid: string;
   publicId?: string;
+  status?: "active" | "disabled";
 }
