@@ -70,6 +70,14 @@ export class WecomConfigService {
   get authorizationLaunchToken(): string {
     return readRequired("WECOM_AUTH_LAUNCH_TOKEN", "dev-only-wecom-auth-launch-token");
   }
+
+  get callbackAlertWebhookUrl(): string | null {
+    return readOptional("WECOM_CALLBACK_ALERT_WEBHOOK_URL");
+  }
+
+  get callbackAlertWebhookToken(): string | null {
+    return readOptional("WECOM_CALLBACK_ALERT_WEBHOOK_TOKEN");
+  }
 }
 
 function readRequired(name: string, fallback: string): string {
@@ -81,4 +89,8 @@ function readRequired(name: string, fallback: string): string {
     throw new Error(`${name} must be set in production`);
   }
   return fallback;
+}
+
+function readOptional(name: string): string | null {
+  return process.env[name]?.trim() || null;
 }

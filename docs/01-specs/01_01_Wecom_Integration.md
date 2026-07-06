@@ -245,7 +245,7 @@ welcome_code 约束（§7.3）：20s/一次性;管理端已配欢迎语则不返
 
 - **配额 guard（§15.3 `api_quota_counters`）**：调企业微信接口前先过本地配额；接近阈值降级，不让客户链路报错。
 - **限频/errcode**：`45009`/`45011` 等限频类走**指数退避**；`40014`/`42001`（token 失效/过期）触发强制刷新后重试一次。
-- **回调重试**：`callback_events.status` + `retry_count` 驱动;超阈值进死信 + 告警。
+- **回调重试**：`callback_events.status` + `retry_count` 驱动;超阈值进死信 + 告警。当前告警通过可选 `WECOM_CALLBACK_ALERT_WEBHOOK_URL` 发送脱敏 webhook payload，不包含密文 callback payload 或 `permanent_code`。
 - 所有企业微信调用统一封装：注入 token、自动刷新、错误码归一、埋点。
 
 ---

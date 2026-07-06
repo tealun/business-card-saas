@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import { WecomCallbackAlertService } from "./wecom-callback-alert.service.js";
 import { WecomCallbackEventRepository, type BeginWecomCallbackEventInput } from "./wecom-callback-event.repository.js";
 import { WecomCallbackCryptoService, type WecomDecryptOptions, type WecomEncryptedPayload } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService, type WecomSuiteConfig } from "./wecom-config.service.js";
@@ -107,7 +108,7 @@ describe("WecomDataCallbackService", () => {
   });
 
   it("dead-letters failed retry events after the retry budget is exhausted", async () => {
-    const { service, crypto, events, contacts } = createService();
+    const { service, crypto, events, contacts, alerts } = createService();
     crypto.retryMessage = contactXml("update_user");
     contacts.failUpsert = true;
     events.beginRetryCount = 5;
@@ -129,6 +130,13 @@ describe("WecomDataCallbackService", () => {
       deadCount: 1
     });
     expect(events.failedRecords[0]?.deadLetter).toBe(true);
+    expect(alerts.deadLetters).toEqual([
+      {
+        eventKey: expect.any(String),
+        retryCount: 5,
+        errorType: "Error"
+      }
+    ]);
   });
 
   it("rejects callbacks from unauthorized tenants", async () => {
@@ -217,6 +225,19 @@ class FakeContactSyncRepository {
   }
 }
 
+class FakeCallbackAlertService {
+  deadLetters: Array<{ eventKey: string; retryCount: number; errorType: string }> = [];
+
+  async notifyDeadLetter(input: { eventKey: string; retryCount: number; errorType: string }) {
+    this.deadLetters.push({
+      eventKey: input.eventKey,
+      retryCount: input.retryCount,
+      errorType: input.errorType
+    });
+    return { sent: true, status: 200, skipped: false };
+  }
+}
+
 class FakeCallbackEventRepository {
   shouldProcess = true;
   beginRetryCount = 0;
@@ -267,14 +288,16 @@ function createService() {
   const events = new FakeCallbackEventRepository();
   const tenants = new FakeTenantAuthRepository();
   const contacts = new FakeContactSyncRepository();
+  const alerts = new FakeCallbackAlertService();
   const service = new WecomDataCallbackService(
     config as unknown as WecomConfigService,
     crypto as unknown as WecomCallbackCryptoService,
     events as unknown as WecomCallbackEventRepository,
     tenants as unknown as WecomTenantAuthRepository,
-    contacts as unknown as WecomContactSyncRepository
+    contacts as unknown as WecomContactSyncRepository,
+    alerts as unknown as WecomCallbackAlertService
   );
-  return { service, crypto, events, tenants, contacts };
+  return { service, crypto, events, tenants, contacts, alerts };
 }
 
 function callbackQuery() {
