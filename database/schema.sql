@@ -336,6 +336,9 @@ CREATE INDEX "idx_binding_tenant" ON "account_identity_bindings"("tenant_id");
 CREATE UNIQUE INDEX "uk_account_identity" ON "account_identity_bindings"("account_id", "member_identity_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "uk_member_identity_binding" ON "account_identity_bindings"("tenant_id", "member_identity_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "uk_templates_tenant_id" ON "templates"("tenant_id", "id");
 
 -- CreateIndex

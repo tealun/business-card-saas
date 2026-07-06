@@ -108,7 +108,11 @@ export class PublicCardRepository {
     if (!card) {
       throw new NotFoundException("card not found or disabled");
     }
-    return card;
+    return this.clonePublicCard(card);
+  }
+
+  upsertPublicCard(card: PublicCardResponse): void {
+    this.publicCards.set(card.public_id, this.clonePublicCard(card));
   }
 
   createVisit(input: { publicId: string; shareId?: string; anonId: string }): CardVisitRecord {
@@ -180,5 +184,29 @@ export class PublicCardRepository {
     };
     this.shares.set(share.shareId, share);
     return { ...share, capped: false };
+  }
+
+  private clonePublicCard(card: PublicCardResponse): PublicCardResponse {
+    return {
+      ...card,
+      card: {
+        ...card.card,
+        fields: { ...card.card.fields }
+      },
+      template: {
+        ...card.template,
+        color_scheme: { ...card.template.color_scheme },
+        layout: { ...card.template.layout }
+      },
+      company_profile: {
+        ...card.company_profile,
+        intro_blocks: card.company_profile.intro_blocks.map((block) => ({ ...block }))
+      },
+      videos: card.videos.map((video) => ({ ...video })),
+      honors: card.honors.map((honor) => ({
+        ...honor,
+        images: honor.images.map((image) => ({ ...image }))
+      }))
+    };
   }
 }

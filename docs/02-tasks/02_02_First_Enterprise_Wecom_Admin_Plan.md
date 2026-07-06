@@ -10,7 +10,7 @@
 - 小程序端已完成设计系统统一落地：员工首页、编辑资料、名片样式、访客详情、名片夹、企业名片、兼容名片页。
 - 后端已有 demo `POST /api/v1/auth/qy-login`、员工名片读写、分享签发、公开名片读取、visit/action/derive share demo 闭环。
 - 数据库已有 `tenants`、`member_identities`、`cards`、`templates`、`tenant_admins`、`admin_claim_tokens`、`company_profiles`、`company_videos`、`company_honors` 等基础表。
-- 当前企业微信仍是 demo 登录：真实第三方服务商授权、`suite_ticket`、`permanent_code`、`jscode2session`、管理员 OAuth、通讯录同步尚未落地。
+- 当前企业微信员工登录链路已从 demo skeleton 推进到可单测真实路径：第三方应用回调、`suite_ticket`、`permanent_code`、`jscode2session` 适配、真实 `POST /api/v1/auth/qy-login` 接入、`member_identity` upsert 与默认名片初始化已落地；管理员 OAuth、通讯录同步尚未落地。
 - 当前 `admin/` 是静态联调工作台，不是企业管理员可用的正式配置后台。
 
 ## 当前开发进度
@@ -21,7 +21,8 @@
 - 2026-07-06：阶段 1.5 已落地：指令回调 `create_auth/change_auth` 可读取 `AuthCode`，通过 `suite_access_token` 调用 `get_permanent_code`，并将 `permanent_code`、agent、授权摘要加密保存到 `tenants`。
 - 2026-07-06：阶段 1.6 已落地：新增 `WecomCorpTokenService`，按 `open_corpid` 读取授权、用 `permanent_code` 获取企业 access_token，并加密缓存到 `tenants`。
 - 2026-07-06：阶段 2.1-2.2 适配层已落地：新增第三方小程序 `service/miniprogram/jscode2session` API client 与 `WecomMiniProgramLoginService`，可解析 `open_corpid/open_userid/session_key` 并拒绝未授权企业；最终字段仍需 M0-M1 gate 实测确认。
-- 下一步：阶段 2.3-2.4 `member_identity` upsert 与默认名片生成，并将真实登录接入 `POST /api/v1/auth/qy-login`。
+- 2026-07-06：阶段 2.3-2.4 已落地：真实 `POST /api/v1/auth/qy-login` 调用 `WecomMiniProgramLoginService`，按授权 `open_corpid` 定位 tenant，首次登录 upsert `member_identity`/账号绑定/默认名片/公开目录；无 `DATABASE_URL` 时使用内存供给，本地 demo code 仍只在非生产 `DEMO_AUTH_ENABLED=1` 时可用。
+- 下一步：阶段 3 企业管理员 OAuth/扫码登录入口、`tenant_admins` 定位、后台 session/guard 与最小 RBAC。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -33,7 +34,7 @@
 | 0.3 | 锁定 1 家试点企业 | 试点企业 corpid/管理员联系人（脱敏记录） | 企业管理员可配合授权 |
 | 0.4 | 完成 `02_00` M0-M1 gate #1-#6 | 脱敏请求/返回样例、字段结论 | `open_userid`、`corpid`、可见范围和失败 errcode 有事实记录 |
 
-阻塞规则：0.4 未完成前，真实企业微信登录不可替换 demo repository，只能继续实现可单测的适配层。
+阻塞规则：0.4 未完成前，可以接入可单测的真实登录路径，但正式对外启用、删除 demo 降级、承诺字段语义前，必须完成真实企业微信 M0-M1 gate 实测。
 
 ## 阶段 1：企业微信平台适配层
 
@@ -52,10 +53,10 @@
 
 | # | 任务 | 代码范围 | 验收 |
 |---|------|----------|------|
-| 2.1 | 替换 demo `AuthRepository.resolveQyCode` 为真实 `jscode2session` adapter（适配层已实现，待接入 Auth） | `backend/src/auth` + `backend/src/wecom` | 企业微信工作台打开后拿到 `open_userid` / `corpid` |
-| 2.2 | 按 `corpid` 定位 tenant（适配层已实现） | auth repository | 未授权企业返回明确错误，不创建脏数据 |
-| 2.3 | upsert `member_identity` | auth repository | 首次登录创建成员身份；再次登录复用 |
-| 2.4 | 首次登录生成默认名片与 `public_id` | employee/card service | 员工第一次进入即看到默认名片 |
+| 2.1 | 替换 demo `AuthRepository.resolveQyCode` 为真实 `jscode2session` adapter（已实现） | `backend/src/auth` + `backend/src/wecom` | 企业微信工作台打开后拿到 `open_userid` / `corpid` |
+| 2.2 | 按 `corpid` 定位 tenant（已实现） | auth repository | 未授权企业返回明确错误，不创建脏数据 |
+| 2.3 | upsert `member_identity`（已实现） | auth repository | 首次登录创建成员身份；再次登录复用 |
+| 2.4 | 首次登录生成默认名片与 `public_id`（已实现） | employee/card service | 员工第一次进入即看到默认名片 |
 | 2.5 | 保留本地 demo 降级开关 | config/test | `DEMO_AUTH_ENABLED=1` 仅非生产可用，生产不可启用 |
 
 阶段验收：真实员工从企业微信工作台进入小程序，自动识别身份，看到自己的默认名片，可编辑并分享公开名片。

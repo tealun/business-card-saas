@@ -23,25 +23,30 @@ export class EmployeeCardService {
   ) {}
 
   getCurrentCard(session: EmployeeSession): EmployeeCardResponse {
-    return employeeCardResponseSchema.parse(this.repository.getCurrentCard(session));
+    const card = employeeCardResponseSchema.parse(this.repository.getCurrentCard(session));
+    this.publishPreview(this.repository.getPreview(session));
+    return card;
   }
 
   updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): EmployeeCardResponse {
     const parsed = updateEmployeeCardRequestSchema.parse(request);
-    return employeeCardResponseSchema.parse(this.repository.updateCurrentCard(session, parsed));
+    const card = employeeCardResponseSchema.parse(this.repository.updateCurrentCard(session, parsed));
+    this.publishPreview(this.repository.getPreview(session));
+    return card;
   }
 
   getPreview(session: EmployeeSession): EmployeeCardPreviewResponse {
-    return publicCardResponseSchema.parse(this.repository.getPreview(session));
+    return this.publishPreview(this.repository.getPreview(session));
   }
 
   updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
     const parsed = updateEmployeeCardStyleRequestSchema.parse(request);
-    return publicCardResponseSchema.parse(this.repository.updateStyle(session, parsed));
+    return this.publishPreview(this.repository.updateStyle(session, parsed));
   }
 
   createShare(session: EmployeeSession): EmployeeShareResponse {
     const share = this.repository.createShare(session);
+    this.publishPreview(this.repository.getPreview(session));
     // Register the share so public derive/attribution can resolve it (A12-P2-1).
     this.publicCards.registerRootShare({ publicId: share.publicId, shareId: share.shareId });
     return employeeShareResponseSchema.parse({
@@ -50,5 +55,11 @@ export class EmployeeCardService {
       scene: share.shareId,
       path: `/pages/public/card?card=${share.publicId}&share=${share.shareId}`
     });
+  }
+
+  private publishPreview(preview: EmployeeCardPreviewResponse): EmployeeCardPreviewResponse {
+    const parsed = publicCardResponseSchema.parse(preview);
+    this.publicCards.upsertPublicCard(parsed);
+    return parsed;
   }
 }

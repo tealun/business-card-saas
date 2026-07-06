@@ -6,6 +6,7 @@ import { WecomCommandCallbackService } from "./wecom-command-callback.service.js
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
+import { WecomEmployeeProvisioningRepository } from "./wecom-employee-provisioning.repository.js";
 import { WecomMiniProgramLoginService } from "./wecom-miniprogram-login.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
@@ -21,6 +22,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomCommandCallbackService,
     WecomConfigService,
     WecomCorpTokenService,
+    WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,
     WecomStateCipherService,
     WecomSuiteStateRepository,
@@ -32,6 +34,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomCallbackCryptoService,
     WecomConfigService,
     WecomCorpTokenService,
+    WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,
     WecomSuiteStateRepository,
     WecomSuiteTokenService,
