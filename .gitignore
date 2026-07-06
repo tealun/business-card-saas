@@ -10,3 +10,4 @@ coverage/
 npm-debug.log*
 prisma/*.db
 backend/prisma/*.db
+.vscode/
