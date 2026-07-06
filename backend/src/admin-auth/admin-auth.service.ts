@@ -9,6 +9,7 @@ import {
   type AdminSessionMeResponse
 } from "../contracts/admin-auth.js";
 import { OwnerBootstrapRepository } from "../admin-bootstrap/owner-bootstrap.repository.js";
+import { OwnerBootstrapService } from "../admin-bootstrap/owner-bootstrap.service.js";
 import { WecomMiniProgramLoginService } from "../wecom/wecom-miniprogram-login.service.js";
 import type { AdminSession } from "./admin-session.js";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
@@ -18,15 +19,25 @@ export class AdminAuthService {
   constructor(
     private readonly wecomLogin: WecomMiniProgramLoginService,
     private readonly admins: OwnerBootstrapRepository,
-    private readonly sessionTokens: AdminSessionTokenService
+    private readonly sessionTokens: AdminSessionTokenService,
+    private readonly ownerBootstrap: OwnerBootstrapService
   ) {}
 
   async qyLogin(request: AdminAuthCodeRequest): Promise<AdminLoginResponse> {
     const identity = await this.wecomLogin.resolveJsCode(request.code);
-    const admin = await this.admins.findActiveAdmin({
-      tenantId: identity.tenantId,
-      openUserid: identity.openUserid
-    });
+    const admin =
+      (await this.admins.findActiveAdmin({
+        tenantId: identity.tenantId,
+        openUserid: identity.openUserid
+      })) ??
+      (request.claim_token
+        ? await this.ownerBootstrap.claimOwner({
+            tenant_id: identity.tenantId,
+            claim_token: request.claim_token,
+            member_identity_id: identity.memberIdentityId,
+            open_userid: identity.openUserid
+          })
+        : null);
     if (!admin) {
       throw new ForbiddenException("WeCom user is not a tenant admin");
     }

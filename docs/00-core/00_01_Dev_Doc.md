@@ -1951,12 +1951,15 @@ CREATE TABLE admin_claim_tokens (
 );
 ```
 
+执行落地：`admin_claim_tokens` 纳入租户 RLS；`tenant_admins` 增加 active owner 部分唯一索引，确保同一 tenant 同时只能有一个 `role='owner' AND status='active'`。
+
 ```text
 企业授权完成
 → 解析授权操作者 / 应用管理员信息
 → 能拿到 open_userid：直接创建 tenant_admins(role='owner')
 → 拿不到：生成一次性 admin_claim_token（短期、单次）
-→ 管理员从企业微信 OAuth/扫码进入绑定 → 成功后 token 失效
+→ 管理员从企业微信 OAuth/扫码进入绑定，并在 `POST /api/v1/admin/auth/qy-login` 携带可选 `claim_token`
+→ 服务端按当前授权企业 hash 校验并消费 token，成功后创建首个 owner，token 失效
 ```
 
 要求：token 短期单次；绑定全程落 `audit_logs`；平台人工赋 owner 必须双人复核或超级管理员 MFA。

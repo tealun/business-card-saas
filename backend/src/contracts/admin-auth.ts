@@ -3,7 +3,8 @@ import { z } from "zod";
 export const adminRoleSchema = z.enum(["owner", "admin", "operator", "auditor"]);
 
 export const adminAuthCodeRequestSchema = z.object({
-  code: z.string().min(1).max(256)
+  code: z.string().min(1).max(256),
+  claim_token: z.string().min(32).max(160).optional()
 });
 
 export const adminIdentitySchema = z.object({

@@ -7,10 +7,7 @@ const schemaSql = fs.readFileSync(schemaPath, "utf8");
 const sql = fs.readFileSync(rlsPath, "utf8");
 
 const accountTables = ["account_preferences"];
-const tenantRlsExceptions = new Set([
-  "admin_claim_tokens",
-  "public_card_directory"
-]);
+const tenantRlsExceptions = new Set(["public_card_directory"]);
 
 function assert(condition, message) {
   if (!condition) {
@@ -70,10 +67,6 @@ for (const table of accountTables) {
 assert(
   !/ALTER TABLE\s+public_card_directory\s+ENABLE ROW LEVEL SECURITY/i.test(sql),
   "public_card_directory must remain outside tenant RLS"
-);
-assert(
-  !/ALTER TABLE\s+admin_claim_tokens\s+ENABLE ROW LEVEL SECURITY/i.test(sql),
-  "admin_claim_tokens is managed by application authorization and must not be added to tenant RLS casually"
 );
 assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),

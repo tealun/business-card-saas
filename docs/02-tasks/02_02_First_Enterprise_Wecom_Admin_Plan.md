@@ -10,7 +10,7 @@
 - 小程序端已完成设计系统统一落地：员工首页、编辑资料、名片样式、访客详情、名片夹、企业名片、兼容名片页。
 - 后端已有 demo `POST /api/v1/auth/qy-login`、员工名片读写、分享签发、公开名片读取、visit/action/derive share demo 闭环。
 - 数据库已有 `tenants`、`member_identities`、`cards`、`templates`、`tenant_admins`、`admin_claim_tokens`、`company_profiles`、`company_videos`、`company_honors` 等基础表。
-- 当前企业微信员工登录链路已从 demo skeleton 推进到可单测真实路径：第三方应用回调、`suite_ticket`、`permanent_code`、`jscode2session` 适配、真实 `POST /api/v1/auth/qy-login` 接入、`member_identity` upsert 与默认名片初始化已落地；后台管理员登录后端最小闭环已落地，真实 Web OAuth/扫码 UI 与通讯录同步尚未落地。
+- 当前企业微信员工登录链路已从 demo skeleton 推进到可单测真实路径：第三方应用回调、`suite_ticket`、`permanent_code`、`jscode2session` 适配、真实 `POST /api/v1/auth/qy-login` 接入、`member_identity` upsert 与默认名片初始化已落地；后台管理员登录后端最小闭环已落地，owner claim token 认领已可持久化和登录兑换，真实 Web OAuth/扫码跳转与外部 HTTPS 联调仍待接入。
 - 当前 `admin/` 是静态联调工作台，不是企业管理员可用的正式配置后台。
 
 ## 当前开发进度
@@ -33,7 +33,8 @@
 - 2026-07-07：后台员工启停配置闭环已起步：`PUT /api/v1/admin/members/{id}/card` 支持 `status=active|disabled`，数据库模式同步更新成员、主名片与公开目录状态，workbench 增加成员状态选择。
 - 2026-07-07：后台员工名片字段配置已进入数据库持久化：`GET/PUT /api/v1/admin/members/{id}/card` 数据库模式读写 `cards`，联系方式字段以 `fields_encrypted` 加密保存，姓名/职位/隐私/启停状态与公开目录同步。
 - 2026-07-07：阶段 5.4 失败重试/死信最小闭环已起步：新增后台 `POST /api/v1/admin/sync-events/retry`，可重放 failed data callback 的已验证密文，超过重试上限后标记 `dead`，workbench 增加“重试失败”按钮。
-- 下一步：真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件；失败告警的外部通知通道待后续接入。
+- 2026-07-07：阶段 3.1/3.3 owner bootstrap 可联调闭环已推进：`admin_claim_tokens` 纳入租户 RLS，`tenant_admins` 增加 active owner 唯一约束，后台 `POST /api/v1/admin/auth/qy-login` 支持可选 `claim_token`，workbench 增加管理员 code + owner claim token 登录入口。
+- 下一步：真实企业微信 Web OAuth/扫码跳转 URL、HTTPS 回调和试点企业授权仍是端到端联调前置条件；失败告警的外部通知通道待后续接入。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -76,9 +77,9 @@
 
 | # | 任务 | 代码范围 | 验收 |
 |---|------|----------|------|
-| 3.1 | 企业管理员 OAuth/扫码登录入口（后端已实现，Web OAuth/扫码 UI 待接入） | backend admin auth + admin UI | 管理员可从企业微信完成登录跳转 |
+| 3.1 | 企业管理员 OAuth/扫码登录入口（后端与 workbench code 入口已实现，真实 Web OAuth/扫码跳转待联调） | backend admin auth + admin UI | 管理员可从企业微信完成登录跳转 |
 | 3.2 | `corpid + open_userid` 定位 tenant admin（已实现） | admin auth repository | 非管理员拒绝；管理员进入所属租户 |
-| 3.3 | 首次授权 owner bootstrap（服务骨架已实现） | owner bootstrap service | 无 owner 时创建首个 owner 或生成一次性 claim token |
+| 3.3 | 首次授权 owner bootstrap（数据库持久化与 claim 登录兑换已实现） | owner bootstrap service + admin auth | 无 owner 时创建首个 owner 或生成一次性 claim token；管理员登录可携带 claim token 完成认领 |
 | 3.4 | 后台 JWT/session 与 admin guard（已实现） | backend common/admin | `/api/v1/admin/*` 注入 tenant 上下文 |
 | 3.5 | 基础 RBAC（已实现 helper） | tenant_admins.role | owner/admin/operator/auditor 最小权限可判断 |
 

@@ -122,7 +122,7 @@
 
 | 方法 路径 | 说明 |
 |-----------|------|
-| POST `/api/v1/admin/auth/qy-login` | 企业微信管理员 code 登录；后端按授权企业与 `tenant_admins.open_userid` 定位管理员，非管理员拒绝 |
+| POST `/api/v1/admin/auth/qy-login` | 企业微信管理员 code 登录；后端按授权企业与 `tenant_admins.open_userid` 定位管理员，非管理员拒绝；首个 owner 可携带可选 `claim_token` 完成一次性认领 |
 | GET `/api/v1/admin/session/me` | 读取当前后台登录态、租户、`open_userid` 与角色 |
 | GET `/api/v1/admin/overview` | 企业概览；MVP 返回当前租户成员/名片基础计数 |
 | GET `/api/v1/admin/members` | 员工列表（分页） |
