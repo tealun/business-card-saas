@@ -84,7 +84,7 @@ export class WecomEmployeeProvisioningRepository {
           throw new Error("failed to create account for WeCom member");
         }
         accountId = String(createdAccountId);
-        await tx.query(
+        const bindingResult = await tx.query<BindingRow>(
           `
             INSERT INTO account_identity_bindings (
               account_id,
@@ -95,9 +95,20 @@ export class WecomEmployeeProvisioningRepository {
             )
             VALUES ($1, $2, $3, 'wecom_qy_login', now())
             ON CONFLICT (tenant_id, member_identity_id) DO NOTHING
+            RETURNING account_id
           `,
           [accountId, input.tenantId, memberIdentityId]
         );
+        const boundAccountId = bindingResult.rows[0]?.account_id;
+        if (boundAccountId !== undefined) {
+          accountId = String(boundAccountId);
+        } else {
+          const existingAccountId = await this.findBoundAccount(input.tenantId, memberIdentityId, tx);
+          if (!existingAccountId) {
+            throw new Error("failed to bind account for WeCom member");
+          }
+          accountId = existingAccountId;
+        }
       }
 
       await tx.query(
