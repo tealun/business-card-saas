@@ -42,6 +42,14 @@
 
 登录降级：unionid 可能为空，openid-only 时仅返回当前 openid 绑定的身份（§5.2/§6.2）。
 
+### 3.1.1 企业微信授权发起（Platform / WeCom）
+
+| 方法 路径 | 鉴权 | R | S |
+|-----------|------|---|---|
+| POST `/api/v1/wecom/authorization-links` | Header `x-wecom-launch-token`（匹配 `WECOM_AUTH_LAUNCH_TOKEN`） | `redirect_uri?`、`state?`、`auth_type=official\|test?`、`app_ids?` | `authorization_url`、`suite_id`、`pre_auth_code_expires_in`、`redirect_uri`、`state`、`auth_type` |
+
+说明：该接口用于平台方发起企业授权，调用前必须已有可用 `suite_ticket → suite_access_token`。服务端会先调用 `service/get_pre_auth_code`，再调用 `service/set_session_info`，最后生成 `open.work.weixin.qq.com/3rdapp/install` 授权链接。它不走租户 JWT，因为此时 tenant 可能尚未创建；生产环境必须配置高熵 `WECOM_AUTH_LAUNCH_TOKEN`。
+
 ### 3.2 员工名片（Employee）
 
 | 方法 路径 | 鉴权 | 说明 |

@@ -38,6 +38,7 @@
 - 已生成单一初始化建库脚本 `database/schema.sql`，覆盖 M1 core 表、owner bootstrap、企业内容/样式表、`public_card_directory`、访问/动作/分享归因字段、关键唯一索引与外键；真实 PostgreSQL apply/rollback 验证待服务器测试库接入。
 - 已补 `TenantTx` 单测，验证事务内先注入 `app.tenant_id` / `app.account_id` 再执行查询；已补 `npm run rls:validate`，静态校验 RLS SQL 必须使用 `current_setting(..., true)` 且 `public_card_directory` 不启用租户 RLS。真实 A/B 租户数据库越权测试待 PostgreSQL 测试库接入。
 - 已补 `tenant_admins` / `admin_claim_tokens` 表并并入 `database/schema.sql`；二者均纳入 RLS 静态校验。已实现 owner bootstrap 服务骨架：拿到 `open_userid` 时创建首个 owner，拿不到时生成短期一次性 claim token（只持久化 hash）。后台登录已支持可选 `claim_token` 认领首个 owner；真实企业微信 OAuth 绑定入口待 M0 凭据与后台登录页接入。
+- 已补企业授权发起入口：`POST /api/v1/wecom/authorization-links` 由平台方携带 `x-wecom-launch-token` 生成企业微信授权链接，后端负责 `get_pre_auth_code` 与 `set_session_info`；真实授权仍依赖公开 HTTPS 回调 URL 和试点企业管理员操作。
 
 ## 验收标准（对齐主文档 §23）
 

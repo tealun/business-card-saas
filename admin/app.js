@@ -25,6 +25,8 @@ const sharePath = document.querySelector("#sharePath");
 const adminTokenInput = document.querySelector("#adminToken");
 const adminLoginCodeInput = document.querySelector("#adminLoginCode");
 const adminClaimTokenInput = document.querySelector("#adminClaimToken");
+const wecomLaunchTokenInput = document.querySelector("#wecomLaunchToken");
+const wecomRedirectUriInput = document.querySelector("#wecomRedirectUri");
 const adminMemberIdInput = document.querySelector("#adminMemberId");
 const adminCardStatusInput = document.querySelector("#adminCardStatus");
 const templateNameInput = document.querySelector("#templateName");
@@ -216,6 +218,24 @@ document.querySelector("#adminQyLogin").addEventListener("click", async () => {
   adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
   state.adminMemberId = result.admin.member_identity_id || "";
   adminMemberIdInput.value = state.adminMemberId;
+});
+
+document.querySelector("#createWecomAuthorizationLink").addEventListener("click", async () => {
+  const redirectUri = wecomRedirectUriInput.value.trim();
+  const body = {};
+  if (redirectUri) {
+    body.redirect_uri = redirectUri;
+  }
+  await run("creating WeCom authorization link", adminOutput, async () =>
+    request("/wecom/authorization-links", {
+      method: "POST",
+      auth: false,
+      headers: {
+        "x-wecom-launch-token": wecomLaunchTokenInput.value.trim()
+      },
+      body
+    })
+  );
 });
 
 document.querySelector("#loadAdminMe").addEventListener("click", async () => {
