@@ -17,6 +17,22 @@ export interface FetchPermanentCodeRequest {
   authCode: string;
 }
 
+export interface FetchPreAuthCodeRequest {
+  suiteAccessToken: string;
+}
+
+export interface FetchPreAuthCodeResponse {
+  preAuthCode: string;
+  expiresIn: number;
+}
+
+export interface SetSessionInfoRequest {
+  suiteAccessToken: string;
+  preAuthCode: string;
+  authType: 0 | 1;
+  appIds?: string[];
+}
+
 export interface FetchPermanentCodeResponse {
   openCorpid: string;
   corpName: string;
@@ -87,6 +103,18 @@ interface WecomPermanentCodePayload {
   };
 }
 
+interface WecomPreAuthCodePayload {
+  errcode?: number;
+  errmsg?: string;
+  pre_auth_code?: string;
+  expires_in?: number;
+}
+
+interface WecomSetSessionInfoPayload {
+  errcode?: number;
+  errmsg?: string;
+}
+
 interface WecomCorpTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -140,6 +168,48 @@ export class WecomApiClientService {
       suiteAccessToken: payload.suite_access_token,
       expiresIn: payload.expires_in
     };
+  }
+
+  async fetchPreAuthCode(request: FetchPreAuthCodeRequest): Promise<FetchPreAuthCodeResponse> {
+    const payload = await this.postJson<WecomPreAuthCodePayload>(
+      "get_pre_auth_code",
+      `/cgi-bin/service/get_pre_auth_code?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {}
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(
+        `WeCom get_pre_auth_code failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim()
+      );
+    }
+    if (!payload.pre_auth_code || !payload.expires_in || payload.expires_in <= 0) {
+      throw new BadGatewayException("WeCom get_pre_auth_code returned invalid payload");
+    }
+    return {
+      preAuthCode: payload.pre_auth_code,
+      expiresIn: payload.expires_in
+    };
+  }
+
+  async setSessionInfo(request: SetSessionInfoRequest): Promise<void> {
+    const sessionInfo: { auth_type: 0 | 1; appid?: string[] } = {
+      auth_type: request.authType
+    };
+    if (request.appIds?.length) {
+      sessionInfo.appid = request.appIds;
+    }
+    const payload = await this.postJson<WecomSetSessionInfoPayload>(
+      "set_session_info",
+      `/cgi-bin/service/set_session_info?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {
+        pre_auth_code: request.preAuthCode,
+        session_info: sessionInfo
+      }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(
+        `WeCom set_session_info failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim()
+      );
+    }
   }
 
   async fetchPermanentCode(request: FetchPermanentCodeRequest): Promise<FetchPermanentCodeResponse> {

@@ -58,6 +58,18 @@ export class WecomConfigService {
     }
     return timeout;
   }
+
+  get authorizationInstallBaseUrl(): string {
+    return readRequired("WECOM_INSTALL_BASE_URL", "https://open.work.weixin.qq.com/3rdapp/install").replace(/\/+$/, "");
+  }
+
+  get authorizationRedirectUri(): string {
+    return readRequired("WECOM_INSTALL_REDIRECT_URI", "http://localhost:3000/api/v1/wecom/authorization-complete");
+  }
+
+  get authorizationLaunchToken(): string {
+    return readRequired("WECOM_AUTH_LAUNCH_TOKEN", "dev-only-wecom-auth-launch-token");
+  }
 }
 
 function readRequired(name: string, fallback: string): string {

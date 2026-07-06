@@ -58,6 +58,63 @@ describe("WecomApiClientService", () => {
     );
   });
 
+  it("posts get_pre_auth_code and maps successful payloads", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ errcode: 0, pre_auth_code: "pre-auth-code", expires_in: 600 }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchPreAuthCode({
+      suiteAccessToken: "suite-token"
+    });
+
+    expect(result).toEqual({ preAuthCode: "pre-auth-code", expiresIn: 600 });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const [url, init] = firstCall;
+    expect(url).toContain("get_pre_auth_code");
+    expect(url).toContain("suite_access_token=suite-token");
+    expect(JSON.parse(String(init.body))).toEqual({});
+  });
+
+  it("posts set_session_info with auth type and optional app ids", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ errcode: 0 }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await new WecomApiClientService(new WecomConfigService()).setSessionInfo({
+      suiteAccessToken: "suite-token",
+      preAuthCode: "pre-auth-code",
+      authType: 1,
+      appIds: ["100001"]
+    });
+
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const [url, init] = firstCall;
+    expect(url).toContain("set_session_info");
+    expect(JSON.parse(String(init.body))).toEqual({
+      pre_auth_code: "pre-auth-code",
+      session_info: {
+        auth_type: 1,
+        appid: ["100001"]
+      }
+    });
+  });
+
   it("posts get_corp_token and maps successful payloads", async () => {
     const fetchMock = jest.fn(async () =>
       new Response(JSON.stringify({ errcode: 0, access_token: "corp-token", expires_in: 7200 }), {
