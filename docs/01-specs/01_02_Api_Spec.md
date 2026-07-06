@@ -131,7 +131,7 @@
 | GET `/api/v1/admin/cards` | 名片列表 |
 | PUT `/api/v1/admin/cards/{id}/status` | 启用/停用（触发缓存失效） |
 | GET/POST `/api/v1/admin/templates` | 模板 |
-| PUT `/api/v1/admin/settings/fields` | 字段规则（企业硬边界，§11.3） |
+| GET/PUT `/api/v1/admin/settings/fields` | 字段规则（企业硬边界，§11.3） |
 | GET `/api/v1/admin/stats/overview` | 统计概览（口径见 §32；后续增强，当前概览先用 `/admin/overview`） |
 | GET `/api/v1/admin/audit-logs` | 操作日志 |
 
