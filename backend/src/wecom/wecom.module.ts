@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { WecomApiClientService } from "./wecom-api-client.service.js";
+import { WecomAuthorizationCompleteController } from "./wecom-authorization-complete.controller.js";
 import { WecomAuthorizationLinkController } from "./wecom-authorization-link.controller.js";
 import { WecomAuthorizationLinkService } from "./wecom-authorization-link.service.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
@@ -21,7 +22,12 @@ import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
 
 @Module({
-  controllers: [WecomAuthorizationLinkController, WecomCommandCallbackController, WecomDataCallbackController],
+  controllers: [
+    WecomAuthorizationCompleteController,
+    WecomAuthorizationLinkController,
+    WecomCommandCallbackController,
+    WecomDataCallbackController
+  ],
   providers: [
     WecomCallbackEventRepository,
     WecomCallbackCryptoService,
