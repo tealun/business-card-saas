@@ -3,13 +3,13 @@ const { request, qyLoginCode } = require("../../utils/api");
 
 Page({
   data: {
-    card: {},
+    card: { company: "智云科技" },
     form: {
-      display_name: "",
-      title: "",
-      mobile: "",
-      email: "",
-      wechat_id: ""
+      display_name: "李明",
+      title: "销售总监",
+      mobile: "138 0013 8000",
+      email: "liming@zhiyun.tech",
+      wechat_id: "liming-zy"
     },
     sharePath: ""
   },
@@ -29,7 +29,7 @@ Page({
       app.globalData.token = session.access_token;
       await this.loadCard();
     } catch (error) {
-      wx.showToast({ title: error.message || "登录失败", icon: "none" });
+      wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
     }
   },
 
@@ -54,9 +54,7 @@ Page({
 
   onInput(event) {
     const key = event.currentTarget.dataset.key;
-    this.setData({
-      [`form.${key}`]: event.detail.value
-    });
+    this.setData({ [`form.${key}`]: event.detail.value });
   },
 
   async saveCard() {

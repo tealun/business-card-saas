@@ -1,19 +1,30 @@
 const app = getApp();
 const { request, qyLoginCode } = require("../../utils/api");
 
+const demoCard = {
+  display_name: "李明",
+  title: "销售总监 · 市场部",
+  company: "智云科技",
+  fields: {
+    mobile: "138 0013 8000",
+    email: "liming@zhiyun.tech"
+  },
+  status: "active"
+};
+
 Page({
   data: {
     loading: true,
-    card: { fields: {}, status: "active" },
+    error: false,
+    card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
-    // M1 无对应接口，以下为设计还原用的演示数据，接口就绪后替换
     requests: [
-      { id: "req1", name: "周琳", title: "采购经理 · 华宇集团", avatar: "" }
+      { id: "req1", name: "周琳", title: "采购经理 · 华宇集团" }
     ],
     stats: { visitors: 328, viewed: 56, friends: 4 },
     recentVisitors: [
-      { id: "v1", name: "李明哲", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
+      { id: "v1", name: "李明浩", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
       { id: "v2", name: "王思远", title: "商务拓展 · 云图数据", meta: "访问 1 次", state: "pending", time: "昨天" },
       { id: "v3", name: "陈可欣", title: "市场经理 · 万联传媒", meta: "访问 2 次", state: "none", time: "周一" }
     ]
@@ -40,8 +51,8 @@ Page({
       app.globalData.token = session.access_token;
       await this.loadPreview();
     } catch (error) {
-      this.setData({ loading: false });
-      wx.showToast({ title: error.message || "登录失败", icon: "none" });
+      this.setData({ loading: false, error: true });
+      wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
     }
   },
 
@@ -51,13 +62,14 @@ Page({
       app.globalData.currentCard = preview.card;
       const brand = (preview.template && preview.template.color_scheme && preview.template.color_scheme.primary) || "#2b6cff";
       this.setData({
-        card: Object.assign({ status: preview.status }, preview.card),
+        card: Object.assign({ status: preview.status, fields: {} }, preview.card),
         themeBrand: brand,
-        loading: false
+        loading: false,
+        error: false
       });
     } catch (error) {
-      this.setData({ loading: false });
-      wx.showToast({ title: error.message || "读取失败", icon: "none" });
+      this.setData({ loading: false, error: true });
+      wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
     }
   },
 
@@ -73,9 +85,11 @@ Page({
     wx.switchTab({ url: "/pages/card-wallet/index" });
   },
 
-  noop() {},
-
   openSheet() {
+    if (this.data.card.status === "disabled") {
+      wx.showToast({ title: "名片已停用，暂不可分发", icon: "none" });
+      return;
+    }
     this.setData({ sheetVisible: true });
   },
 
@@ -118,6 +132,6 @@ Page({
 
   onShareAppMessage() {
     const card = this.data.card;
-    return { title: `${card.display_name || "我的名片"}的数字名片` };
+    return { title: `${card.display_name || "我的"}的数字名片` };
   }
 });

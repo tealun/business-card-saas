@@ -4,6 +4,8 @@
 关联：主文档 §19（里程碑）、企业微信指引 [`../01-specs/01_01_Wecom_Integration.md`](../01-specs/01_01_Wecom_Integration.md) §6/§13
 来源：审计 A4-P0-5 / A4-P2-3
 
+执行计划：首个真实企业接入与企业配置后台按 [`02_02_First_Enterprise_Wecom_Admin_Plan.md`](02_02_First_Enterprise_Wecom_Admin_Plan.md) 推进；本文件只记录会阻塞真实企业微信闭环的 M0 实测事实。
+
 > 目的：把企业微信关键字段从「待核对」变成「事实闭环可开发」。本文件拆成 **M0-M1 gate** 与 **M0-M3 gate**：M1 只被授权、`jscode2session`、`open_userid`、可见范围等闭环阻塞；客户联系 / 映射 / 欢迎语实测作为 M3 前置，不阻塞 M1 walking skeleton（审计 A7-P1-4）。
 
 ## M0-M1 gate（M1 企业微信部分开工门槛）

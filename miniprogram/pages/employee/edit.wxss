@@ -1,12 +1,11 @@
-.edit-page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
+.edit-page { padding-top: 24rpx; }
 
 .edit-avatar-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 92rpx;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid var(--divider);
+  min-height: 112rpx;
+  padding: 24rpx 0 8rpx;
 }
 
 .edit-avatar {
@@ -22,34 +21,41 @@
   font-weight: 700;
 }
 
-.field-row input.field-row__value { height: 60rpx; line-height: 60rpx; }
+.field-row--textarea { align-items: flex-start; }
 
-.edit-tags { display: flex; flex-wrap: wrap; margin-top: 24rpx; }
+.edit-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 24rpx;
+}
 
 .edit-tags__add {
   display: inline-flex;
   align-items: center;
+  gap: 6rpx;
   height: 48rpx;
-  padding: 0 22rpx;
+  padding: 0 18rpx;
+  border: 2rpx dashed #c9ced6;
   border-radius: var(--r-chip);
-  border: 2rpx dashed var(--brand-soft);
-  color: var(--brand);
+  color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .edit-note {
-  padding: 8rpx 8rpx 24rpx;
-  font-size: 22rpx;
+  padding: 0 8rpx 24rpx;
   color: var(--text-tertiary);
+  font-size: 24rpx;
   line-height: 1.6;
 }
 
-.edit-footer {
+.fixed-footer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: var(--bg-surface);
-  box-shadow: 0 -4rpx 16rpx rgba(16, 24, 40, 0.05);
+  z-index: 20;
+  padding: 20rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid var(--divider);
+  box-sizing: border-box;
 }

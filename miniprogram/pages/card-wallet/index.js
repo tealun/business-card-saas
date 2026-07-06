@@ -7,12 +7,11 @@ Page({
       { key: "friends", label: "好友名片", count: 4 }
     ],
     keyword: "",
-    // M1 无对应接口，以下为设计还原用的演示数据
     groups: [
       {
         title: "今天",
         items: [
-          { id: "v1", name: "李明哲", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
+          { id: "v1", name: "李明浩", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
           { id: "v2", name: "王思远", title: "商务拓展 · 云图数据", meta: "访问 1 次", state: "pending", time: "09:12" }
         ]
       },

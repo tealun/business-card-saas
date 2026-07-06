@@ -4,18 +4,18 @@ const { request } = require("../../utils/api");
 Page({
   data: {
     form: {
-      display_name: "",
-      title: "",
-      department: "",
-      bio: "",
-      mobile: "",
-      phone: "",
-      email: "",
-      wechat_id: "",
-      address: "",
-      website: ""
+      display_name: "李明",
+      title: "销售总监",
+      department: "市场部",
+      bio: "专注企业数字化名片与客户转化。",
+      mobile: "138 0013 8000",
+      phone: "0755-8888 0000",
+      email: "liming@zhiyun.tech",
+      wechat_id: "liming-zy",
+      address: "深圳市南山区科技园",
+      website: "www.zhiyun.tech"
     },
-    tags: ["资深顾问", "10年经验"],
+    tags: ["企业数字化", "SaaS 解决方案", "制造业"],
     privacy: {
       show_mobile: false,
       show_email: true,
@@ -32,7 +32,7 @@ Page({
       const card = await request("/employee/cards/current");
       this.setData({
         form: {
-          display_name: card.display_name,
+          display_name: card.display_name || "",
           title: card.title || "",
           department: card.department || "",
           bio: card.bio || "",
@@ -43,10 +43,10 @@ Page({
           address: card.fields.address || "",
           website: card.fields.website || ""
         },
-        privacy: card.privacy
+        privacy: Object.assign({}, this.data.privacy, card.privacy || {})
       });
     } catch (error) {
-      wx.showToast({ title: error.message || "读取失败", icon: "none" });
+      wx.showToast({ title: error.message || "读取失败，已展示演示资料", icon: "none" });
     }
   },
 
@@ -70,12 +70,14 @@ Page({
         data: {
           display_name: form.display_name,
           title: form.title,
+          bio: form.bio,
           fields: {
             mobile: form.mobile || null,
             phone: form.phone || null,
             email: form.email || null,
             wechat_id: form.wechat_id || null,
-            address: form.address || null
+            address: form.address || null,
+            website: form.website || null
           },
           privacy: {
             show_mobile: this.data.privacy.show_mobile,

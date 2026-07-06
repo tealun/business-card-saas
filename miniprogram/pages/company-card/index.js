@@ -1,25 +1,25 @@
 Page({
   data: {
-    // M1 无对应接口，以下为设计还原用的演示数据
     company: {
-      name: "Demo Tenant 云图科技",
+      name: "智云科技",
+      fullName: "智云科技（深圳）有限公司",
       certified: true,
       stats: [
         { num: "128", label: "在职成员" },
         { num: "460+", label: "服务客户" },
         { num: "2015", label: "成立年份" }
       ],
-      intro: "云图科技专注企业数字化名片与获客解决方案，为中大型企业提供统一对外形象与员工名片管理。",
+      intro: "智云科技专注企业数字化名片与获客解决方案，为中大型企业提供统一对外形象、员工名片管理与客户转化追踪。",
       quals: ["国家高新技术企业", "ISO27001 认证", "双软认证"],
-      address: "上海市浦东新区张江高科技园区",
-      phone: "021-6000 0000",
-      website: "www.yuntu.example.com"
+      address: "深圳市南山区科技园",
+      phone: "0755-8888 0000",
+      website: "www.zhiyun.tech"
     },
     departments: [
       {
         name: "市场部",
         members: [
-          { id: "m1", name: "李明哲", title: "市场总监", self: true },
+          { id: "m1", name: "李明", title: "销售总监", self: true },
           { id: "m2", name: "王思远", title: "品牌经理", self: false }
         ]
       },

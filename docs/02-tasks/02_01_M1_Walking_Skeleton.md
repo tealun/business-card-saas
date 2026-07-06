@@ -3,6 +3,7 @@
 版本：v1 · 日期：2026-07-01 · 归属：全栈
 关联：主文档 §19（里程碑）、§23（验收）、§14（API 分组）、§15/§15.4（DDL）
 前置：[`02_00_M0_Platform_Verification.md`](02_00_M0_Platform_Verification.md) 的 **M0-M1 gate** 完成（#1–#6）；M0-M3 gate 不阻塞本切片
+后续执行：首个真实企业微信接入与企业配置后台按 [`02_02_First_Enterprise_Wecom_Admin_Plan.md`](02_02_First_Enterprise_Wecom_Admin_Plan.md) 拆解推进。
 
 > 目标：打通一条最薄的垂直切片，尽早验证企业微信服务商模式。只写阻塞项与验收项。
 
@@ -26,6 +27,9 @@
 ## 当前落地记录
 
 - 2026-07-02：提交 `befc204` 后继续落地 M1 骨架。
+- 2026-07-06：小程序 UI/体验完成一轮按 `docs/design` handoff 的统一落地。已覆盖 `pages/employee/index`（我的名片首页 + 发名片弹层）、`pages/employee/edit`、`pages/employee/style`、`pages/public/card`、`pages/card-wallet/index`、`pages/company-card/index` 与旧兼容 `pages/employee/card`；统一修正页面标题、中文文案、全局 token、卡片/按钮/状态/底部操作栏样式，并补齐加载、错误、失效、空态等前端状态表达。
+- 2026-07-06：小程序端当前仅负责调用 `wx.qy.login` 获取 code 并请求后端 `POST /api/v1/auth/qy-login`；真实企业微信第三方服务商授权、suite_ticket/permanent_code、`service/miniprogram/jscode2session` 换取 `open_userid`、租户/员工身份定位仍属于后端 + 平台接入线，待 `02_00_M0_Platform_Verification.md` 的 M0-M1 gate 实测完成后替换 demo repository。
+- 2026-07-06：访客页已保留“加企微”动作入口和埋点占位，但真实添加企业微信依赖 M3 客户联系能力（contact_way / welcome_msg / external_userid 映射）与企业微信权限实测；M1 不把该动作计为已闭环。
 - `backend/` 已具备 NestJS + Fastify + node-postgres 独立 npm 子项目，contracts 暂放 `backend/src/contracts/`。
 - 已实现 `POST /api/v1/auth/qy-login` 的 demo code 登录骨架，返回员工 access token、当前身份和默认 `public_id`；真实企业微信 `jscode2session` 待 M0 实测凭据完成后替换 repository。
 - 已实现 `GET /api/v1/employee/cards/current`、`PUT /api/v1/employee/cards/current` 和 `POST /api/v1/employee/cards/current/share`，可用 bearer token 读取/更新当前员工默认名片并签发 `share_id`。
