@@ -220,14 +220,51 @@
               <button id="loadFieldSettings" class="secondary">字段规则</button>
               <button id="saveFieldSettings" class="secondary">保存字段</button>
               <button id="loadTemplates" class="secondary">模板列表</button>
-              <button id="createTemplate">新增模板</button>
             </div>
           </div>
           <article class="panel">
-            <label class="stacked compact-field">
-              <span>模板名称</span>
-              <input id="templateName" value="商务蓝模板" />
-            </label>
+            <form id="templateForm" class="template-editor" onsubmit="return false">
+              <label class="stacked">
+                <span>模板 ID</span>
+                <input id="templateId" placeholder="选择模板后填充" readonly />
+              </label>
+              <label class="stacked">
+                <span>模板名称</span>
+                <input id="templateName" value="商务蓝模板" />
+              </label>
+              <label class="stacked">
+                <span>状态</span>
+                <select id="templateStatus">
+                  <option value="active">active</option>
+                  <option value="disabled">disabled</option>
+                </select>
+              </label>
+              <label class="stacked">
+                <span>背景 URL</span>
+                <input id="templateBackgroundUrl" placeholder="https://..." />
+              </label>
+              <label class="stacked">
+                <span>Logo URL</span>
+                <input id="templateLogoUrl" placeholder="https://..." />
+              </label>
+              <label class="stacked">
+                <span>主色</span>
+                <input id="templatePrimaryColor" value="#1677ff" />
+              </label>
+              <label class="stacked">
+                <span>底色</span>
+                <input id="templateSurfaceColor" value="#ffffff" />
+              </label>
+              <label class="stacked">
+                <span>布局</span>
+                <input id="templateLayoutVariant" value="horizontal-business" />
+              </label>
+              <div class="button-row compact-row wide">
+                <button id="createTemplate" type="button">新增模板</button>
+                <button id="updateTemplate" type="button" class="secondary">保存模板</button>
+                <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
+              </div>
+            </form>
             <div class="split-grid">
               <div>
                 <h3>字段规则</h3>
@@ -256,10 +293,12 @@
                         <th>名称</th>
                         <th>默认</th>
                         <th>状态</th>
+                        <th>颜色</th>
+                        <th>操作</th>
                       </tr>
                     </thead>
                     <tbody id="templateRows">
-                      <tr><td colspan="3">尚未加载</td></tr>
+                      <tr><td colspan="5">尚未加载</td></tr>
                     </tbody>
                   </table>
                 </div>

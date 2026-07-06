@@ -308,9 +308,14 @@ h3 {
 }
 
 .split-grid,
+.template-editor,
 .setup-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 16px;
+}
+
+.template-editor {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .setup-grid {
@@ -348,6 +353,39 @@ h3 {
 .toggle-row input {
   width: auto;
   min-height: auto;
+}
+
+.selected-row td {
+  background: var(--brand-tint);
+}
+
+.muted-line {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.table-actions {
+  white-space: nowrap;
+}
+
+.mini-button {
+  min-height: 30px;
+  margin: 0 6px 6px 0;
+  padding: 5px 8px;
+  font-size: 12px;
 }
 
 .table-wrap {
@@ -402,6 +440,7 @@ h3 {
   .metric-grid,
   .form-grid,
   .split-grid,
+  .template-editor,
   .setup-grid {
     grid-template-columns: 1fr;
   }
