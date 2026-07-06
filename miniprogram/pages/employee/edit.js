@@ -19,8 +19,7 @@ Page({
     privacy: {
       show_mobile: false,
       show_email: true,
-      show_wechat: false,
-      show_wecom: true
+      show_wechat: false
     }
   },
 
@@ -44,7 +43,7 @@ Page({
           address: card.fields.address || "",
           website: card.fields.website || ""
         },
-        privacy: Object.assign({ show_wecom: true }, card.privacy)
+        privacy: card.privacy
       });
     } catch (error) {
       wx.showToast({ title: error.message || "读取失败", icon: "none" });

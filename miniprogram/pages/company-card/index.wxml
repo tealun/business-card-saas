@@ -28,7 +28,7 @@
     <!-- 联系与官网 -->
     <view class="card">
       <text class="card__title">联系与官网</text>
-      <view class="field-row" bindtap="callCompany">
+      <view class="field-row" bindtap="copyAddress">
         <view class="field-row__label"><view class="icon icon-location icon--sm"></view><text>地址</text></view>
         <view class="field-row__value">{{company.address}}</view>
       </view>

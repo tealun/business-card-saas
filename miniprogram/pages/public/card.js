@@ -4,8 +4,8 @@ const { request } = require("../../utils/api");
 Page({
   data: {
     uiState: "loading", // loading | ready | error | disabled
-    publicId: "pub_demo0001",
-    shareId: "shr_demo0001",
+    publicId: "",
+    shareId: "",
     nextShareId: "",
     visitId: "",
     themeBrand: "#2b6cff",
@@ -23,10 +23,17 @@ Page({
   },
 
   async onLoad(query) {
+    const publicId = query.card || query.public_id || "";
+    const shareId = query.share || "";
     this.setData({
-      publicId: query.card || query.public_id || "pub_demo0001",
-      shareId: query.share || "shr_demo0001"
+      publicId,
+      shareId
     });
+    if (!publicId) {
+      this.setData({ uiState: "error" });
+      wx.showToast({ title: "名片链接无效", icon: "none" });
+      return;
+    }
     await this.loadPublicCard();
     await this.createVisit();
   },
@@ -68,13 +75,16 @@ Page({
 
   async createVisit() {
     try {
+      const data = {
+        anon_id: app.globalData.anonId || undefined
+      };
+      if (this.data.shareId) {
+        data.share = this.data.shareId;
+      }
       const visit = await request(`/public/cards/${this.data.publicId}/visit`, {
         method: "POST",
         auth: false,
-        data: {
-          share: this.data.shareId,
-          anon_id: app.globalData.anonId || undefined
-        }
+        data
       });
       app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
@@ -86,7 +96,7 @@ Page({
   },
 
   async prepareDerivedShare() {
-    if (!app.globalData.visitToken) {
+    if (!app.globalData.visitToken || !this.data.shareId) {
       return;
     }
     try {
@@ -182,7 +192,22 @@ Page({
     this.recordAction("play_company_video");
     const video = this.data.card.videos[0];
     if (video && video.video_url) {
-      wx.navigateTo({ url: `/pages/public/card?_v=${encodeURIComponent(video.video_url)}`, fail() {} });
+      if (wx.previewMedia) {
+        wx.previewMedia({
+          sources: [
+            {
+              url: video.video_url,
+              type: "video",
+              poster: video.cover_url || undefined
+            }
+          ],
+          fail() {
+            wx.setClipboardData({ data: video.video_url });
+          }
+        });
+      } else {
+        wx.setClipboardData({ data: video.video_url });
+      }
     }
   },
 
@@ -197,9 +222,10 @@ Page({
   onShareAppMessage() {
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
+    const shareParam = shareId ? `&share=${shareId}` : "";
     return {
       title: `${this.data.card.card.display_name || "企业名片"}`,
-      path: `/pages/public/card?card=${this.data.publicId}&share=${shareId}`
+      path: `/pages/public/card?card=${this.data.publicId}${shareParam}`
     };
   }
 });
