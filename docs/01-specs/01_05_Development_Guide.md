@@ -10,12 +10,12 @@
 - 采用 Moread 风格的根目录独立子项目：`backend/`、`miniprogram/`、`admin/`、`database/`、`docs/`。
 - 不采用 `apps/` monorepo、pnpm workspace 或 Turborepo，除非后续出现明确的跨端构建收益并经文档决策更新。
 - 每个可运行子项目独立维护 `package.json`、lockfile、环境示例和构建命令；根目录不放统一 npm 脚手架。
-- `database/` 只放数据库资产，例如 RLS、人工审计 SQL、跨服务共享的数据库脚本；Prisma schema 随后端放在 `backend/prisma/`。
+- `database/` 放项目级数据库事实源，例如 `schema.sql`、RLS、人工审计 SQL、跨服务共享的数据库脚本；后端不维护第二套 ORM schema。
 - `miniprogram/` 和 `admin/` 在真实开工前只保留占位，不提前引入脚手架。
 
 ## 2. 后端开发习惯
 
-- 后端事实入口是 `backend/`；当前栈为 NestJS + Fastify + Prisma。
+- 后端事实入口是 `backend/`；当前栈为 NestJS + Fastify + node-postgres。
 - API 统一前缀 `/api/v1`；破坏性变更升 `/api/v2`，不要在实现里绕过 `01_02_Api_Spec.md`。
 - M1 合约先放 `backend/src/contracts/`，使用 Zod 定义请求/响应；只有当小程序或后台出现稳定直接复用需求时，再抽独立共享包。
 - 多租户查询必须通过服务端注入 `tenant_id` / `account_id` 与 RLS 上下文，禁止接受前端传入 tenant_id。
@@ -27,17 +27,14 @@
 
 ```bash
 cd backend
-npm run prisma:generate
 npm run build
 npm run typecheck
 npm test
 npm run lint
-npm run prisma:validate
 npm run rls:validate
 npm audit --omit=dev
 ```
 
-- Windows 上 Prisma 生成失败且出现 DLL/EPERM 时，优先检查是否有残留 `node.exe` 测试或服务进程锁住 `node_modules/.prisma`。
 - 安全审计优先消除生产依赖漏洞；本项目后端已改用 Fastify 适配器以避免 Express/Multer 链路带来的高危审计噪音。
 - 测试以真实框架入口为准；Fastify 场景优先用 `app.inject()` 做 HTTP 层测试。
 

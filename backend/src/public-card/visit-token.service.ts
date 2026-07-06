@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { readSecret } from "../common/secrets.js";
 
 export interface VisitTokenPayload {
   visitId: string;
@@ -47,7 +48,7 @@ export class VisitTokenService {
   }
 
   private signature(encodedPayload: string): string {
-    const secret = process.env.VISIT_TOKEN_SECRET ?? "dev-only-change-me";
+    const secret = readSecret("VISIT_TOKEN_SECRET", "dev-only-change-me");
     return createHmac("sha256", secret).update(encodedPayload).digest("base64url");
   }
 

@@ -1,0 +1,14 @@
+{
+  "description": "business-card-saas M1 miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true
+  },
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "business-card-saas",
+  "miniprogramRoot": "./"
+}

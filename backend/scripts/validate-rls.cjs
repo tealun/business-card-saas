@@ -10,7 +10,13 @@ const tenantTables = [
   "card_visits",
   "card_actions",
   "card_shares",
-  "tenant_admins"
+  "tenant_admins",
+  "templates",
+  "company_profiles",
+  "company_videos",
+  "company_honors",
+  "company_honor_images",
+  "card_style_overrides"
 ];
 
 const accountTables = ["account_preferences"];

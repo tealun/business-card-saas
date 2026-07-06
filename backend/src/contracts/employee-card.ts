@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { publicIdSchema, shareIdSchema } from "./public-card.js";
+import { publicCardResponseSchema, publicIdSchema, shareIdSchema } from "./public-card.js";
 
 export const employeeCardResponseSchema = z.object({
   card_id: z.string(),
@@ -10,8 +10,10 @@ export const employeeCardResponseSchema = z.object({
   avatar_url: z.string().url().nullable(),
   fields: z.object({
     mobile: z.string().nullable(),
+    phone: z.string().nullable().optional(),
     email: z.string().email().nullable(),
-    wechat_id: z.string().nullable()
+    wechat_id: z.string().nullable(),
+    address: z.string().nullable().optional()
   }),
   status: z.enum(["active", "disabled"]),
   privacy: z.object({
@@ -34,8 +36,10 @@ export const updateEmployeeCardRequestSchema = z.object({
   fields: z
     .object({
       mobile: z.string().max(32).nullable().optional(),
+      phone: z.string().max(32).nullable().optional(),
       email: z.string().email().nullable().optional(),
-      wechat_id: z.string().max(128).nullable().optional()
+      wechat_id: z.string().max(128).nullable().optional(),
+      address: z.string().max(255).nullable().optional()
     })
     .optional(),
   privacy: z
@@ -47,6 +51,15 @@ export const updateEmployeeCardRequestSchema = z.object({
     .optional()
 });
 
+export const updateEmployeeCardStyleRequestSchema = z.object({
+  template_id: z.string().min(1).max(64).optional(),
+  background_url: z.string().url().nullable().optional(),
+  color_scheme: z.record(z.string(), z.unknown()).optional(),
+  layout: z.record(z.string(), z.unknown()).optional()
+});
+
 export type EmployeeCardResponse = z.infer<typeof employeeCardResponseSchema>;
 export type EmployeeShareResponse = z.infer<typeof employeeShareResponseSchema>;
 export type UpdateEmployeeCardRequest = z.infer<typeof updateEmployeeCardRequestSchema>;
+export type UpdateEmployeeCardStyleRequest = z.infer<typeof updateEmployeeCardStyleRequestSchema>;
+export type EmployeeCardPreviewResponse = z.infer<typeof publicCardResponseSchema>;

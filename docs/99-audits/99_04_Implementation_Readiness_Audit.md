@@ -16,7 +16,7 @@
 审计类型：实施就绪 / 多租户安全 / 企业微信关键链路 / PostgreSQL RLS / 技术栈生命周期 / 合规边界  
 结论等级：**可以进入 M0/M1 预研与脚手架阶段，但不建议直接进入完整 M1 编码。先修 P0，再开主干开发。**
 
-> ✅ **修复状态（2026-07-01，v0.4.6）**：本报告 P0 全部 + P1/P2 全部已落地文档。修复清单与位置见 [`99_05_Verification_And_New_Findings.md`](99_05_Verification_And_New_Findings.md) §5「修复落地」。核心：Node 24 / PG 17+ / WAL-PITR（§3.1/§33/§31.3）、`public_card_directory`（§15.4）、account 绑定表 RLS 分级（§15.4 / DB 指引 §2）、`contact_ways.channel` NOT NULL + active 部分唯一（§15.3）、关键外键 Plan A（§15.4）、软删除部分唯一（§15.4）、owner bootstrap（§15.4）、visit_token 契约（§14.6）、growth_leads 双角色（PIPL §1 + §15.3 字段）、Prisma RLS 事务硬约束（§33.2）、API 路径收口（§14）。
+> ✅ **修复状态（2026-07-01，v0.4.6；2026-07-06 更新数据访问边界）**：本报告 P0 全部 + P1/P2 全部已落地文档。修复清单与位置见 [`99_05_Verification_And_New_Findings.md`](99_05_Verification_And_New_Findings.md) §5「修复落地」。核心：Node 24 / PG 17+ / WAL-PITR（§3.1/§33/§31.3）、`public_card_directory`（§15.4）、account 绑定表 RLS 分级（§15.4 / DB 指引 §2）、`contact_ways.channel` NOT NULL + active 部分唯一（§15.3）、关键外键 Plan A（§15.4）、软删除部分唯一（§15.4）、owner bootstrap（§15.4）、visit_token 契约（§14.6）、growth_leads 双角色（PIPL §1 + §15.3 字段）、node-postgres RLS 事务硬约束（§33.2）、API 路径收口（§14）。
 
 ---
 
@@ -433,7 +433,7 @@ visit_token = 服务端签发的短期 JWT 或 HMAC opaque token
 
 ---
 
-### A4-P1-10：Prisma + RLS + `SET LOCAL` 要求所有租户查询在事务内，需写成硬约束
+### A4-P1-10：node-postgres + RLS + `SET LOCAL` 要求所有租户查询在事务内，需写成硬约束
 
 **位置**：主文档 §33.2、数据库指引 §2  
 **现状**：文档已经提醒 PgBouncer transaction 模式兼容性待验证，但还没有把“租户查询必须在事务内执行”写成工程硬规则。
@@ -442,7 +442,7 @@ visit_token = 服务端签发的短期 JWT 或 HMAC opaque token
 
 - 所有需要 RLS 的请求都通过 `TenantTx.run(tenantId, callback)` 包裹。
 - `TenantTx` 内部开启事务并执行 `SET LOCAL app.tenant_id = ...`。
-- Repository 层禁止直接使用裸 Prisma client 访问租户表。
+- Repository 层禁止绕过 `TenantTx` / `DatabaseService` 访问租户表。
 - CI 增加测试：无 `SET LOCAL` 时查询不到数据；不同 tenant 上下文互不可见。
 - 若使用 PgBouncer，先验证 transaction pooling 下 `SET LOCAL` 的生命周期，不通过则不用 transaction pooling 或改连接策略。
 
@@ -502,7 +502,7 @@ visit_token = 服务端签发的短期 JWT 或 HMAC opaque token
 6. PostgreSQL 版本改 17+/18，灾备从 binlog 改 WAL/PITR。
 7. 软删除唯一约束改 partial unique index。
 8. owner bootstrap、visit_token 契约、API 路径事实源收口。
-9. Prisma RLS 事务包装器定为工程规范。
+9. node-postgres RLS 事务包装器定为工程规范。
 
 ### M2/M3 前修
 

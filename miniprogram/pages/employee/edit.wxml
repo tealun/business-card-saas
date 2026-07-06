@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="panel">
+    <view class="eyebrow">基础信息</view>
+    <label class="field"><text>姓名</text><input value="{{form.display_name}}" data-key="display_name" bindinput="onInput" /></label>
+    <label class="field"><text>职位</text><input value="{{form.title}}" data-key="title" bindinput="onInput" /></label>
+    <label class="field"><text>部门</text><input value="{{form.department}}" disabled placeholder="企业统一维护" /></label>
+  </view>
+
+  <view class="panel">
+    <view class="eyebrow">联系方式</view>
+    <label class="field"><text>手机</text><input value="{{form.mobile}}" data-key="mobile" bindinput="onInput" /></label>
+    <label class="field"><text>座机</text><input value="{{form.phone}}" data-key="phone" bindinput="onInput" /></label>
+    <label class="field"><text>邮箱</text><input value="{{form.email}}" data-key="email" bindinput="onInput" /></label>
+    <label class="field"><text>微信号</text><input value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" /></label>
+    <label class="field"><text>地址</text><input value="{{form.address}}" data-key="address" bindinput="onInput" /></label>
+  </view>
+
+  <view class="panel">
+    <view class="eyebrow">隐私设置</view>
+    <switch checked="{{privacy.show_mobile}}" data-key="show_mobile" bindchange="onPrivacy" /> 手机公开
+    <switch checked="{{privacy.show_email}}" data-key="show_email" bindchange="onPrivacy" /> 邮箱公开
+    <switch checked="{{privacy.show_wechat}}" data-key="show_wechat" bindchange="onPrivacy" /> 微信公开
+  </view>
+
+  <button bindtap="saveCard">保存</button>
+</view>

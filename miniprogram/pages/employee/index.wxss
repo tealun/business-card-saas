@@ -1,0 +1,60 @@
+.notice {
+  margin-bottom: 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 10rpx;
+  background: #eaf4ff;
+  color: #185c9f;
+  font-size: 24rpx;
+}
+
+.business-card {
+  background: linear-gradient(135deg, #ffffff 0%, #edf6ff 100%);
+}
+
+.contact-line {
+  margin-top: 12rpx;
+  color: #334138;
+  font-size: 26rpx;
+}
+
+.send-button {
+  width: 100%;
+  height: 92rpx;
+  margin-bottom: 24rpx;
+  background: #1677ff;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+}
+
+.section-title {
+  margin-bottom: 18rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+}
+
+.metric-row view {
+  display: grid;
+  gap: 6rpx;
+  text-align: center;
+}
+
+.metric-row strong {
+  font-size: 36rpx;
+}
+
+.metric-row text {
+  color: #657065;
+  font-size: 22rpx;
+}

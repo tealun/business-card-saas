@@ -3,6 +3,9 @@ import {
   actionResponseSchema,
   type ActionRequest,
   type ActionResponse,
+  deriveShareResponseSchema,
+  type DeriveShareRequest,
+  type DeriveShareResponse,
   type PublicCardResponse,
   type VisitRequest,
   type VisitResponse,
@@ -59,6 +62,26 @@ export class PublicCardService {
     return actionResponseSchema.parse({
       accepted: true,
       idempotent: result.idempotent
+    });
+  }
+
+  deriveShare(publicId: string, token: string, request: DeriveShareRequest): DeriveShareResponse {
+    const payload = this.visitTokens.verify(token);
+    if (payload.publicId !== publicId) {
+      throw new UnauthorizedException("visit_token scope mismatch");
+    }
+    if (!this.repository.findVisit(payload.visitId)) {
+      throw new UnauthorizedException("visit not found");
+    }
+    const share = this.repository.deriveShare({
+      publicId,
+      parentShareId: request.parent_share_id
+    });
+    return deriveShareResponseSchema.parse({
+      share_id: share.shareId,
+      parent_share_id: request.parent_share_id,
+      depth: share.depth,
+      capped: share.capped
     });
   }
 }

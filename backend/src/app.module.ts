@@ -1,13 +1,26 @@
 import { Module } from "@nestjs/common";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { HealthController } from "./health.controller.js";
-import { PrismaModule } from "./prisma/prisma.module.js";
+import { DatabaseModule } from "./database/database.module.js";
 import { PublicCardModule } from "./public-card/public-card.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { EmployeeCardModule } from "./employee/employee-card.module.js";
 import { OwnerBootstrapModule } from "./admin-bootstrap/owner-bootstrap.module.js";
+import { ApiExceptionFilter } from "./common/api-exception.filter.js";
+import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
 
 @Module({
-  imports: [PrismaModule, PublicCardModule, AuthModule, EmployeeCardModule, OwnerBootstrapModule],
-  controllers: [HealthController]
+  imports: [DatabaseModule, PublicCardModule, AuthModule, EmployeeCardModule, OwnerBootstrapModule],
+  controllers: [HealthController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApiResponseInterceptor
+    },
+    {
+      provide: APP_FILTER,
+      useClass: ApiExceptionFilter
+    }
+  ]
 })
 export class AppModule {}

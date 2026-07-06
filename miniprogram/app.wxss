@@ -1,0 +1,91 @@
+page {
+  background: #f6f3ea;
+  color: #17201a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.panel {
+  margin-bottom: 24rpx;
+  padding: 28rpx;
+  border: 1rpx solid #d8d0bf;
+  border-radius: 12rpx;
+  background: #fffdf6;
+}
+
+.eyebrow {
+  color: #0b4e42;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.title {
+  margin-top: 8rpx;
+  font-size: 44rpx;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.muted {
+  color: #657065;
+  font-size: 24rpx;
+}
+
+.field {
+  display: block;
+  margin-top: 18rpx;
+}
+
+.field text {
+  display: block;
+  margin-bottom: 8rpx;
+  color: #657065;
+  font-size: 24rpx;
+}
+
+input {
+  height: 76rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid #d8d0bf;
+  border-radius: 10rpx;
+  background: #fffefa;
+}
+
+button {
+  margin: 0;
+  border-radius: 10rpx;
+  background: #0f7b63;
+  color: #fff;
+}
+
+.button-row {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.button-row button {
+  flex: 1;
+}
+
+.secondary {
+  background: #fffefa;
+  color: #0b4e42;
+  border: 1rpx solid #0b4e42;
+}
+
+.output {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  border-radius: 10rpx;
+  background: #18221d;
+  color: #c9f5df;
+  font-size: 22rpx;
+  word-break: break-all;
+}

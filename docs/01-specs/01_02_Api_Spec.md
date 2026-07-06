@@ -1,6 +1,6 @@
 # 01_02 API 契约（执行指引）
 
-版本：v1.1 · 日期：2026-07-02 · 归属：后端
+版本：v1.2 · 日期：2026-07-06 · 归属：后端
 关联主文档：[`../00-core/00_01_Dev_Doc.md`](../00-core/00_01_Dev_Doc.md) 的 §14（接口草案）、§28（API 规范）、§16（隔离）、§14.3/§32（埋点与口径）
 职责：本文件是**接口契约的执行事实源**（路径、鉴权、请求/响应、错误码、分页）；主文档 §14/§28 保留规范要点。
 
@@ -48,6 +48,8 @@
 |-----------|------|------|
 | GET `/api/v1/employee/cards/current` | JWT | 当前身份名片 |
 | PUT `/api/v1/employee/cards/current` | JWT | 更新（字段权限校验；触发缓存失效 §32） |
+| GET `/api/v1/employee/cards/current/preview` | JWT | 当前名片访客视角预览，含模板、公司内容、隐私判定后的公开字段 |
+| PUT `/api/v1/employee/cards/current/style` | JWT | 员工选择企业允许的模板、背景、色彩；企业锁定项不可改 |
 | POST `/api/v1/employee/cards/current/poster` | JWT | 生成海报（含小程序码，scene 放 share_id） |
 | GET `/api/v1/employee/cards/current/stats` | JWT | 本名片统计（按 trust_level 分层 §32） |
 | POST `/api/v1/employee/cards/current/share` | JWT | 签发 `share_id`（写 `card_shares`，§6.3） |
@@ -63,6 +65,50 @@
 | GET `/api/v1/public/cards/{public_id}/vcard` | 无 | vCard；⚠️ 遵守隐私开关，`show_mobile=false` 不含手机号（A3-3） |
 
 **只用 `public_id`，不暴露内部自增 ID / slug（§30.1）。**
+
+公开名片内容包响应需要支持 M2 内容型详情页：
+
+```json
+{
+  "public_id": "pub_xxx",
+  "status": "active",
+  "card": {
+    "display_name": "廖杨柳",
+    "title": "平面设计",
+    "company": "桂林广陆数字测控有限公司",
+    "avatar_url": "https://...",
+    "fields": {
+      "mobile": null,
+      "phone": "021-5566XXXX",
+      "email": "2398086674@qq.com",
+      "wechat_id": null,
+      "address": "广西桂林市高铁经济产业园长丰路27号"
+    }
+  },
+  "template": {
+    "template_id": "tpl_xxx",
+    "logo_url": "https://...",
+    "background_url": "https://...",
+    "color_scheme": {},
+    "layout": {}
+  },
+  "company_profile": {
+    "name": "桂林广陆数字测控有限公司",
+    "intro_blocks": [],
+    "website_url": "https://...",
+    "address": "..."
+  },
+  "videos": [],
+  "honors": []
+}
+```
+
+约束：
+
+- `fields` 必须经过企业规则、员工 privacy、字段存在、名片 active 四重判定。
+- `template` 与 `company_profile` 只返回本 `tenant_id` 下已发布内容。
+- `videos`、`honors` 默认只返回 `status=published` 且 `visible=true` 的内容。
+- GET 仍然不返回 `visit_token`。
 
 ### 3.4 客户联系（Contact / Mapping，M3）
 
@@ -83,6 +129,32 @@
 | PUT `/api/v1/admin/settings/fields` | 字段规则（企业硬边界，§11.3） |
 | GET `/api/v1/admin/stats/overview` | 统计概览（口径见 §32） |
 | GET `/api/v1/admin/audit-logs` | 操作日志 |
+
+### 3.6 企业内容与模板（Admin / M2）
+
+| 方法 路径 | 鉴权 | 说明 |
+|-----------|------|------|
+| GET `/api/v1/admin/company-profile` | Admin JWT | 读取企业介绍、官网、地址、认证状态、公开展示开关 |
+| PUT `/api/v1/admin/company-profile` | Admin JWT | 更新企业介绍；触发关联公开名片缓存失效 |
+| GET `/api/v1/admin/company-videos` | Admin JWT | 企业视频列表 |
+| POST `/api/v1/admin/company-videos` | Admin JWT | 新增视频，支持封面、排序、展示开关 |
+| PUT `/api/v1/admin/company-videos/{id}` | Admin JWT | 更新视频 |
+| DELETE `/api/v1/admin/company-videos/{id}` | Admin JWT | 软删除视频 |
+| GET `/api/v1/admin/company-honors` | Admin JWT | 公司荣誉列表 |
+| POST `/api/v1/admin/company-honors` | Admin JWT | 新增荣誉，支持图文与图片数组 |
+| PUT `/api/v1/admin/company-honors/{id}` | Admin JWT | 更新荣誉 |
+| DELETE `/api/v1/admin/company-honors/{id}` | Admin JWT | 软删除荣誉 |
+| GET `/api/v1/admin/templates` | Admin JWT | 模板列表 |
+| POST `/api/v1/admin/templates` | Admin JWT | 新增模板，含背景、颜色、布局 JSON |
+| PUT `/api/v1/admin/templates/{id}` | Admin JWT | 更新模板 |
+| PUT `/api/v1/admin/templates/{id}/default` | Admin JWT | 设为默认模板；租户内唯一 |
+
+上传与内容安全：
+
+- 图片、视频先上传到对象存储临时区，经类型、大小、扩展名、MIME、图片解码校验后转正。
+- 图片去 EXIF；视频限制大小、时长和格式。
+- 外链只允许 `https://` 和企业白名单域名；短链需展开审核。
+- 所有内容写操作记录 `audit_logs`。
 
 ## 4. 待核对
 

@@ -33,8 +33,9 @@ describe("OwnerBootstrapService", () => {
       throw new Error("expected claim token result");
     }
     expect(result.claim_token).toMatch(/^admclaim_/);
-    expect(result.token_hash).toBe(service.hashClaimToken(result.claim_token));
-    expect(repository.findClaimToken(result.token_hash)?.usedAt).toBeNull();
+    const tokenHash = service.hashClaimToken(result.claim_token);
+    expect(repository.findClaimToken(tokenHash)?.usedAt).toBeNull();
+    expect(result).not.toHaveProperty("token_hash");
     expect(new Date(result.expires_at).getTime()).toBeGreaterThan(Date.now());
   });
 

@@ -5,18 +5,59 @@ export const shareIdSchema = z.string().regex(/^shr_[A-Za-z0-9_-]{8,64}$/);
 export const anonIdSchema = z.string().regex(/^anon_[A-Za-z0-9_-]{16,80}$/);
 export const visitIdSchema = z.string().regex(/^vis_[A-Za-z0-9_-]{16,80}$/);
 
+export const publicCardFieldSchema = z.object({
+  mobile: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().email().nullable(),
+  wechat_id: z.string().nullable(),
+  address: z.string().nullable()
+});
+
 export const publicCardResponseSchema = z.object({
   public_id: publicIdSchema,
-  display_name: z.string(),
-  title: z.string().nullable(),
-  company: z.string().nullable(),
-  avatar_url: z.string().url().nullable(),
-  fields: z.object({
-    mobile: z.string().nullable(),
-    email: z.string().email().nullable(),
-    wechat_id: z.string().nullable()
+  status: z.enum(["active", "disabled", "expired", "employee_left", "tenant_cancelled"]),
+  card: z.object({
+    display_name: z.string(),
+    title: z.string().nullable(),
+    company: z.string().nullable(),
+    avatar_url: z.string().url().nullable(),
+    fields: publicCardFieldSchema
   }),
-  status: z.enum(["active"])
+  template: z.object({
+    template_id: z.string(),
+    logo_url: z.string().url().nullable(),
+    background_url: z.string().url().nullable(),
+    color_scheme: z.record(z.string(), z.unknown()),
+    layout: z.record(z.string(), z.unknown())
+  }),
+  company_profile: z.object({
+    name: z.string(),
+    intro_blocks: z.array(z.record(z.string(), z.unknown())),
+    website_url: z.string().url().nullable(),
+    address: z.string().nullable()
+  }),
+  videos: z.array(
+    z.object({
+      video_id: z.string(),
+      title: z.string(),
+      video_url: z.string().url(),
+      cover_url: z.string().url().nullable()
+    })
+  ),
+  honors: z.array(
+    z.object({
+      honor_id: z.string(),
+      title: z.string(),
+      body: z.string().nullable(),
+      images: z.array(
+        z.object({
+          image_url: z.string().url(),
+          title: z.string().nullable(),
+          caption: z.string().nullable()
+        })
+      )
+    })
+  )
 });
 
 export const visitRequestSchema = z.object({
@@ -33,7 +74,19 @@ export const visitResponseSchema = z.object({
 });
 
 export const actionRequestSchema = z.object({
-  action_type: z.enum(["save_phone", "call_phone", "copy_phone", "copy_email", "view_site", "add_wecom"])
+  action_type: z.enum([
+    "save_phone",
+    "call_phone",
+    "copy_phone",
+    "copy_email",
+    "view_site",
+    "add_wecom",
+    "open_map",
+    "play_company_video",
+    "view_honor_image",
+    "expand_company_intro",
+    "view_paper_card"
+  ])
 });
 
 export const actionResponseSchema = z.object({
@@ -41,8 +94,21 @@ export const actionResponseSchema = z.object({
   idempotent: z.boolean()
 });
 
+export const deriveShareRequestSchema = z.object({
+  parent_share_id: shareIdSchema
+});
+
+export const deriveShareResponseSchema = z.object({
+  share_id: shareIdSchema,
+  parent_share_id: shareIdSchema,
+  depth: z.number().int().min(0).max(3),
+  capped: z.boolean()
+});
+
 export type PublicCardResponse = z.infer<typeof publicCardResponseSchema>;
 export type VisitRequest = z.infer<typeof visitRequestSchema>;
 export type VisitResponse = z.infer<typeof visitResponseSchema>;
 export type ActionRequest = z.infer<typeof actionRequestSchema>;
 export type ActionResponse = z.infer<typeof actionResponseSchema>;
+export type DeriveShareRequest = z.infer<typeof deriveShareRequestSchema>;
+export type DeriveShareResponse = z.infer<typeof deriveShareResponseSchema>;

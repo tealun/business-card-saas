@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { EmployeeSession } from "./employee-session.js";
+import { readSecret } from "../common/secrets.js";
 
 interface TokenEnvelope {
   payload: EmployeeSession & {
@@ -12,7 +13,7 @@ interface TokenEnvelope {
 @Injectable()
 export class SessionTokenService {
   readonly expiresIn = 60 * 60 * 24;
-  private readonly secret = process.env.JWT_SECRET ?? "dev-only-change-me";
+  private readonly secret = readSecret("JWT_SECRET", "dev-only-change-me");
 
   sign(session: EmployeeSession): string {
     const payload = {

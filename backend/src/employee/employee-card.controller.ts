@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Put, Req, UseGuards } from "@nestjs/common";
-import { updateEmployeeCardRequestSchema } from "../contracts/employee-card.js";
+import { updateEmployeeCardRequestSchema, updateEmployeeCardStyleRequestSchema } from "../contracts/employee-card.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { EmployeeCardService } from "./employee-card.service.js";
 
@@ -16,6 +16,16 @@ export class EmployeeCardController {
   @Put("current")
   updateCurrent(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.cards.updateCurrentCard(this.requireSession(request), updateEmployeeCardRequestSchema.parse(body));
+  }
+
+  @Get("current/preview")
+  getPreview(@Req() request: EmployeeRequest) {
+    return this.cards.getPreview(this.requireSession(request));
+  }
+
+  @Put("current/style")
+  updateStyle(@Req() request: EmployeeRequest, @Body() body: unknown) {
+    return this.cards.updateStyle(this.requireSession(request), updateEmployeeCardStyleRequestSchema.parse(body));
   }
 
   @Post("current/share")

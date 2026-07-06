@@ -1,0 +1,3 @@
+.panel switch {
+  margin: 14rpx 12rpx 14rpx 0;
+}

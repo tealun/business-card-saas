@@ -1,0 +1,22 @@
+.panel view {
+  margin-bottom: 12rpx;
+}
+
+.title.small {
+  font-size: 34rpx;
+}
+
+.honor-swiper {
+  height: 240rpx;
+  margin-top: 18rpx;
+}
+
+.honor-image {
+  display: flex;
+  height: 210rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  background: #eaf4ff;
+  color: #185c9f;
+}

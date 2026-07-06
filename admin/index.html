@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>企业名片 SaaS · M1 Workbench</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">M1 Workbench</p>
+          <h1>企业名片联调台</h1>
+        </div>
+        <label class="api-base">
+          <span>API Base</span>
+          <input id="apiBase" autocomplete="off" />
+        </label>
+      </header>
+
+      <section class="status-strip" aria-live="polite">
+        <div>
+          <span class="label">API</span>
+          <strong id="apiStatus">未检查</strong>
+        </div>
+        <div>
+          <span class="label">登录</span>
+          <strong id="loginStatus">未登录</strong>
+        </div>
+        <div>
+          <span class="label">Share</span>
+          <strong id="shareStatus">未签发</strong>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel compact">
+          <div class="panel-head">
+            <h2>连接</h2>
+            <button id="checkHealth" class="icon-button" title="检查 API">↻</button>
+          </div>
+          <div class="button-row">
+            <button id="demoLogin">Demo 企微登录</button>
+            <button id="loadCard" class="secondary">读取名片</button>
+          </div>
+          <pre id="sessionOutput" class="output" aria-label="session output"></pre>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>员工名片</h2>
+            <button id="saveCard" title="保存名片">保存</button>
+          </div>
+          <form id="cardForm" class="form-grid">
+            <label>
+              <span>姓名</span>
+              <input name="display_name" />
+            </label>
+            <label>
+              <span>职位</span>
+              <input name="title" />
+            </label>
+            <label>
+              <span>手机</span>
+              <input name="mobile" />
+            </label>
+            <label>
+              <span>座机</span>
+              <input name="phone" />
+            </label>
+            <label>
+              <span>邮箱</span>
+              <input name="email" type="email" />
+            </label>
+            <label>
+              <span>微信号</span>
+              <input name="wechat_id" />
+            </label>
+            <label>
+              <span>地址</span>
+              <input name="address" />
+            </label>
+            <div class="toggle-row">
+              <label><input name="show_mobile" type="checkbox" /> 展示手机</label>
+              <label><input name="show_email" type="checkbox" /> 展示邮箱</label>
+              <label><input name="show_wechat" type="checkbox" /> 展示微信</label>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>分享与公开页</h2>
+            <button id="createShare">签发分享</button>
+          </div>
+          <div class="share-box">
+            <code id="sharePath">尚未生成</code>
+          </div>
+          <div class="button-row">
+            <button id="loadPublic" class="secondary">公开预览</button>
+            <button id="createVisit" class="secondary">创建 visit</button>
+            <button id="deriveShare" class="secondary">派生分享</button>
+          </div>
+          <pre id="publicOutput" class="output tall" aria-label="public output"></pre>
+        </article>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
