@@ -227,6 +227,16 @@ CREATE TABLE "admin_claim_tokens" (
 );
 
 -- CreateTable
+CREATE TABLE "tenant_field_settings" (
+    "tenant_id" BIGINT NOT NULL,
+    "fields_json" JSONB NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "tenant_field_settings_pkey" PRIMARY KEY ("tenant_id")
+);
+
+-- CreateTable
 CREATE TABLE "company_profiles" (
     "id" BIGSERIAL NOT NULL,
     "tenant_id" BIGINT NOT NULL,
@@ -475,6 +485,9 @@ ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_member_ident
 
 -- AddForeignKey
 ALTER TABLE "admin_claim_tokens" ADD CONSTRAINT "admin_claim_tokens_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant_field_settings" ADD CONSTRAINT "tenant_field_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "company_profiles" ADD CONSTRAINT "company_profiles_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

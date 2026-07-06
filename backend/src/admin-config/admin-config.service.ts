@@ -21,56 +21,66 @@ import { AdminConfigRepository } from "./admin-config.repository.js";
 export class AdminConfigService {
   constructor(private readonly repository: AdminConfigRepository) {}
 
-  getFieldSettings(session: AdminSession): AdminFieldSettingsResponse {
+  async getFieldSettings(session: AdminSession): Promise<AdminFieldSettingsResponse> {
     return adminFieldSettingsResponseSchema.parse({
       tenant_id: session.tenantId,
-      fields: this.repository.getFieldSettings(session.tenantId)
+      fields: await this.repository.getFieldSettings(session.tenantId)
     });
   }
 
-  updateFieldSettings(session: AdminSession, request: UpdateAdminFieldSettingsRequest): AdminFieldSettingsResponse {
+  async updateFieldSettings(
+    session: AdminSession,
+    request: UpdateAdminFieldSettingsRequest
+  ): Promise<AdminFieldSettingsResponse> {
     requireAdminRole(session.role, "admin");
     return adminFieldSettingsResponseSchema.parse({
       tenant_id: session.tenantId,
-      fields: this.repository.updateFieldSettings(session.tenantId, request)
+      fields: await this.repository.updateFieldSettings(session.tenantId, request)
     });
   }
 
-  getCompanyProfile(session: AdminSession): AdminCompanyProfile {
+  async getCompanyProfile(session: AdminSession): Promise<AdminCompanyProfile> {
     return adminCompanyProfileSchema.parse(
-      this.repository.getCompanyProfile({ tenantId: session.tenantId, tenantName: session.tenantName })
+      await this.repository.getCompanyProfile({ tenantId: session.tenantId, tenantName: session.tenantName })
     );
   }
 
-  updateCompanyProfile(session: AdminSession, request: UpdateAdminCompanyProfileRequest): AdminCompanyProfile {
+  async updateCompanyProfile(
+    session: AdminSession,
+    request: UpdateAdminCompanyProfileRequest
+  ): Promise<AdminCompanyProfile> {
     requireAdminRole(session.role, "admin");
     return adminCompanyProfileSchema.parse(
-      this.repository.updateCompanyProfile(
+      await this.repository.updateCompanyProfile(
         { tenantId: session.tenantId, tenantName: session.tenantName },
         request
       )
     );
   }
 
-  listTemplates(session: AdminSession): AdminTemplateListResponse {
+  async listTemplates(session: AdminSession): Promise<AdminTemplateListResponse> {
     return adminTemplateListResponseSchema.parse({
       tenant_id: session.tenantId,
-      items: this.repository.listTemplates(session.tenantId)
+      items: await this.repository.listTemplates(session.tenantId)
     });
   }
 
-  createTemplate(session: AdminSession, request: CreateAdminTemplateRequest): AdminTemplate {
+  async createTemplate(session: AdminSession, request: CreateAdminTemplateRequest): Promise<AdminTemplate> {
     requireAdminRole(session.role, "admin");
-    return adminTemplateSchema.parse(this.repository.createTemplate(session.tenantId, request));
+    return adminTemplateSchema.parse(await this.repository.createTemplate(session.tenantId, request));
   }
 
-  updateTemplate(session: AdminSession, templateId: string, request: UpdateAdminTemplateRequest): AdminTemplate {
+  async updateTemplate(
+    session: AdminSession,
+    templateId: string,
+    request: UpdateAdminTemplateRequest
+  ): Promise<AdminTemplate> {
     requireAdminRole(session.role, "admin");
-    return adminTemplateSchema.parse(this.repository.updateTemplate(session.tenantId, templateId, request));
+    return adminTemplateSchema.parse(await this.repository.updateTemplate(session.tenantId, templateId, request));
   }
 
-  setDefaultTemplate(session: AdminSession, templateId: string): AdminTemplate {
+  async setDefaultTemplate(session: AdminSession, templateId: string): Promise<AdminTemplate> {
     requireAdminRole(session.role, "admin");
-    return adminTemplateSchema.parse(this.repository.setDefaultTemplate(session.tenantId, templateId));
+    return adminTemplateSchema.parse(await this.repository.setDefaultTemplate(session.tenantId, templateId));
   }
 }
