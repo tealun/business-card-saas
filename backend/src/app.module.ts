@@ -8,9 +8,10 @@ import { EmployeeCardModule } from "./employee/employee-card.module.js";
 import { OwnerBootstrapModule } from "./admin-bootstrap/owner-bootstrap.module.js";
 import { ApiExceptionFilter } from "./common/api-exception.filter.js";
 import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
+import { WecomModule } from "./wecom/wecom.module.js";
 
 @Module({
-  imports: [DatabaseModule, PublicCardModule, AuthModule, EmployeeCardModule, OwnerBootstrapModule],
+  imports: [DatabaseModule, PublicCardModule, AuthModule, EmployeeCardModule, OwnerBootstrapModule, WecomModule],
   controllers: [HealthController],
   providers: [
     {
