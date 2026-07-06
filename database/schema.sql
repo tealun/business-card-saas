@@ -229,6 +229,26 @@ CREATE TABLE "admin_claim_tokens" (
 );
 
 -- CreateTable
+CREATE TABLE "callback_events" (
+    "id" BIGSERIAL NOT NULL,
+    "source" VARCHAR(32) NOT NULL,
+    "event_key" VARCHAR(128) NOT NULL,
+    "tenant_id" BIGINT,
+    "event_type" VARCHAR(64) NOT NULL,
+    "change_type" VARCHAR(64),
+    "payload_encrypted" TEXT,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'received',
+    "retry_count" INTEGER NOT NULL DEFAULT 0,
+    "last_error" TEXT,
+    "received_at" TIMESTAMPTZ(6) NOT NULL,
+    "processed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "callback_events_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "tenant_field_settings" (
     "tenant_id" BIGINT NOT NULL,
     "fields_json" JSONB NOT NULL,
@@ -421,6 +441,15 @@ CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_admin_claim_token" ON "admin_claim_tokens"("token_hash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_callback_event_key" ON "callback_events"("event_key");
+
+-- CreateIndex
+CREATE INDEX "idx_callback_events_status" ON "callback_events"("status", "received_at");
+
+-- CreateIndex
+CREATE INDEX "idx_callback_events_tenant" ON "callback_events"("tenant_id", "received_at");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_company_profiles_tenant_id" ON "company_profiles"("tenant_id", "id");

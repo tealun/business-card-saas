@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
@@ -17,6 +19,7 @@ export class WecomDataCallbackService {
   constructor(
     private readonly config: WecomConfigService,
     private readonly crypto: WecomCallbackCryptoService,
+    private readonly events: WecomCallbackEventRepository,
     private readonly tenants: WecomTenantAuthRepository,
     private readonly contacts: WecomContactSyncRepository
   ) {}
@@ -54,10 +57,14 @@ export class WecomDataCallbackService {
       },
       this.decryptOptions()
     );
-    return this.handleDataMessage(decrypted.message, decrypted.receiveId);
+    return this.handleDataMessage(decrypted.message, decrypted.receiveId, encrypt);
   }
 
-  private async handleDataMessage(messageXml: string, receiveId: string): Promise<WecomDataCallbackResult> {
+  private async handleDataMessage(
+    messageXml: string,
+    receiveId: string,
+    payloadEncrypted: string
+  ): Promise<WecomDataCallbackResult> {
     const event = readXmlText(messageXml, "InfoType") ?? readXmlText(messageXml, "Event");
     const changeType = readXmlText(messageXml, "ChangeType");
     if (event !== "change_contact") {
@@ -81,33 +88,58 @@ export class WecomDataCallbackService {
       throw new BadRequestException("WeCom data callback tenant is not authorized");
     }
 
-    if (changeType === "create_user" || changeType === "update_user") {
-      await this.contacts.upsertMembers({
-        tenantId: tenant.tenantId,
-        tenantName: tenant.corpName,
-        users: [
-          {
-            userid: readXmlText(messageXml, "NewUserID") ?? readXmlText(messageXml, "UserID"),
-            openUserid: readXmlText(messageXml, "OpenUserID"),
-            name: readXmlText(messageXml, "Name"),
-            departmentIds: departmentIds(messageXml),
-            status: "active"
-          }
-        ]
-      });
+    const eventKey = callbackEventKey(messageXml, { openCorpid, event, changeType });
+    const eventRecord = await this.events.beginProcessing({
+      source: "data",
+      eventKey,
+      tenantId: tenant.tenantId,
+      eventType: event,
+      changeType,
+      payloadEncrypted
+    });
+    if (!eventRecord.shouldProcess) {
       return { event, changeType, tenantId: tenant.tenantId, handled: true };
     }
 
-    if (changeType === "delete_user") {
-      const handled = await this.contacts.disableMember({
-        tenantId: tenant.tenantId,
-        userid: readXmlText(messageXml, "UserID"),
-        openUserid: readXmlText(messageXml, "OpenUserID")
-      });
-      return { event, changeType, tenantId: tenant.tenantId, handled };
-    }
+    try {
+      if (changeType === "create_user" || changeType === "update_user") {
+        await this.contacts.upsertMembers({
+          tenantId: tenant.tenantId,
+          tenantName: tenant.corpName,
+          users: [
+            {
+              userid: readXmlText(messageXml, "NewUserID") ?? readXmlText(messageXml, "UserID"),
+              openUserid: readXmlText(messageXml, "OpenUserID"),
+              name: readXmlText(messageXml, "Name"),
+              departmentIds: departmentIds(messageXml),
+              status: "active"
+            }
+          ]
+        });
+        await this.events.markDone(eventKey, tenant.tenantId);
+        return { event, changeType, tenantId: tenant.tenantId, handled: true };
+      }
 
-    return { event, changeType, tenantId: tenant.tenantId, handled: false };
+      if (changeType === "delete_user") {
+        const handled = await this.contacts.disableMember({
+          tenantId: tenant.tenantId,
+          userid: readXmlText(messageXml, "UserID"),
+          openUserid: readXmlText(messageXml, "OpenUserID")
+        });
+        await this.events.markDone(eventKey, tenant.tenantId);
+        return { event, changeType, tenantId: tenant.tenantId, handled };
+      }
+
+      await this.events.markDone(eventKey, tenant.tenantId);
+      return { event, changeType, tenantId: tenant.tenantId, handled: false };
+    } catch (error) {
+      try {
+        await this.events.markFailed(eventKey, error, tenant.tenantId);
+      } catch {
+        // Preserve the original callback processing error.
+      }
+      throw error;
+    }
   }
 
   private decryptOptions() {
@@ -138,6 +170,28 @@ function bodyAsXml(body: unknown): string {
     return body.toString("utf8");
   }
   throw new BadRequestException("WeCom callback body must be XML text");
+}
+
+function callbackEventKey(messageXml: string, input: { openCorpid: string; event: string; changeType: string | null }): string {
+  const explicitMessageId = readXmlText(messageXml, "MsgId") ?? readXmlText(messageXml, "MsgID");
+  if (explicitMessageId) {
+    return `wecom:data:${input.openCorpid}:${explicitMessageId}`.slice(0, 128);
+  }
+  const digest = createHash("sha256")
+    .update(
+      [
+        input.openCorpid,
+        input.event,
+        input.changeType ?? "",
+        readXmlText(messageXml, "TimeStamp") ?? readXmlText(messageXml, "CreateTime") ?? "",
+        readXmlText(messageXml, "UserID") ?? "",
+        readXmlText(messageXml, "NewUserID") ?? "",
+        readXmlText(messageXml, "OpenUserID") ?? "",
+        messageXml.trim()
+      ].join("\0")
+    )
+    .digest("hex");
+  return `wecom:data:${digest}`;
 }
 
 function readXmlText(xml: string, tag: string): string | null {

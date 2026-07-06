@@ -171,6 +171,8 @@
 | GET `/api/v1/wecom/callbacks/data` | 企业微信签名 | 数据回调 URL 验证；使用数据回调 Token/AESKey |
 | POST `/api/v1/wecom/callbacks/data` | 企业微信签名 | 接收第三方数据回调 `InfoType=change_contact`/`AuthCorpId` 增量同步；兼容内部应用 `Event=change_contact`，当前处理 create/update/delete_user |
 
+数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推后重新处理。
+
 ## 4. 待核对
 
 - 各接口完整 Zod schema 落地在 `backend/src/contracts` 后回链本文件；若后续小程序 / 后台直接复用，再抽独立共享包。

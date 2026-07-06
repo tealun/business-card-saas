@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import { WecomCallbackEventRepository, type BeginWecomCallbackEventInput } from "./wecom-callback-event.repository.js";
 import { WecomCallbackCryptoService, type WecomDecryptOptions, type WecomEncryptedPayload } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService, type WecomSuiteConfig } from "./wecom-config.service.js";
 import {
@@ -11,7 +12,7 @@ import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./w
 
 describe("WecomDataCallbackService", () => {
   it("upserts members for create and update contact callbacks", async () => {
-    const { service, crypto, tenants, contacts } = createService();
+    const { service, crypto, events, tenants, contacts } = createService();
     crypto.message = contactXml("create_user");
 
     const result = await service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>");
@@ -29,6 +30,8 @@ describe("WecomDataCallbackService", () => {
     ]);
     expect(crypto.lastOptions?.token).toBe("data-token");
     expect(crypto.lastOptions?.expectedReceiveId).toBeNull();
+    expect(events.lastBegin?.eventType).toBe("change_contact");
+    expect(events.doneKeys).toHaveLength(1);
   });
 
   it("disables existing members for delete contact callbacks", async () => {
@@ -56,6 +59,29 @@ describe("WecomDataCallbackService", () => {
     await service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>");
 
     expect(contacts.lastUpsert?.users[0]?.userid).toBe("user-new");
+  });
+
+  it("skips business work for duplicate callback events already in progress or done", async () => {
+    const { service, crypto, events, contacts } = createService();
+    crypto.message = contactXml("update_user");
+    events.shouldProcess = false;
+
+    const result = await service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>");
+
+    expect(result).toEqual({ event: "change_contact", changeType: "update_user", tenantId: "tenant-001", handled: true });
+    expect(contacts.lastUpsert).toBeNull();
+    expect(events.doneKeys).toEqual([]);
+  });
+
+  it("marks callback events failed when member processing fails", async () => {
+    const { service, crypto, events, contacts } = createService();
+    crypto.message = contactXml("update_user");
+    contacts.failUpsert = true;
+
+    await expect(service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>")).rejects.toThrow(
+      "sync failed"
+    );
+    expect(events.failedKeys).toHaveLength(1);
   });
 
   it("rejects callbacks from unauthorized tenants", async () => {
@@ -120,8 +146,12 @@ class FakeTenantAuthRepository {
 class FakeContactSyncRepository {
   lastUpsert: SyncWecomContactMembersInput | null = null;
   lastDisable: DisableWecomContactMemberInput | null = null;
+  failUpsert = false;
 
   async upsertMembers(input: SyncWecomContactMembersInput) {
+    if (this.failUpsert) {
+      throw new Error("sync failed");
+    }
     this.lastUpsert = input;
     return { syncedCount: input.users.length, skippedCount: 0 };
   }
@@ -132,18 +162,44 @@ class FakeContactSyncRepository {
   }
 }
 
+class FakeCallbackEventRepository {
+  shouldProcess = true;
+  lastBegin: BeginWecomCallbackEventInput | null = null;
+  doneKeys: string[] = [];
+  failedKeys: string[] = [];
+
+  async beginProcessing(input: BeginWecomCallbackEventInput) {
+    this.lastBegin = input;
+    return {
+      shouldProcess: this.shouldProcess,
+      status: this.shouldProcess ? "processing" : "done",
+      retryCount: 0
+    };
+  }
+
+  async markDone(eventKey: string): Promise<void> {
+    this.doneKeys.push(eventKey);
+  }
+
+  async markFailed(eventKey: string): Promise<void> {
+    this.failedKeys.push(eventKey);
+  }
+}
+
 function createService() {
   const config = new FakeConfigService();
   const crypto = new FakeCryptoService();
+  const events = new FakeCallbackEventRepository();
   const tenants = new FakeTenantAuthRepository();
   const contacts = new FakeContactSyncRepository();
   const service = new WecomDataCallbackService(
     config as unknown as WecomConfigService,
     crypto as unknown as WecomCallbackCryptoService,
+    events as unknown as WecomCallbackEventRepository,
     tenants as unknown as WecomTenantAuthRepository,
     contacts as unknown as WecomContactSyncRepository
   );
-  return { service, crypto, tenants, contacts };
+  return { service, crypto, events, tenants, contacts };
 }
 
 function callbackQuery() {
