@@ -5,6 +5,7 @@
 ## 当前状态
 
 - 阶段：**M1 walking skeleton 已进入前后端联调态**。后端 NestJS + node-postgres 骨架、`database/schema.sql` 初始建库脚本、RLS baseline、demo 企业微信登录、员工名片读取/更新/分享、公开名片访问/visit/action 骨架已落地；小程序已按 `docs/design` 交付完成员工首页、编辑资料、名片样式、访客详情、名片夹、企业名片与兼容名片页的统一 UI 落地。
+- 企业微信平台适配：已完成第三方应用配置、回调验签/AES 解密、指令回调 URL 验证与 `suite_ticket` 加密存储基础；下一步是 `suite_access_token` 刷新、授权回调和真实 `jscode2session`。
 - 下一步：按 [`docs/02-tasks/02_02_First_Enterprise_Wecom_Admin_Plan.md`](docs/02-tasks/02_02_First_Enterprise_Wecom_Admin_Plan.md) 推进首个真实企业接入；优先完成真实 PostgreSQL 验证、企业微信 M0-M1 gate 实测、真实 `jscode2session`/授权回调替换 demo 登录，并在微信开发者工具/企业微信工作台跑通最薄端到端闭环。
 
 ## 本地验证

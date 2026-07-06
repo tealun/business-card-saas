@@ -26,6 +26,19 @@ CREATE TABLE "tenants" (
 );
 
 -- CreateTable
+CREATE TABLE "wecom_suite_state" (
+    "suite_id" VARCHAR(128) NOT NULL,
+    "suite_ticket_encrypted" TEXT,
+    "suite_ticket_updated_at" TIMESTAMPTZ(6),
+    "suite_access_token_encrypted" TEXT,
+    "suite_access_token_expires_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "wecom_suite_state_pkey" PRIMARY KEY ("suite_id")
+);
+
+-- CreateTable
 CREATE TABLE "member_identities" (
     "id" BIGSERIAL NOT NULL,
     "tenant_id" BIGINT NOT NULL,

@@ -144,6 +144,7 @@ async function prepareProbeRole(pool) {
 async function seedProbeData(pool) {
   await pool.query(`
     TRUNCATE
+      wecom_suite_state,
       admin_claim_tokens,
       tenant_admins,
       card_style_overrides,

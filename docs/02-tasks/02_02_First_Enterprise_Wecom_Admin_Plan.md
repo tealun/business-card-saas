@@ -13,6 +13,13 @@
 - 当前企业微信仍是 demo 登录：真实第三方服务商授权、`suite_ticket`、`permanent_code`、`jscode2session`、管理员 OAuth、通讯录同步尚未落地。
 - 当前 `admin/` 是静态联调工作台，不是企业管理员可用的正式配置后台。
 
+## 当前开发进度
+
+- 2026-07-06：阶段 1.1-1.2 已落地：`backend/src/wecom` 新增企业微信第三方应用配置、`msg_signature` 校验、AES-256-CBC 解密、receiveId 校验与失败拒绝单测。
+- 2026-07-06：阶段 1.3 已落地：新增 `/api/v1/wecom/callbacks/command` 指令回调 GET/POST，支持企业微信 URL 验证、接收 `suite_ticket`、返回纯文本 `success`，并将 ticket 以 AES-GCM 加密写入 `wecom_suite_state`；本地无 `DATABASE_URL` 时用内存仓库保障开发与单测。
+- 下一步：阶段 1.4 `suite_access_token` singleflight 刷新；完成后再做 1.5 授权回调 `auth_code -> permanent_code` 与 1.6 企业 access_token。
+- 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
+
 ## 阶段 0：外部准备与 M0 实测
 
 | # | 任务 | 产物 | 验收 |
@@ -28,9 +35,9 @@
 
 | # | 任务 | 代码范围 | 验收 |
 |---|------|----------|------|
-| 1.1 | 配置与密钥加载 | `backend/src/wecom/*`、环境变量文档 | 支持 suite_id、suite_secret、token、encoding_aes_key 分环境配置 |
-| 1.2 | 企业微信回调加解密与签名校验 | wecom crypto service | 单测覆盖 msg_signature 校验、AES 解密、明文解析、失败拒绝 |
-| 1.3 | 指令回调：接收 `suite_ticket` | callback controller/repository | 能落库或缓存最近 ticket，重复/乱序安全 |
+| 1.1 | 配置与密钥加载（已实现） | `backend/src/wecom/*`、环境变量文档 | 支持 suite_id、suite_secret、token、encoding_aes_key 分环境配置 |
+| 1.2 | 企业微信回调加解密与签名校验（已实现） | wecom crypto service | 单测覆盖 msg_signature 校验、AES 解密、明文解析、失败拒绝 |
+| 1.3 | 指令回调：接收 `suite_ticket`（已实现） | callback controller/repository | 能落库或缓存最近 ticket，重复/乱序安全 |
 | 1.4 | `suite_access_token` singleflight 刷新 | token service + Redis/DB fallback | 并发刷新不互相踩；过期前可复用 |
 | 1.5 | 授权回调：`auth_code -> permanent_code` | auth callback service | 授权成功后创建/更新 `tenant`，加密保存 permanent_code |
 | 1.6 | 企业 access_token 获取 | corp token service | 可按 tenant 获取企业级 token，错误码归一 |
