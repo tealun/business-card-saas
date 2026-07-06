@@ -80,12 +80,27 @@ describe("AdminManagementService", () => {
 
     await expect(service.getMemberCard(ownerSession(), "member-other")).rejects.toThrow(NotFoundException);
   });
+
+  it("does not fall back to in-memory cards when persistence is configured but the member is missing", async () => {
+    const service = createService({
+      getMemberCard: async () => null,
+      updateMemberCard: async () => null,
+      isDatabaseConfigured: () => true
+    } as unknown as AdminManagementRepository);
+
+    await expect(service.getMemberCard(ownerSession(), "member-001")).rejects.toThrow(NotFoundException);
+    await expect(
+      service.updateMemberCard(ownerSession(), "member-001", {
+        display_name: "Ghost Card"
+      })
+    ).rejects.toThrow(NotFoundException);
+  });
 });
 
-function createService() {
+function createService(repository = new AdminManagementRepository()) {
   return new AdminManagementService(
     new EmployeeCardService(new EmployeeCardRepository(), new PublicCardRepository()),
-    new AdminManagementRepository(),
+    repository,
     fakeContactSync()
   );
 }

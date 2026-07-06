@@ -432,6 +432,10 @@ export class AdminManagementRepository {
     };
   }
 
+  isDatabaseConfigured(): boolean {
+    return this.hasDatabase();
+  }
+
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }

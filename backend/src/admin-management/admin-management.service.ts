@@ -91,6 +91,9 @@ export class AdminManagementService {
     if (persisted) {
       return adminMemberCardResponseSchema.parse(persisted);
     }
+    if (this.repository.isDatabaseConfigured()) {
+      throw new NotFoundException("tenant member not found");
+    }
     const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     return adminMemberCardResponseSchema.parse(this.employeeCards.getCurrentCard(employeeSession));
   }
@@ -104,6 +107,9 @@ export class AdminManagementService {
     const persisted = await this.repository.updateMemberCard(session, memberIdentityId, request);
     if (persisted) {
       return adminMemberCardResponseSchema.parse(persisted);
+    }
+    if (this.repository.isDatabaseConfigured()) {
+      throw new NotFoundException("tenant member not found");
     }
     const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     let card = this.employeeCards.updateCurrentCard(employeeSession, request);
