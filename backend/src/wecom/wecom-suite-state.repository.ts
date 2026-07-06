@@ -37,6 +37,10 @@ export class WecomSuiteStateRepository {
   ): Promise<WecomSuiteTicketSnapshot> {
     const encrypted = this.cipher.encrypt(suiteTicket);
     if (!this.hasDatabase()) {
+      const current = this.memory.get(suiteId);
+      if (current && current.suiteTicketUpdatedAt > updatedAt) {
+        return this.storedToSnapshot(current);
+      }
       this.memory.set(suiteId, {
         suiteId,
         suiteTicketEncrypted: encrypted,
@@ -59,12 +63,14 @@ export class WecomSuiteStateRepository {
           suite_ticket_encrypted = EXCLUDED.suite_ticket_encrypted,
           suite_ticket_updated_at = EXCLUDED.suite_ticket_updated_at,
           updated_at = now()
+        WHERE wecom_suite_state.suite_ticket_updated_at IS NULL
+          OR wecom_suite_state.suite_ticket_updated_at <= EXCLUDED.suite_ticket_updated_at
         RETURNING suite_id, suite_ticket_encrypted, suite_ticket_updated_at
       `,
       [suiteId, encrypted, updatedAt]
     );
 
-    const snapshot = this.toSnapshot(result.rows[0]);
+    const snapshot = this.toSnapshot(result.rows[0]) ?? (await this.getSuiteTicket(suiteId));
     if (!snapshot) {
       throw new Error("failed to save WeCom suite ticket");
     }
@@ -77,11 +83,7 @@ export class WecomSuiteStateRepository {
       if (!stored) {
         return null;
       }
-      return {
-        suiteId: stored.suiteId,
-        suiteTicket: this.cipher.decrypt(stored.suiteTicketEncrypted),
-        updatedAt: stored.suiteTicketUpdatedAt
-      };
+      return this.storedToSnapshot(stored);
     }
 
     const result = await this.database.query<WecomSuiteStateRow>(
@@ -103,6 +105,14 @@ export class WecomSuiteStateRepository {
       suiteId: row.suite_id,
       suiteTicket: this.cipher.decrypt(row.suite_ticket_encrypted),
       updatedAt: new Date(row.suite_ticket_updated_at)
+    };
+  }
+
+  private storedToSnapshot(stored: StoredSuiteState): WecomSuiteTicketSnapshot {
+    return {
+      suiteId: stored.suiteId,
+      suiteTicket: this.cipher.decrypt(stored.suiteTicketEncrypted),
+      updatedAt: stored.suiteTicketUpdatedAt
     };
   }
 
