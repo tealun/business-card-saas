@@ -127,6 +127,7 @@
 | GET `/api/v1/admin/overview` | 企业概览；MVP 返回当前租户成员/名片基础计数 |
 | GET `/api/v1/admin/members` | 员工列表（分页） |
 | POST `/api/v1/admin/members/sync` | 手动触发企业微信通讯录可见成员全量同步；需要 admin/owner 权限 |
+| GET `/api/v1/admin/sync-events` | 最近企业微信同步/回调事件；按当前租户过滤，不返回密文 payload |
 | GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；MVP 先覆盖当前已识别成员 |
 | PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置；需要 operator/admin/owner 权限 |
 | GET `/api/v1/admin/cards` | 名片列表 |

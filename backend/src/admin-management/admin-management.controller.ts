@@ -23,6 +23,11 @@ export class AdminManagementController {
     return this.management.syncMembers(this.session(request));
   }
 
+  @Get("sync-events")
+  syncEvents(@Req() request: AdminRequest) {
+    return this.management.listSyncEvents(this.session(request));
+  }
+
   @Get("members/:memberIdentityId/card")
   memberCard(@Req() request: AdminRequest, @Param("memberIdentityId") memberIdentityId: string) {
     return this.management.getMemberCard(this.session(request), memberIdentityId);

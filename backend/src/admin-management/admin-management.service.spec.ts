@@ -39,6 +39,12 @@ describe("AdminManagementService", () => {
     });
   });
 
+  it("returns an empty sync event list when persistence is not configured", async () => {
+    const service = createService();
+
+    await expect(service.listSyncEvents(ownerSession())).resolves.toEqual({ items: [], total: 0 });
+  });
+
   it("updates a member card when the admin has operator or higher permission", async () => {
     const service = createService();
 
