@@ -24,7 +24,8 @@
 - 2026-07-06：阶段 2.3-2.4 已落地：真实 `POST /api/v1/auth/qy-login` 调用 `WecomMiniProgramLoginService`，按授权 `open_corpid` 定位 tenant，首次登录 upsert `member_identity`/账号绑定/默认名片/公开目录；无 `DATABASE_URL` 时使用内存供给，本地 demo code 仍只在非生产 `DEMO_AUTH_ENABLED=1` 时可用。
 - 2026-07-06：阶段 3 后端最小闭环已落地：新增 `POST /api/v1/admin/auth/qy-login`、`GET /api/v1/admin/session/me`、后台 session token、admin guard、`tenant_admins` active admin 定位与 owner/admin/operator/auditor RBAC helper；真实 Web OAuth/扫码 UI 仍待接入。
 - 2026-07-06：阶段 4.1-4.4 后端 MVP 已起步：新增 `GET /api/v1/admin/overview`、`GET /api/v1/admin/members`、`GET/PUT /api/v1/admin/members/{id}/card`，复用员工名片服务完成当前已识别成员的名片读取/配置与公开页同步；全员列表依赖阶段 5 通讯录同步扩展。
-- 下一步：阶段 4.5-4.7 字段规则、企业资料、模板/品牌色配置 API 与后台页面接入。
+- 2026-07-06：阶段 4.5-4.7 后端 MVP 已落地：新增 `GET/PUT /api/v1/admin/settings/fields`、`GET/PUT /api/v1/admin/company-profile`、`GET/POST/PUT /api/v1/admin/templates` 与 `PUT /api/v1/admin/templates/{id}/default`，写操作要求 admin/owner，读操作允许 auditor。
+- 下一步：后台静态工作台接入登录态与配置 API；阶段 5 通讯录同步扩展全员列表与企业员工配置。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -83,9 +84,9 @@
 | 4.2 | 企业概览（后端 MVP 已实现） | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
 | 4.3 | 员工列表（后端 MVP 已实现当前成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
 | 4.4 | 员工名片配置（后端 MVP 已实现当前成员） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、部门、联系方式、启停状态 |
-| 4.5 | 字段规则 | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
-| 4.6 | 企业资料 | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
-| 4.7 | 模板/品牌色 | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |
+| 4.5 | 字段规则（后端 MVP 已实现） | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
+| 4.6 | 企业资料（后端 MVP 已实现） | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
+| 4.7 | 模板/品牌色（后端 MVP 已实现） | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |
 
 阶段验收：企业管理员能在后台完成「配置企业资料 + 配置员工名片 + 配置字段规则 + 设置默认模板」，员工端和访客页能读取这些配置。
 
