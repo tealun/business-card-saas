@@ -52,6 +52,21 @@ describe("WecomCallbackCryptoService", () => {
       })
     ).toThrow("invalid WeCom callback receiver");
   });
+
+  it("rejects callbacks with malformed PKCS7 padding bytes", () => {
+    const encrypt = encryptFixture("<xml />", suite.suiteId, { corruptPadding: true });
+    const timestamp = "1700000000";
+    const nonce = "nonce-001";
+
+    expect(() =>
+      service.decrypt({
+        msgSignature: signFixture(encrypt, timestamp, nonce),
+        timestamp,
+        nonce,
+        encrypt
+      })
+    ).toThrow("invalid WeCom callback padding");
+  });
 });
 
 function stubConfig(config: WecomSuiteConfig): WecomConfigService {
@@ -68,7 +83,7 @@ function signFixture(encrypt: string, timestamp: string, nonce: string): string 
     .digest("hex");
 }
 
-function encryptFixture(message: string, receiveId: string): string {
+function encryptFixture(message: string, receiveId: string, options: { corruptPadding?: boolean } = {}): string {
   const aesKey = Buffer.from(`${suite.callbackAesKey}=`, "base64");
   const random = Buffer.from("0123456789abcdef", "utf8");
   const messageBuffer = Buffer.from(message, "utf8");
@@ -76,6 +91,9 @@ function encryptFixture(message: string, receiveId: string): string {
   lengthBuffer.writeUInt32BE(messageBuffer.length, 0);
 
   const plain = appendPkcs7Padding(Buffer.concat([random, lengthBuffer, messageBuffer, Buffer.from(receiveId, "utf8")]));
+  if (options.corruptPadding) {
+    plain.writeUInt8(1, plain.length - 2);
+  }
   const cipher = createCipheriv("aes-256-cbc", aesKey, aesKey.subarray(0, 16));
   cipher.setAutoPadding(false);
   return Buffer.concat([cipher.update(plain), cipher.final()]).toString("base64");

@@ -86,6 +86,10 @@ export class WecomCallbackCryptoService {
     if (!padding || padding < 1 || padding > 32 || padding > decrypted.length) {
       throw new BadRequestException("invalid WeCom callback padding");
     }
+    const paddingBytes = decrypted.subarray(decrypted.length - padding);
+    if (!paddingBytes.every((byte) => byte === padding)) {
+      throw new BadRequestException("invalid WeCom callback padding");
+    }
     return decrypted.subarray(0, decrypted.length - padding);
   }
 
