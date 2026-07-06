@@ -1,15 +1,18 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
-import { defaultEmployeePublicId } from "../common/default-public-id.js";
+import { defaultEmployeeCardSlug, defaultEmployeePublicId } from "../common/default-public-id.js";
 import { DatabaseService } from "../database/database.service.js";
-import { TenantTx } from "../database/tenant-tx.service.js";
+import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import type {
+  AdminMemberCardResponse,
   AdminMemberListResponse,
   AdminOverviewResponse,
-  AdminSyncEventListResponse
+  AdminSyncEventListResponse,
+  UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
+import { WecomStateCipherService } from "../wecom/wecom-state-cipher.service.js";
 
 interface OverviewRow extends QueryResultRow {
   member_count: string;
@@ -46,11 +49,30 @@ interface UpdatedCardStatusRow extends QueryResultRow {
   public_id: string;
 }
 
+interface MemberCardRow extends QueryResultRow {
+  member_id: string | number | bigint;
+  member_name: string;
+  member_status: "active" | "disabled";
+  card_id: string | number | bigint | null;
+  public_id: string | null;
+  display_name: string | null;
+  title: string | null;
+  email_encrypted: string | null;
+  phone_encrypted: string | null;
+  fields_encrypted: string | null;
+  privacy_json: unknown;
+  card_status: "active" | "disabled" | null;
+}
+
+type CardFields = AdminMemberCardResponse["fields"];
+type CardPrivacy = AdminMemberCardResponse["privacy"];
+
 @Injectable()
 export class AdminManagementRepository {
   constructor(
     @Optional() private readonly tenantTx?: TenantTx,
-    @Optional() private readonly database?: DatabaseService
+    @Optional() private readonly database?: DatabaseService,
+    @Optional() private readonly cipher?: WecomStateCipherService
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse | null> {
@@ -184,6 +206,142 @@ export class AdminManagementRepository {
     };
   }
 
+  async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse | null> {
+    if (!this.hasDatabase()) {
+      return null;
+    }
+    const result = await this.tenantTx!.run(session.tenantId, (tx) => this.queryMemberCard(tx, session, memberIdentityId));
+    const row = result.rows[0];
+    return row ? this.toMemberCard(session, row) : null;
+  }
+
+  async updateMemberCard(
+    session: AdminSession,
+    memberIdentityId: string,
+    request: UpdateAdminMemberCardRequest
+  ): Promise<AdminMemberCardResponse | null> {
+    if (!this.hasDatabase()) {
+      return null;
+    }
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const currentResult = await this.queryMemberCard(tx, session, memberIdentityId);
+      const current = currentResult.rows[0];
+      if (!current) {
+        return null;
+      }
+      const currentCard = this.toMemberCard(session, current);
+      const nextFields = mergeFields(currentCard.fields, request.fields);
+      const nextPrivacy = mergePrivacy(currentCard.privacy, request.privacy);
+      const nextStatus = request.status ?? currentCard.status;
+      const nextDisplayName = request.display_name ?? currentCard.display_name;
+      const nextTitle = request.title !== undefined ? request.title : currentCard.title;
+
+      await tx.query(
+        `
+          UPDATE member_identities
+          SET name = $3,
+              status = $4,
+              updated_at = now()
+          WHERE tenant_id = $1 AND id = $2
+        `,
+        [session.tenantId, memberIdentityId, nextDisplayName, nextStatus]
+      );
+
+      const fieldsEncrypted = this.encryptJson(nextFields);
+      const emailEncrypted = nextFields.email ? this.encrypt(nextFields.email) : null;
+      const phoneValue = nextFields.mobile ?? nextFields.phone ?? null;
+      const phoneEncrypted = phoneValue ? this.encrypt(phoneValue) : null;
+      const privacyJson = JSON.stringify(nextPrivacy);
+
+      let cardId = current.card_id ? String(current.card_id) : null;
+      let publicId = current.public_id;
+      if (cardId && publicId) {
+        await tx.query(
+          `
+            UPDATE cards
+            SET display_name = $3,
+                title = $4,
+                email_encrypted = $5,
+                phone_encrypted = $6,
+                fields_encrypted = $7,
+                privacy_json = $8,
+                status = $9,
+                updated_at = now()
+            WHERE tenant_id = $1 AND id = $2
+          `,
+          [
+            session.tenantId,
+            cardId,
+            nextDisplayName,
+            nextTitle,
+            emailEncrypted,
+            phoneEncrypted,
+            fieldsEncrypted,
+            privacyJson,
+            nextStatus
+          ]
+        );
+      } else {
+        publicId = defaultEmployeePublicId({ tenantId: session.tenantId, memberIdentityId });
+        const inserted = await tx.query<UpdatedCardStatusRow>(
+          `
+            INSERT INTO cards (
+              tenant_id,
+              member_identity_id,
+              public_id,
+              card_type,
+              slug,
+              display_name,
+              title,
+              email_encrypted,
+              phone_encrypted,
+              fields_encrypted,
+              privacy_json,
+              status,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, 'primary', $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
+            RETURNING id, public_id
+          `,
+          [
+            session.tenantId,
+            memberIdentityId,
+            publicId,
+            defaultEmployeeCardSlug({ tenantId: session.tenantId, memberIdentityId }),
+            nextDisplayName,
+            nextTitle,
+            emailEncrypted,
+            phoneEncrypted,
+            fieldsEncrypted,
+            privacyJson,
+            nextStatus
+          ]
+        );
+        const card = inserted.rows[0];
+        if (!card) {
+          throw new Error("failed to create admin member card");
+        }
+        cardId = String(card.id);
+        publicId = card.public_id;
+      }
+
+      await this.upsertPublicDirectory(tx, {
+        tenantId: session.tenantId,
+        cardId,
+        publicId,
+        status: nextStatus
+      });
+
+      const updatedResult = await this.queryMemberCard(tx, session, memberIdentityId);
+      const updated = updatedResult.rows[0];
+      if (!updated) {
+        throw new Error("failed to reload admin member card");
+      }
+      return this.toMemberCard(session, updated);
+    });
+  }
+
   async updateMemberStatus(
     session: AdminSession,
     memberIdentityId: string,
@@ -221,27 +379,12 @@ export class AdminManagementRepository {
         [session.tenantId, memberIdentityId, status]
       );
       for (const card of cards.rows) {
-        await tx.query(
-          `
-            INSERT INTO public_card_directory (
-              public_id,
-              tenant_id,
-              card_id,
-              status,
-              card_updated_at,
-              created_at,
-              updated_at
-            )
-            VALUES ($1, $2, $3, $4, now(), now(), now())
-            ON CONFLICT (public_id) DO UPDATE SET
-              tenant_id = EXCLUDED.tenant_id,
-              card_id = EXCLUDED.card_id,
-              status = EXCLUDED.status,
-              card_updated_at = now(),
-              updated_at = now()
-          `,
-          [card.public_id, session.tenantId, card.id, status]
-        );
+        await this.upsertPublicDirectory(tx, {
+          tenantId: session.tenantId,
+          cardId: String(card.id),
+          publicId: card.public_id,
+          status
+        });
       }
       return true;
     });
@@ -296,8 +439,237 @@ export class AdminManagementRepository {
   private hasPlatformDatabase(): boolean {
     return Boolean(this.database && process.env.DATABASE_URL?.trim());
   }
+
+  private async queryMemberCard(
+    tx: TenantTransactionClient,
+    session: AdminSession,
+    memberIdentityId: string
+  ): Promise<{ rows: MemberCardRow[] }> {
+    return tx.query<MemberCardRow>(
+      `
+        SELECT
+          member_identities.id AS member_id,
+          member_identities.name AS member_name,
+          member_identities.status AS member_status,
+          cards.id AS card_id,
+          cards.public_id,
+          cards.display_name,
+          cards.title,
+          cards.email_encrypted,
+          cards.phone_encrypted,
+          cards.fields_encrypted,
+          cards.privacy_json,
+          cards.status AS card_status
+        FROM member_identities
+        LEFT JOIN LATERAL (
+          SELECT
+            id,
+            public_id,
+            display_name,
+            title,
+            email_encrypted,
+            phone_encrypted,
+            fields_encrypted,
+            privacy_json,
+            status
+          FROM cards
+          WHERE cards.tenant_id = member_identities.tenant_id
+            AND cards.member_identity_id = member_identities.id
+            AND cards.card_type = 'primary'
+            AND cards.deleted_at IS NULL
+          ORDER BY cards.id ASC
+          LIMIT 1
+        ) cards ON true
+        WHERE member_identities.tenant_id = $1 AND member_identities.id = $2
+        LIMIT 1
+      `,
+      [session.tenantId, memberIdentityId]
+    );
+  }
+
+  private toMemberCard(session: AdminSession, row: MemberCardRow): AdminMemberCardResponse {
+    const memberIdentityId = String(row.member_id);
+    const publicId =
+      row.public_id ??
+      defaultEmployeePublicId({
+        tenantId: session.tenantId,
+        memberIdentityId
+      });
+    return {
+      card_id: row.card_id ? String(row.card_id) : memberIdentityId,
+      public_id: publicId,
+      display_name: row.display_name ?? row.member_name,
+      title: row.title,
+      company: session.tenantName,
+      avatar_url: null,
+      fields: this.readFields(row),
+      status: normalizeStatus(row.card_status ?? row.member_status),
+      privacy: parsePrivacy(row.privacy_json)
+    };
+  }
+
+  private readFields(row: MemberCardRow): CardFields {
+    const encryptedFields = this.decryptJson(row.fields_encrypted);
+    if (encryptedFields) {
+      return encryptedFields;
+    }
+    return {
+      mobile: this.decryptOptional(row.phone_encrypted),
+      phone: null,
+      email: this.decryptOptional(row.email_encrypted),
+      wechat_id: null,
+      address: null
+    };
+  }
+
+  private encrypt(value: string): string {
+    if (!this.cipher) {
+      throw new Error("WeCom state cipher is required for admin member card persistence");
+    }
+    return this.cipher.encrypt(value);
+  }
+
+  private encryptJson(fields: CardFields): string {
+    return this.encrypt(JSON.stringify(fields));
+  }
+
+  private decryptOptional(value: string | null): string | null {
+    if (!value || !this.cipher) {
+      return null;
+    }
+    try {
+      return this.cipher.decrypt(value);
+    } catch {
+      return null;
+    }
+  }
+
+  private decryptJson(value: string | null): CardFields | null {
+    const plaintext = this.decryptOptional(value);
+    if (!plaintext) {
+      return null;
+    }
+    try {
+      return normalizeFields(JSON.parse(plaintext));
+    } catch {
+      return null;
+    }
+  }
+
+  private async upsertPublicDirectory(
+    tx: TenantTransactionClient,
+    input: {
+      tenantId: string;
+      cardId: string;
+      publicId: string;
+      status: "active" | "disabled";
+    }
+  ): Promise<void> {
+    await tx.query(
+      `
+        INSERT INTO public_card_directory (
+          public_id,
+          tenant_id,
+          card_id,
+          status,
+          card_updated_at,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, now(), now(), now())
+        ON CONFLICT (public_id) DO UPDATE SET
+          tenant_id = EXCLUDED.tenant_id,
+          card_id = EXCLUDED.card_id,
+          status = EXCLUDED.status,
+          card_updated_at = now(),
+          updated_at = now()
+      `,
+      [input.publicId, input.tenantId, input.cardId, input.status]
+    );
+  }
 }
 
 function normalizeStatus(status: string): "active" | "disabled" {
   return status === "active" ? "active" : "disabled";
+}
+
+function defaultFields(): CardFields {
+  return {
+    mobile: null,
+    phone: null,
+    email: null,
+    wechat_id: null,
+    address: null
+  };
+}
+
+function mergeFields(current: CardFields, patch: UpdateAdminMemberCardRequest["fields"]): CardFields {
+  if (!patch) {
+    return { ...current };
+  }
+  return {
+    mobile: patch.mobile !== undefined ? patch.mobile : current.mobile,
+    phone: patch.phone !== undefined ? patch.phone : current.phone ?? null,
+    email: patch.email !== undefined ? patch.email : current.email,
+    wechat_id: patch.wechat_id !== undefined ? patch.wechat_id : current.wechat_id,
+    address: patch.address !== undefined ? patch.address : current.address ?? null
+  };
+}
+
+function normalizeFields(value: unknown): CardFields {
+  if (!value || typeof value !== "object") {
+    return defaultFields();
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    mobile: nullableString(record.mobile),
+    phone: nullableString(record.phone),
+    email: nullableString(record.email),
+    wechat_id: nullableString(record.wechat_id),
+    address: nullableString(record.address)
+  };
+}
+
+function mergePrivacy(current: CardPrivacy, patch: UpdateAdminMemberCardRequest["privacy"]): CardPrivacy {
+  if (!patch) {
+    return { ...current };
+  }
+  return {
+    show_mobile: patch.show_mobile !== undefined ? patch.show_mobile : current.show_mobile,
+    show_email: patch.show_email !== undefined ? patch.show_email : current.show_email,
+    show_wechat: patch.show_wechat !== undefined ? patch.show_wechat : current.show_wechat
+  };
+}
+
+function parsePrivacy(value: unknown): CardPrivacy {
+  const fallback: CardPrivacy = {
+    show_mobile: false,
+    show_email: true,
+    show_wechat: false
+  };
+  if (!value) {
+    return fallback;
+  }
+  const record = typeof value === "string" ? parseJsonObject(value) : value;
+  if (!record || typeof record !== "object") {
+    return fallback;
+  }
+  const privacy = record as Record<string, unknown>;
+  return {
+    show_mobile: typeof privacy.show_mobile === "boolean" ? privacy.show_mobile : fallback.show_mobile,
+    show_email: typeof privacy.show_email === "boolean" ? privacy.show_email : fallback.show_email,
+    show_wechat: typeof privacy.show_wechat === "boolean" ? privacy.show_wechat : fallback.show_wechat
+  };
+}
+
+function parseJsonObject(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }

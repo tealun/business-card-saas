@@ -31,6 +31,7 @@
 - 2026-07-06：阶段 5.3 回调幂等日志最小版已落地：新增 `callback_events` 平台表和 data callback 事件状态机，`done/processing` 重复事件直接成功返回，`failed` 事件允许企业微信重推后重试并递增 `retry_count`。
 - 2026-07-06：阶段 5.4 后台同步日志查询起步：新增 `GET /api/v1/admin/sync-events`，按当前租户读取最近 `callback_events` 摘要，workbench 增加“同步日志”按钮；失败重试 job、死信/告警仍待后续落地。
 - 2026-07-07：后台员工启停配置闭环已起步：`PUT /api/v1/admin/members/{id}/card` 支持 `status=active|disabled`，数据库模式同步更新成员、主名片与公开目录状态，workbench 增加成员状态选择。
+- 2026-07-07：后台员工名片字段配置已进入数据库持久化：`GET/PUT /api/v1/admin/members/{id}/card` 数据库模式读写 `cards`，联系方式字段以 `fields_encrypted` 加密保存，姓名/职位/隐私/启停状态与公开目录同步。
 - 下一步：阶段 5.4 失败重试 job、死信/告警；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
@@ -89,7 +90,7 @@
 | 4.1 | 管理后台框架升级（后端登录态已实现） | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
 | 4.2 | 企业概览（后端 MVP 已实现） | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
 | 4.3 | 员工列表（数据库模式已支持同步成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
-| 4.4 | 员工名片配置（启停状态已起步落库） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、部门、联系方式、启停状态 |
+| 4.4 | 员工名片配置（字段与启停已起步落库） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、联系方式、隐私开关、启停状态；部门字段待企业微信组织结构配置页扩展 |
 | 4.5 | 字段规则（后端 MVP 已实现并持久化） | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
 | 4.6 | 企业资料（后端 MVP 已实现并持久化） | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
 | 4.7 | 模板/品牌色（后端 MVP 已实现并持久化） | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |

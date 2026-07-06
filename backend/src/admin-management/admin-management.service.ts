@@ -87,6 +87,10 @@ export class AdminManagementService {
   }
 
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {
+    const persisted = await this.repository.getMemberCard(session, memberIdentityId);
+    if (persisted) {
+      return adminMemberCardResponseSchema.parse(persisted);
+    }
     const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     return adminMemberCardResponseSchema.parse(this.employeeCards.getCurrentCard(employeeSession));
   }
@@ -97,6 +101,10 @@ export class AdminManagementService {
     request: UpdateAdminMemberCardRequest
   ): Promise<AdminMemberCardResponse> {
     requireAdminRole(session.role, "operator");
+    const persisted = await this.repository.updateMemberCard(session, memberIdentityId, request);
+    if (persisted) {
+      return adminMemberCardResponseSchema.parse(persisted);
+    }
     const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     let card = this.employeeCards.updateCurrentCard(employeeSession, request);
     if (request.status !== undefined) {

@@ -113,6 +113,7 @@ CREATE TABLE "cards" (
     "title" VARCHAR(128),
     "email_encrypted" TEXT,
     "phone_encrypted" TEXT,
+    "fields_encrypted" TEXT,
     "privacy_json" JSONB,
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
     "deleted_at" TIMESTAMPTZ(6),
