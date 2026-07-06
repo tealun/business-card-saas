@@ -1,3 +1,34 @@
-.title {
-  overflow-wrap: anywhere;
+.card-page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
+
+.card-actions {
+  display: flex;
+  gap: 16rpx;
+  margin: 24rpx 0;
 }
+
+.card-actions .btn { gap: 8rpx; }
+
+.field-row input.field-row__value { height: 60rpx; line-height: 60rpx; }
+
+.share-note__path {
+  margin-top: 12rpx;
+  padding: 20rpx;
+  border-radius: var(--r-chip);
+  background: var(--bg-page);
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.card-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  box-shadow: 0 -4rpx 16rpx rgba(16, 24, 40, 0.05);
+  display: flex;
+  gap: 16rpx;
+}
+.card-footer__item { flex: 1; gap: 8rpx; }

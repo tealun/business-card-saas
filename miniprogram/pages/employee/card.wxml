@@ -1,43 +1,70 @@
-<view class="page">
-  <view class="panel">
-    <view class="eyebrow">EMPLOYEE</view>
-    <view class="title">{{card.display_name || '企业名片'}}</view>
-    <view class="muted">{{card.title || '未设置职位'}} · {{card.company || 'Demo Tenant'}}</view>
-    <view class="button-row">
-      <button bindtap="login">企微登录</button>
-      <button class="secondary" bindtap="loadCard">刷新</button>
+<view class="page card-page">
+  <!-- 名片预览 -->
+  <view class="biz-card">
+    <view class="biz-card__head">
+      <view class="biz-card__logo" style="background: var(--brand);"></view>
+      <text class="biz-card__company">{{card.company || 'Demo Tenant'}}</text>
+    </view>
+    <view class="biz-card__body">
+      <view class="biz-card__info">
+        <view class="biz-card__name">{{form.display_name || '企业名片'}}</view>
+        <view class="biz-card__role">{{form.title || '未设置职位'}}</view>
+        <view class="biz-card__contact">
+          <view>{{form.mobile || '联系方式未公开'}}</view>
+          <view>{{form.email || '邮箱未公开'}}</view>
+        </view>
+      </view>
+      <view class="biz-card__avatar">{{form.display_name ? form.display_name[0] : '名'}}</view>
     </view>
   </view>
 
-  <view class="panel">
-    <label class="field">
-      <text>姓名</text>
-      <input value="{{form.display_name}}" data-key="display_name" bindinput="onInput" />
-    </label>
-    <label class="field">
-      <text>职位</text>
-      <input value="{{form.title}}" data-key="title" bindinput="onInput" />
-    </label>
-    <label class="field">
-      <text>手机</text>
-      <input value="{{form.mobile}}" data-key="mobile" bindinput="onInput" />
-    </label>
-    <label class="field">
-      <text>邮箱</text>
-      <input value="{{form.email}}" data-key="email" bindinput="onInput" />
-    </label>
-    <label class="field">
-      <text>微信号</text>
-      <input value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" />
-    </label>
-    <view class="button-row">
-      <button bindtap="saveCard">保存</button>
-      <button class="secondary" bindtap="createShare">分享</button>
+  <!-- 顶部操作 -->
+  <view class="card-actions">
+    <view class="btn btn--sm btn--ghost" bindtap="login">企微登录</view>
+    <view class="btn btn--sm btn--primary-plain" bindtap="loadCard">
+      <view class="icon icon-reload icon--sm"></view>刷新
     </view>
   </view>
 
-  <view class="panel" wx:if="{{sharePath}}">
-    <view class="eyebrow">SHARE</view>
-    <view class="output">{{sharePath}}</view>
+  <!-- 快捷编辑 -->
+  <view class="card">
+    <text class="card__title">基础信息</text>
+    <view class="field-row">
+      <text class="field-row__label">姓名</text>
+      <input class="field-row__value" value="{{form.display_name}}" data-key="display_name" bindinput="onInput" placeholder="请输入姓名" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">职位</text>
+      <input class="field-row__value" value="{{form.title}}" data-key="title" bindinput="onInput" placeholder="请输入职位" />
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="card__title">联系方式</text>
+    <view class="field-row">
+      <text class="field-row__label">手机</text>
+      <input class="field-row__value" value="{{form.mobile}}" data-key="mobile" type="number" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">邮箱</text>
+      <input class="field-row__value" value="{{form.email}}" data-key="email" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">微信号</text>
+      <input class="field-row__value" value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" placeholder="未填写" />
+    </view>
+  </view>
+
+  <view class="card share-note" wx:if="{{sharePath}}">
+    <text class="card__more">分享路径</text>
+    <view class="share-note__path">{{sharePath}}</view>
   </view>
 </view>
+
+<view class="card-footer">
+  <view class="btn btn--ghost card-footer__item" bindtap="saveCard">保存</view>
+  <view class="btn btn--primary card-footer__item" bindtap="createShare">
+    <view class="icon icon-send icon--sm"></view>发名片
+  </view>
+</view>
+
