@@ -1,50 +1,143 @@
-<view class="page">
-  <view class="panel">
-    <view class="eyebrow">PUBLIC CARD</view>
-    <view class="title">{{card.card.display_name || '名片加载中'}}</view>
-    <view class="muted">{{card.card.title || ''}} {{card.card.company ? '· ' + card.card.company : ''}}</view>
-    <view class="output" wx:if="{{visitId}}">visit: {{visitId}}</view>
-  </view>
+<view class="public-page" style="--brand: {{themeBrand}};">
 
-  <view class="panel">
-    <view wx:if="{{card.card.fields.mobile}}">手机：{{card.card.fields.mobile}}</view>
-    <view wx:if="{{card.card.fields.phone}}">座机：{{card.card.fields.phone}}</view>
-    <view wx:if="{{card.card.fields.email}}">邮箱：{{card.card.fields.email}}</view>
-    <view wx:if="{{card.card.fields.address}}">地址：{{card.card.fields.address}}</view>
-    <view wx:if="{{card.card.fields.wechat_id}}">微信：{{card.card.fields.wechat_id}}</view>
-    <view class="muted" wx:if="{{!card.card.fields.mobile && !card.card.fields.email && !card.card.fields.wechat_id}}">
-      当前名片没有公开联系方式。
+  <!-- 加载骨架 -->
+  <block wx:if="{{uiState === 'loading'}}">
+    <view class="hero hero--skeleton">
+      <view class="skeleton" style="width:200rpx;height:44rpx;margin-top:120rpx;"></view>
+      <view class="skeleton" style="width:320rpx;height:60rpx;margin-top:20rpx;"></view>
     </view>
-    <view class="button-row">
-      <button bindtap="recordSave">保存</button>
-      <button class="secondary" bindtap="recordCall">拨打</button>
+    <view class="card">
+      <view class="skeleton" style="width:100%;height:120rpx;"></view>
     </view>
-  </view>
+  </block>
 
-  <view class="panel">
-    <view class="eyebrow">公司介绍</view>
-    <view class="title small">{{card.company_profile.name}}</view>
-    <block wx:for="{{card.company_profile.intro_blocks}}" wx:key="text">
-      <view class="muted">{{item.text}}</view>
-    </block>
-    <button class="secondary" bindtap="recordExpandIntro">展开全文</button>
-  </view>
+  <!-- 加载失败 -->
+  <block wx:elif="{{uiState === 'error'}}">
+    <view class="state-full">
+      <view class="state-full__icon icon icon-reload icon--lg"></view>
+      <view class="f18 bold">加载失败</view>
+      <view class="f14 t-secondary state-full__desc">网络异常或名片不存在，请稍后重试。</view>
+      <view class="btn btn--ghost btn--sm" bindtap="reload">重新加载</view>
+    </view>
+  </block>
 
-  <view class="panel" wx:if="{{card.videos.length}}">
-    <view class="eyebrow">企业视频</view>
-    <view class="title small">{{card.videos[0].title}}</view>
-    <button bindtap="recordPlayVideo">播放视频</button>
-  </view>
-
-  <view class="panel" wx:if="{{card.honors.length}}">
-    <view class="eyebrow">公司荣誉</view>
-    <view class="title small">{{card.honors[0].title}}</view>
-    <swiper class="honor-swiper" indicator-dots>
-      <swiper-item wx:for="{{card.honors[0].images}}" wx:key="image_url">
-        <view class="honor-image" bindtap="previewHonor" data-url="{{item.image_url}}">
-          {{item.title || '荣誉图片'}}
+  <!-- 名片内容 -->
+  <block wx:else>
+    <!-- Hero -->
+    <view class="hero {{isDisabled ? 'hero--disabled' : ''}}">
+      <view class="hero__nav">
+        <view class="icon icon-back hero__back" bindtap="goBack"></view>
+        <text class="hero__nav-title">{{card.card.display_name}}</text>
+        <view style="width:48rpx;"></view>
+      </view>
+      <view class="hero__company">
+        <view class="hero__logo"></view>
+        <text>{{card.company_profile.name || card.card.company}}</text>
+      </view>
+      <view class="hero__main">
+        <view class="hero__text">
+          <view class="hero__name">{{isDisabled ? '原 ' : ''}}{{card.card.display_name}}</view>
+          <view class="hero__role">{{card.card.title || ''}}</view>
+          <view class="hero__contact">
+            <view wx:if="{{card.card.fields.mobile}}">{{card.card.fields.mobile}}</view>
+            <view wx:if="{{card.card.fields.email}}">{{card.card.fields.email}}</view>
+          </view>
         </view>
-      </swiper-item>
-    </swiper>
-  </view>
+        <view class="hero__avatar">
+          <image wx:if="{{card.card.avatar_url}}" src="{{card.card.avatar_url}}" style="width:100%;height:100%;" mode="aspectFill" />
+          <text wx:else>{{card.card.display_name ? card.card.display_name[0] : '名'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="public-body">
+      <!-- 停用警示 -->
+      <view class="disabled-bar" wx:if="{{isDisabled}}">该名片已停用</view>
+
+      <!-- 互动区 -->
+      <view class="card interact">
+        <view class="interact__stat"><text class="bold">328</text> 人看过</view>
+        <view class="interact__stat"><text class="bold t-brand">靠谱 26</text></view>
+        <view class="interact__badges">
+          <text class="badge badge--success">在职认证</text>
+          <text class="badge badge--muted">官方认证</text>
+        </view>
+      </view>
+
+      <!-- 联系动作宫格 -->
+      <view class="card action-grid">
+        <view class="action-grid__item" bindtap="callPhone">
+          <view class="icon icon-phone"></view><text>电话</text>
+        </view>
+        <view class="action-grid__item" bindtap="copyEmail">
+          <view class="icon icon-mail"></view><text>邮箱</text>
+        </view>
+        <view class="action-grid__item" bindtap="openMap">
+          <view class="icon icon-location"></view><text>地址</text>
+        </view>
+        <view class="action-grid__item" bindtap="copyWechat">
+          <view class="icon icon-wechat"></view><text>微信</text>
+        </view>
+        <view class="action-grid__item" bindtap="viewPaperCard">
+          <view class="icon icon-paper"></view><text>纸质名片</text>
+        </view>
+        <view class="action-grid__item" bindtap="saveContact">
+          <view class="icon icon-contact"></view><text>存通讯录</text>
+        </view>
+        <button class="action-grid__item action-grid__btn" open-type="share">
+          <view class="icon icon-forward"></view><text>转发名片</text>
+        </button>
+        <view class="action-grid__item" bindtap="addWecom">
+          <view class="icon icon-wecom"></view><text>加企微</text>
+        </view>
+      </view>
+
+      <!-- 公司介绍 -->
+      <view class="card" wx:if="{{card.company_profile.name}}">
+        <text class="card__title">公司介绍</text>
+        <view class="intro-text" wx:for="{{card.company_profile.intro_blocks}}" wx:key="text">{{item.text}}</view>
+        <view class="intro-imgs">
+          <view class="intro-imgs__ph">办公环境</view>
+          <view class="intro-imgs__ph">团队合照</view>
+        </view>
+        <view class="intro-expand" bindtap="expandIntro">展开全文</view>
+      </view>
+
+      <!-- 企业视频 -->
+      <view class="card" wx:if="{{card.videos.length}}">
+        <text class="card__title">企业视频</text>
+        <view class="video-player" bindtap="playVideo">
+          <view class="video-player__play"><view class="icon icon-play"></view></view>
+          <text class="video-player__time">02:35</text>
+        </view>
+        <view class="f14 medium" style="margin-top:16rpx;">{{card.videos[0].title}}</view>
+      </view>
+
+      <!-- 公司荣誉 -->
+      <view class="card" wx:if="{{card.honors.length}}">
+        <text class="card__title">公司荣誉</text>
+        <scroll-view scroll-x class="honor-scroll" enable-flex>
+          <view class="honor-card" wx:for="{{card.honors}}" wx:key="honor_id" bindtap="previewHonor" data-url="{{item.images[0].image_url}}">
+            <view class="honor-card__img">证书</view>
+            <view class="honor-card__title">{{item.title}}</view>
+            <view class="honor-card__sub">{{item.body || ''}}</view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 底部固定操作栏 -->
+    <view class="public-footer">
+      <view class="public-footer__icon" bindtap="addWecom"><view class="icon icon-wecom"></view></view>
+      <button class="public-footer__icon public-footer__btn" open-type="share"><view class="icon icon-forward"></view></button>
+      <block wx:if="{{isDisabled}}">
+        <view class="btn btn--primary public-footer__cta" bindtap="goCompany">查看企业名片</view>
+      </block>
+      <block wx:else>
+        <view class="btn btn--ghost public-footer__save" bindtap="saveContact">保存电话</view>
+        <view class="btn btn--primary public-footer__cta" bindtap="callPhone">拨打电话</view>
+      </block>
+    </view>
+  </block>
 </view>
+

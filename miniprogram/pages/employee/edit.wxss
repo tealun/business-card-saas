@@ -1,3 +1,55 @@
-.panel switch {
-  margin: 14rpx 12rpx 14rpx 0;
+.edit-page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
+
+.edit-avatar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 92rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--divider);
+}
+
+.edit-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.field-row input.field-row__value { height: 60rpx; line-height: 60rpx; }
+
+.edit-tags { display: flex; flex-wrap: wrap; margin-top: 24rpx; }
+
+.edit-tags__add {
+  display: inline-flex;
+  align-items: center;
+  height: 48rpx;
+  padding: 0 22rpx;
+  border-radius: var(--r-chip);
+  border: 2rpx dashed var(--brand-soft);
+  color: var(--brand);
+  font-size: 24rpx;
+}
+
+.edit-note {
+  padding: 8rpx 8rpx 24rpx;
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  line-height: 1.6;
+}
+
+.edit-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  box-shadow: 0 -4rpx 16rpx rgba(16, 24, 40, 0.05);
 }

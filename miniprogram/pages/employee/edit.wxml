@@ -1,26 +1,92 @@
-<view class="page">
-  <view class="panel">
-    <view class="eyebrow">基础信息</view>
-    <label class="field"><text>姓名</text><input value="{{form.display_name}}" data-key="display_name" bindinput="onInput" /></label>
-    <label class="field"><text>职位</text><input value="{{form.title}}" data-key="title" bindinput="onInput" /></label>
-    <label class="field"><text>部门</text><input value="{{form.department}}" disabled placeholder="企业统一维护" /></label>
+<view class="page edit-page">
+  <!-- 基础信息 -->
+  <view class="card">
+    <text class="card__title">基础信息</text>
+    <view class="edit-avatar-row">
+      <text class="field-row__label">头像</text>
+      <view class="edit-avatar">{{form.display_name ? form.display_name[0] : '名'}}</view>
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">姓名</text>
+      <input class="field-row__value" value="{{form.display_name}}" data-key="display_name" bindinput="onInput" placeholder="请输入姓名" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">职位</text>
+      <input class="field-row__value" value="{{form.title}}" data-key="title" bindinput="onInput" placeholder="请输入职位" />
+    </view>
+    <view class="field-row" bindtap="lockedTip">
+      <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>部门</text></view>
+      <view class="field-row__value" disabled>{{form.department || '企业统一维护'}}</view>
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">简介</text>
+      <input class="field-row__value" value="{{form.bio}}" data-key="bio" bindinput="onInput" placeholder="一句话介绍自己" />
+    </view>
   </view>
 
-  <view class="panel">
-    <view class="eyebrow">联系方式</view>
-    <label class="field"><text>手机</text><input value="{{form.mobile}}" data-key="mobile" bindinput="onInput" /></label>
-    <label class="field"><text>座机</text><input value="{{form.phone}}" data-key="phone" bindinput="onInput" /></label>
-    <label class="field"><text>邮箱</text><input value="{{form.email}}" data-key="email" bindinput="onInput" /></label>
-    <label class="field"><text>微信号</text><input value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" /></label>
-    <label class="field"><text>地址</text><input value="{{form.address}}" data-key="address" bindinput="onInput" /></label>
+  <!-- 联系方式 -->
+  <view class="card">
+    <text class="card__title">联系方式</text>
+    <view class="field-row">
+      <text class="field-row__label">手机</text>
+      <input class="field-row__value" value="{{form.mobile}}" data-key="mobile" type="number" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">座机</text>
+      <input class="field-row__value" value="{{form.phone}}" data-key="phone" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">邮箱</text>
+      <input class="field-row__value" value="{{form.email}}" data-key="email" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">微信号</text>
+      <input class="field-row__value" value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" placeholder="未填写" />
+    </view>
+    <view class="field-row" bindtap="lockedTip">
+      <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>公司地址</text></view>
+      <view class="field-row__value" disabled>{{form.address || '企业统一维护'}}</view>
+    </view>
+    <view class="field-row" bindtap="lockedTip">
+      <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>官网</text></view>
+      <view class="field-row__value" disabled>{{form.website || '企业统一维护'}}</view>
+    </view>
   </view>
 
-  <view class="panel">
-    <view class="eyebrow">隐私设置</view>
-    <switch checked="{{privacy.show_mobile}}" data-key="show_mobile" bindchange="onPrivacy" /> 手机公开
-    <switch checked="{{privacy.show_email}}" data-key="show_email" bindchange="onPrivacy" /> 邮箱公开
-    <switch checked="{{privacy.show_wechat}}" data-key="show_wechat" bindchange="onPrivacy" /> 微信公开
+  <!-- 展示标签 -->
+  <view class="card">
+    <text class="card__title">展示标签</text>
+    <view class="edit-tags">
+      <text class="chip" wx:for="{{tags}}" wx:key="*this">{{item}}</text>
+      <view class="edit-tags__add">+ 添加标签</view>
+    </view>
   </view>
 
-  <button bindtap="saveCard">保存</button>
+  <!-- 隐私设置 -->
+  <view class="card">
+    <text class="card__title">隐私设置</text>
+    <view class="field-row">
+      <text class="field-row__label">手机对访客公开</text>
+      <switch checked="{{privacy.show_mobile}}" color="#2b6cff" data-key="show_mobile" bindchange="onPrivacy" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">邮箱对访客公开</text>
+      <switch checked="{{privacy.show_email}}" color="#2b6cff" data-key="show_email" bindchange="onPrivacy" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">微信号对访客公开</text>
+      <switch checked="{{privacy.show_wechat}}" color="#2b6cff" data-key="show_wechat" bindchange="onPrivacy" />
+    </view>
+    <view class="field-row">
+      <text class="field-row__label">展示企业微信入口</text>
+      <switch checked="{{privacy.show_wecom}}" color="#2b6cff" data-key="show_wecom" bindchange="onPrivacy" />
+    </view>
+  </view>
+
+  <view class="edit-note">锁定字段由企业统一维护；敏感字段默认不对外公开。</view>
 </view>
+
+<view class="edit-footer">
+  <view class="btn btn--primary btn--block" bindtap="saveCard">保存并更新名片</view>
+</view>
+

@@ -1,60 +1,167 @@
-.notice {
-  margin-bottom: 20rpx;
-  padding: 18rpx 22rpx;
-  border-radius: 10rpx;
-  background: #eaf4ff;
-  color: #185c9f;
-  font-size: 24rpx;
+/* 编辑快捷栏 */
+.quick-bar {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 0;
 }
 
-.business-card {
-  background: linear-gradient(135deg, #ffffff 0%, #edf6ff 100%);
-}
-
-.contact-line {
-  margin-top: 12rpx;
-  color: #334138;
+.quick-bar__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
   font-size: 26rpx;
+  color: var(--text-primary);
 }
 
-.send-button {
-  width: 100%;
-  height: 92rpx;
-  margin-bottom: 24rpx;
-  background: #1677ff;
+.quick-bar__sep { width: 1rpx; height: 48rpx; background: var(--divider); }
+
+/* 发名片主按钮 */
+.send-btn { gap: 12rpx; margin-bottom: 24rpx; }
+
+/* 工具入口宫格 */
+.tool-grid { display: flex; flex-wrap: wrap; }
+
+.tool-grid__item {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+/* 交换请求 */
+.request-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.request-item__avatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 32rpx;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.request-item__info { flex: 1; }
+
+/* 数据统计 */
+.stat-row { display: flex; margin: 28rpx 0; }
+.stat-row__item { flex: 1; text-align: center; }
+.stat-row__num { font-size: 44rpx; font-weight: 700; }
+.stat-row__label { margin-top: 6rpx; font-size: 24rpx; color: var(--text-secondary); }
+
+.visitor-item {
+  display: flex;
+  align-items: center;
   gap: 16rpx;
+  margin-top: 24rpx;
 }
 
-.section-title {
-  margin-bottom: 18rpx;
+.visitor-item__avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 30rpx;
   font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
 }
 
-.metric-row {
+.visitor-item__avatar--exchanged { background: var(--success); }
+.visitor-item__avatar--pending { background: var(--warning); }
+.visitor-item__avatar--none { background: var(--text-tertiary); }
+.visitor-item__info { flex: 1; }
+.visitor-item__right { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
+.visitor-item__time { font-size: 22rpx; color: var(--text-tertiary); }
+
+/* 发名片弹层 */
+.sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 29, 31, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease;
+  z-index: 50;
+}
+
+.sheet-mask--show { opacity: 1; visibility: visible; }
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
+  z-index: 60;
+}
+
+.sheet--show { transform: translateY(0); }
+
+.sheet__grab {
+  width: 72rpx;
+  height: 8rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 4rpx;
+  background: var(--divider);
+}
+
+.sheet__head { margin-bottom: 24rpx; }
+
+.sheet__thumb {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 18rpx;
-}
-
-.metric-row view {
-  display: grid;
+  flex-direction: column;
   gap: 6rpx;
-  text-align: center;
+  padding: 24rpx;
+  border-radius: var(--r-card);
+  background: var(--bg-page);
+  margin-bottom: 24rpx;
 }
 
-.metric-row strong {
-  font-size: 36rpx;
+.sheet__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
 }
 
-.metric-row text {
-  color: #657065;
+.sheet__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  height: 168rpx;
+  border-radius: var(--r-card);
+  font-size: 26rpx;
+  color: var(--text-primary);
+  border: 2rpx solid var(--divider);
+}
+
+.sheet__cell--primary { background: var(--brand-tint); border-color: transparent; }
+
+.sheet__tip {
+  margin-top: 24rpx;
   font-size: 22rpx;
+  color: var(--text-tertiary);
+  text-align: center;
 }

@@ -3,10 +3,13 @@ const { request } = require("../../utils/api");
 
 Page({
   data: {
+    uiState: "loading", // loading | ready | error | disabled
     publicId: "pub_demo0001",
     shareId: "shr_demo0001",
     nextShareId: "",
     visitId: "",
+    themeBrand: "#2b6cff",
+    isDisabled: false,
     card: {
       card: {
         fields: {}
@@ -31,10 +34,36 @@ Page({
   async loadPublicCard() {
     try {
       const card = await request(`/public/cards/${this.data.publicId}`, { auth: false });
-      this.setData({ card });
+      const disabled = card.status && card.status !== "active";
+      const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
+      this.setData({
+        card,
+        themeBrand: brand,
+        isDisabled: disabled,
+        uiState: disabled ? "disabled" : "ready"
+      });
     } catch (error) {
+      this.setData({ uiState: "error" });
       wx.showToast({ title: error.message || "名片加载失败", icon: "none" });
     }
+  },
+
+  reload() {
+    this.setData({ uiState: "loading" });
+    this.loadPublicCard().then(() => this.createVisit());
+  },
+
+  goBack() {
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      wx.navigateBack();
+    } else {
+      wx.switchTab({ url: "/pages/employee/index", fail() {} });
+    }
+  },
+
+  goCompany() {
+    wx.switchTab({ url: "/pages/company-card/index", fail() {} });
   },
 
   async createVisit() {
@@ -52,7 +81,7 @@ Page({
       this.setData({ visitId: visit.visit_id });
       await this.prepareDerivedShare();
     } catch (error) {
-      wx.showToast({ title: "访问统计稍后重试", icon: "none" });
+      // visit 统计失败不阻塞浏览
     }
   },
 
@@ -74,7 +103,6 @@ Page({
 
   async recordAction(actionType) {
     if (!app.globalData.visitToken) {
-      wx.showToast({ title: "visit 未就绪", icon: "none" });
       return;
     }
     try {
@@ -83,38 +111,92 @@ Page({
         header: { authorization: `Bearer ${app.globalData.visitToken}` },
         data: { action_type: actionType }
       });
-      wx.showToast({ title: "已记录", icon: "success" });
-    } catch (error) {
-      wx.showToast({ title: error.message || "记录失败", icon: "none" });
+    } catch (_error) {
+      // 埋点失败静默
     }
   },
 
-  recordSave() {
-    this.recordAction("save_phone");
-  },
-
-  recordCall() {
+  callPhone() {
+    const fields = this.data.card.card.fields;
+    const number = fields.mobile || fields.phone;
+    if (!number) {
+      return;
+    }
     this.recordAction("call_phone");
+    wx.makePhoneCall({ phoneNumber: number, fail() {} });
   },
 
-  recordExpandIntro() {
+  saveContact() {
+    const c = this.data.card.card;
+    this.recordAction("save_phone");
+    wx.addPhoneContact({
+      firstName: c.display_name || "联系人",
+      mobilePhoneNumber: c.fields.mobile || "",
+      workPhoneNumber: c.fields.phone || "",
+      email: c.fields.email || "",
+      organization: c.company || "",
+      title: c.title || "",
+      fail() {}
+    });
+  },
+
+  copyEmail() {
+    const email = this.data.card.card.fields.email;
+    if (!email) {
+      return;
+    }
+    this.recordAction("copy_email");
+    wx.setClipboardData({ data: email });
+  },
+
+  openMap() {
+    this.recordAction("open_map");
+    const address = this.data.card.company_profile.address || this.data.card.card.fields.address;
+    if (address) {
+      wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
+    }
+  },
+
+  copyWechat() {
+    const wechat = this.data.card.card.fields.wechat_id;
+    if (!wechat) {
+      return;
+    }
+    wx.setClipboardData({ data: wechat, success() { wx.showToast({ title: "微信号已复制", icon: "none" }); } });
+  },
+
+  addWecom() {
+    this.recordAction("add_wecom");
+    wx.showToast({ title: "正在跳转企业微信", icon: "none" });
+  },
+
+  viewPaperCard() {
+    this.recordAction("view_paper_card");
+  },
+
+  expandIntro() {
     this.recordAction("expand_company_intro");
   },
 
-  recordPlayVideo() {
+  playVideo() {
     this.recordAction("play_company_video");
+    const video = this.data.card.videos[0];
+    if (video && video.video_url) {
+      wx.navigateTo({ url: `/pages/public/card?_v=${encodeURIComponent(video.video_url)}`, fail() {} });
+    }
   },
 
   previewHonor(event) {
     const url = event.currentTarget.dataset.url;
+    this.recordAction("view_honor_image");
     if (url) {
       wx.previewImage({ urls: [url], current: url });
     }
-    this.recordAction("view_honor_image");
   },
 
   onShareAppMessage() {
     const shareId = this.data.nextShareId || this.data.shareId;
+    this.recordAction("view_site");
     return {
       title: `${this.data.card.card.display_name || "企业名片"}`,
       path: `/pages/public/card?card=${this.data.publicId}&share=${shareId}`
