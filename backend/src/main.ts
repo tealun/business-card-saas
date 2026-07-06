@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
+import { registerXmlBodyParser } from "./common/xml-body-parser.js";
 
 async function bootstrap() {
   const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
@@ -12,7 +13,9 @@ async function bootstrap() {
     throw new Error("CORS_ORIGINS must be set in production");
   }
 
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const adapter = new FastifyAdapter();
+  registerXmlBodyParser(adapter);
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   app.setGlobalPrefix("api/v1");
   app.enableCors({
     origin: (origin, callback) => {
