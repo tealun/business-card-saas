@@ -84,6 +84,53 @@ describe("WecomDataCallbackService", () => {
     expect(events.failedKeys).toHaveLength(1);
   });
 
+  it("retries failed callback events from stored encrypted payloads", async () => {
+    const { service, crypto, events, contacts } = createService();
+    crypto.retryMessage = contactXml("update_user");
+    events.retryable = [
+      {
+        eventKey: "event-retry-001",
+        tenantId: "tenant-001",
+        eventType: "change_contact",
+        changeType: "update_user",
+        payloadEncrypted: "cipher",
+        retryCount: 1
+      }
+    ];
+
+    const result = await service.retryFailedEvents();
+
+    expect(result).toEqual({ retriedCount: 1, succeededCount: 1, failedCount: 0, deadCount: 0 });
+    expect(crypto.retryDecrypts).toBe(1);
+    expect(contacts.lastUpsert?.users[0]?.userid).toBe("user-001");
+    expect(events.doneKeys).toHaveLength(1);
+  });
+
+  it("dead-letters failed retry events after the retry budget is exhausted", async () => {
+    const { service, crypto, events, contacts } = createService();
+    crypto.retryMessage = contactXml("update_user");
+    contacts.failUpsert = true;
+    events.beginRetryCount = 5;
+    events.retryable = [
+      {
+        eventKey: "event-retry-002",
+        tenantId: "tenant-001",
+        eventType: "change_contact",
+        changeType: "update_user",
+        payloadEncrypted: "cipher",
+        retryCount: 4
+      }
+    ];
+
+    await expect(service.retryFailedEvents()).resolves.toEqual({
+      retriedCount: 1,
+      succeededCount: 0,
+      failedCount: 1,
+      deadCount: 1
+    });
+    expect(events.failedRecords[0]?.deadLetter).toBe(true);
+  });
+
   it("rejects callbacks from unauthorized tenants", async () => {
     const { service, crypto, tenants } = createService();
     crypto.message = contactXml("update_user");
@@ -117,12 +164,20 @@ class FakeConfigService {
 
 class FakeCryptoService {
   message = "";
+  retryMessage = "";
   receiveId = "suite-id";
   lastOptions: WecomDecryptOptions | null = null;
+  retryDecrypts = 0;
 
   decrypt(_payload: WecomEncryptedPayload, options?: WecomDecryptOptions) {
     this.lastOptions = options ?? null;
     return { message: this.message, receiveId: this.receiveId };
+  }
+
+  decryptTrustedCiphertext(_encrypt: string, options?: WecomDecryptOptions) {
+    this.lastOptions = options ?? null;
+    this.retryDecrypts += 1;
+    return { message: this.retryMessage || this.message, receiveId: this.receiveId };
   }
 }
 
@@ -164,16 +219,26 @@ class FakeContactSyncRepository {
 
 class FakeCallbackEventRepository {
   shouldProcess = true;
+  beginRetryCount = 0;
   lastBegin: BeginWecomCallbackEventInput | null = null;
   doneKeys: string[] = [];
   failedKeys: string[] = [];
+  failedRecords: Array<{ eventKey: string; deadLetter: boolean }> = [];
+  retryable: Array<{
+    eventKey: string;
+    tenantId: string | null;
+    eventType: string;
+    changeType: string | null;
+    payloadEncrypted: string;
+    retryCount: number;
+  }> = [];
 
   async beginProcessing(input: BeginWecomCallbackEventInput) {
     this.lastBegin = input;
     return {
       shouldProcess: this.shouldProcess,
       status: this.shouldProcess ? "processing" : "done",
-      retryCount: 0
+      retryCount: this.beginRetryCount
     };
   }
 
@@ -181,8 +246,18 @@ class FakeCallbackEventRepository {
     this.doneKeys.push(eventKey);
   }
 
-  async markFailed(eventKey: string): Promise<void> {
+  async markFailed(
+    eventKey: string,
+    _error?: unknown,
+    _tenantId?: string | null,
+    options?: { deadLetter?: boolean }
+  ): Promise<void> {
     this.failedKeys.push(eventKey);
+    this.failedRecords.push({ eventKey, deadLetter: Boolean(options?.deadLetter) });
+  }
+
+  async listRetryableDataEvents() {
+    return this.retryable;
   }
 }
 

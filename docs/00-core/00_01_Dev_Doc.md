@@ -826,14 +826,14 @@ callback_events
 - event_type
 - change_type
 - payload_encrypted
-- status            -- received | processing | done | failed
+- status            -- received | processing | done | failed | dead
 - retry_count
 - received_at
 - processed_at
 UNIQUE(event_key)
 ```
 
-处理流程：先按 `event_key` 尝试插入（冲突即视为重复，直接返回 success），再投递队列；消费端按 `status` 推进并支持重试。
+处理流程：先按 `event_key` 尝试插入（冲突即视为重复，直接返回 success），再投递队列；消费端按 `status` 推进并支持重试，超过重试上限的失败事件进入 `dead`，由后台日志与告警通道处理。
 
 ---
 

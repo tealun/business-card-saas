@@ -74,6 +74,18 @@ describe("WecomCallbackCryptoService", () => {
     expect(decrypted).toEqual({ message, receiveId: "corp-001" });
   });
 
+  it("decrypts already verified ciphertext for retry workers", () => {
+    const message = "<xml><Event><![CDATA[change_contact]]></Event></xml>";
+    const encrypt = encryptFixture(message, "corp-001");
+
+    const decrypted = service.decryptTrustedCiphertext(encrypt, {
+      aesKey: suite.dataCallbackAesKey,
+      expectedReceiveId: null
+    });
+
+    expect(decrypted).toEqual({ message, receiveId: "corp-001" });
+  });
+
   it("rejects callbacks with malformed PKCS7 padding bytes", () => {
     const encrypt = encryptFixture("<xml />", suite.suiteId, { corruptPadding: true });
     const timestamp = "1700000000";

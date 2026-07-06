@@ -28,6 +28,11 @@ export class AdminManagementController {
     return this.management.listSyncEvents(this.session(request));
   }
 
+  @Post("sync-events/retry")
+  retrySyncEvents(@Req() request: AdminRequest) {
+    return this.management.retryFailedSyncEvents(this.session(request));
+  }
+
   @Get("members/:memberIdentityId/card")
   memberCard(@Req() request: AdminRequest, @Param("memberIdentityId") memberIdentityId: string) {
     return this.management.getMemberCard(this.session(request), memberIdentityId);

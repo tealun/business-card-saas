@@ -49,13 +49,45 @@ describe("WecomCallbackEventRepository", () => {
 
     expect(retry).toEqual({ shouldProcess: true, status: "processing", retryCount: 1 });
   });
+
+  it("does not retry dead-lettered callback events", async () => {
+    const repository = new WecomCallbackEventRepository();
+
+    await repository.beginProcessing(eventInput("event-004"));
+    await repository.markFailed("event-004", new Error("permanent failure"), "tenant-001", { deadLetter: true });
+    const retry = await repository.beginProcessing(eventInput("event-004"));
+
+    expect(retry).toEqual({ shouldProcess: false, status: "dead", retryCount: 0 });
+  });
+
+  it("lists failed data callback events that still have retry budget", async () => {
+    const repository = new WecomCallbackEventRepository();
+
+    await repository.beginProcessing(eventInput("event-005"));
+    await repository.markFailed("event-005", new Error("temporary failure"), "tenant-001");
+    await repository.beginProcessing(eventInput("event-006"));
+    await repository.markFailed("event-006", new Error("permanent failure"), "tenant-001", { deadLetter: true });
+    await repository.beginProcessing(eventInput("event-007", "tenant-002"));
+    await repository.markFailed("event-007", new Error("other tenant failure"), "tenant-002");
+
+    await expect(repository.listRetryableDataEvents(5, 20, "tenant-001")).resolves.toEqual([
+      {
+        eventKey: "event-005",
+        tenantId: "tenant-001",
+        eventType: "change_contact",
+        changeType: "update_user",
+        payloadEncrypted: "cipher",
+        retryCount: 0
+      }
+    ]);
+  });
 });
 
-function eventInput(eventKey: string) {
+function eventInput(eventKey: string, tenantId = "tenant-001") {
   return {
     source: "data" as const,
     eventKey,
-    tenantId: "tenant-001",
+    tenantId,
     eventType: "change_contact",
     changeType: "update_user",
     payloadEncrypted: "cipher"

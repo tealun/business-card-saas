@@ -34,13 +34,20 @@ export const adminMemberSyncResponseSchema = z.object({
   skipped_count: z.number().int().min(0)
 });
 
+export const adminSyncEventRetryResponseSchema = z.object({
+  retried_count: z.number().int().min(0),
+  succeeded_count: z.number().int().min(0),
+  failed_count: z.number().int().min(0),
+  dead_count: z.number().int().min(0)
+});
+
 export const adminSyncEventSummarySchema = z.object({
   id: z.string(),
   source: z.enum(["command", "data"]),
   event_key: z.string(),
   event_type: z.string(),
   change_type: z.string().nullable(),
-  status: z.enum(["received", "processing", "done", "failed"]),
+  status: z.enum(["received", "processing", "done", "failed", "dead"]),
   retry_count: z.number().int().min(0),
   received_at: z.string(),
   processed_at: z.string().nullable(),
@@ -58,5 +65,6 @@ export type AdminMemberListResponse = z.infer<typeof adminMemberListResponseSche
 export type AdminMemberCardResponse = z.infer<typeof adminMemberCardResponseSchema>;
 export type UpdateAdminMemberCardRequest = z.infer<typeof updateAdminMemberCardRequestSchema>;
 export type AdminMemberSyncResponse = z.infer<typeof adminMemberSyncResponseSchema>;
+export type AdminSyncEventRetryResponse = z.infer<typeof adminSyncEventRetryResponseSchema>;
 export type AdminSyncEventSummary = z.infer<typeof adminSyncEventSummarySchema>;
 export type AdminSyncEventListResponse = z.infer<typeof adminSyncEventListResponseSchema>;

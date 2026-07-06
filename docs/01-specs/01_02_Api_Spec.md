@@ -128,6 +128,7 @@
 | GET `/api/v1/admin/members` | 员工列表（分页） |
 | POST `/api/v1/admin/members/sync` | 手动触发企业微信通讯录可见成员全量同步；需要 admin/owner 权限 |
 | GET `/api/v1/admin/sync-events` | 最近企业微信同步/回调事件；按当前租户过滤，不返回密文 payload |
+| POST `/api/v1/admin/sync-events/retry` | 重试当前租户失败的企业微信 data callback；需要 admin/owner 权限；达到重试上限的事件进入 `dead` 状态 |
 | GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；数据库模式按当前租户读取 `cards`，联系方式字段从 `fields_encrypted` 解密后返回 |
 | PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置与启停状态；需要 operator/admin/owner 权限；数据库模式写入成员姓名、主名片字段、隐私开关、状态和公开目录，联系方式字段加密保存 |
 | GET `/api/v1/admin/cards` | 规划：独立名片列表；当前按员工进入 `GET /api/v1/admin/members/{id}/card` |
@@ -172,7 +173,7 @@
 | GET `/api/v1/wecom/callbacks/data` | 企业微信签名 | 数据回调 URL 验证；使用数据回调 Token/AESKey |
 | POST `/api/v1/wecom/callbacks/data` | 企业微信签名 | 接收第三方数据回调 `InfoType=change_contact`/`AuthCorpId` 增量同步；兼容内部应用 `Event=change_contact`，当前处理 create/update/delete_user |
 
-数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推后重新处理。为避免进程异常导致事件永久卡在 `processing`，`processing` 超过 5 分钟后按重试处理并递增 `retry_count`。
+数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推或后台 `POST /api/v1/admin/sync-events/retry` 后重新处理。为避免进程异常导致事件永久卡在 `processing`，`processing` 超过 5 分钟后按重试处理并递增 `retry_count`；超过重试上限后标记为 `dead`，由后台日志展示并进入人工排查。
 
 ## 4. 待核对
 

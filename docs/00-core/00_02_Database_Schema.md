@@ -82,7 +82,7 @@ erDiagram
 | `contact_ways.strategy` | `per_member_static` / `per_campaign_static` / `temp_session` |
 | `card_actions.trust_level` | `anonymous_client` / `session_verified` / `wecom_callback_verified` |
 | `card_actions.action_type` | `save_phone` / `call_phone` / `copy_phone` / `copy_email` / `view_site` / `add_wecom` / `open_map` / `play_company_video` / `view_honor_image` / `expand_company_intro` / `view_paper_card` … |
-| `callback_events.source` / `.status` | `command`/`data` ; `received`/`processing`/`done`/`failed` |
+| `callback_events.source` / `.status` | `command`/`data` ; `received`/`processing`/`done`/`failed`/`dead` |
 | `tenant_customer_owners.status` | `active` / `pending_transfer` |
 | `growth_leads.status` | `new` / `contacted` / `converted` / `dropped` |
 | `tenant_admins.role` | `owner` / `admin` / `operator` / `auditor` |

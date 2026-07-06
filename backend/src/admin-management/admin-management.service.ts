@@ -5,11 +5,13 @@ import {
   adminMemberListResponseSchema,
   adminMemberSyncResponseSchema,
   adminOverviewResponseSchema,
+  adminSyncEventRetryResponseSchema,
   adminSyncEventListResponseSchema,
   type AdminMemberCardResponse,
   type AdminMemberListResponse,
   type AdminMemberSyncResponse,
   type AdminOverviewResponse,
+  type AdminSyncEventRetryResponse,
   type AdminSyncEventListResponse,
   type UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
@@ -18,6 +20,7 @@ import { EmployeeCardService } from "../employee/employee-card.service.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
+import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 
 @Injectable()
@@ -25,7 +28,8 @@ export class AdminManagementService {
   constructor(
     private readonly employeeCards: EmployeeCardService,
     private readonly repository: AdminManagementRepository,
-    private readonly contactSync: WecomContactSyncService
+    private readonly contactSync: WecomContactSyncService,
+    private readonly dataCallbacks: WecomDataCallbackService
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
@@ -84,6 +88,17 @@ export class AdminManagementService {
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse> {
     const persisted = await this.repository.listSyncEvents(session);
     return adminSyncEventListResponseSchema.parse(persisted ?? { items: [], total: 0 });
+  }
+
+  async retryFailedSyncEvents(session: AdminSession): Promise<AdminSyncEventRetryResponse> {
+    requireAdminRole(session.role, "admin");
+    const result = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
+    return adminSyncEventRetryResponseSchema.parse({
+      retried_count: result.retriedCount,
+      succeeded_count: result.succeededCount,
+      failed_count: result.failedCount,
+      dead_count: result.deadCount
+    });
   }
 
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {

@@ -7,6 +7,7 @@ import {
   WecomContactSyncService,
   type SyncTenantContactMembersInput
 } from "../wecom/wecom-contact-sync.service.js";
+import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 import { AdminManagementService } from "./admin-management.service.js";
 
@@ -45,6 +46,20 @@ describe("AdminManagementService", () => {
     await expect(service.listSyncEvents(ownerSession())).resolves.toEqual({ items: [], total: 0 });
   });
 
+  it("retries failed sync events when the admin has admin or higher permission", async () => {
+    const dataCallbacks = fakeDataCallbacks();
+    const service = createService(new AdminManagementRepository(), dataCallbacks);
+
+    await expect(service.retryFailedSyncEvents(ownerSession())).resolves.toEqual({
+      retried_count: 2,
+      succeeded_count: 1,
+      failed_count: 1,
+      dead_count: 1
+    });
+    expect(dataCallbacks.retryCalls).toBe(1);
+    expect(dataCallbacks.lastRetry?.tenantId).toBe("tenant-001");
+  });
+
   it("updates a member card when the admin has operator or higher permission", async () => {
     const service = createService();
 
@@ -73,6 +88,9 @@ describe("AdminManagementService", () => {
       })
     ).rejects.toThrow(ForbiddenException);
     await expect(service.syncMembers({ ...ownerSession(), role: "auditor" })).rejects.toThrow(ForbiddenException);
+    await expect(service.retryFailedSyncEvents({ ...ownerSession(), role: "auditor" })).rejects.toThrow(
+      ForbiddenException
+    );
   });
 
   it("rejects cross-member access in the current MVP repository", async () => {
@@ -97,11 +115,12 @@ describe("AdminManagementService", () => {
   });
 });
 
-function createService(repository = new AdminManagementRepository()) {
+function createService(repository = new AdminManagementRepository(), dataCallbacks = fakeDataCallbacks()) {
   return new AdminManagementService(
     new EmployeeCardService(new EmployeeCardRepository(), new PublicCardRepository()),
     repository,
-    fakeContactSync()
+    fakeContactSync(),
+    dataCallbacks as unknown as WecomDataCallbackService
   );
 }
 
@@ -113,6 +132,23 @@ function fakeContactSync(): WecomContactSyncService {
       skippedCount: 0
     })
   } as WecomContactSyncService;
+}
+
+function fakeDataCallbacks() {
+  return {
+    retryCalls: 0,
+    lastRetry: null as { tenantId?: string } | null,
+    async retryFailedEvents(input?: { tenantId?: string }) {
+      this.retryCalls += 1;
+      this.lastRetry = input ?? null;
+      return {
+        retriedCount: 2,
+        succeededCount: 1,
+        failedCount: 1,
+        deadCount: 1
+      };
+    }
+  };
 }
 
 function ownerSession(): AdminSession {
