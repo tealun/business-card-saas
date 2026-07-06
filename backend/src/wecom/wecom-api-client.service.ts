@@ -36,6 +36,17 @@ export interface FetchCorpTokenResponse {
   expiresIn: number;
 }
 
+export interface FetchMiniProgramSessionRequest {
+  suiteAccessToken: string;
+  jsCode: string;
+}
+
+export interface FetchMiniProgramSessionResponse {
+  openCorpid: string;
+  openUserid: string;
+  sessionKey: string | null;
+}
+
 interface WecomSuiteTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -63,6 +74,16 @@ interface WecomCorpTokenPayload {
   errmsg?: string;
   access_token?: string;
   expires_in?: number;
+}
+
+interface WecomMiniProgramSessionPayload {
+  errcode?: number;
+  errmsg?: string;
+  corpid?: string;
+  open_corpid?: string;
+  userid?: string;
+  open_userid?: string;
+  session_key?: string;
 }
 
 @Injectable()
@@ -134,6 +155,34 @@ export class WecomApiClientService {
     return {
       accessToken: payload.access_token,
       expiresIn: payload.expires_in
+    };
+  }
+
+  async fetchMiniProgramSession(request: FetchMiniProgramSessionRequest): Promise<FetchMiniProgramSessionResponse> {
+    const payload = await this.postJson<WecomMiniProgramSessionPayload>(
+      "miniprogram jscode2session",
+      `/cgi-bin/service/miniprogram/jscode2session?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {
+        js_code: request.jsCode,
+        grant_type: "authorization_code"
+      }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(
+        `WeCom miniprogram jscode2session failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim()
+      );
+    }
+
+    const openCorpid = payload.open_corpid ?? payload.corpid;
+    const openUserid = payload.open_userid ?? payload.userid;
+    if (!openCorpid || !openUserid) {
+      throw new BadGatewayException("WeCom miniprogram jscode2session returned invalid payload");
+    }
+
+    return {
+      openCorpid,
+      openUserid,
+      sessionKey: payload.session_key ?? null
     };
   }
 

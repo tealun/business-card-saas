@@ -86,4 +86,35 @@ describe("WecomApiClientService", () => {
       permanent_code: "perm-001"
     });
   });
+
+  it("posts miniprogram jscode2session and maps open_userid payloads", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({ errcode: 0, open_corpid: "corp-001", open_userid: "ou-001", session_key: "session-key" }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchMiniProgramSession({
+      suiteAccessToken: "suite-token",
+      jsCode: "js-code"
+    });
+
+    expect(result).toEqual({ openCorpid: "corp-001", openUserid: "ou-001", sessionKey: "session-key" });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const [url, init] = firstCall;
+    expect(url).toContain("suite_access_token=suite-token");
+    expect(JSON.parse(String(init.body))).toEqual({
+      js_code: "js-code",
+      grant_type: "authorization_code"
+    });
+  });
 });
