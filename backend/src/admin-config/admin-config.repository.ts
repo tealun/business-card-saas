@@ -178,8 +178,8 @@ export class AdminConfigRepository {
 
   async listTemplates(tenantId: string): Promise<AdminTemplate[]> {
     if (this.hasDatabase()) {
-      const result = await this.tenantTx!.run(tenantId, (tx) =>
-        tx.query<TemplateRow>(
+      const result = await this.tenantTx!.run(tenantId, async (tx) => {
+        const existing = await tx.query<TemplateRow>(
           `
             SELECT id, name, is_default, background_url, logo_url, color_scheme_json, layout_json, status
             FROM templates
@@ -187,10 +187,42 @@ export class AdminConfigRepository {
             ORDER BY id ASC
           `,
           [tenantId]
-        )
-      );
+        );
+        if (existing.rows.length) {
+          return existing;
+        }
+        const template = defaultTemplate();
+        return tx.query<TemplateRow>(
+          `
+            INSERT INTO templates (
+              tenant_id,
+              name,
+              is_default,
+              background_url,
+              logo_url,
+              color_scheme_json,
+              layout_json,
+              status,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, true, $3, $4, $5, $6, 'active', now(), now())
+            ON CONFLICT (tenant_id) WHERE is_default = true AND deleted_at IS NULL DO UPDATE SET
+              updated_at = templates.updated_at
+            RETURNING id, name, is_default, background_url, logo_url, color_scheme_json, layout_json, status
+          `,
+          [
+            tenantId,
+            template.name,
+            template.background_url,
+            template.logo_url,
+            JSON.stringify(template.color_scheme),
+            JSON.stringify(template.layout)
+          ]
+        );
+      });
       const templates = result.rows.map(rowToTemplate);
-      return templates.length ? templates : [defaultTemplate()];
+      return templates;
     }
 
     const current = this.templates.get(tenantId) ?? [defaultTemplate()];
