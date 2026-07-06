@@ -5,10 +5,12 @@ import {
   adminMemberListResponseSchema,
   adminMemberSyncResponseSchema,
   adminOverviewResponseSchema,
+  adminSyncEventListResponseSchema,
   type AdminMemberCardResponse,
   type AdminMemberListResponse,
   type AdminMemberSyncResponse,
   type AdminOverviewResponse,
+  type AdminSyncEventListResponse,
   type UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
 import type { EmployeeSession } from "../session/employee-session.js";
@@ -77,6 +79,11 @@ export class AdminManagementService {
       synced_count: result.syncedCount,
       skipped_count: result.skippedCount
     });
+  }
+
+  async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse> {
+    const persisted = await this.repository.listSyncEvents(session);
+    return adminSyncEventListResponseSchema.parse(persisted ?? { items: [], total: 0 });
   }
 
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {

@@ -1,10 +1,15 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import { defaultEmployeePublicId } from "../common/default-public-id.js";
+import { DatabaseService } from "../database/database.service.js";
 import { TenantTx } from "../database/tenant-tx.service.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import type { AdminMemberListResponse, AdminOverviewResponse } from "../contracts/admin-management.js";
+import type {
+  AdminMemberListResponse,
+  AdminOverviewResponse,
+  AdminSyncEventListResponse
+} from "../contracts/admin-management.js";
 
 interface OverviewRow extends QueryResultRow {
   member_count: string;
@@ -22,9 +27,26 @@ interface MemberSummaryRow extends QueryResultRow {
   total_count?: string;
 }
 
+interface SyncEventRow extends QueryResultRow {
+  id: string | number | bigint;
+  source: "command" | "data";
+  event_key: string;
+  event_type: string;
+  change_type: string | null;
+  status: "received" | "processing" | "done" | "failed";
+  retry_count: number;
+  received_at: Date | string;
+  processed_at: Date | string | null;
+  last_error: string | null;
+  total_count?: string;
+}
+
 @Injectable()
 export class AdminManagementRepository {
-  constructor(@Optional() private readonly tenantTx?: TenantTx) {}
+  constructor(
+    @Optional() private readonly tenantTx?: TenantTx,
+    @Optional() private readonly database?: DatabaseService
+  ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse | null> {
     if (!this.hasDatabase()) {
@@ -156,8 +178,54 @@ export class AdminManagementRepository {
     };
   }
 
+  async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse | null> {
+    if (!this.hasPlatformDatabase()) {
+      return null;
+    }
+    const result = await this.database!.query<SyncEventRow>(
+      `
+        SELECT
+          id,
+          source,
+          event_key,
+          event_type,
+          change_type,
+          status,
+          retry_count,
+          received_at,
+          processed_at,
+          last_error,
+          count(*) OVER()::text AS total_count
+        FROM callback_events
+        WHERE tenant_id = $1
+        ORDER BY received_at DESC, id DESC
+        LIMIT 100
+      `,
+      [session.tenantId]
+    );
+    return {
+      items: result.rows.map((row) => ({
+        id: String(row.id),
+        source: row.source,
+        event_key: row.event_key,
+        event_type: row.event_type,
+        change_type: row.change_type,
+        status: row.status,
+        retry_count: Number(row.retry_count),
+        received_at: new Date(row.received_at).toISOString(),
+        processed_at: row.processed_at ? new Date(row.processed_at).toISOString() : null,
+        last_error: row.last_error
+      })),
+      total: Number(result.rows[0]?.total_count ?? "0")
+    };
+  }
+
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
+  }
+
+  private hasPlatformDatabase(): boolean {
+    return Boolean(this.database && process.env.DATABASE_URL?.trim());
   }
 }
 

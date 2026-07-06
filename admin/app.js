@@ -215,6 +215,10 @@ document.querySelector("#syncMembers").addEventListener("click", async () => {
   document.querySelector("#loadMembers").click();
 });
 
+document.querySelector("#loadSyncEvents").addEventListener("click", async () => {
+  await run("loading sync events", adminOutput, async () => adminRequest("/admin/sync-events"));
+});
+
 document.querySelector("#loadAdminCard").addEventListener("click", async () => {
   state.adminMemberId = adminMemberIdInput.value.trim();
   const card = await run("loading admin card", adminCardOutput, async () =>
