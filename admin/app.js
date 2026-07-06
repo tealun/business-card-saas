@@ -2,6 +2,7 @@ const state = {
   token: "",
   adminToken: localStorage.getItem("bc_admin_token") || "",
   card: null,
+  fieldSettings: [],
   adminMemberId: "",
   shareId: "",
   visitToken: "",
@@ -191,12 +192,35 @@ function renderSyncEvents(result) {
 }
 
 function renderFieldSettings(result) {
-  renderRows(fieldRows, result.fields, 4, (field) => [
-    field.label,
-    field.locked,
-    field.employee_editable,
-    field.default_visible
-  ]);
+  state.fieldSettings = result.fields || [];
+  fieldRows.replaceChildren();
+  if (!state.fieldSettings.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 4;
+    cell.textContent = "暂无数据";
+    row.append(cell);
+    fieldRows.append(row);
+    return;
+  }
+  state.fieldSettings.forEach((field) => {
+    const row = document.createElement("tr");
+    row.dataset.fieldKey = field.field_key;
+    row.dataset.label = field.label;
+    const labelCell = document.createElement("td");
+    labelCell.textContent = field.label;
+    row.append(labelCell);
+    ["locked", "employee_editable", "default_visible"].forEach((key) => {
+      const cell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = Boolean(field[key]);
+      checkbox.dataset.fieldProp = key;
+      cell.append(checkbox);
+      row.append(cell);
+    });
+    fieldRows.append(row);
+  });
 }
 
 function renderTemplates(result) {
@@ -205,6 +229,38 @@ function renderTemplates(result) {
     template.is_default,
     template.status
   ]);
+}
+
+function fieldSettingsPayloadFromTable() {
+  const rows = [...fieldRows.querySelectorAll("tr[data-field-key]")];
+  if (!rows.length) {
+    throw new Error("请先加载字段规则");
+  }
+  return {
+    fields: rows.map((row) => {
+      const locked = row.querySelector('[data-field-prop="locked"]');
+      const employeeEditable = row.querySelector('[data-field-prop="employee_editable"]');
+      const defaultVisible = row.querySelector('[data-field-prop="default_visible"]');
+      const fieldKey = row.dataset.fieldKey;
+      const label = row.dataset.label;
+      if (
+        !fieldKey ||
+        !label ||
+        !(locked instanceof HTMLInputElement) ||
+        !(employeeEditable instanceof HTMLInputElement) ||
+        !(defaultVisible instanceof HTMLInputElement)
+      ) {
+        throw new Error("字段规则表格状态异常");
+      }
+      return {
+        field_key: fieldKey,
+        label,
+        locked: locked.checked,
+        employee_editable: employeeEditable.checked,
+        default_visible: defaultVisible.checked
+      };
+    })
+  };
 }
 
 async function run(label, target, fn) {
@@ -413,6 +469,16 @@ document.querySelector("#saveCompanyProfile").addEventListener("click", async ()
 
 document.querySelector("#loadFieldSettings").addEventListener("click", async () => {
   const result = await run("loading field settings", configOutput, async () => adminRequest("/admin/settings/fields"));
+  renderFieldSettings(result);
+});
+
+document.querySelector("#saveFieldSettings").addEventListener("click", async () => {
+  const result = await run("saving field settings", configOutput, async () =>
+    adminRequest("/admin/settings/fields", {
+      method: "PUT",
+      body: fieldSettingsPayloadFromTable()
+    })
+  );
   renderFieldSettings(result);
 });
 
