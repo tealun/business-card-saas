@@ -1,5 +1,3 @@
-.card-page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
-
 .card-actions {
   display: flex;
   gap: 16rpx;
@@ -7,7 +5,6 @@
 }
 
 .card-actions .btn { gap: 8rpx; }
-
 .field-row input.field-row__value { height: 60rpx; line-height: 60rpx; }
 
 .share-note__path {
@@ -20,15 +17,18 @@
   word-break: break-all;
 }
 
-.card-footer {
+.fixed-footer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: var(--bg-surface);
-  box-shadow: 0 -4rpx 16rpx rgba(16, 24, 40, 0.05);
+  z-index: 20;
+  padding: 20rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid var(--divider);
   display: flex;
   gap: 16rpx;
+  box-sizing: border-box;
 }
-.card-footer__item { flex: 1; gap: 8rpx; }
+
+.card-footer__item { flex: 1; }

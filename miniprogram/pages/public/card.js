@@ -1,37 +1,54 @@
 const app = getApp();
 const { request } = require("../../utils/api");
 
+const demoPublicCard = {
+  status: "active",
+  card: {
+    display_name: "李明",
+    title: "销售总监 · 市场部",
+    company: "智云科技",
+    avatar_url: "",
+    fields: {
+      mobile: "138 0013 8000",
+      phone: "0755-8888 0000",
+      email: "liming@zhiyun.tech",
+      wechat_id: "liming-zy",
+      address: "深圳市南山区科技园"
+    }
+  },
+  company_profile: {
+    name: "智云科技（深圳）有限公司",
+    address: "深圳市南山区科技园",
+    intro_blocks: [
+      { text: "智云科技成立于 2016 年，专注为制造业与商贸企业提供数字化经营工具，服务企业客户 3,000+ 家。核心产品覆盖数字名片、客户管理与营销转化。" }
+    ]
+  },
+  videos: [{ title: "智云科技企业宣传片", video_url: "", cover_url: "" }],
+  honors: [
+    { honor_id: "h1", title: "国家高新技术企业", body: "2023-2025 连续认定", images: [] },
+    { honor_id: "h2", title: "等保三级认证", body: "数据安全合规", images: [] }
+  ]
+};
+
 Page({
   data: {
-    uiState: "loading", // loading | ready | error | disabled
+    uiState: "loading",
     publicId: "",
     shareId: "",
     nextShareId: "",
     visitId: "",
     themeBrand: "#2b6cff",
     isDisabled: false,
-    card: {
-      card: {
-        fields: {}
-      },
-      company_profile: {
-        intro_blocks: []
-      },
-      videos: [],
-      honors: []
-    }
+    card: demoPublicCard
   },
 
   async onLoad(query) {
     const publicId = query.card || query.public_id || "";
     const shareId = query.share || "";
-    this.setData({
-      publicId,
-      shareId
-    });
+    this.setData({ publicId, shareId });
     if (!publicId) {
-      this.setData({ uiState: "error" });
-      wx.showToast({ title: "名片链接无效", icon: "none" });
+      this.setData({ uiState: "ready", card: demoPublicCard });
+      wx.showToast({ title: "当前展示演示名片", icon: "none" });
       return;
     }
     await this.loadPublicCard();
@@ -44,7 +61,7 @@ Page({
       const disabled = card.status && card.status !== "active";
       const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
       this.setData({
-        card,
+        card: Object.assign({}, demoPublicCard, card),
         themeBrand: brand,
         isDisabled: disabled,
         uiState: disabled ? "disabled" : "ready"
@@ -75,9 +92,7 @@ Page({
 
   async createVisit() {
     try {
-      const data = {
-        anon_id: app.globalData.anonId || undefined
-      };
+      const data = { anon_id: app.globalData.anonId || undefined };
       if (this.data.shareId) {
         data.share = this.data.shareId;
       }
@@ -90,9 +105,7 @@ Page({
       app.globalData.anonId = visit.anon_id;
       this.setData({ visitId: visit.visit_id });
       await this.prepareDerivedShare();
-    } catch (error) {
-      // visit 统计失败不阻塞浏览
-    }
+    } catch (_error) {}
   },
 
   async prepareDerivedShare() {
@@ -121,15 +134,14 @@ Page({
         header: { authorization: `Bearer ${app.globalData.visitToken}` },
         data: { action_type: actionType }
       });
-    } catch (_error) {
-      // 埋点失败静默
-    }
+    } catch (_error) {}
   },
 
   callPhone() {
-    const fields = this.data.card.card.fields;
+    const fields = this.data.card.card.fields || {};
     const number = fields.mobile || fields.phone;
     if (!number) {
+      wx.showToast({ title: "暂无可拨打电话", icon: "none" });
       return;
     }
     this.recordAction("call_phone");
@@ -138,12 +150,13 @@ Page({
 
   saveContact() {
     const c = this.data.card.card;
+    const fields = c.fields || {};
     this.recordAction("save_phone");
     wx.addPhoneContact({
       firstName: c.display_name || "联系人",
-      mobilePhoneNumber: c.fields.mobile || "",
-      workPhoneNumber: c.fields.phone || "",
-      email: c.fields.email || "",
+      mobilePhoneNumber: fields.mobile || "",
+      workPhoneNumber: fields.phone || "",
+      email: fields.email || "",
       organization: c.company || "",
       title: c.title || "",
       fail() {}
@@ -151,10 +164,8 @@ Page({
   },
 
   copyEmail() {
-    const email = this.data.card.card.fields.email;
-    if (!email) {
-      return;
-    }
+    const email = this.data.card.card.fields && this.data.card.card.fields.email;
+    if (!email) return;
     this.recordAction("copy_email");
     wx.setClipboardData({ data: email });
   },
@@ -168,10 +179,8 @@ Page({
   },
 
   copyWechat() {
-    const wechat = this.data.card.card.fields.wechat_id;
-    if (!wechat) {
-      return;
-    }
+    const wechat = this.data.card.card.fields && this.data.card.card.fields.wechat_id;
+    if (!wechat) return;
     wx.setClipboardData({ data: wechat, success() { wx.showToast({ title: "微信号已复制", icon: "none" }); } });
   },
 
@@ -182,10 +191,12 @@ Page({
 
   viewPaperCard() {
     this.recordAction("view_paper_card");
+    wx.showToast({ title: "纸质名片信息已记录", icon: "none" });
   },
 
   expandIntro() {
     this.recordAction("expand_company_intro");
+    wx.showToast({ title: "已展开公司介绍", icon: "none" });
   },
 
   playVideo() {
@@ -194,16 +205,8 @@ Page({
     if (video && video.video_url) {
       if (wx.previewMedia) {
         wx.previewMedia({
-          sources: [
-            {
-              url: video.video_url,
-              type: "video",
-              poster: video.cover_url || undefined
-            }
-          ],
-          fail() {
-            wx.setClipboardData({ data: video.video_url });
-          }
+          sources: [{ url: video.video_url, type: "video", poster: video.cover_url || undefined }],
+          fail() { wx.setClipboardData({ data: video.video_url }); }
         });
       } else {
         wx.setClipboardData({ data: video.video_url });

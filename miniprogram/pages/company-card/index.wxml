@@ -1,31 +1,28 @@
 <view class="company-page">
-  <!-- Hero -->
-  <view class="c-hero">
-    <view class="c-hero__nav">企业名片</view>
-    <view class="c-hero__logo"></view>
-    <view class="c-hero__name">
-      {{company.name}}
-      <text class="badge badge--success c-hero__cert" wx:if="{{company.certified}}">已认证</text>
+  <view class="company-hero">
+    <view class="company-logo">{{company.name[0]}}</view>
+    <view class="company-name">{{company.fullName}}</view>
+    <view class="company-badges">
+      <text class="badge badge--success" wx:if="{{company.certified}}">官方认证</text>
+      <text class="badge badge--brand">企业数字名片</text>
     </view>
-    <view class="c-hero__stats">
-      <view class="c-hero__stat" wx:for="{{company.stats}}" wx:key="label">
-        <view class="c-hero__num">{{item.num}}</view>
-        <view class="c-hero__label">{{item.label}}</view>
+    <view class="company-stats">
+      <view class="company-stat" wx:for="{{company.stats}}" wx:key="label">
+        <view class="company-stat__num">{{item.num}}</view>
+        <view class="company-stat__label">{{item.label}}</view>
       </view>
     </view>
   </view>
 
-  <view class="company-body">
-    <!-- 企业简介 -->
+  <view class="page company-body">
     <view class="card">
       <text class="card__title">企业简介</text>
-      <view class="intro-text">{{company.intro}}</view>
-      <view class="edit-tags" style="margin-top:20rpx;">
+      <view class="company-intro">{{company.intro}}</view>
+      <view class="qual-row">
         <text class="chip" wx:for="{{company.quals}}" wx:key="*this">{{item}}</text>
       </view>
     </view>
 
-    <!-- 联系与官网 -->
     <view class="card">
       <text class="card__title">联系与官网</text>
       <view class="field-row" bindtap="copyAddress">
@@ -37,34 +34,32 @@
         <view class="field-row__value">{{company.phone}}</view>
       </view>
       <view class="field-row" bindtap="copyWebsite">
-        <view class="field-row__label"><view class="icon icon-forward icon--sm"></view><text>官网</text></view>
+        <view class="field-row__label"><view class="icon icon-paper icon--sm"></view><text>官网</text></view>
         <view class="field-row__value">{{company.website}}</view>
       </view>
     </view>
 
-    <!-- 团队成员 -->
-    <view class="card">
-      <text class="card__title">团队成员</text>
-      <block wx:for="{{departments}}" wx:key="name" wx:for-item="dept">
-        <view class="dept-title">{{dept.name}}</view>
-        <view class="member-item" wx:for="{{dept.members}}" wx:key="id" wx:for-item="member">
-          <view class="member-item__avatar">{{member.name[0]}}</view>
-          <view class="member-item__info">
-            <view class="f14 medium">
-              {{member.name}}
-              <text class="badge badge--muted" wx:if="{{member.self}}">本人</text>
-            </view>
-            <view class="f12 t-secondary">{{member.title}}</view>
+    <view class="card team-card">
+      <view class="row-between">
+        <text class="card__title">团队成员</text>
+        <text class="card__more">按部门展示</text>
+      </view>
+      <block wx:for="{{departments}}" wx:key="name">
+        <view class="dept-title">{{item.name}}</view>
+        <view class="member-row" wx:for="{{item.members}}" wx:for-item="member" wx:key="id">
+          <view class="member-avatar">{{member.name[0]}}</view>
+          <view class="member-main">
+            <view class="member-name">{{member.name}} <text wx:if="{{member.self}}" class="badge badge--brand">本人</text></view>
+            <view class="member-title">{{member.title}}</view>
           </view>
-          <view class="member-item__entry">名片<view class="icon icon-arrow icon--sm"></view></view>
+          <view class="btn btn--sm btn--ghost">名片</view>
         </view>
       </block>
     </view>
   </view>
 
   <view class="company-footer">
-    <view class="btn btn--ghost company-footer__item" bindtap="copyWebsite">进入官网</view>
-    <view class="btn btn--primary company-footer__item" bindtap="followCompany">关注企业</view>
+    <view class="btn btn--ghost company-footer__btn" bindtap="copyWebsite">进入官网</view>
+    <view class="btn btn--primary company-footer__btn" bindtap="followCompany">关注企业</view>
   </view>
 </view>
-

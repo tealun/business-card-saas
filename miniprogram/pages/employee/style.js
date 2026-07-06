@@ -5,13 +5,18 @@ Page({
   data: {
     primary: "#2b6cff",
     templateId: "tpl_horizontal_business",
-    card: { display_name: "", title: "", company: "", fields: {} },
+    card: {
+      display_name: "李明",
+      title: "销售总监",
+      company: "智云科技",
+      fields: { mobile: "138 0013 8000" }
+    },
     templates: [
-      { id: "tpl_horizontal_business", name: "横版商务" },
-      { id: "tpl_vertical_modern", name: "竖版现代" },
-      { id: "tpl_minimal", name: "极简" },
-      { id: "tpl_gradient", name: "渐变" },
-      { id: "tpl_classic", name: "经典" }
+      { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
+      { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
+      { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
+      { id: "tpl_dark", name: "深色", desc: "高对比展示" },
+      { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
     ],
     presets: ["#2b6cff", "#e5484d", "#7c5cfc", "#1f8a5b", "#f5820d", "#0e9c9c"]
   },
@@ -19,7 +24,7 @@ Page({
   onLoad() {
     const current = app.globalData.currentCard;
     if (current) {
-      this.setData({ card: current });
+      this.setData({ card: Object.assign({ fields: {} }, current) });
     } else {
       this.loadCard();
     }
@@ -28,9 +33,9 @@ Page({
   async loadCard() {
     try {
       const card = await request("/employee/cards/current");
-      this.setData({ card });
+      this.setData({ card: Object.assign({ fields: {} }, card) });
     } catch (_error) {
-      // 预览失败不阻塞样式选择
+      wx.showToast({ title: "预览使用演示数据", icon: "none" });
     }
   },
 

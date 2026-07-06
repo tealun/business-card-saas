@@ -1,24 +1,22 @@
-<view class="page style-page" style="--brand: {{primary}};">
-  <!-- 实时预览 -->
+<view class="page page--with-footer style-page" style="--brand: {{primary}};">
   <view class="biz-card style-preview">
     <view class="biz-card__head">
-      <view class="biz-card__logo" style="background: var(--brand);"></view>
-      <text class="biz-card__company">{{card.company || 'Demo Tenant'}}</text>
+      <view class="biz-card__logo"></view>
+      <text class="biz-card__company">{{card.company || "智云科技"}}</text>
     </view>
     <view class="biz-card__body">
       <view class="biz-card__info">
-        <view class="biz-card__name">{{card.display_name || '姓名'}}</view>
-        <view class="biz-card__role">{{card.title || '职位'}}</view>
+        <view class="biz-card__name">{{card.display_name || "姓名"}}</view>
+        <view class="biz-card__role">{{card.title || "职位"}}</view>
         <view class="biz-card__contact">
-          <view>{{card.fields.mobile || '138 0000 0000'}}</view>
+          <view>{{card.fields.mobile || "138 0013 8000"}}</view>
         </view>
       </view>
-      <view class="biz-card__avatar">{{card.display_name ? card.display_name[0] : '名'}}</view>
+      <view class="biz-card__avatar">{{card.display_name ? card.display_name[0] : "名"}}</view>
     </view>
-    <text class="badge badge--muted style-preview__tag">实时预览</text>
+    <text class="badge badge--brand style-preview__tag">实时预览</text>
   </view>
 
-  <!-- 选择模板 -->
   <view class="card">
     <text class="card__title">选择模板</text>
     <scroll-view scroll-x class="tpl-scroll" enable-flex>
@@ -29,16 +27,23 @@
         data-id="{{item.id}}"
         bindtap="selectTemplate"
       >
-        <view class="tpl-item__thumb"></view>
+        <view class="tpl-item__thumb">
+          <view class="tpl-item__line tpl-item__line--name"></view>
+          <view class="tpl-item__line"></view>
+          <view class="tpl-item__dot"></view>
+        </view>
         <text class="tpl-item__name">{{item.name}}</text>
+        <text class="tpl-item__desc">{{item.desc}}</text>
         <view class="tpl-item__check icon icon-check" wx:if="{{templateId === item.id}}"></view>
       </view>
     </scroll-view>
   </view>
 
-  <!-- 品牌主色 -->
   <view class="card">
-    <text class="card__title">品牌主色</text>
+    <view class="row-between">
+      <text class="card__title">品牌主色</text>
+      <text class="card__more">企业允许范围</text>
+    </view>
     <view class="color-row">
       <view
         class="color-dot {{primary === item ? 'color-dot--active' : ''}}"
@@ -51,9 +56,11 @@
     </view>
   </view>
 
-  <!-- 名片码样式 -->
   <view class="card qrcode-row">
-    <view class="field-row__label">名片码样式</view>
+    <view>
+      <view class="card__title">名片码样式</view>
+      <view class="f12 t-secondary qrcode-row__sub">统一使用品牌色角标与居中 logo</view>
+    </view>
     <view class="qrcode-row__right">
       <text class="f14 t-secondary">默认</text>
       <view class="icon icon-arrow icon--sm"></view>
@@ -61,7 +68,6 @@
   </view>
 </view>
 
-<view class="edit-footer">
+<view class="fixed-footer">
   <view class="btn btn--primary btn--block" bindtap="applyStyle">应用此样式</view>
 </view>
-

@@ -55,6 +55,7 @@
 |------|------|
 | [`02_00_M0_Platform_Verification.md`](02-tasks/02_00_M0_Platform_Verification.md) | M0 平台接入 + 企业微信关键接口实测 Spike（M1 开工门槛，扩展 §19；审计 A4-P0-5） |
 | [`02_01_M1_Walking_Skeleton.md`](02-tasks/02_01_M1_Walking_Skeleton.md) | M1 垂直切片阻塞项与验收（扩展 §19/§23） |
+| [`02_02_First_Enterprise_Wecom_Admin_Plan.md`](02-tasks/02_02_First_Enterprise_Wecom_Admin_Plan.md) | 首个真实企业微信接入 + 企业员工配置后台执行计划（从 demo skeleton 到试点企业可配置） |
 
 > 后续待建（进入对应线时，不提前、不复制正文）：
 > `88-planning/`（产品愿景/路线图/商业化/部署运维）、

@@ -1,10 +1,12 @@
-<view class="page edit-page">
-  <!-- 基础信息 -->
+<view class="page page--with-footer edit-page">
   <view class="card">
-    <text class="card__title">基础信息</text>
+    <view class="row-between">
+      <text class="card__title">基础信息</text>
+      <text class="badge badge--brand">员工可维护</text>
+    </view>
     <view class="edit-avatar-row">
       <text class="field-row__label">头像</text>
-      <view class="edit-avatar">{{form.display_name ? form.display_name[0] : '名'}}</view>
+      <view class="edit-avatar">{{form.display_name ? form.display_name[0] : "名"}}</view>
     </view>
     <view class="field-row">
       <text class="field-row__label">姓名</text>
@@ -16,15 +18,14 @@
     </view>
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>部门</text></view>
-      <view class="field-row__value" disabled>{{form.department || '企业统一维护'}}</view>
+      <view class="field-row__value field-row__value--locked">{{form.department || "企业统一维护"}}</view>
     </view>
-    <view class="field-row">
+    <view class="field-row field-row--textarea">
       <text class="field-row__label">简介</text>
       <input class="field-row__value" value="{{form.bio}}" data-key="bio" bindinput="onInput" placeholder="一句话介绍自己" />
     </view>
   </view>
 
-  <!-- 联系方式 -->
   <view class="card">
     <text class="card__title">联系方式</text>
     <view class="field-row">
@@ -45,28 +46,26 @@
     </view>
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>公司地址</text></view>
-      <view class="field-row__value" disabled>{{form.address || '企业统一维护'}}</view>
+      <view class="field-row__value field-row__value--locked">{{form.address || "企业统一维护"}}</view>
     </view>
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>官网</text></view>
-      <view class="field-row__value" disabled>{{form.website || '企业统一维护'}}</view>
+      <view class="field-row__value field-row__value--locked">{{form.website || "企业统一维护"}}</view>
     </view>
   </view>
 
-  <!-- 展示标签 -->
   <view class="card">
     <text class="card__title">展示标签</text>
     <view class="edit-tags">
       <text class="chip" wx:for="{{tags}}" wx:key="*this">{{item}}</text>
-      <view class="edit-tags__add">+ 添加标签</view>
+      <view class="edit-tags__add"><view class="icon icon-plus icon--sm"></view><text>添加标签</text></view>
     </view>
   </view>
 
-  <!-- 隐私设置 -->
   <view class="card">
     <text class="card__title">隐私设置</text>
     <view class="field-row">
-      <text class="field-row__label">手机对访客公开</text>
+      <text class="field-row__label">手机号对访客公开</text>
       <switch checked="{{privacy.show_mobile}}" color="#2b6cff" data-key="show_mobile" bindchange="onPrivacy" />
     </view>
     <view class="field-row">
@@ -79,10 +78,9 @@
     </view>
   </view>
 
-  <view class="edit-note">锁定字段由企业统一维护；敏感字段默认不对外公开。</view>
+  <view class="edit-note">灰色带锁字段由企业统一维护；手机号等敏感字段默认不公开，保存后名片将立即更新。</view>
 </view>
 
-<view class="edit-footer">
+<view class="fixed-footer">
   <view class="btn btn--primary btn--block" bindtap="saveCard">保存并更新名片</view>
 </view>
-
