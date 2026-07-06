@@ -10,6 +10,9 @@ export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool | null;
 
   constructor() {
+    if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL must be set in production");
+    }
     this.pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL }) : null;
   }
 
@@ -32,6 +35,19 @@ export class DatabaseService implements OnModuleDestroy {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  // A12-P2-3: readiness probe. Distinguishes "no pool configured" from "pool configured but unreachable".
+  async ping(): Promise<{ configured: boolean; ok: boolean }> {
+    if (!this.pool) {
+      return { configured: false, ok: false };
+    }
+    try {
+      await this.pool.query("SELECT 1");
+      return { configured: true, ok: true };
+    } catch {
+      return { configured: true, ok: false };
     }
   }
 

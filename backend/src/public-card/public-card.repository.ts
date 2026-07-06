@@ -111,17 +111,42 @@ export class PublicCardRepository {
     return card;
   }
 
-  createVisit(input: { publicId: string; shareId?: string; anonId?: string }): CardVisitRecord {
+  createVisit(input: { publicId: string; shareId?: string; anonId: string }): CardVisitRecord {
     this.findPublicCard(input.publicId);
     const visit: CardVisitRecord = {
       visitId: randomToken("vis", 18),
       publicId: input.publicId,
-      shareId: input.shareId ?? null,
-      anonId: input.anonId ?? randomToken("anon", 24),
+      shareId: this.resolveShareId(input.publicId, input.shareId),
+      anonId: input.anonId,
       createdAt: new Date()
     };
     this.visits.set(visit.visitId, visit);
     return visit;
+  }
+
+  // A12-P2-1: register an employee-issued share so downstream derive/attribution can resolve it.
+  registerRootShare(input: { publicId: string; shareId: string }): void {
+    this.findPublicCard(input.publicId);
+    if (this.shares.has(input.shareId)) {
+      return;
+    }
+    this.shares.set(input.shareId, {
+      shareId: input.shareId,
+      publicId: input.publicId,
+      parentShareId: null,
+      depth: 0,
+      createdAt: new Date()
+    });
+  }
+
+  // A12-P2-4: only attribute a visit to a share that exists and belongs to this card;
+  // an unknown or foreign share_id is dropped rather than recorded as spoofed attribution.
+  private resolveShareId(publicId: string, shareId: string | undefined): string | null {
+    if (!shareId) {
+      return null;
+    }
+    const share = this.shares.get(shareId);
+    return share && share.publicId === publicId ? shareId : null;
   }
 
   findVisit(visitId: string): CardVisitRecord | undefined {

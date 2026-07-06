@@ -1,30 +1,35 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const schemaPath = path.resolve(__dirname, "..", "..", "database", "schema.sql");
 const rlsPath = path.resolve(__dirname, "..", "..", "database", "rls.sql");
+const schemaSql = fs.readFileSync(schemaPath, "utf8");
 const sql = fs.readFileSync(rlsPath, "utf8");
 
-const tenantTables = [
-  "cards",
-  "member_identities",
-  "card_visits",
-  "card_actions",
-  "card_shares",
-  "tenant_admins",
-  "templates",
-  "company_profiles",
-  "company_videos",
-  "company_honors",
-  "company_honor_images",
-  "card_style_overrides"
-];
-
 const accountTables = ["account_preferences"];
+const tenantRlsExceptions = new Set([
+  "admin_claim_tokens",
+  "public_card_directory"
+]);
 
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function tableDefinitions() {
+  return [...schemaSql.matchAll(/CREATE TABLE "([^"]+)" \(([\s\S]*?)\n\);/g)].map((match) => ({
+    name: match[1],
+    body: match[2]
+  }));
+}
+
+function tenantTables() {
+  return tableDefinitions()
+    .filter((table) => /"tenant_id"\s+BIGINT\s+NOT NULL/i.test(table.body))
+    .map((table) => table.name)
+    .filter((table) => !tenantRlsExceptions.has(table));
 }
 
 function tableBlock(table) {
@@ -33,7 +38,7 @@ function tableBlock(table) {
   return match?.[0] ?? "";
 }
 
-for (const table of tenantTables) {
+for (const table of tenantTables()) {
   const block = tableBlock(table);
   assert(block, `${table} must enable RLS`);
   assert(
@@ -67,8 +72,14 @@ assert(
   "public_card_directory must remain outside tenant RLS"
 );
 assert(
+  !/ALTER TABLE\s+admin_claim_tokens\s+ENABLE ROW LEVEL SECURITY/i.test(sql),
+  "admin_claim_tokens is managed by application authorization and must not be added to tenant RLS casually"
+);
+assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),
   "all app tenant/account current_setting calls must include missing_ok=true"
 );
 
-console.log(`RLS baseline validated: ${path.relative(process.cwd(), rlsPath)}`);
+console.log(
+  `RLS baseline validated: ${path.relative(process.cwd(), schemaPath)} + ${path.relative(process.cwd(), rlsPath)}`
+);

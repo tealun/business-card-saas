@@ -83,6 +83,32 @@ describe("PublicCardController", () => {
     expect(dataOf<ActionBody>(secondAction.body).idempotent).toBe(true);
   });
 
+  it("signs anon_id, reuses a valid one, and re-issues on a forged one (A12-P1-1)", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: {}
+    });
+    const firstVisit = dataOf<{ anon_id: string }>(first.body);
+    expect(firstVisit.anon_id).toContain(".");
+
+    // A correctly signed anon_id sent back by the client is honored as-is.
+    const reused = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: { anon_id: firstVisit.anon_id }
+    });
+    expect(dataOf<{ anon_id: string }>(reused.body).anon_id).toBe(firstVisit.anon_id);
+
+    // A well-formed but unsigned/forged anon_id is discarded and a fresh one issued.
+    const forged = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: { anon_id: "anon_forgedforgedforged.deadbeef" }
+    });
+    expect(dataOf<{ anon_id: string }>(forged.body).anon_id).not.toBe("anon_forgedforgedforged.deadbeef");
+  });
+
   it("rejects action reports without a visit_token", async () => {
     const response = await app.inject({
       method: "POST",

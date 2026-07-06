@@ -27,7 +27,7 @@ $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/business_card_s
 npm run db:verify
 ```
 
-`db:verify` 会重建目标库的 `public` schema，应用 `database/schema.sql` 和 `database/rls.sql`，再插入探针数据验证租户隔离；默认只允许 `localhost` / `127.0.0.1` 数据库，避免误清非本地库。
+`db:verify` 是**破坏性测试探针**：它会重建目标库的 `public` schema，应用 `database/schema.sql` 和 `database/rls.sql`，再插入探针数据验证租户隔离；默认只允许 `localhost` / `127.0.0.1` 数据库，避免误清非本地库。详细边界见 [`database/README.md`](database/README.md)。
 
 ## 多端入口
 
@@ -43,12 +43,11 @@ $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
 $env:JWT_SECRET="<32+ chars random>"
 $env:VISIT_TOKEN_SECRET="<32+ chars random>"
 $env:CORS_ORIGINS="https://admin.example.com"
-npm run db:verify
 npm run build
 npm start
 ```
 
-非本地一次性测试库运行 `db:verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`，它会重置 M1 相关表；不要对生产库执行。
+生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化；不要执行 `db:verify`。非本地一次性测试库运行 `db:verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。
 
 ## 阅读入口
 

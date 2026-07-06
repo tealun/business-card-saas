@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import type { IdentitySummary } from "../contracts/auth.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 
@@ -14,6 +14,8 @@ export interface DemoIdentity {
 
 @Injectable()
 export class AuthRepository {
+  private static readonly demoCode = "demo-qy-code";
+
   private readonly demoIdentity: DemoIdentity = {
     accountId: "1",
     tenantId: "1",
@@ -25,10 +27,18 @@ export class AuthRepository {
   };
 
   resolveQyCode(code: string): DemoIdentity {
-    if (code.trim().length === 0) {
-      throw new UnauthorizedException("invalid qy login code");
+    const normalizedCode = code.trim();
+    if (!this.demoAuthEnabled()) {
+      throw new ServiceUnavailableException("WeCom qy-login is not configured");
+    }
+    if (normalizedCode !== AuthRepository.demoCode) {
+      throw new UnauthorizedException("invalid demo qy login code");
     }
     return this.demoIdentity;
+  }
+
+  private demoAuthEnabled(): boolean {
+    return process.env.NODE_ENV !== "production" && process.env.DEMO_AUTH_ENABLED === "1";
   }
 
   toSession(identity: DemoIdentity): EmployeeSession {

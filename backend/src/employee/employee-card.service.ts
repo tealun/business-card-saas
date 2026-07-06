@@ -13,10 +13,14 @@ import {
 import { publicCardResponseSchema } from "../contracts/public-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { EmployeeCardRepository } from "./employee-card.repository.js";
+import { PublicCardRepository } from "../public-card/public-card.repository.js";
 
 @Injectable()
 export class EmployeeCardService {
-  constructor(private readonly repository: EmployeeCardRepository) {}
+  constructor(
+    private readonly repository: EmployeeCardRepository,
+    private readonly publicCards: PublicCardRepository
+  ) {}
 
   getCurrentCard(session: EmployeeSession): EmployeeCardResponse {
     return employeeCardResponseSchema.parse(this.repository.getCurrentCard(session));
@@ -38,6 +42,8 @@ export class EmployeeCardService {
 
   createShare(session: EmployeeSession): EmployeeShareResponse {
     const share = this.repository.createShare(session);
+    // Register the share so public derive/attribution can resolve it (A12-P2-1).
+    this.publicCards.registerRootShare({ publicId: share.publicId, shareId: share.shareId });
     return employeeShareResponseSchema.parse({
       public_id: share.publicId,
       share_id: share.shareId,

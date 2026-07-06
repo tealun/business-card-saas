@@ -13,13 +13,15 @@ import {
 } from "../contracts/public-card.js";
 import { PublicCardRepository } from "./public-card.repository.js";
 import { VisitTokenService } from "./visit-token.service.js";
+import { AnonIdService } from "./anon-id.service.js";
 import { randomToken } from "../common/id.js";
 
 @Injectable()
 export class PublicCardService {
   constructor(
     private readonly repository: PublicCardRepository,
-    private readonly visitTokens: VisitTokenService
+    private readonly visitTokens: VisitTokenService,
+    private readonly anonIds: AnonIdService
   ) {}
 
   getPublicCard(publicId: string): PublicCardResponse {
@@ -27,12 +29,11 @@ export class PublicCardService {
   }
 
   createVisit(publicId: string, request: VisitRequest): VisitResponse {
-    const visitInput: { publicId: string; shareId?: string; anonId?: string } = { publicId };
+    // Trust an inbound anon_id only when its server signature verifies; otherwise issue a fresh one.
+    const anonId = this.anonIds.verify(request.anon_id) ?? this.anonIds.issue();
+    const visitInput: { publicId: string; shareId?: string; anonId: string } = { publicId, anonId };
     if (request.share) {
       visitInput.shareId = request.share;
-    }
-    if (request.anon_id) {
-      visitInput.anonId = request.anon_id;
     }
     const visit = this.repository.createVisit(visitInput);
     const visitToken = this.visitTokens.sign({

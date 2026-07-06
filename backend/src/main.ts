@@ -4,15 +4,19 @@ import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify
 import { AppModule } from "./app.module.js";
 
 async function bootstrap() {
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+    throw new Error("CORS_ORIGINS must be set in production");
+  }
+
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   app.setGlobalPrefix("api/v1");
   app.enableCors({
     origin: (origin, callback) => {
-      const allowed = (process.env.CORS_ORIGINS ?? "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-      if (!origin || allowed.length === 0 || allowed.includes(origin)) {
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
