@@ -282,7 +282,7 @@ welcome_code 约束（§7.3）：20s/一次性;管理端已配欢迎语则不返
 
 ### M1（闭环骨架 · 企业微信部分）
 
-- [ ] 回调服务骨架：双 URL、验签解密封装、`callback_events` 幂等表。
+- [x] 回调服务骨架：双 URL、验签解密封装、`callback_events` 幂等表。
 - [ ] suite_ticket 接收 + `wecom_suite_state` 持久化 + 冷启动恢复。
 - [ ] Token 服务：链路获取 + 单飞刷新 + Redis/DB。
 - [ ] 企业授权闭环 → 建 tenant → 初始化配置。
