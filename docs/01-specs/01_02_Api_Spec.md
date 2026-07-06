@@ -124,12 +124,15 @@
 |-----------|------|
 | POST `/api/v1/admin/auth/qy-login` | 企业微信管理员 code 登录；后端按授权企业与 `tenant_admins.open_userid` 定位管理员，非管理员拒绝 |
 | GET `/api/v1/admin/session/me` | 读取当前后台登录态、租户、`open_userid` 与角色 |
+| GET `/api/v1/admin/overview` | 企业概览；MVP 返回当前租户成员/名片基础计数 |
 | GET `/api/v1/admin/members` | 员工列表（分页） |
+| GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；MVP 先覆盖当前已识别成员 |
+| PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置；需要 operator/admin/owner 权限 |
 | GET `/api/v1/admin/cards` | 名片列表 |
 | PUT `/api/v1/admin/cards/{id}/status` | 启用/停用（触发缓存失效） |
 | GET/POST `/api/v1/admin/templates` | 模板 |
 | PUT `/api/v1/admin/settings/fields` | 字段规则（企业硬边界，§11.3） |
-| GET `/api/v1/admin/stats/overview` | 统计概览（口径见 §32） |
+| GET `/api/v1/admin/stats/overview` | 统计概览（口径见 §32；后续增强，当前概览先用 `/admin/overview`） |
 | GET `/api/v1/admin/audit-logs` | 操作日志 |
 
 ### 3.6 企业内容与模板（Admin / M2）

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { HealthController } from "./health.controller.js";
 import { AdminAuthModule } from "./admin-auth/admin-auth.module.js";
+import { AdminManagementModule } from "./admin-management/admin-management.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { PublicCardModule } from "./public-card/public-card.module.js";
 import { AuthModule } from "./auth/auth.module.js";
@@ -19,7 +20,8 @@ import { WecomModule } from "./wecom/wecom.module.js";
     EmployeeCardModule,
     OwnerBootstrapModule,
     WecomModule,
-    AdminAuthModule
+    AdminAuthModule,
+    AdminManagementModule
   ],
   controllers: [HealthController],
   providers: [
