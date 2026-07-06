@@ -35,16 +35,23 @@ function qyLoginCode() {
     if (wx.qy && wx.qy.login) {
       wx.qy.login({
         success(result) {
-          resolve(result.code || "demo-qy-code");
+          resolve(result.code || demoCode());
         },
         fail() {
-          resolve("demo-qy-code");
+          resolve(demoCode());
         }
       });
       return;
     }
-    resolve("demo-qy-code");
+    resolve(demoCode());
   });
+}
+
+function demoCode() {
+  if (app.globalData.demoAuthEnabled) {
+    return "demo-qy-code";
+  }
+  return "";
 }
 
 module.exports = {

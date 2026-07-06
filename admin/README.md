@@ -20,3 +20,5 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 - 员工分享 `share_id` 签发
 - 公开名片预览
 - visit / derive share 联调入口
+
+demo 登录只用于本地联调；后端必须显式设置 `DEMO_AUTH_ENABLED=1` 才会接受 `demo-qy-code`，生产环境不可启用。

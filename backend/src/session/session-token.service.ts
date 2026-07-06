@@ -62,7 +62,8 @@ export class SessionTokenService {
   }
 
   private signature(encodedPayload: string): string {
-    return createHmac("sha256", this.secret).update(encodedPayload).digest("base64url");
+    // Domain-separated so a session token can never validate as another token family (A12-P2-2).
+    return createHmac("sha256", this.secret).update(`v1.session.${encodedPayload}`).digest("base64url");
   }
 
   private safeEqual(left: string, right: string): boolean {

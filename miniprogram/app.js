@@ -5,6 +5,7 @@ App({
     currentCard: null,
     shareId: "",
     visitToken: "",
-    anonId: ""
+    anonId: "",
+    demoAuthEnabled: true
   }
 });

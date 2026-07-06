@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const publicIdSchema = z.string().regex(/^pub_[A-Za-z0-9_-]{8,40}$/);
 export const shareIdSchema = z.string().regex(/^shr_[A-Za-z0-9_-]{8,64}$/);
-export const anonIdSchema = z.string().regex(/^anon_[A-Za-z0-9_-]{16,80}$/);
+export const anonIdSchema = z.string().regex(/^anon_[A-Za-z0-9_.-]{16,120}$/);
 export const visitIdSchema = z.string().regex(/^vis_[A-Za-z0-9_-]{16,80}$/);
 
 export const publicCardFieldSchema = z.object({

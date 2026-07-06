@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
+import { AuthRepository } from "./auth.repository.js";
 
 function dataOf<T>(body: string): T {
   const envelope = JSON.parse(body) as { code: number; data: T; trace_id: string };
@@ -13,6 +14,7 @@ describe("Auth and employee card flow", () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
+    process.env.DEMO_AUTH_ENABLED = "1";
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     }).compile();
@@ -34,6 +36,22 @@ describe("Auth and employee card flow", () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it("does not resolve demo qy-login unless demo auth is explicitly enabled", () => {
+    const original = process.env.DEMO_AUTH_ENABLED;
+    delete process.env.DEMO_AUTH_ENABLED;
+    const repository = new AuthRepository();
+
+    expect(() => repository.resolveQyCode("demo-qy-code")).toThrow("WeCom qy-login is not configured");
+
+    process.env.DEMO_AUTH_ENABLED = original;
+  });
+
+  it("rejects arbitrary qy-login codes even when demo auth is enabled", () => {
+    const repository = new AuthRepository();
+
+    expect(() => repository.resolveQyCode("not-real")).toThrow("invalid demo qy login code");
   });
 
   it("logs in with qy-login and reads the current employee card", async () => {
