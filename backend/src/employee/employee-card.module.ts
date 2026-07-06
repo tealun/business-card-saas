@@ -8,6 +8,7 @@ import { EmployeeCardService } from "./employee-card.service.js";
 @Module({
   imports: [SessionModule, PublicCardModule],
   controllers: [EmployeeCardController],
-  providers: [EmployeeCardRepository, EmployeeCardService]
+  providers: [EmployeeCardRepository, EmployeeCardService],
+  exports: [EmployeeCardService]
 })
 export class EmployeeCardModule {}

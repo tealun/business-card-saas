@@ -23,7 +23,8 @@
 - 2026-07-06：阶段 2.1-2.2 适配层已落地：新增第三方小程序 `service/miniprogram/jscode2session` API client 与 `WecomMiniProgramLoginService`，可解析 `open_corpid/open_userid/session_key` 并拒绝未授权企业；最终字段仍需 M0-M1 gate 实测确认。
 - 2026-07-06：阶段 2.3-2.4 已落地：真实 `POST /api/v1/auth/qy-login` 调用 `WecomMiniProgramLoginService`，按授权 `open_corpid` 定位 tenant，首次登录 upsert `member_identity`/账号绑定/默认名片/公开目录；无 `DATABASE_URL` 时使用内存供给，本地 demo code 仍只在非生产 `DEMO_AUTH_ENABLED=1` 时可用。
 - 2026-07-06：阶段 3 后端最小闭环已落地：新增 `POST /api/v1/admin/auth/qy-login`、`GET /api/v1/admin/session/me`、后台 session token、admin guard、`tenant_admins` active admin 定位与 owner/admin/operator/auditor RBAC helper；真实 Web OAuth/扫码 UI 仍待接入。
-- 下一步：阶段 4 管理后台框架升级与企业员工配置后台 MVP。
+- 2026-07-06：阶段 4.1-4.4 后端 MVP 已起步：新增 `GET /api/v1/admin/overview`、`GET /api/v1/admin/members`、`GET/PUT /api/v1/admin/members/{id}/card`，复用员工名片服务完成当前已识别成员的名片读取/配置与公开页同步；全员列表依赖阶段 5 通讯录同步扩展。
+- 下一步：阶段 4.5-4.7 字段规则、企业资料、模板/品牌色配置 API 与后台页面接入。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -78,10 +79,10 @@
 
 | # | 任务 | 后端 API | 前端页面 | 验收 |
 |---|------|----------|----------|------|
-| 4.1 | 管理后台框架升级 | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
-| 4.2 | 企业概览 | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
-| 4.3 | 员工列表 | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
-| 4.4 | 员工名片配置 | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、部门、联系方式、启停状态 |
+| 4.1 | 管理后台框架升级（后端登录态已实现） | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
+| 4.2 | 企业概览（后端 MVP 已实现） | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
+| 4.3 | 员工列表（后端 MVP 已实现当前成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
+| 4.4 | 员工名片配置（后端 MVP 已实现当前成员） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、部门、联系方式、启停状态 |
 | 4.5 | 字段规则 | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
 | 4.6 | 企业资料 | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
 | 4.7 | 模板/品牌色 | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |
