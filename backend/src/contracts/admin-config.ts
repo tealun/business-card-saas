@@ -10,13 +10,27 @@ export const adminFieldRuleSchema = z.object({
   default_visible: z.boolean()
 });
 
+const adminFieldRuleListSchema = z.array(adminFieldRuleSchema).min(1).superRefine((fields, ctx) => {
+  const seen = new Set<string>();
+  fields.forEach((field, index) => {
+    if (seen.has(field.field_key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [index, "field_key"],
+        message: "field_key must be unique"
+      });
+    }
+    seen.add(field.field_key);
+  });
+});
+
 export const adminFieldSettingsResponseSchema = z.object({
   tenant_id: z.string(),
-  fields: z.array(adminFieldRuleSchema).min(1)
+  fields: adminFieldRuleListSchema
 });
 
 export const updateAdminFieldSettingsRequestSchema = z.object({
-  fields: z.array(adminFieldRuleSchema).min(1)
+  fields: adminFieldRuleListSchema
 });
 
 export const adminCompanyProfileSchema = z.object({

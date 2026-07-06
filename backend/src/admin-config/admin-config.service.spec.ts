@@ -1,5 +1,6 @@
 import { ForbiddenException } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
+import { updateAdminFieldSettingsRequestSchema } from "../contracts/admin-config.js";
 import { AdminConfigRepository } from "./admin-config.repository.js";
 import { AdminConfigService } from "./admin-config.service.js";
 
@@ -52,6 +53,17 @@ describe("AdminConfigService", () => {
 
     expect(() => service.updateCompanyProfile(auditor, { display_name: "Nope" })).toThrow(ForbiddenException);
     expect(() => service.createTemplate(auditor, { name: "Nope" })).toThrow(ForbiddenException);
+  });
+
+  it("rejects duplicate field rule keys", () => {
+    expect(() =>
+      updateAdminFieldSettingsRequestSchema.parse({
+        fields: [
+          { field_key: "email", label: "邮箱", locked: false, employee_editable: true, default_visible: true },
+          { field_key: "email", label: "工作邮箱", locked: false, employee_editable: true, default_visible: true }
+        ]
+      })
+    ).toThrow("field_key must be unique");
   });
 });
 
