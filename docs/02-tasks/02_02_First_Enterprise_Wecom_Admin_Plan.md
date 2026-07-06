@@ -11,7 +11,7 @@
 - 后端已有 demo `POST /api/v1/auth/qy-login`、员工名片读写、分享签发、公开名片读取、visit/action/derive share demo 闭环。
 - 数据库已有 `tenants`、`member_identities`、`cards`、`templates`、`tenant_admins`、`admin_claim_tokens`、`company_profiles`、`company_videos`、`company_honors` 等基础表。
 - 当前企业微信员工登录链路已从 demo skeleton 推进到可单测真实路径：第三方应用回调、`suite_ticket`、`permanent_code`、`jscode2session` 适配、真实 `POST /api/v1/auth/qy-login` 接入、`member_identity` upsert 与默认名片初始化已落地；后台管理员登录后端最小闭环已落地，owner claim token 认领已可持久化和登录兑换，真实 Web OAuth/扫码跳转与外部 HTTPS 联调仍待接入。
-- 当前 `admin/` 是静态联调工作台，不是企业管理员可用的正式配置后台。
+- 当前 `admin/` 已从静态联调工作台推进为 M1 静态企业配置控制台：支持企业授权链接生成、Admin 登录、概览、成员列表筛选/分页、成员名片配置、企业资料完整字段保存、字段规则保存、模板创建/编辑/设默认、同步日志和失败重试。它仍不是最终计划的 React + TypeScript + Vite 正式后台。
 
 ## 当前开发进度
 
@@ -35,7 +35,8 @@
 - 2026-07-07：阶段 5.4 失败重试/死信最小闭环已起步：新增后台 `POST /api/v1/admin/sync-events/retry`，可重放 failed data callback 的已验证密文，超过重试上限后标记 `dead`，并可通过 `WECOM_CALLBACK_ALERT_WEBHOOK_URL` 发送脱敏 webhook 告警；workbench 增加“重试失败”按钮。
 - 2026-07-07：阶段 3.1/3.3 owner bootstrap 可联调闭环已推进：`admin_claim_tokens` 纳入租户 RLS，`tenant_admins` 增加 active owner 唯一约束，后台 `POST /api/v1/admin/auth/qy-login` 支持可选 `claim_token`，workbench 增加管理员 code + owner claim token 登录入口。
 - 2026-07-07：阶段 1 企业授权发起链路补齐：新增 `POST /api/v1/wecom/authorization-links`，用内部 `x-wecom-launch-token` 生成企业微信授权链接，后端完成 `get_pre_auth_code` 与 `set_session_info`，并补 `GET /api/v1/wecom/authorization-complete` 处理 `redirect_uri` 回跳 `auth_code`；workbench 增加授权链接生成入口。
-- 下一步：真实企业微信 Web OAuth/扫码跳转 URL、HTTPS 回调和试点企业授权仍是端到端联调前置条件；告警 webhook 已具备最小接入点，正式通知目标和密钥由部署环境配置。
+- 2026-07-07：阶段 4 静态 Admin Console 可配置闭环继续补齐：控制台完成正式化布局，成员列表支持 `search/status/limit/offset` 筛选分页，企业资料页覆盖 `short_name/logo_url/website_url/address/intro_blocks/visible/status`，字段规则可读取/保存，模板可创建/编辑/设默认。
+- 下一步：真实企业微信 Web OAuth/扫码跳转 URL、HTTPS 回调和试点企业授权仍是端到端联调前置条件；告警 webhook 已具备最小接入点，正式通知目标和密钥由部署环境配置；正式 React 后台仍可在 M1 静态控制台验证完试点流程后再替换。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -90,13 +91,13 @@
 
 | # | 任务 | 后端 API | 前端页面 | 验收 |
 |---|------|----------|----------|------|
-| 4.1 | 管理后台框架升级（后端登录态已实现） | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
+| 4.1 | 管理后台框架升级（静态 M1 控制台已实现，正式 React 后台待替换） | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
 | 4.2 | 企业概览（后端 MVP 已实现） | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
-| 4.3 | 员工列表（数据库模式已支持同步成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
+| 4.3 | 员工列表（数据库模式已支持同步成员，筛选/分页已实现） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
 | 4.4 | 员工名片配置（字段与启停已起步落库） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、联系方式、隐私开关、启停状态；部门字段待企业微信组织结构配置页扩展 |
 | 4.5 | 字段规则（后端 MVP 已实现并持久化） | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
-| 4.6 | 企业资料（后端 MVP 已实现并持久化） | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
-| 4.7 | 模板/品牌色（后端 MVP 已实现并持久化） | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |
+| 4.6 | 企业资料（后端 MVP 已实现并持久化，静态控制台已覆盖完整现有字段） | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
+| 4.7 | 模板/品牌色（后端 MVP 已实现并持久化，静态控制台已支持创建/编辑/设默认） | `GET/POST/PUT /admin/templates` | `/admin/templates` | 可配置默认模板、品牌色、布局 JSON |
 
 阶段验收：企业管理员能在后台完成「配置企业资料 + 配置员工名片 + 配置字段规则 + 设置默认模板」，员工端和访客页能读取这些配置。
 
