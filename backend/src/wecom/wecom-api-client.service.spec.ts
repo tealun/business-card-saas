@@ -1,0 +1,60 @@
+import { BadGatewayException, ServiceUnavailableException } from "@nestjs/common";
+import { WecomApiClientService } from "./wecom-api-client.service.js";
+import { WecomConfigService } from "./wecom-config.service.js";
+
+describe("WecomApiClientService", () => {
+  const originalFetch = global.fetch;
+  const request = {
+    suiteId: "suite-id",
+    suiteSecret: "suite-secret",
+    suiteTicket: "suite-ticket"
+  };
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("posts get_suite_token with a timeout signal and maps successful payloads", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ errcode: 0, suite_access_token: "suite-token", expires_in: 7200 }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchSuiteAccessToken(request);
+
+    expect(result).toEqual({ suiteAccessToken: "suite-token", expiresIn: 7200 });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const init = firstCall[1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(JSON.parse(String(init.body))).toEqual({
+      suite_id: "suite-id",
+      suite_secret: "suite-secret",
+      suite_ticket: "suite-ticket"
+    });
+  });
+
+  it("maps network failures to service unavailable", async () => {
+    global.fetch = jest.fn(async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    await expect(new WecomApiClientService(new WecomConfigService()).fetchSuiteAccessToken(request)).rejects.toThrow(
+      ServiceUnavailableException
+    );
+  });
+
+  it("rejects malformed WeCom JSON payloads", async () => {
+    global.fetch = jest.fn(async () => new Response("not-json", { status: 200 })) as unknown as typeof fetch;
+
+    await expect(new WecomApiClientService(new WecomConfigService()).fetchSuiteAccessToken(request)).rejects.toThrow(
+      BadGatewayException
+    );
+  });
+});

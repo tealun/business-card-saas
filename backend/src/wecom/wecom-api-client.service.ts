@@ -24,20 +24,36 @@ export class WecomApiClientService {
   constructor(private readonly config: WecomConfigService) {}
 
   async fetchSuiteAccessToken(request: FetchSuiteTokenRequest): Promise<FetchSuiteTokenResponse> {
-    const response = await fetch(`${this.config.apiBaseUrl}/cgi-bin/service/get_suite_token`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        suite_id: request.suiteId,
-        suite_secret: request.suiteSecret,
-        suite_ticket: request.suiteTicket
-      })
-    });
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(`${this.config.apiBaseUrl}/cgi-bin/service/get_suite_token`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: abort.signal,
+        body: JSON.stringify({
+          suite_id: request.suiteId,
+          suite_secret: request.suiteSecret,
+          suite_ticket: request.suiteTicket
+        })
+      });
+    } catch {
+      throw new ServiceUnavailableException("WeCom get_suite_token request failed");
+    } finally {
+      clearTimeout(timeout);
+    }
+
     if (!response.ok) {
       throw new ServiceUnavailableException(`WeCom get_suite_token HTTP ${response.status}`);
     }
 
-    const payload = (await response.json()) as WecomSuiteTokenPayload;
+    let payload: WecomSuiteTokenPayload;
+    try {
+      payload = (await response.json()) as WecomSuiteTokenPayload;
+    } catch {
+      throw new BadGatewayException("WeCom get_suite_token returned invalid JSON");
+    }
     if (payload.errcode && payload.errcode !== 0) {
       throw new BadGatewayException(`WeCom get_suite_token failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
     }

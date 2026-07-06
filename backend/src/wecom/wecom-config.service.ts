@@ -32,6 +32,15 @@ export class WecomConfigService {
   get apiBaseUrl(): string {
     return readRequired("WECOM_API_BASE_URL", "https://qyapi.weixin.qq.com").replace(/\/+$/, "");
   }
+
+  get httpTimeoutMs(): number {
+    const raw = readRequired("WECOM_HTTP_TIMEOUT_MS", "5000");
+    const timeout = Number(raw);
+    if (!Number.isFinite(timeout) || timeout <= 0) {
+      throw new Error("WECOM_HTTP_TIMEOUT_MS must be a positive number");
+    }
+    return timeout;
+  }
 }
 
 function readRequired(name: string, fallback: string): string {
