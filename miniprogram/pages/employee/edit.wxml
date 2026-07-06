@@ -77,10 +77,6 @@
       <text class="field-row__label">微信号对访客公开</text>
       <switch checked="{{privacy.show_wechat}}" color="#2b6cff" data-key="show_wechat" bindchange="onPrivacy" />
     </view>
-    <view class="field-row">
-      <text class="field-row__label">展示企业微信入口</text>
-      <switch checked="{{privacy.show_wecom}}" color="#2b6cff" data-key="show_wecom" bindchange="onPrivacy" />
-    </view>
   </view>
 
   <view class="edit-note">锁定字段由企业统一维护；敏感字段默认不对外公开。</view>

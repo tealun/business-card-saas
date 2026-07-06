@@ -36,6 +36,10 @@ Page({
     wx.setClipboardData({ data: this.data.company.website, success() { wx.showToast({ title: "官网已复制", icon: "none" }); } });
   },
 
+  copyAddress() {
+    wx.setClipboardData({ data: this.data.company.address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
+  },
+
   callCompany() {
     wx.makePhoneCall({ phoneNumber: this.data.company.phone, fail() {} });
   },
