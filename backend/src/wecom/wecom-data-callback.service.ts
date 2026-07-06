@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.js";
+import { WecomCallbackAlertService } from "./wecom-callback-alert.service.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
@@ -30,7 +31,8 @@ export class WecomDataCallbackService {
     private readonly crypto: WecomCallbackCryptoService,
     private readonly events: WecomCallbackEventRepository,
     private readonly tenants: WecomTenantAuthRepository,
-    private readonly contacts: WecomContactSyncRepository
+    private readonly contacts: WecomContactSyncRepository,
+    private readonly alerts: WecomCallbackAlertService
   ) {}
 
   verifyUrl(query: WecomCallbackQueryInput, echoStr?: string): string {
@@ -96,6 +98,15 @@ export class WecomDataCallbackService {
         }
         if (isDecryptFailure(error)) {
           await this.events.markFailed(event.eventKey, error, event.tenantId, { deadLetter: true });
+          await this.alerts.notifyDeadLetter({
+            source: "data",
+            eventKey: event.eventKey,
+            tenantId: event.tenantId,
+            eventType: event.eventType,
+            changeType: event.changeType,
+            retryCount: event.retryCount + 1,
+            errorType: errorType(error)
+          });
           result.deadCount += shouldDeadLetter ? 0 : 1;
         }
       }
@@ -178,9 +189,19 @@ export class WecomDataCallbackService {
       return { event, changeType, tenantId: tenant.tenantId, handled: false };
     } catch (error) {
       try {
-        await this.events.markFailed(eventKey, error, tenant.tenantId, {
-          deadLetter: eventRecord.retryCount >= MAX_CALLBACK_RETRIES
-        });
+        const deadLetter = eventRecord.retryCount >= MAX_CALLBACK_RETRIES;
+        await this.events.markFailed(eventKey, error, tenant.tenantId, { deadLetter });
+        if (deadLetter) {
+          await this.alerts.notifyDeadLetter({
+            source: "data",
+            eventKey,
+            tenantId: tenant.tenantId,
+            eventType: event,
+            changeType,
+            retryCount: eventRecord.retryCount,
+            errorType: errorType(error)
+          });
+        }
       } catch {
         // Preserve the original callback processing error.
       }
@@ -200,6 +221,10 @@ export class WecomDataCallbackService {
 
 function isDecryptFailure(error: unknown): boolean {
   return error instanceof BadRequestException;
+}
+
+function errorType(error: unknown): string {
+  return error instanceof Error ? error.constructor.name : typeof error;
 }
 
 function normalizeQuery(query: WecomCallbackQueryInput): WecomCallbackQuery {

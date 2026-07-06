@@ -4,6 +4,7 @@ import { WecomAuthorizationCompleteController } from "./wecom-authorization-comp
 import { WecomAuthorizationLinkController } from "./wecom-authorization-link.controller.js";
 import { WecomAuthorizationLinkService } from "./wecom-authorization-link.service.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
+import { WecomCallbackAlertService } from "./wecom-callback-alert.service.js";
 import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.js";
 import { WecomCommandCallbackController } from "./wecom-command-callback.controller.js";
 import { WecomCommandCallbackService } from "./wecom-command-callback.service.js";
@@ -30,6 +31,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
   ],
   providers: [
     WecomCallbackEventRepository,
+    WecomCallbackAlertService,
     WecomCallbackCryptoService,
     WecomApiClientService,
     WecomAuthorizationLinkService,
@@ -50,6 +52,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
   exports: [
     WecomAuthorizationLinkService,
     WecomAuthorizationService,
+    WecomCallbackAlertService,
     WecomCallbackCryptoService,
     WecomConfigService,
     WecomContactSyncService,
