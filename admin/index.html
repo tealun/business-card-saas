@@ -3,214 +3,366 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>企业名片 SaaS · M1 Workbench</title>
+    <title>智云名片 · 企业管理后台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">M1 Workbench</p>
-          <h1>企业名片联调台</h1>
+    <main class="admin-shell">
+      <aside class="sidebar" aria-label="后台导航">
+        <div class="brand">
+          <img src="../docs/design/design_handoff_zhiyun_card/assets/logo/mark-color-144.png" alt="" />
+          <div>
+            <strong>智云名片</strong>
+            <span>企业管理后台</span>
+          </div>
         </div>
-        <label class="api-base">
-          <span>API Base</span>
-          <input id="apiBase" autocomplete="off" />
-        </label>
-      </header>
+        <nav class="nav-list">
+          <button class="nav-item active" data-view-target="dashboard">概览</button>
+          <button class="nav-item" data-view-target="members">员工</button>
+          <button class="nav-item" data-view-target="company">企业资料</button>
+          <button class="nav-item" data-view-target="rules">字段与模板</button>
+          <button class="nav-item" data-view-target="sync">同步</button>
+          <button class="nav-item" data-view-target="setup">授权与联调</button>
+        </nav>
+      </aside>
 
-      <section class="status-strip" aria-live="polite">
-        <div>
-          <span class="label">API</span>
-          <strong id="apiStatus">未检查</strong>
-        </div>
-        <div>
-          <span class="label">登录</span>
-          <strong id="loginStatus">未登录</strong>
-        </div>
-        <div>
-          <span class="label">Admin</span>
-          <strong id="adminStatus">未连接</strong>
-        </div>
-        <div>
-          <span class="label">Share</span>
-          <strong id="shareStatus">未签发</strong>
-        </div>
-      </section>
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">M1 Admin Console</p>
+            <h1>企业配置工作台</h1>
+          </div>
+          <label class="api-base">
+            <span>API Base</span>
+            <input id="apiBase" autocomplete="off" />
+          </label>
+        </header>
 
-      <section class="grid">
-        <article class="panel compact">
+        <section class="status-strip" aria-live="polite">
+          <div>
+            <span class="label">API</span>
+            <strong id="apiStatus">未检查</strong>
+          </div>
+          <div>
+            <span class="label">登录</span>
+            <strong id="loginStatus">未登录</strong>
+          </div>
+          <div>
+            <span class="label">Admin</span>
+            <strong id="adminStatus">未连接</strong>
+          </div>
+          <div>
+            <span class="label">Share</span>
+            <strong id="shareStatus">未签发</strong>
+          </div>
+        </section>
+
+        <section class="console-panel panel">
           <div class="panel-head">
-            <h2>连接</h2>
-            <button id="checkHealth" class="icon-button" title="检查 API">↻</button>
+            <h3>操作输出</h3>
+            <button id="loadAdminMe" class="secondary">读取会话</button>
           </div>
-          <div class="button-row">
-            <button id="demoLogin">Demo 企微登录</button>
-            <button id="loadCard" class="secondary">读取名片</button>
-          </div>
-          <pre id="sessionOutput" class="output" aria-label="session output"></pre>
-        </article>
+          <pre id="adminOutput" class="output compact-output" aria-label="admin output"></pre>
+        </section>
 
-        <article class="panel">
-          <div class="panel-head">
-            <h2>员工名片</h2>
-            <button id="saveCard" title="保存名片">保存</button>
-          </div>
-          <form id="cardForm" class="form-grid">
-            <label>
-              <span>姓名</span>
-              <input name="display_name" />
-            </label>
-            <label>
-              <span>职位</span>
-              <input name="title" />
-            </label>
-            <label>
-              <span>手机</span>
-              <input name="mobile" />
-            </label>
-            <label>
-              <span>座机</span>
-              <input name="phone" />
-            </label>
-            <label>
-              <span>邮箱</span>
-              <input name="email" type="email" />
-            </label>
-            <label>
-              <span>微信号</span>
-              <input name="wechat_id" />
-            </label>
-            <label>
-              <span>地址</span>
-              <input name="address" />
-            </label>
-            <div class="toggle-row">
-              <label><input name="show_mobile" type="checkbox" /> 展示手机</label>
-              <label><input name="show_email" type="checkbox" /> 展示邮箱</label>
-              <label><input name="show_wechat" type="checkbox" /> 展示微信</label>
+        <section class="view active" data-view="dashboard">
+          <div class="view-head">
+            <div>
+              <h2>经营概览</h2>
             </div>
-          </form>
-        </article>
+            <div class="button-row compact-row">
+              <button id="checkHealth" class="secondary">检查 API</button>
+              <button id="loadOverview">刷新概览</button>
+            </div>
+          </div>
+          <div class="metric-grid">
+            <article class="metric">
+              <span>成员数</span>
+              <strong id="metricMembers">--</strong>
+            </article>
+            <article class="metric">
+              <span>名片数</span>
+              <strong id="metricCards">--</strong>
+            </article>
+            <article class="metric">
+              <span>展示中</span>
+              <strong id="metricActiveCards">--</strong>
+            </article>
+          </div>
+        </section>
 
-        <article class="panel">
-          <div class="panel-head">
-            <h2>分享与公开页</h2>
-            <button id="createShare">签发分享</button>
+        <section class="view" data-view="members">
+          <div class="view-head">
+            <div>
+              <h2>员工管理</h2>
+            </div>
+            <div class="button-row compact-row">
+              <button id="syncMembers" class="secondary">同步成员</button>
+              <button id="loadMembers">加载成员</button>
+            </div>
           </div>
-          <div class="share-box">
-            <code id="sharePath">尚未生成</code>
-          </div>
-          <div class="button-row">
-            <button id="loadPublic" class="secondary">公开预览</button>
-            <button id="createVisit" class="secondary">创建 visit</button>
-            <button id="deriveShare" class="secondary">派生分享</button>
-          </div>
-          <pre id="publicOutput" class="output tall" aria-label="public output"></pre>
-        </article>
-      </section>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>成员列表</h3>
+              <span id="membersTotal" class="pill">0</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>成员</th>
+                    <th>状态</th>
+                    <th>公开 ID</th>
+                    <th>企微身份</th>
+                  </tr>
+                </thead>
+                <tbody id="membersRows">
+                  <tr><td colspan="4">尚未加载</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>成员名片配置</h3>
+              <div class="button-row compact-row">
+                <button id="loadAdminCard" class="secondary">读取名片</button>
+                <button id="saveAdminCard">保存名片</button>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>Member Identity ID</span>
+                <input id="adminMemberId" autocomplete="off" />
+              </label>
+              <label>
+                <span>成员状态</span>
+                <select id="adminCardStatus">
+                  <option value="active">启用</option>
+                  <option value="disabled">停用</option>
+                </select>
+              </label>
+            </div>
+            <form id="cardForm" class="form-grid card-editor">
+              <label>
+                <span>姓名</span>
+                <input name="display_name" />
+              </label>
+              <label>
+                <span>职位</span>
+                <input name="title" />
+              </label>
+              <label>
+                <span>手机</span>
+                <input name="mobile" />
+              </label>
+              <label>
+                <span>座机</span>
+                <input name="phone" />
+              </label>
+              <label>
+                <span>邮箱</span>
+                <input name="email" type="email" />
+              </label>
+              <label>
+                <span>微信号</span>
+                <input name="wechat_id" />
+              </label>
+              <label class="wide">
+                <span>地址</span>
+                <input name="address" />
+              </label>
+              <div class="toggle-row wide">
+                <label><input name="show_mobile" type="checkbox" /> 展示手机</label>
+                <label><input name="show_email" type="checkbox" /> 展示邮箱</label>
+                <label><input name="show_wechat" type="checkbox" /> 展示微信</label>
+              </div>
+            </form>
+            <pre id="adminCardOutput" class="output compact-output" aria-label="admin card output"></pre>
+          </article>
+        </section>
 
-      <section class="grid admin-grid">
-        <article class="panel compact">
-          <div class="panel-head">
-            <h2>后台会话</h2>
-            <button id="loadAdminMe" class="secondary">读取</button>
+        <section class="view" data-view="company">
+          <div class="view-head">
+            <div>
+              <h2>企业资料</h2>
+            </div>
+            <div class="button-row compact-row">
+              <button id="loadCompanyProfile" class="secondary">读取资料</button>
+              <button id="saveCompanyProfile">保存资料</button>
+            </div>
           </div>
-          <label class="stacked">
-            <span>Admin Token</span>
-            <input id="adminToken" autocomplete="off" />
-          </label>
-          <label class="stacked">
-            <span>Admin WeCom Code</span>
-            <input id="adminLoginCode" autocomplete="off" />
-          </label>
-          <label class="stacked">
-            <span>Owner Claim Token</span>
-            <input id="adminClaimToken" autocomplete="off" />
-          </label>
-          <label class="stacked">
-            <span>WeCom Launch Token</span>
-            <input id="wecomLaunchToken" autocomplete="off" />
-          </label>
-          <label class="stacked">
-            <span>WeCom Redirect URI</span>
-            <input id="wecomRedirectUri" autocomplete="off" />
-          </label>
-          <div class="button-row">
-            <button id="adminQyLogin">Admin QY Login</button>
-            <button id="createWecomAuthorizationLink" class="secondary">Create Auth Link</button>
-            <button id="saveAdminToken">保存 Token</button>
-            <button id="loadOverview" class="secondary">概览</button>
-            <button id="loadMembers" class="secondary">成员</button>
-            <button id="syncMembers" class="secondary">同步成员</button>
-            <button id="loadSyncEvents" class="secondary">同步日志</button>
-            <button id="retrySyncEvents" class="secondary">重试失败</button>
-          </div>
-          <pre id="adminOutput" class="output" aria-label="admin output"></pre>
-        </article>
+          <article class="panel">
+            <form id="companyForm" class="form-grid">
+              <label>
+                <span>企业名称</span>
+                <input name="display_name" />
+              </label>
+              <label>
+                <span>官网</span>
+                <input name="website_url" />
+              </label>
+              <label class="wide">
+                <span>地址</span>
+                <input name="address" />
+              </label>
+            </form>
+            <pre id="companyOutput" class="output compact-output" aria-label="company output"></pre>
+          </article>
+        </section>
 
-        <article class="panel">
-          <div class="panel-head">
-            <h2>后台名片配置</h2>
-            <button id="saveAdminCard">保存</button>
+        <section class="view" data-view="rules">
+          <div class="view-head">
+            <div>
+              <h2>字段与模板</h2>
+            </div>
+            <div class="button-row compact-row">
+              <button id="loadFieldSettings" class="secondary">字段规则</button>
+              <button id="loadTemplates" class="secondary">模板列表</button>
+              <button id="createTemplate">新增模板</button>
+            </div>
           </div>
-          <label class="stacked">
-            <span>Member Identity ID</span>
-            <input id="adminMemberId" autocomplete="off" />
-          </label>
-          <label class="stacked">
-            <span>成员状态</span>
-            <select id="adminCardStatus">
-              <option value="active">启用</option>
-              <option value="disabled">停用</option>
-            </select>
-          </label>
-          <div class="button-row">
-            <button id="loadAdminCard" class="secondary">读取成员名片</button>
-          </div>
-          <pre id="adminCardOutput" class="output" aria-label="admin card output"></pre>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <h2>企业资料</h2>
-            <button id="saveCompanyProfile">保存</button>
-          </div>
-          <form id="companyForm" class="form-grid single">
-            <label>
-              <span>企业名称</span>
-              <input name="display_name" />
+          <article class="panel">
+            <label class="stacked compact-field">
+              <span>模板名称</span>
+              <input id="templateName" value="商务蓝模板" />
             </label>
-            <label>
-              <span>官网</span>
-              <input name="website_url" />
-            </label>
-            <label>
-              <span>地址</span>
-              <input name="address" />
-            </label>
-          </form>
-          <div class="button-row">
-            <button id="loadCompanyProfile" class="secondary">读取企业资料</button>
-          </div>
-          <pre id="companyOutput" class="output" aria-label="company output"></pre>
-        </article>
+            <div class="split-grid">
+              <div>
+                <h3>字段规则</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>字段</th>
+                        <th>锁定</th>
+                        <th>员工可编辑</th>
+                        <th>默认展示</th>
+                      </tr>
+                    </thead>
+                    <tbody id="fieldRows">
+                      <tr><td colspan="4">尚未加载</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h3>模板</h3>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th>默认</th>
+                        <th>状态</th>
+                      </tr>
+                    </thead>
+                    <tbody id="templateRows">
+                      <tr><td colspan="3">尚未加载</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <pre id="configOutput" class="output compact-output" aria-label="config output"></pre>
+          </article>
+        </section>
 
-        <article class="panel">
-          <div class="panel-head">
-            <h2>字段与模板</h2>
-            <button id="createTemplate">新增模板</button>
+        <section class="view" data-view="sync">
+          <div class="view-head">
+            <div>
+              <h2>同步与回调</h2>
+            </div>
+            <div class="button-row compact-row">
+              <button id="retrySyncEvents" class="secondary">重试失败</button>
+              <button id="loadSyncEvents">同步日志</button>
+            </div>
           </div>
-          <label class="stacked">
-            <span>模板名称</span>
-            <input id="templateName" value="商务蓝模板" />
-          </label>
-          <div class="button-row">
-            <button id="loadFieldSettings" class="secondary">字段规则</button>
-            <button id="loadTemplates" class="secondary">模板列表</button>
+          <article class="panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>事件</th>
+                    <th>变更</th>
+                    <th>状态</th>
+                    <th>重试</th>
+                    <th>时间</th>
+                  </tr>
+                </thead>
+                <tbody id="syncEventRows">
+                  <tr><td colspan="5">尚未加载</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="view" data-view="setup">
+          <div class="view-head">
+            <div>
+              <h2>授权与联调</h2>
+            </div>
+            <button id="demoLogin" class="secondary">Demo 企微登录</button>
           </div>
-          <pre id="configOutput" class="output tall" aria-label="config output"></pre>
-        </article>
+          <div class="setup-grid">
+            <article class="panel">
+              <div class="panel-head">
+                <h3>管理员会话</h3>
+                <button id="saveAdminToken" class="secondary">保存 Token</button>
+              </div>
+              <label class="stacked">
+                <span>Admin Token</span>
+                <input id="adminToken" autocomplete="off" />
+              </label>
+              <label class="stacked">
+                <span>Admin WeCom Code</span>
+                <input id="adminLoginCode" autocomplete="off" />
+              </label>
+              <label class="stacked">
+                <span>Owner Claim Token</span>
+                <input id="adminClaimToken" autocomplete="off" />
+              </label>
+              <div class="button-row">
+                <button id="adminQyLogin">Admin QY Login</button>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h3>企业授权</h3>
+                <button id="createWecomAuthorizationLink">Create Auth Link</button>
+              </div>
+              <label class="stacked">
+                <span>WeCom Launch Token</span>
+                <input id="wecomLaunchToken" autocomplete="off" />
+              </label>
+              <label class="stacked">
+                <span>WeCom Redirect URI</span>
+                <input id="wecomRedirectUri" autocomplete="off" />
+              </label>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h3>员工端闭环</h3>
+                <div class="button-row compact-row">
+                  <button id="loadCard" class="secondary">读取名片</button>
+                  <button id="saveCard" class="secondary">保存名片</button>
+                </div>
+              </div>
+              <div class="button-row">
+                <button id="createShare">签发分享</button>
+                <button id="loadPublic" class="secondary">公开预览</button>
+                <button id="createVisit" class="secondary">创建 visit</button>
+                <button id="deriveShare" class="secondary">派生分享</button>
+              </div>
+              <div class="share-box">
+                <code id="sharePath">尚未生成</code>
+              </div>
+              <pre id="sessionOutput" class="output compact-output" aria-label="session output"></pre>
+              <pre id="publicOutput" class="output compact-output" aria-label="public output"></pre>
+            </article>
+          </div>
+        </section>
       </section>
     </main>
     <script src="./app.js"></script>

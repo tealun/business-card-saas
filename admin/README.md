@@ -1,6 +1,6 @@
-# Admin Workbench
+# Admin Console
 
-M1 静态后台工作台，无构建步骤，可直接由 Nginx / COS 静态托管。
+M1 静态企业管理后台，无构建步骤，可直接由 Nginx / COS 静态托管。
 
 ## 本地打开
 
@@ -15,12 +15,13 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 ## 当前覆盖
 
 - API 健康检查
+- 分区式后台导航：概览、员工、企业资料、字段与模板、同步、授权与联调
 - demo `qy-login`
 - 企业微信授权链接生成（需要 `x-wecom-launch-token`）
 - Admin 企业微信 code 登录，可选 owner claim token 认领首个企业 owner
 - Admin token 保存与 `admin/session/me`
-- 后台概览、成员列表、成员名片读取/配置
-- 字段规则、企业资料、模板配置联调入口
+- 后台概览、成员列表、成员名片读取/配置，核心数据以指标/表格呈现
+- 字段规则、企业资料、模板配置入口
 - 当前员工名片读取/更新
 - 员工分享 `share_id` 签发
 - 公开名片预览
