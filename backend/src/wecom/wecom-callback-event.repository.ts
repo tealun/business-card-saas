@@ -3,7 +3,9 @@ import type { QueryResultRow } from "pg";
 import { DatabaseService } from "../database/database.service.js";
 
 export type WecomCallbackEventSource = "command" | "data";
-export type WecomCallbackEventStatus = "processing" | "done" | "failed";
+export type WecomCallbackEventStatus = "received" | "processing" | "done" | "failed";
+
+const PROCESSING_STALE_MS = 5 * 60 * 1000;
 
 export interface BeginWecomCallbackEventInput {
   source: WecomCallbackEventSource;
@@ -30,12 +32,14 @@ interface StoredCallbackEvent {
   retryCount: number;
   lastError: string | null;
   receivedAt: Date;
+  updatedAt: Date;
   processedAt: Date | null;
 }
 
 interface CallbackEventRow extends QueryResultRow {
   status: WecomCallbackEventStatus;
   retry_count: number;
+  updated_at: Date | string;
 }
 
 @Injectable()
@@ -52,7 +56,7 @@ export class WecomCallbackEventRepository {
     return this.database!.transaction(async (tx) => {
       const existing = await tx.query<CallbackEventRow>(
         `
-          SELECT status, retry_count
+          SELECT status, retry_count, updated_at
           FROM callback_events
           WHERE event_key = $1
           FOR UPDATE
@@ -91,7 +95,8 @@ export class WecomCallbackEventRepository {
         return toBeginResult(inserted.rows[0], true);
       }
 
-      if (current.status === "failed") {
+      if (current.status === "failed" || current.status === "received" || isStaleProcessing(current)) {
+        const retryIncrement = current.status === "received" ? 0 : 1;
         const retry = await tx.query<CallbackEventRow>(
           `
             UPDATE callback_events
@@ -100,18 +105,19 @@ export class WecomCallbackEventRepository {
                 change_type = $4,
                 payload_encrypted = COALESCE($5, payload_encrypted),
                 status = 'processing',
-                retry_count = retry_count + 1,
+                retry_count = retry_count + $6::int,
                 last_error = NULL,
                 updated_at = now()
             WHERE event_key = $1
-            RETURNING status, retry_count
+            RETURNING status, retry_count, updated_at
           `,
           [
             input.eventKey,
             input.tenantId,
             input.eventType,
             input.changeType,
-            input.payloadEncrypted
+            input.payloadEncrypted,
+            retryIncrement
           ]
         );
         return toBeginResult(retry.rows[0], true);
@@ -129,11 +135,13 @@ export class WecomCallbackEventRepository {
     if (!this.hasDatabase()) {
       const current = this.memory.get(eventKey);
       if (current) {
+        const now = new Date();
         this.memory.set(eventKey, {
           ...current,
           tenantId: tenantId ?? current.tenantId,
           status: "done",
-          processedAt: new Date(),
+          processedAt: now,
+          updatedAt: now,
           lastError: null
         });
       }
@@ -159,11 +167,13 @@ export class WecomCallbackEventRepository {
     if (!this.hasDatabase()) {
       const current = this.memory.get(eventKey);
       if (current) {
+        const now = new Date();
         this.memory.set(eventKey, {
           ...current,
           tenantId: tenantId ?? current.tenantId,
           status: "failed",
-          lastError: message
+          lastError: message,
+          updatedAt: now
         });
       }
       return;
@@ -185,6 +195,7 @@ export class WecomCallbackEventRepository {
   private beginProcessingInMemory(input: BeginWecomCallbackEventInput): BeginWecomCallbackEventResult {
     const current = this.memory.get(input.eventKey);
     if (!current) {
+      const now = new Date();
       this.memory.set(input.eventKey, {
         source: input.source,
         tenantId: input.tenantId,
@@ -194,14 +205,15 @@ export class WecomCallbackEventRepository {
         status: "processing",
         retryCount: 0,
         lastError: null,
-        receivedAt: new Date(),
+        receivedAt: now,
+        updatedAt: now,
         processedAt: null
       });
       return { shouldProcess: true, status: "processing", retryCount: 0 };
     }
 
-    if (current.status === "failed") {
-      const retryCount = current.retryCount + 1;
+    if (current.status === "failed" || current.status === "received" || isStaleMemoryProcessing(current)) {
+      const retryCount = current.status === "received" ? current.retryCount : current.retryCount + 1;
       this.memory.set(input.eventKey, {
         ...current,
         tenantId: input.tenantId ?? current.tenantId,
@@ -210,7 +222,8 @@ export class WecomCallbackEventRepository {
         payloadEncrypted: input.payloadEncrypted ?? current.payloadEncrypted,
         status: "processing",
         retryCount,
-        lastError: null
+        lastError: null,
+        updatedAt: new Date()
       });
       return { shouldProcess: true, status: "processing", retryCount };
     }
@@ -236,6 +249,14 @@ function toBeginResult(row: CallbackEventRow | undefined, shouldProcess: boolean
     status: row.status,
     retryCount: row.retry_count
   };
+}
+
+function isStaleProcessing(row: CallbackEventRow): boolean {
+  return row.status === "processing" && Date.now() - new Date(row.updated_at).getTime() >= PROCESSING_STALE_MS;
+}
+
+function isStaleMemoryProcessing(event: StoredCallbackEvent): boolean {
+  return event.status === "processing" && Date.now() - event.updatedAt.getTime() >= PROCESSING_STALE_MS;
 }
 
 function errorMessage(error: unknown): string {
