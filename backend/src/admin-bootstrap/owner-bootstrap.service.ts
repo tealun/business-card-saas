@@ -45,7 +45,6 @@ export class OwnerBootstrapService {
       mode: "claim_token_created",
       tenant_id: record.tenantId,
       claim_token: claimToken,
-      token_hash: record.tokenHash,
       expires_at: record.expiresAt.toISOString()
     });
   }

@@ -18,7 +18,6 @@ export const claimTokenCreatedSchema = z.object({
   mode: z.literal("claim_token_created"),
   tenant_id: z.string(),
   claim_token: z.string().min(32),
-  token_hash: z.string().length(64),
   expires_at: z.string().datetime()
 });
 

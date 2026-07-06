@@ -1,14 +1,14 @@
 # 00_02 数据库 Schema（执行指引）
 
-版本：v1.1 · 日期：2026-07-02 · 归属：后端 / DBA
+版本：v1.2 · 日期：2026-07-06 · 归属：后端 / DBA
 关联主文档：[`00_01_Dev_Doc.md`](00_01_Dev_Doc.md) 的 §15（表定义 DDL）、§15.0（PostgreSQL 约定）、§15.2（通用字段）、§16.1（隔离）、§33.2（RLS 约定）
-职责划分：**表结构 DDL 以主文档 §15 为准**（那里是 CREATE 语句事实源）；本文件是**迁移顺序、RLS 策略、ER、枚举取值、索引口径**的执行事实源。
+职责划分：**表结构 DDL 以主文档 §15 为准**（那里是 CREATE 语句事实源）；本文件是**初始化建库顺序、RLS 策略、ER、枚举取值、索引口径**的执行事实源。
 
 ---
 
-## 1. 迁移顺序（按依赖，Prisma Migrate）
+## 1. 初始化建库顺序（按依赖，单一初始 schema）
 
-外键策略（审计 A4-P1-4，方案 A）：M1 对关键关系启用**复合外键**（父表先建 `(tenant_id, id)` 唯一键），防孤儿数据与跨租户错配；软删除用 `deleted_at`，FK 不做级联删除。流量上来后再评估是否拆除；若拆除必须补 invariant validator + CI 完整性测试 + orphan scanner + 后台健康检查（FK 清单见主文档 §15.4）。建表与初始化按逻辑依赖分批：
+外键策略（审计 A4-P1-4，方案 A）：M1 对关键关系启用**复合外键**（父表先建 `(tenant_id, id)` 唯一键），防孤儿数据与跨租户错配；软删除用 `deleted_at`，FK 不做级联删除。流量上来后再评估是否拆除；若拆除必须补 invariant validator + CI 完整性测试 + orphan scanner + 后台健康检查（FK 清单见主文档 §15.4）。因当前尚未部署，建库脚本只保留一份 `database/schema.sql`，不保留阶段性演进迁移；RLS 单独保留在 `database/rls.sql`。建表与初始化按逻辑依赖分批：
 
 ```text
 批次1 基础：accounts, tenants, wecom_suite_state
@@ -18,10 +18,11 @@
 批次5 行为/分享：card_visits, card_actions, card_shares
 批次6 联系我/许可/配额：contact_ways, contact_way_states, licenses, api_quota_counters
 批次7 系统：audit_logs, callback_events, growth_leads, public_card_directory, admin_claim_tokens
+批次7.5 企业内容：company_profiles, company_videos, company_honors, company_honor_images, card_style_overrides
 批次8 §15.3/§15.4 变更：cards(public_id/card_type)、contact_ways(strategy/channel NOT NULL)、visitor_accounts(appid)、card_actions(share_id/visit_id/trust_level)、card_visits(share_id/visit_id/anon_id/trust_level，审计 A6-P1-1)、card_shares(issuer_type/issuer_visitor_account_id/depth，审计 A6-P1-2)、templates(uk_tpl_default_active，审计 A6-P2-4)、关键外键、软删除部分唯一索引 —— 若为全新库可并入建表。存量演进的 `ADD COLUMN ... NOT NULL` 须按「加可空列 → 回填 → SET NOT NULL」三步走（审计 A6-P2-7）
 ```
 
-> 建议全新库直接以最终形态建表（含 §15.3 字段），批次8 仅用于存量演进。
+> 全新库直接以最终形态建表（含 §15.3 字段）。批次8 仅作为文档说明存量演进策略，不对应当前仓库中的独立迁移文件。
 
 ## 2. 行级安全（RLS）
 
@@ -80,7 +81,7 @@ erDiagram
 | `cards.card_type` | `primary`（MVP）/ `recruiting` / `event` / `sales` |
 | `contact_ways.strategy` | `per_member_static` / `per_campaign_static` / `temp_session` |
 | `card_actions.trust_level` | `anonymous_client` / `session_verified` / `wecom_callback_verified` |
-| `card_actions.action_type` | `save_phone` / `call_phone` / `copy_phone` / `copy_email` / `view_site` / `add_wecom` … |
+| `card_actions.action_type` | `save_phone` / `call_phone` / `copy_phone` / `copy_email` / `view_site` / `add_wecom` / `open_map` / `play_company_video` / `view_honor_image` / `expand_company_intro` / `view_paper_card` … |
 | `callback_events.source` / `.status` | `command`/`data` ; `received`/`processing`/`done`/`failed` |
 | `tenant_customer_owners.status` | `active` / `pending_transfer` |
 | `growth_leads.status` | `new` / `contacted` / `converted` / `dropped` |
@@ -88,14 +89,129 @@ erDiagram
 | `card_shares.issuer_type` | `member` / `visitor`（派生分享，审计 A6-P1-2） |
 | `templates.scope` | `tenant` / `department`（平台预置模板以复制落地，无平台级行，审计 A6-P2-4） |
 
-## 5. 索引与约束口径
+## 5. 企业内容与名片样式扩展（M2）
+
+为支撑访客详情页中的公司介绍、企业视频、公司荣誉、荣誉图片轮播，以及员工名片自定义背景/版式，M2 增加以下表。所有含 `tenant_id` 的表启用租户 RLS。
+
+### company_profiles
+
+租户级企业公开介绍。每个租户最多一条 active profile。
+
+```text
+company_profiles
+- id
+- tenant_id
+- display_name
+- short_name
+- logo_url
+- website_url
+- address
+- intro_json          -- 富文本/段落/图片 block，前端按 block 渲染
+- certification_json  -- 官方认证、试用版、过期等展示状态
+- visible
+- status              -- draft / published / archived
+- created_at
+- updated_at
+- deleted_at
+```
+
+约束与索引：
+
+- `UNIQUE (tenant_id) WHERE deleted_at IS NULL`
+- `idx_company_profiles_tenant (tenant_id)`
+
+### company_videos
+
+企业视频内容。公开名片只展示 `published + visible` 的视频。
+
+```text
+company_videos
+- id
+- tenant_id
+- title
+- video_url
+- cover_url
+- duration_seconds
+- sort_order
+- visible
+- status              -- draft / published / archived
+- created_at
+- updated_at
+- deleted_at
+```
+
+约束与索引：
+
+- `idx_company_videos_tenant_sort (tenant_id, sort_order)`
+- URL 必须是对象存储或审核通过的 `https://` 地址。
+
+### company_honors / company_honor_images
+
+荣誉内容与图片一对多。访客端用 `company_honor_images` 做左右轮播。
+
+```text
+company_honors
+- id
+- tenant_id
+- title
+- body
+- sort_order
+- visible
+- status              -- draft / published / archived
+- created_at
+- updated_at
+- deleted_at
+
+company_honor_images
+- id
+- tenant_id
+- honor_id
+- image_url
+- title
+- caption
+- sort_order
+- created_at
+- deleted_at
+```
+
+约束与索引：
+
+- `company_honor_images (tenant_id, honor_id)` 复合外键指向 `company_honors(tenant_id, id)`
+- `idx_company_honors_tenant_sort (tenant_id, sort_order)`
+- `idx_company_honor_images_honor_sort (tenant_id, honor_id, sort_order)`
+
+### card_style_overrides
+
+员工在企业允许范围内选择模板、背景和版式。企业锁定项不得被 override。
+
+```text
+card_style_overrides
+- id
+- tenant_id
+- card_id
+- template_id
+- background_url
+- color_scheme_json
+- layout_json
+- created_at
+- updated_at
+- deleted_at
+```
+
+约束与索引：
+
+- `UNIQUE (tenant_id, card_id) WHERE deleted_at IS NULL`
+- `card_id`、`template_id` 必须属于同一 `tenant_id`
+- 公开名片渲染优先级：企业字段规则 > 员工隐私 > card_style_overrides > templates 默认值
+
+## 6. 索引与约束口径
 
 - 可空列唯一：一律 `CREATE UNIQUE INDEX ... WHERE col IS NOT NULL`（unionid/open_userid/userid/external_userid/pending_id/visit_id），见 §15。
 - 时间列 `created_at` 建普通索引用于范围查询（visits/actions/audit）。
 - 热点：`card_visits`/`card_actions` 按 `(tenant_id, card_id)` + `created_at`；量大后按月分区（后续评估）。
 - 通用字段 `deleted_at` / `created_by` / `updated_by` / UTC 时间：见 §15.2；软删除查询默认 `deleted_at IS NULL`。
 
-## 6. 待核对
+## 7. 待核对
 
-- Prisma 对 RLS 的 `SET LOCAL` 需在交互式事务/连接级注入，与连接池（PgBouncer transaction 模式）的兼容方式实现前验证。
+- node-postgres 对 RLS 的 `SET LOCAL` 需在显式事务/连接级注入，与连接池（PgBouncer transaction 模式）的兼容方式实现前验证。
 - 是否对 `card_visits`/`card_actions` 采用分区表，依上线后写入量决定。

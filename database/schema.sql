@@ -61,6 +61,26 @@ CREATE TABLE "account_preferences" (
 );
 
 -- CreateTable
+CREATE TABLE "templates" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
+    "scope" VARCHAR(32) NOT NULL DEFAULT 'tenant',
+    "department_id" BIGINT,
+    "background_url" TEXT,
+    "logo_url" TEXT,
+    "color_scheme_json" JSONB,
+    "layout_json" JSONB,
+    "is_default" BOOLEAN NOT NULL DEFAULT false,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "templates_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "cards" (
     "id" BIGSERIAL NOT NULL,
     "tenant_id" BIGINT NOT NULL,
@@ -161,6 +181,117 @@ CREATE TABLE "card_shares" (
     CONSTRAINT "card_shares_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "tenant_admins" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "member_identity_id" BIGINT,
+    "open_userid" VARCHAR(128),
+    "role" VARCHAR(32) NOT NULL,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "tenant_admins_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "admin_claim_tokens" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "token_hash" VARCHAR(128) NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "used_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "admin_claim_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "company_profiles" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "display_name" VARCHAR(255) NOT NULL,
+    "short_name" VARCHAR(128),
+    "logo_url" TEXT,
+    "website_url" TEXT,
+    "address" TEXT,
+    "intro_json" JSONB,
+    "certification_json" JSONB,
+    "visible" BOOLEAN NOT NULL DEFAULT true,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'draft',
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "company_profiles_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "company_videos" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "title" VARCHAR(255) NOT NULL,
+    "video_url" TEXT NOT NULL,
+    "cover_url" TEXT,
+    "duration_seconds" INTEGER,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "visible" BOOLEAN NOT NULL DEFAULT true,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'draft',
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "company_videos_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "company_honors" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "title" VARCHAR(255) NOT NULL,
+    "body" TEXT,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "visible" BOOLEAN NOT NULL DEFAULT true,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'draft',
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "company_honors_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "company_honor_images" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "honor_id" BIGINT NOT NULL,
+    "image_url" TEXT NOT NULL,
+    "title" VARCHAR(255),
+    "caption" TEXT,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "company_honor_images_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "card_style_overrides" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "card_id" BIGINT NOT NULL,
+    "template_id" BIGINT,
+    "background_url" TEXT,
+    "color_scheme_json" JSONB,
+    "layout_json" JSONB,
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+    "deleted_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "card_style_overrides_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_accounts_unionid" ON "accounts"("wx_unionid");
 
@@ -184,6 +315,15 @@ CREATE INDEX "idx_binding_tenant" ON "account_identity_bindings"("tenant_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_account_identity" ON "account_identity_bindings"("account_id", "member_identity_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_templates_tenant_id" ON "templates"("tenant_id", "id");
+
+-- CreateIndex
+CREATE INDEX "idx_templates_tenant_scope" ON "templates"("tenant_id", "scope");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_tpl_default_active" ON "templates"("tenant_id") WHERE "is_default" = true AND "deleted_at" IS NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_cards_public_id" ON "cards"("public_id");
@@ -233,6 +373,48 @@ CREATE INDEX "idx_share_card" ON "card_shares"("tenant_id", "card_id");
 -- CreateIndex
 CREATE INDEX "idx_share_member" ON "card_shares"("tenant_id", "member_identity_id");
 
+-- CreateIndex
+CREATE INDEX "idx_tenant_admin_tenant" ON "tenant_admins"("tenant_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_tenant_admin_user" ON "tenant_admins"("tenant_id", "open_userid");
+
+-- CreateIndex
+CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_admin_claim_token" ON "admin_claim_tokens"("token_hash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_company_profiles_tenant_id" ON "company_profiles"("tenant_id", "id");
+
+-- CreateIndex
+CREATE INDEX "idx_company_profiles_tenant" ON "company_profiles"("tenant_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_company_profiles_active" ON "company_profiles"("tenant_id") WHERE "deleted_at" IS NULL;
+
+-- CreateIndex
+CREATE INDEX "idx_company_videos_tenant_sort" ON "company_videos"("tenant_id", "sort_order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_company_honors_tenant_id" ON "company_honors"("tenant_id", "id");
+
+-- CreateIndex
+CREATE INDEX "idx_company_honors_tenant_sort" ON "company_honors"("tenant_id", "sort_order");
+
+-- CreateIndex
+CREATE INDEX "idx_company_honor_images_honor_sort" ON "company_honor_images"("tenant_id", "honor_id", "sort_order");
+
+-- CreateIndex
+CREATE INDEX "idx_card_style_overrides_card" ON "card_style_overrides"("tenant_id", "card_id");
+
+-- CreateIndex
+CREATE INDEX "idx_card_style_overrides_template" ON "card_style_overrides"("tenant_id", "template_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_card_style_override_active" ON "card_style_overrides"("tenant_id", "card_id") WHERE "deleted_at" IS NULL;
+
 -- AddForeignKey
 ALTER TABLE "member_identities" ADD CONSTRAINT "member_identities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -244,6 +426,9 @@ ALTER TABLE "account_identity_bindings" ADD CONSTRAINT "account_identity_binding
 
 -- AddForeignKey
 ALTER TABLE "account_preferences" ADD CONSTRAINT "account_preferences_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "templates" ADD CONSTRAINT "templates_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "cards" ADD CONSTRAINT "cards_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -259,4 +444,37 @@ ALTER TABLE "card_actions" ADD CONSTRAINT "card_actions_tenant_id_card_id_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "card_shares" ADD CONSTRAINT "card_shares_tenant_id_card_id_fkey" FOREIGN KEY ("tenant_id", "card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_member_identity_id_fkey" FOREIGN KEY ("tenant_id", "member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "admin_claim_tokens" ADD CONSTRAINT "admin_claim_tokens_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_profiles" ADD CONSTRAINT "company_profiles_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_videos" ADD CONSTRAINT "company_videos_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_honors" ADD CONSTRAINT "company_honors_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_honor_images" ADD CONSTRAINT "company_honor_images_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "company_honor_images" ADD CONSTRAINT "company_honor_images_tenant_id_honor_id_fkey" FOREIGN KEY ("tenant_id", "honor_id") REFERENCES "company_honors"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "card_style_overrides" ADD CONSTRAINT "card_style_overrides_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "card_style_overrides" ADD CONSTRAINT "card_style_overrides_tenant_id_card_id_fkey" FOREIGN KEY ("tenant_id", "card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "card_style_overrides" ADD CONSTRAINT "card_style_overrides_tenant_id_template_id_fkey" FOREIGN KEY ("tenant_id", "template_id") REFERENCES "templates"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

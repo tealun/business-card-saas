@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/employee/index",
+    "pages/employee/edit",
+    "pages/employee/style",
+    "pages/public/card",
+    "pages/card-wallet/index",
+    "pages/company-card/index",
+    "pages/employee/card"
+  ],
+  "window": {
+    "navigationBarTitleText": "企业名片",
+    "navigationBarBackgroundColor": "#0f7b63",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f6f3ea"
+  },
+  "tabBar": {
+    "color": "#657065",
+    "selectedColor": "#1677ff",
+    "backgroundColor": "#fffdf6",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/employee/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/card-wallet/index",
+        "text": "名片夹"
+      },
+      {
+        "pagePath": "pages/company-card/index",
+        "text": "企业名片"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

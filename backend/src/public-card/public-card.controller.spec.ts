@@ -6,6 +6,13 @@ interface ActionBody {
   idempotent: boolean;
 }
 
+function dataOf<T>(body: string): T {
+  const envelope = JSON.parse(body) as { code: number; data: T; trace_id: string };
+  expect(envelope.code).toBe(0);
+  expect(envelope.trace_id).toBeTruthy();
+  return envelope.data;
+}
+
 describe("PublicCardController", () => {
   let app: NestFastifyApplication;
 
@@ -30,8 +37,13 @@ describe("PublicCardController", () => {
       url: "/api/v1/public/cards/pub_demo0001"
     });
     expect(response.statusCode).toBe(200);
-    const body = JSON.parse(response.body) as Record<string, unknown>;
+    const body = dataOf<Record<string, unknown>>(response.body);
     expect(body.public_id).toBe("pub_demo0001");
+    expect((body.card as { display_name: string }).display_name).toBe("M1 Demo Employee");
+    expect(body.template).toBeTruthy();
+    expect(body.company_profile).toBeTruthy();
+    expect(Array.isArray(body.videos)).toBe(true);
+    expect(Array.isArray(body.honors)).toBe(true);
     expect(body.visit_token).toBeUndefined();
   });
 
@@ -42,11 +54,11 @@ describe("PublicCardController", () => {
       payload: { share: "shr_demo0001" }
     });
     expect(visitResponse.statusCode).toBe(201);
-    const visit = JSON.parse(visitResponse.body) as {
+    const visit = dataOf<{
       visit_id: string;
       anon_id: string;
       visit_token: string;
-    };
+    }>(visitResponse.body);
 
     expect(visit.visit_id).toMatch(/^vis_/);
     expect(visit.anon_id).toMatch(/^anon_/);
@@ -59,7 +71,7 @@ describe("PublicCardController", () => {
       payload: { action_type: "save_phone" }
     });
     expect(firstAction.statusCode).toBe(201);
-    expect((JSON.parse(firstAction.body) as ActionBody).idempotent).toBe(false);
+    expect(dataOf<ActionBody>(firstAction.body).idempotent).toBe(false);
 
     const secondAction = await app.inject({
       method: "POST",
@@ -68,6 +80,75 @@ describe("PublicCardController", () => {
       payload: { action_type: "save_phone" }
     });
     expect(secondAction.statusCode).toBe(201);
-    expect((JSON.parse(secondAction.body) as ActionBody).idempotent).toBe(true);
+    expect(dataOf<ActionBody>(secondAction.body).idempotent).toBe(true);
+  });
+
+  it("rejects action reports without a visit_token", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/actions",
+      payload: { action_type: "save_phone" }
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects visit_token reuse across public cards", async () => {
+    const visitResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: { share: "shr_demo0001" }
+    });
+    expect(visitResponse.statusCode).toBe(201);
+    const visit = dataOf<{ visit_token: string }>(visitResponse.body);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_other0001/actions",
+      headers: { authorization: `Bearer ${visit.visit_token}` },
+      payload: { action_type: "save_phone" }
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("derives a customer reshare id from the visit_token scope", async () => {
+    const visitResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: { share: "shr_demo0001" }
+    });
+    expect(visitResponse.statusCode).toBe(201);
+    const visit = dataOf<{ visit_token: string }>(visitResponse.body);
+
+    const deriveResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/shares/derive",
+      headers: { authorization: `Bearer ${visit.visit_token}` },
+      payload: { parent_share_id: "shr_demo0001" }
+    });
+
+    expect(deriveResponse.statusCode).toBe(201);
+    const share = dataOf<{
+      share_id: string;
+      parent_share_id: string;
+      depth: number;
+      capped: boolean;
+    }>(deriveResponse.body);
+    expect(share.share_id).toMatch(/^shr_/);
+    expect(share.share_id).not.toBe("shr_demo0001");
+    expect(share.parent_share_id).toBe("shr_demo0001");
+    expect(share.depth).toBe(1);
+    expect(share.capped).toBe(false);
+  });
+
+  it("rejects derived shares without a visit_token", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/shares/derive",
+      payload: { parent_share_id: "shr_demo0001" }
+    });
+
+    expect(response.statusCode).toBe(401);
   });
 });

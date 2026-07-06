@@ -1,0 +1,32 @@
+<view class="page">
+  <view class="notice" wx:if="{{statusText}}">{{statusText}}</view>
+
+  <view class="business-card panel">
+    <view class="eyebrow">我的名片</view>
+    <view class="title">{{card.display_name || '企业名片'}}</view>
+    <view class="muted">{{card.title || '未设置职位'}} · {{card.company || 'Demo Tenant'}}</view>
+    <view class="contact-line">{{card.fields.phone || card.fields.mobile || '联系方式未公开'}}</view>
+    <view class="contact-line">{{card.fields.email || '邮箱未公开'}}</view>
+  </view>
+
+  <button class="send-button" bindtap="createShare">发名片</button>
+
+  <view class="panel">
+    <view class="quick-grid">
+      <button class="secondary" bindtap="goEdit">编辑资料</button>
+      <button class="secondary" bindtap="goStyle">名片样式</button>
+      <button class="secondary" bindtap="loadPreview">访客预览</button>
+      <button class="secondary" bindtap="createShare">名片码</button>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="section-title">我的名片数据</view>
+    <view class="metric-row">
+      <view><strong>0</strong><text>我的访客</text></view>
+      <view><strong>0</strong><text>我看过的</text></view>
+      <view><strong>0</strong><text>好友新名片</text></view>
+    </view>
+    <view class="muted">最近访客将在 M3 数据统计接入后展示。</view>
+  </view>
+</view>

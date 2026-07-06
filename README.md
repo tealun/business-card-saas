@@ -4,8 +4,51 @@
 
 ## 当前状态
 
-- 阶段：**文档/方案就绪，尚未进入编码**。技术栈已锁定（§33），schema 与关键链路已过多轮落地性/实施就绪审计。
-- 下一步：先完成 M0 平台接入与企业微信接口实测 Spike，再进入 M1 walking skeleton。
+- 阶段：**M1 后端 walking skeleton 已启动**。后端 NestJS + node-postgres 骨架、`database/schema.sql` 初始建库脚本、RLS baseline、demo 企业微信登录、员工名片读取/更新/分享、公开名片访问/visit/action 骨架已落地。
+- 下一步：优先把 M1 的真实数据库验证、企业微信 M0-M1 gate 实测、小程序最薄端到端页面跑通。
+
+## 本地验证
+
+后端静态与单元验证：
+
+```powershell
+cd backend
+npm run typecheck
+npm test
+npm run rls:validate
+```
+
+如果本机有 Docker，可启动本地 PostgreSQL / Redis 后跑真实数据库探针：
+
+```powershell
+docker compose up -d postgres redis
+cd backend
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/business_card_saas"
+npm run db:verify
+```
+
+`db:verify` 会重建目标库的 `public` schema，应用 `database/schema.sql` 和 `database/rls.sql`，再插入探针数据验证租户隔离；默认只允许 `localhost` / `127.0.0.1` 数据库，避免误清非本地库。
+
+## 多端入口
+
+- 后端 API：[`backend/`](backend/)
+- 静态后台工作台：[`admin/index.html`](admin/index.html)
+- 微信小程序骨架：[`miniprogram/`](miniprogram/)（三栏 Tab：我的名片 / 名片夹 / 企业名片）
+
+服务器 PgSQL 联调建议顺序：
+
+```powershell
+cd backend
+$env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
+$env:JWT_SECRET="<32+ chars random>"
+$env:VISIT_TOKEN_SECRET="<32+ chars random>"
+$env:CORS_ORIGINS="https://admin.example.com"
+npm run db:verify
+npm run build
+npm start
+```
+
+非本地一次性测试库运行 `db:verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`，它会重置 M1 相关表；不要对生产库执行。
 
 ## 阅读入口
 
@@ -17,7 +60,7 @@
 
 ## 技术栈（§33 为唯一事实源）
 
-Node.js 24 LTS + TypeScript + NestJS · PostgreSQL 17+（RLS 多租户）· Prisma · Redis / BullMQ · React + Vite + Ant Design（后台）· 原生微信小程序 · 腾讯云 COS / KMS · Docker → Kubernetes · GitHub Actions。
+Node.js 24 LTS + TypeScript + NestJS · PostgreSQL 17+（RLS 多租户）· node-postgres (`pg`) · Redis / BullMQ · React + Vite + Ant Design（后台）· 原生微信小程序 · 腾讯云 COS / KMS · Docker → Kubernetes · GitHub Actions。
 
 ## M0 / M1 目标
 

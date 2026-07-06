@@ -2,6 +2,13 @@ import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
 
+function dataOf<T>(body: string): T {
+  const envelope = JSON.parse(body) as { code: number; data: T; trace_id: string };
+  expect(envelope.code).toBe(0);
+  expect(envelope.trace_id).toBeTruthy();
+  return envelope.data;
+}
+
 describe("Auth and employee card flow", () => {
   let app: NestFastifyApplication;
 
@@ -37,10 +44,10 @@ describe("Auth and employee card flow", () => {
     });
 
     expect(loginResponse.statusCode).toBe(201);
-    const login = JSON.parse(loginResponse.body) as {
+    const login = dataOf<{
       access_token: string;
       current_identity: { public_id: string; open_userid: string };
-    };
+    }>(loginResponse.body);
     expect(login.access_token).toBeTruthy();
     expect(login.current_identity.open_userid).toBe("ou_demo0001");
     expect(login.current_identity.public_id).toBe("pub_demo0001");
@@ -52,10 +59,10 @@ describe("Auth and employee card flow", () => {
     });
 
     expect(cardResponse.statusCode).toBe(200);
-    const card = JSON.parse(cardResponse.body) as {
+    const card = dataOf<{
       public_id: string;
       privacy: { show_mobile: boolean };
-    };
+    }>(cardResponse.body);
     expect(card.public_id).toBe("pub_demo0001");
     expect(card.privacy.show_mobile).toBe(false);
   });
@@ -66,7 +73,7 @@ describe("Auth and employee card flow", () => {
       url: "/api/v1/auth/qy-login",
       payload: { code: "demo-qy-code" }
     });
-    const login = JSON.parse(loginResponse.body) as { access_token: string };
+    const login = dataOf<{ access_token: string }>(loginResponse.body);
 
     const shareResponse = await app.inject({
       method: "POST",
@@ -75,17 +82,56 @@ describe("Auth and employee card flow", () => {
     });
 
     expect(shareResponse.statusCode).toBe(201);
-    const share = JSON.parse(shareResponse.body) as {
+    const share = dataOf<{
       public_id: string;
       share_id: string;
       scene: string;
       path: string;
-    };
+    }>(shareResponse.body);
     expect(share.public_id).toBe("pub_demo0001");
     expect(share.share_id).toMatch(/^shr_/);
     expect(share.scene).toBe(share.share_id);
+    expect(share.path).toContain("/pages/public/card");
     expect(share.path).toContain(`card=${share.public_id}`);
     expect(share.path).toContain(`share=${share.share_id}`);
+  });
+
+  it("serves visitor preview and applies allowed card style", async () => {
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/qy-login",
+      payload: { code: "demo-qy-code" }
+    });
+    const login = dataOf<{ access_token: string }>(loginResponse.body);
+
+    const styleResponse = await app.inject({
+      method: "PUT",
+      url: "/api/v1/employee/cards/current/style",
+      headers: { authorization: `Bearer ${login.access_token}` },
+      payload: {
+        template_id: "tpl_demo_business",
+        color_scheme: { primary: "#1677ff" },
+        layout: { variant: "horizontal-business" }
+      }
+    });
+    expect(styleResponse.statusCode).toBe(200);
+
+    const previewResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/employee/cards/current/preview",
+      headers: { authorization: `Bearer ${login.access_token}` }
+    });
+    expect(previewResponse.statusCode).toBe(200);
+    const preview = dataOf<{
+      card: { display_name: string; fields: { mobile: string | null; email: string | null } };
+      template: { template_id: string };
+      company_profile: { name: string };
+    }>(previewResponse.body);
+    expect(preview.card.display_name).toBeTruthy();
+    expect(preview.card.fields.mobile).toBeNull();
+    expect(preview.card.fields.email).toBeTruthy();
+    expect(preview.template.template_id).toBe("tpl_demo_business");
+    expect(preview.company_profile.name).toBeTruthy();
   });
 
   it("updates the current employee card fields and privacy", async () => {
@@ -94,7 +140,7 @@ describe("Auth and employee card flow", () => {
       url: "/api/v1/auth/qy-login",
       payload: { code: "demo-qy-code" }
     });
-    const login = JSON.parse(loginResponse.body) as { access_token: string };
+    const login = dataOf<{ access_token: string }>(loginResponse.body);
 
     const updateResponse = await app.inject({
       method: "PUT",
@@ -113,12 +159,12 @@ describe("Auth and employee card flow", () => {
     });
 
     expect(updateResponse.statusCode).toBe(200);
-    const updated = JSON.parse(updateResponse.body) as {
+    const updated = dataOf<{
       display_name: string;
       title: string;
       fields: { email: string; mobile: string };
       privacy: { show_mobile: boolean; show_email: boolean };
-    };
+    }>(updateResponse.body);
     expect(updated.display_name).toBe("Updated Demo Employee");
     expect(updated.title).toBe("Account Director");
     expect(updated.fields.email).toBe("updated@example.com");

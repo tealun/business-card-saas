@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="panel">
+    <view class="eyebrow">CARD WALLET</view>
+    <view class="title">名片夹</view>
+    <view class="muted">收到的名片、交换请求、名片更新将在 M3 增强。</view>
+  </view>
+  <view class="panel">
+    <input placeholder="搜索姓名 / 公司 / 职位" disabled />
+    <view class="output">MVP 空状态：先保证员工分发和访客详情闭环。</view>
+  </view>
+</view>

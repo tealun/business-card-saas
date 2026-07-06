@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="panel">
+    <view class="eyebrow">COMPANY CARD</view>
+    <view class="title">Demo Tenant</view>
+    <view class="muted">官方认证 / M1 演示企业</view>
+  </view>
+  <view class="panel">
+    <view class="section">企业模板</view>
+    <view class="muted">当前模板：横版商务</view>
+  </view>
+  <view class="panel">
+    <view class="section">企业内容入口</view>
+    <view class="muted">公司介绍、企业视频、公司荣誉完整维护默认放 Web 后台。</view>
+  </view>
+</view>

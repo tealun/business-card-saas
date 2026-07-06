@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type { EmployeeCardResponse, UpdateEmployeeCardRequest } from "../contracts/employee-card.js";
+import type {
+  EmployeeCardPreviewResponse,
+  EmployeeCardResponse,
+  UpdateEmployeeCardRequest,
+  UpdateEmployeeCardStyleRequest
+} from "../contracts/employee-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { randomToken } from "../common/id.js";
 
@@ -17,8 +22,10 @@ export class EmployeeCardRepository {
       avatar_url: null,
       fields: {
         mobile: "13800000000",
+        phone: "021-5566XXXX",
         email: "demo@example.com",
-        wechat_id: "demo_wechat"
+        wechat_id: "demo_wechat",
+        address: "[示例地址]"
       },
       status: "active",
       privacy: {
@@ -26,6 +33,22 @@ export class EmployeeCardRepository {
         show_email: true,
         show_wechat: false
       }
+      }
+    ]
+  ]);
+
+  private readonly styles = new Map<string, UpdateEmployeeCardStyleRequest>([
+    [
+      "1:1",
+      {
+        template_id: "tpl_demo_business",
+        color_scheme: {
+          primary: "#1677ff",
+          surface: "#ffffff"
+        },
+        layout: {
+          variant: "horizontal-business"
+        }
       }
     ]
   ]);
@@ -60,11 +83,17 @@ export class EmployeeCardRepository {
     if (request.fields?.mobile !== undefined) {
       next.fields.mobile = request.fields.mobile;
     }
+    if (request.fields?.phone !== undefined) {
+      next.fields.phone = request.fields.phone;
+    }
     if (request.fields?.email !== undefined) {
       next.fields.email = request.fields.email;
     }
     if (request.fields?.wechat_id !== undefined) {
       next.fields.wechat_id = request.fields.wechat_id;
+    }
+    if (request.fields?.address !== undefined) {
+      next.fields.address = request.fields.address;
     }
     if (request.privacy?.show_mobile !== undefined) {
       next.privacy.show_mobile = request.privacy.show_mobile;
@@ -87,6 +116,26 @@ export class EmployeeCardRepository {
     };
   }
 
+  getPreview(session: EmployeeSession): EmployeeCardPreviewResponse {
+    const card = this.getCurrentCard(session);
+    const style = this.styles.get(this.cardKey(session)) ?? {};
+    return this.toPreview(card, style);
+  }
+
+  updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
+    const key = this.cardKey(session);
+    this.getCurrentCard(session);
+    const current = this.styles.get(key) ?? {};
+    const next = {
+      ...current,
+      ...request,
+      color_scheme: request.color_scheme ?? current.color_scheme,
+      layout: request.layout ?? current.layout
+    };
+    this.styles.set(key, next);
+    return this.toPreview(this.getCurrentCard(session), next);
+  }
+
   private cardKey(session: EmployeeSession): string {
     return `${session.tenantId}:${session.memberIdentityId}`;
   }
@@ -96,6 +145,51 @@ export class EmployeeCardRepository {
       ...card,
       fields: { ...card.fields },
       privacy: { ...card.privacy }
+    };
+  }
+
+  private toPreview(card: EmployeeCardResponse, style: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
+    return {
+      public_id: card.public_id,
+      status: card.status,
+      card: {
+        display_name: card.display_name,
+        title: card.title,
+        company: card.company,
+        avatar_url: card.avatar_url,
+        fields: {
+          mobile: card.privacy.show_mobile ? card.fields.mobile : null,
+          phone: card.fields.phone ?? null,
+          email: card.privacy.show_email ? card.fields.email : null,
+          wechat_id: card.privacy.show_wechat ? card.fields.wechat_id : null,
+          address: card.fields.address ?? null
+        }
+      },
+      template: {
+        template_id: style.template_id ?? "tpl_demo_business",
+        logo_url: null,
+        background_url: style.background_url ?? null,
+        color_scheme: style.color_scheme ?? {
+          primary: "#1677ff",
+          surface: "#ffffff"
+        },
+        layout: style.layout ?? {
+          variant: "horizontal-business"
+        }
+      },
+      company_profile: {
+        name: card.company ?? "Demo Tenant",
+        intro_blocks: [
+          {
+            type: "paragraph",
+            text: "这是一份 M1 演示企业介绍。正式环境由企业后台维护，公开名片只展示已发布内容。"
+          }
+        ],
+        website_url: "https://example.com",
+        address: card.fields.address ?? null
+      },
+      videos: [],
+      honors: []
     };
   }
 }

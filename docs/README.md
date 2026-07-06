@@ -25,7 +25,7 @@
 | 文档 | 内容 |
 |------|------|
 | [`00_01_Dev_Doc.md`](00-core/00_01_Dev_Doc.md) | 主开发文档：架构、身份模型、DDL(§15)、里程碑、技术栈决策(§33)、审计对照 —— **全项目事实源** |
-| [`00_02_Database_Schema.md`](00-core/00_02_Database_Schema.md) | 迁移顺序、RLS 策略（含跨租户敏感绑定表与 public_card_directory）、外键策略、ER、枚举取值、索引口径（表定义仍以 §15/§15.4 为准） |
+| [`00_02_Database_Schema.md`](00-core/00_02_Database_Schema.md) | 初始化建库顺序、RLS 策略（含跨租户敏感绑定表与 public_card_directory）、外键策略、ER、枚举取值、索引口径（表定义仍以 §15/§15.4 为准） |
 
 ### 01-specs（功能规格 / 执行指引）
 
@@ -36,6 +36,12 @@
 | [`01_03_Miniprogram_Guide.md`](01-specs/01_03_Miniprogram_Guide.md) | 小程序：环境/登录、页面路由、分享矩阵、详情页、状态降级、埋点（扩展 §6/§7/§11/§12/§30） |
 | [`01_04_Admin_Web_Guide.md`](01-specs/01_04_Admin_Web_Guide.md) | 管理后台：登录鉴权、RBAC、页面清单、隔离约束（扩展 §12.3/§16/§15.3） |
 | [`01_05_Development_Guide.md`](01-specs/01_05_Development_Guide.md) | 开发执行指引：仓库结构、脚手架习惯、验证命令、部署边界、文档同步规则 |
+
+### design（设计交付）
+
+| 文档 | 内容 |
+|------|------|
+| [`miniprogram-card-experience-brief.md`](design/miniprogram-card-experience-brief.md) | 小程序名片体验设计说明：对标参考截图，定义我的名片、访客详情、企业名片、名片夹、公司介绍、视频、荣誉轮播等页面与模块 |
 
 ### 03-compliance（合规）
 

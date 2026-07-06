@@ -108,7 +108,7 @@ API 规格 §3.4: GET  /api/v1/contact-way/cards/{public_id}
 | A4-P1-7 visit_token 契约 | `00_01` §14.6 | `14.6 visit_token 契约` |
 | A4-P1-8 API 路径漂移 | `00_01` §14 改为分组 + 指针，不再列路径 | `不再列具体路径` |
 | A4-P1-9 is_default 双源 | `00_01` §5.5 prose + §15 DDL 移除 `account_identity_bindings.is_default` | `A4-P1-9` |
-| A4-P1-10 Prisma RLS 事务 | `00_01` §33.2 硬约束 `TenantTx.run` | `TenantTx.run` |
+| A4-P1-10 node-postgres RLS 事务 | `00_01` §33.2 硬约束 `TenantTx.run` | `TenantTx.run` |
 | A4-P2-1 根 README | 新建 `README.md` | — |
 | A4-P2-2 测试门禁 | `00_01` §20.6 覆盖率 + PR 门禁 | `20.6` |
 | A4-P2-3 02-tasks 检查单 | 新建 `02_00` / `02_01` | — |
@@ -117,4 +117,3 @@ API 规格 §3.4: GET  /api/v1/contact-way/cards/{public_id}
 | N-2 README 索引滞后 | `docs/README.md` 补 99_04/99_05 + 02-tasks | — |
 
 > 注：本项目为文档阶段，「修复」= 修订文档事实源；无代码改动。上线实现时以上述文档为准。
-

@@ -14,25 +14,26 @@
 
 | # | 事项 | 依赖 | 状态 |
 |---|------|------|------|
-| 1 | 脚手架：NestJS(Node 24) + Prisma(PG 17+) + Redis，独立子项目 contracts | §33 | ☑ |
-| 2 | 迁移建表最终形态（含 §15.4：public_card_directory、关键 FK、部分唯一索引；`contact_ways.channel NOT NULL` 随客户联系模块迁移） | §15/§15.4 | ◐ 初始迁移已生成 |
+| 1 | 脚手架：NestJS(Node 24) + node-postgres(PG 17+) + Redis，独立子项目 contracts | §33 | ☑ |
+| 2 | 初始建库最终形态（含 §15.4：public_card_directory、关键 FK、部分唯一索引；企业内容/样式表已并入 `database/schema.sql`；`contact_ways.channel NOT NULL` 随客户联系模块迁移） | §15/§15.4 | ◐ 单一初始化 schema 已生成 |
 | 3 | `TenantTx.run` RLS 事务包装器 + 越权测试基线（§33.2 / §20.3） | A4-P1-10 | ◐ 包装器单测 + RLS 静态校验 |
 | 4 | `qy-login`：jscode2session → 定位 tenant + member_identity → 按需建档 + 默认名片 | 02_00 #2/#3 | ◐ 骨架完成 |
 | 5 | 员工名片读取/更新（01_02 §3.2） | | ◐ 当前读取/更新 + 分享签发完成 |
 | 6 | 公开访问：public_card_directory 解析 public_id → RLS 查 cards → 隐私判定输出 | A4-P0-1 | ◐ demo 公开读取完成 |
 | 7 | `visit_token` 签发与动作幂等（§14.6） | A4-P1-7 | ◐ 内存骨架完成 |
-| 8 | owner bootstrap 最小闭环（§15.4） | A4-P1-5 | ◐ 模型/迁移/服务骨架完成 |
+| 8 | owner bootstrap 最小闭环（§15.4） | A4-P1-5 | ◐ 模型已并入 `database/schema.sql`，服务骨架完成 |
 
 ## 当前落地记录
 
 - 2026-07-02：提交 `befc204` 后继续落地 M1 骨架。
-- `backend/` 已具备 NestJS + Fastify + Prisma 独立 npm 子项目，contracts 暂放 `backend/src/contracts/`。
+- `backend/` 已具备 NestJS + Fastify + node-postgres 独立 npm 子项目，contracts 暂放 `backend/src/contracts/`。
 - 已实现 `POST /api/v1/auth/qy-login` 的 demo code 登录骨架，返回员工 access token、当前身份和默认 `public_id`；真实企业微信 `jscode2session` 待 M0 实测凭据完成后替换 repository。
 - 已实现 `GET /api/v1/employee/cards/current`、`PUT /api/v1/employee/cards/current` 和 `POST /api/v1/employee/cards/current/share`，可用 bearer token 读取/更新当前员工默认名片并签发 `share_id`。
-- 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等。
-- 已生成 `backend/prisma/migrations/000001_m1_core/migration.sql`，覆盖 M1 core 表、`public_card_directory`、访问/动作/分享归因字段、关键唯一索引与外键；真实 PostgreSQL apply/rollback 验证待数据库容器接入。
+- 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions`、`POST /shares/derive` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等，客户二次转发可用 `visit_token` 派生 `share_id`。
+- 已新增 `admin/` 静态联调工作台和 `miniprogram/` 原生小程序骨架；小程序已按 `01_03 v1.2` 对齐三栏导航（我的名片 / 名片夹 / 企业名片），M1 覆盖员工首页、编辑资料、样式入口、访客详情、公开访问、visit、动作上报、派生分享，M2/M3 模块保留空状态入口。
+- 已生成单一初始化建库脚本 `database/schema.sql`，覆盖 M1 core 表、owner bootstrap、企业内容/样式表、`public_card_directory`、访问/动作/分享归因字段、关键唯一索引与外键；真实 PostgreSQL apply/rollback 验证待服务器测试库接入。
 - 已补 `TenantTx` 单测，验证事务内先注入 `app.tenant_id` / `app.account_id` 再执行查询；已补 `npm run rls:validate`，静态校验 RLS SQL 必须使用 `current_setting(..., true)` 且 `public_card_directory` 不启用租户 RLS。真实 A/B 租户数据库越权测试待 PostgreSQL 测试库接入。
-- 已补 `tenant_admins` / `admin_claim_tokens` Prisma 模型与 `000002_owner_bootstrap` 迁移；`tenant_admins` 纳入 RLS 静态校验。已实现 owner bootstrap 服务骨架：拿到 `open_userid` 时创建首个 owner，拿不到时生成短期一次性 claim token（只持久化 hash）。真实企业微信 OAuth 绑定入口待 M0 凭据与后台登录页接入。
+- 已补 `tenant_admins` / `admin_claim_tokens` 表并并入 `database/schema.sql`；`tenant_admins` 纳入 RLS 静态校验。已实现 owner bootstrap 服务骨架：拿到 `open_userid` 时创建首个 owner，拿不到时生成短期一次性 claim token（只持久化 hash）。真实企业微信 OAuth 绑定入口待 M0 凭据与后台登录页接入。
 
 ## 验收标准（对齐主文档 §23）
 

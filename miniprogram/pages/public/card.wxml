@@ -1,0 +1,50 @@
+<view class="page">
+  <view class="panel">
+    <view class="eyebrow">PUBLIC CARD</view>
+    <view class="title">{{card.card.display_name || '名片加载中'}}</view>
+    <view class="muted">{{card.card.title || ''}} {{card.card.company ? '· ' + card.card.company : ''}}</view>
+    <view class="output" wx:if="{{visitId}}">visit: {{visitId}}</view>
+  </view>
+
+  <view class="panel">
+    <view wx:if="{{card.card.fields.mobile}}">手机：{{card.card.fields.mobile}}</view>
+    <view wx:if="{{card.card.fields.phone}}">座机：{{card.card.fields.phone}}</view>
+    <view wx:if="{{card.card.fields.email}}">邮箱：{{card.card.fields.email}}</view>
+    <view wx:if="{{card.card.fields.address}}">地址：{{card.card.fields.address}}</view>
+    <view wx:if="{{card.card.fields.wechat_id}}">微信：{{card.card.fields.wechat_id}}</view>
+    <view class="muted" wx:if="{{!card.card.fields.mobile && !card.card.fields.email && !card.card.fields.wechat_id}}">
+      当前名片没有公开联系方式。
+    </view>
+    <view class="button-row">
+      <button bindtap="recordSave">保存</button>
+      <button class="secondary" bindtap="recordCall">拨打</button>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="eyebrow">公司介绍</view>
+    <view class="title small">{{card.company_profile.name}}</view>
+    <block wx:for="{{card.company_profile.intro_blocks}}" wx:key="text">
+      <view class="muted">{{item.text}}</view>
+    </block>
+    <button class="secondary" bindtap="recordExpandIntro">展开全文</button>
+  </view>
+
+  <view class="panel" wx:if="{{card.videos.length}}">
+    <view class="eyebrow">企业视频</view>
+    <view class="title small">{{card.videos[0].title}}</view>
+    <button bindtap="recordPlayVideo">播放视频</button>
+  </view>
+
+  <view class="panel" wx:if="{{card.honors.length}}">
+    <view class="eyebrow">公司荣誉</view>
+    <view class="title small">{{card.honors[0].title}}</view>
+    <swiper class="honor-swiper" indicator-dots>
+      <swiper-item wx:for="{{card.honors[0].images}}" wx:key="image_url">
+        <view class="honor-image" bindtap="previewHonor" data-url="{{item.image_url}}">
+          {{item.title || '荣誉图片'}}
+        </view>
+      </swiper-item>
+    </swiper>
+  </view>
+</view>

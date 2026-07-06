@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Param, Post, UnauthorizedException } from "@nestjs/common";
 import {
   actionRequestSchema,
+  deriveShareRequestSchema,
   publicIdSchema,
   visitRequestSchema
 } from "../contracts/public-card.js";
@@ -32,5 +33,15 @@ export class PublicCardController {
     }
     const request = actionRequestSchema.parse(body);
     return this.publicCards.recordAction(publicIdSchema.parse(publicId), token, request);
+  }
+
+  @Post(":publicId/shares/derive")
+  deriveShare(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("authorization") auth?: string) {
+    const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
+    if (!token) {
+      throw new UnauthorizedException("visit_token required");
+    }
+    const request = deriveShareRequestSchema.parse(body);
+    return this.publicCards.deriveShare(publicIdSchema.parse(publicId), token, request);
   }
 }
