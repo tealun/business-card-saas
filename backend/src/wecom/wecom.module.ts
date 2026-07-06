@@ -46,6 +46,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomCorpTokenService,
     WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,
+    WecomStateCipherService,
     WecomSuiteStateRepository,
     WecomSuiteTokenService,
     WecomTenantAuthRepository

@@ -481,6 +481,7 @@ cards
 - title
 - phone_encrypted
 - email_encrypted
+- fields_encrypted    -- 员工名片联系方式字段 JSON 的加密整体，兼容 email/phone 单字段密文
 - wechat_id_encrypted
 - intro
 - tags_json
@@ -1414,6 +1415,7 @@ CREATE TABLE cards (
   title VARCHAR(128),
   phone_encrypted TEXT,
   email_encrypted TEXT,
+  fields_encrypted TEXT,
   wechat_id_encrypted TEXT,
   intro TEXT,
   tags_json JSONB,

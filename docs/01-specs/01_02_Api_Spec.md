@@ -128,8 +128,8 @@
 | GET `/api/v1/admin/members` | 员工列表（分页） |
 | POST `/api/v1/admin/members/sync` | 手动触发企业微信通讯录可见成员全量同步；需要 admin/owner 权限 |
 | GET `/api/v1/admin/sync-events` | 最近企业微信同步/回调事件；按当前租户过滤，不返回密文 payload |
-| GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；MVP 先覆盖当前已识别成员 |
-| PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置与启停状态；需要 operator/admin/owner 权限 |
+| GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；数据库模式按当前租户读取 `cards`，联系方式字段从 `fields_encrypted` 解密后返回 |
+| PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置与启停状态；需要 operator/admin/owner 权限；数据库模式写入成员姓名、主名片字段、隐私开关、状态和公开目录，联系方式字段加密保存 |
 | GET `/api/v1/admin/cards` | 规划：独立名片列表；当前按员工进入 `GET /api/v1/admin/members/{id}/card` |
 | PUT `/api/v1/admin/cards/{id}/status` | 规划：独立名片启停；当前用 `PUT /api/v1/admin/members/{id}/card` 的 `status` 字段 |
 | GET/POST `/api/v1/admin/templates` | 模板 |
