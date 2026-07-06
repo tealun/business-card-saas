@@ -57,4 +57,33 @@ describe("WecomApiClientService", () => {
       BadGatewayException
     );
   });
+
+  it("posts get_corp_token and maps successful payloads", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ errcode: 0, access_token: "corp-token", expires_in: 7200 }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchCorpAccessToken({
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-001",
+      permanentCode: "perm-001"
+    });
+
+    expect(result).toEqual({ accessToken: "corp-token", expiresIn: 7200 });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const [url, init] = firstCall;
+    expect(url).toContain("suite_access_token=suite-token");
+    expect(JSON.parse(String(init.body))).toEqual({
+      auth_corpid: "corp-001",
+      permanent_code: "perm-001"
+    });
+  });
 });
