@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { WecomAuthorizationService } from "./wecom-authorization.service.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 
@@ -24,7 +25,8 @@ export interface WecomCommandCallbackResult {
 export class WecomCommandCallbackService {
   constructor(
     private readonly crypto: WecomCallbackCryptoService,
-    private readonly suiteState: WecomSuiteStateRepository
+    private readonly suiteState: WecomSuiteStateRepository,
+    private readonly authorization: WecomAuthorizationService
   ) {}
 
   verifyUrl(query: WecomCallbackQueryInput, echoStr?: string): string {
@@ -73,6 +75,14 @@ export class WecomCommandCallbackService {
         throw new BadRequestException("missing WeCom SuiteTicket");
       }
       await this.suiteState.saveSuiteTicket(suiteId, suiteTicket, eventTime(messageXml));
+      return { infoType, suiteId, handled: true };
+    }
+    if (infoType === "create_auth" || infoType === "change_auth") {
+      const authCode = readXmlText(messageXml, "AuthCode");
+      if (!authCode) {
+        throw new BadRequestException("missing WeCom AuthCode");
+      }
+      await this.authorization.handleAuthCode(authCode, eventTime(messageXml));
       return { infoType, suiteId, handled: true };
     }
 
