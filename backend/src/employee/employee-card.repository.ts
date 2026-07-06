@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type {
   EmployeeCardPreviewResponse,
   EmployeeCardResponse,
@@ -7,6 +7,7 @@ import type {
 } from "../contracts/employee-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { randomToken } from "../common/id.js";
+import { defaultEmployeePublicId } from "../common/default-public-id.js";
 
 @Injectable()
 export class EmployeeCardRepository {
@@ -54,20 +55,12 @@ export class EmployeeCardRepository {
   ]);
 
   getCurrentCard(session: EmployeeSession): EmployeeCardResponse {
-    const card = this.cards.get(this.cardKey(session));
-    if (!card) {
-      throw new NotFoundException("current card not found");
-    }
-
-    return this.cloneCard(card);
+    return this.cloneCard(this.ensureCurrentCard(session));
   }
 
   updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): EmployeeCardResponse {
     const key = this.cardKey(session);
-    const current = this.cards.get(key);
-    if (!current) {
-      throw new NotFoundException("current card not found");
-    }
+    const current = this.ensureCurrentCard(session);
 
     const next: EmployeeCardResponse = {
       ...current,
@@ -138,6 +131,38 @@ export class EmployeeCardRepository {
 
   private cardKey(session: EmployeeSession): string {
     return `${session.tenantId}:${session.memberIdentityId}`;
+  }
+
+  private ensureCurrentCard(session: EmployeeSession): EmployeeCardResponse {
+    const key = this.cardKey(session);
+    const existing = this.cards.get(key);
+    if (existing) {
+      return existing;
+    }
+
+    const card: EmployeeCardResponse = {
+      card_id: session.memberIdentityId,
+      public_id: session.publicId ?? defaultEmployeePublicId(session),
+      display_name: session.displayName ?? session.openUserid,
+      title: null,
+      company: session.tenantName ?? `Tenant ${session.tenantId}`,
+      avatar_url: null,
+      fields: {
+        mobile: null,
+        phone: null,
+        email: null,
+        wechat_id: null,
+        address: null
+      },
+      status: "active",
+      privacy: {
+        show_mobile: false,
+        show_email: true,
+        show_wechat: false
+      }
+    };
+    this.cards.set(key, card);
+    return card;
   }
 
   private cloneCard(card: EmployeeCardResponse): EmployeeCardResponse {

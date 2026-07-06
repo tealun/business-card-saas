@@ -1,7 +1,10 @@
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
+import { defaultEmployeePublicId } from "../common/default-public-id.js";
+import { SessionTokenService } from "../session/session-token.service.js";
 import { AuthRepository } from "./auth.repository.js";
+import type { WecomMiniProgramIdentity, WecomMiniProgramLoginService } from "../wecom/wecom-miniprogram-login.service.js";
 
 function dataOf<T>(body: string): T {
   const envelope = JSON.parse(body) as { code: number; data: T; trace_id: string };
@@ -38,20 +41,50 @@ describe("Auth and employee card flow", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("does not resolve demo qy-login unless demo auth is explicitly enabled", () => {
+  it("does not resolve demo qy-login unless demo auth is explicitly enabled", async () => {
     const original = process.env.DEMO_AUTH_ENABLED;
     delete process.env.DEMO_AUTH_ENABLED;
     const repository = new AuthRepository();
 
-    expect(() => repository.resolveQyCode("demo-qy-code")).toThrow("WeCom qy-login is not configured");
+    await expect(repository.resolveQyCode("demo-qy-code")).rejects.toThrow("WeCom qy-login is not configured");
 
     process.env.DEMO_AUTH_ENABLED = original;
   });
 
-  it("rejects arbitrary qy-login codes even when demo auth is enabled", () => {
+  it("rejects arbitrary qy-login codes even when demo auth is enabled", async () => {
     const repository = new AuthRepository();
 
-    expect(() => repository.resolveQyCode("not-real")).toThrow("invalid demo qy login code");
+    await expect(repository.resolveQyCode("not-real")).rejects.toThrow("invalid demo qy login code");
+  });
+
+  it("resolves real qy-login through the WeCom adapter when available", async () => {
+    const adapter = {
+      resolveJsCode: jest.fn(async (code: string): Promise<WecomMiniProgramIdentity> => ({
+        accountId: "acct-001",
+        tenantId: "tenant-001",
+        tenantName: "Pilot Corp",
+        memberIdentityId: "member-001",
+        displayName: "ou-001",
+        openCorpid: "corp-001",
+        openUserid: "ou-001",
+        publicId: "pub_real0001",
+        sessionKey: "session-key"
+      }))
+    };
+    const repository = new AuthRepository(adapter as unknown as WecomMiniProgramLoginService);
+
+    const identity = await repository.resolveQyCode("real-code");
+
+    expect(adapter.resolveJsCode).toHaveBeenCalledWith("real-code");
+    expect(repository.toSession(identity)).toEqual({
+      accountId: "acct-001",
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-001",
+      displayName: "ou-001",
+      openUserid: "ou-001",
+      publicId: "pub_real0001"
+    });
   });
 
   it("logs in with qy-login and reads the current employee card", async () => {
@@ -83,6 +116,57 @@ describe("Auth and employee card flow", () => {
     }>(cardResponse.body);
     expect(card.public_id).toBe("pub_demo0001");
     expect(card.privacy.show_mobile).toBe(false);
+  });
+
+  it("initializes and publishes a default card for a real employee session", async () => {
+    const sessionTokens = app.get(SessionTokenService);
+    const publicId = defaultEmployeePublicId({ tenantId: "tenant-101", memberIdentityId: "member-101" });
+    const accessToken = sessionTokens.sign({
+      accountId: "acct-101",
+      tenantId: "tenant-101",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-101",
+      displayName: "ou-real-101",
+      openUserid: "ou-real-101",
+      publicId
+    });
+
+    const cardResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/employee/cards/current",
+      headers: { authorization: `Bearer ${accessToken}` }
+    });
+    expect(cardResponse.statusCode).toBe(200);
+    const card = dataOf<{
+      public_id: string;
+      display_name: string;
+      company: string;
+      privacy: { show_mobile: boolean };
+    }>(cardResponse.body);
+    expect(card.public_id).toBe(publicId);
+    expect(card.display_name).toBe("ou-real-101");
+    expect(card.company).toBe("Pilot Corp");
+    expect(card.privacy.show_mobile).toBe(false);
+
+    const shareResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/employee/cards/current/share",
+      headers: { authorization: `Bearer ${accessToken}` }
+    });
+    expect(shareResponse.statusCode).toBe(201);
+
+    const publicResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/public/cards/${publicId}`
+    });
+    expect(publicResponse.statusCode).toBe(200);
+    const publicCard = dataOf<{
+      public_id: string;
+      card: { display_name: string; company: string };
+    }>(publicResponse.body);
+    expect(publicCard.public_id).toBe(publicId);
+    expect(publicCard.card.display_name).toBe("ou-real-101");
+    expect(publicCard.card.company).toBe("Pilot Corp");
   });
 
   it("creates an employee share id for the current card", async () => {

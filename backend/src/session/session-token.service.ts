@@ -41,12 +41,22 @@ export class SessionTokenService {
       throw new UnauthorizedException("access token expired");
     }
 
-    return {
+    const session: EmployeeSession = {
       accountId: envelope.payload.accountId,
       tenantId: envelope.payload.tenantId,
       memberIdentityId: envelope.payload.memberIdentityId,
       openUserid: envelope.payload.openUserid
     };
+    if (envelope.payload.tenantName !== undefined) {
+      session.tenantName = envelope.payload.tenantName;
+    }
+    if (envelope.payload.displayName !== undefined) {
+      session.displayName = envelope.payload.displayName;
+    }
+    if (envelope.payload.publicId !== undefined) {
+      session.publicId = envelope.payload.publicId;
+    }
+    return session;
   }
 
   private encode(payload: TokenEnvelope["payload"]): string {

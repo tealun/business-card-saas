@@ -10,8 +10,8 @@ export class AuthService {
     private readonly sessionTokens: SessionTokenService
   ) {}
 
-  qyLogin(request: AuthCodeRequest): QyLoginResponse {
-    const identity = this.repository.resolveQyCode(request.code);
+  async qyLogin(request: AuthCodeRequest): Promise<QyLoginResponse> {
+    const identity = await this.repository.resolveQyCode(request.code);
     const summary = this.repository.toSummary(identity);
     return qyLoginResponseSchema.parse({
       access_token: this.sessionTokens.sign(this.repository.toSession(identity)),

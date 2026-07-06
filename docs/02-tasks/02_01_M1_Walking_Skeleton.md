@@ -28,10 +28,10 @@
 
 - 2026-07-02：提交 `befc204` 后继续落地 M1 骨架。
 - 2026-07-06：小程序 UI/体验完成一轮按 `docs/design` handoff 的统一落地。已覆盖 `pages/employee/index`（我的名片首页 + 发名片弹层）、`pages/employee/edit`、`pages/employee/style`、`pages/public/card`、`pages/card-wallet/index`、`pages/company-card/index` 与旧兼容 `pages/employee/card`；统一修正页面标题、中文文案、全局 token、卡片/按钮/状态/底部操作栏样式，并补齐加载、错误、失效、空态等前端状态表达。
-- 2026-07-06：小程序端当前仅负责调用 `wx.qy.login` 获取 code 并请求后端 `POST /api/v1/auth/qy-login`；真实企业微信第三方服务商授权、suite_ticket/permanent_code、`service/miniprogram/jscode2session` 换取 `open_userid`、租户/员工身份定位仍属于后端 + 平台接入线，待 `02_00_M0_Platform_Verification.md` 的 M0-M1 gate 实测完成后替换 demo repository。
+- 2026-07-06：小程序端当前负责调用 `wx.qy.login` 获取 code 并请求后端 `POST /api/v1/auth/qy-login`；后端已接入可单测真实企业微信路径：suite_ticket/permanent_code、`service/miniprogram/jscode2session` 换取 `open_userid`、按授权 tenant 定位、员工身份 upsert 与默认名片初始化。正式对外启用和字段语义承诺仍待 `02_00_M0_Platform_Verification.md` 的 M0-M1 gate 实测。
 - 2026-07-06：访客页已保留“加企微”动作入口和埋点占位，但真实添加企业微信依赖 M3 客户联系能力（contact_way / welcome_msg / external_userid 映射）与企业微信权限实测；M1 不把该动作计为已闭环。
 - `backend/` 已具备 NestJS + Fastify + node-postgres 独立 npm 子项目，contracts 暂放 `backend/src/contracts/`。
-- 已实现 `POST /api/v1/auth/qy-login` 的 demo code 登录骨架，返回员工 access token、当前身份和默认 `public_id`；真实企业微信 `jscode2session` 待 M0 实测凭据完成后替换 repository。
+- 已实现 `POST /api/v1/auth/qy-login` 的真实 WeCom adapter 接入与非生产 demo code 降级，返回员工 access token、当前身份和默认 `public_id`；真实企业微信字段仍需 M0 实测凭据完成后校准。
 - 已实现 `GET /api/v1/employee/cards/current`、`PUT /api/v1/employee/cards/current` 和 `POST /api/v1/employee/cards/current/share`，可用 bearer token 读取/更新当前员工默认名片并签发 `share_id`。
 - 已实现公开名片 `GET /api/v1/public/cards/{public_id}`、`POST /visit`、`POST /actions`、`POST /shares/derive` 的 demo 闭环，GET 不下发 `visit_token`，动作上报幂等，客户二次转发可用 `visit_token` 派生 `share_id`。
 - 已新增 `admin/` 静态联调工作台和 `miniprogram/` 原生小程序骨架；小程序已按 `01_03 v1.2` 对齐三栏导航（我的名片 / 名片夹 / 企业名片），M1 覆盖员工首页、编辑资料、样式入口、访客详情、公开访问、visit、动作上报、派生分享，M2/M3 模块保留空状态入口。
