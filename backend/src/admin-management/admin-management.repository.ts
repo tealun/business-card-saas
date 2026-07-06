@@ -36,7 +36,7 @@ interface SyncEventRow extends QueryResultRow {
   event_key: string;
   event_type: string;
   change_type: string | null;
-  status: "received" | "processing" | "done" | "failed";
+  status: "received" | "processing" | "done" | "failed" | "dead";
   retry_count: number;
   received_at: Date | string;
   processed_at: Date | string | null;

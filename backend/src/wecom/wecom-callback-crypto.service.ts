@@ -36,8 +36,22 @@ export class WecomCallbackCryptoService {
       throw new UnauthorizedException("invalid WeCom callback signature");
     }
 
+    return this.decryptTrustedCiphertext(payload.encrypt, {
+      aesKey: encodingAesKey,
+      expectedReceiveId
+    });
+  }
+
+  decryptTrustedCiphertext(encrypt: string, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
+    const suite = this.config.suite;
+    const encodingAesKey = options.aesKey ?? suite.callbackAesKey;
+    const expectedReceiveId = options.expectedReceiveId === undefined ? suite.suiteId : options.expectedReceiveId;
+    if (!this.hasValidAesKey(encodingAesKey)) {
+      throw new ServiceUnavailableException("WeCom callback AES key is not configured");
+    }
+
     const aesKey = this.decodeAesKey(encodingAesKey);
-    const decrypted = this.decryptCipherText(payload.encrypt, aesKey);
+    const decrypted = this.decryptCipherText(encrypt, aesKey);
     const unpadded = this.removePkcs7Padding(decrypted);
     if (unpadded.length < 20) {
       throw new BadRequestException("invalid WeCom callback payload");

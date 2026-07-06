@@ -223,6 +223,13 @@ document.querySelector("#loadSyncEvents").addEventListener("click", async () => 
   await run("loading sync events", adminOutput, async () => adminRequest("/admin/sync-events"));
 });
 
+document.querySelector("#retrySyncEvents").addEventListener("click", async () => {
+  await run("retrying failed sync events", adminOutput, async () =>
+    adminRequest("/admin/sync-events/retry", { method: "POST" })
+  );
+  document.querySelector("#loadSyncEvents").click();
+});
+
 document.querySelector("#loadAdminCard").addEventListener("click", async () => {
   state.adminMemberId = adminMemberIdInput.value.trim();
   const card = await run("loading admin card", adminCardOutput, async () =>

@@ -3,7 +3,7 @@ import type { QueryResultRow } from "pg";
 import { DatabaseService } from "../database/database.service.js";
 
 export type WecomCallbackEventSource = "command" | "data";
-export type WecomCallbackEventStatus = "received" | "processing" | "done" | "failed";
+export type WecomCallbackEventStatus = "received" | "processing" | "done" | "failed" | "dead";
 
 const PROCESSING_STALE_MS = 5 * 60 * 1000;
 
@@ -19,6 +19,15 @@ export interface BeginWecomCallbackEventInput {
 export interface BeginWecomCallbackEventResult {
   shouldProcess: boolean;
   status: WecomCallbackEventStatus;
+  retryCount: number;
+}
+
+export interface RetryableWecomCallbackEvent {
+  eventKey: string;
+  tenantId: string | null;
+  eventType: string;
+  changeType: string | null;
+  payloadEncrypted: string;
   retryCount: number;
 }
 
@@ -40,6 +49,15 @@ interface CallbackEventRow extends QueryResultRow {
   status: WecomCallbackEventStatus;
   retry_count: number;
   updated_at: Date | string;
+}
+
+interface RetryableCallbackEventRow extends QueryResultRow {
+  event_key: string;
+  tenant_id: string | number | bigint | null;
+  event_type: string;
+  change_type: string | null;
+  payload_encrypted: string;
+  retry_count: number;
 }
 
 @Injectable()
@@ -162,8 +180,14 @@ export class WecomCallbackEventRepository {
     );
   }
 
-  async markFailed(eventKey: string, error: unknown, tenantId: string | null): Promise<void> {
+  async markFailed(
+    eventKey: string,
+    error: unknown,
+    tenantId: string | null,
+    options: { deadLetter?: boolean } = {}
+  ): Promise<void> {
     const message = errorMessage(error);
+    const status: WecomCallbackEventStatus = options.deadLetter ? "dead" : "failed";
     if (!this.hasDatabase()) {
       const current = this.memory.get(eventKey);
       if (current) {
@@ -171,7 +195,7 @@ export class WecomCallbackEventRepository {
         this.memory.set(eventKey, {
           ...current,
           tenantId: tenantId ?? current.tenantId,
-          status: "failed",
+          status,
           lastError: message,
           updatedAt: now
         });
@@ -183,13 +207,67 @@ export class WecomCallbackEventRepository {
       `
         UPDATE callback_events
         SET tenant_id = COALESCE($2, tenant_id),
-            status = 'failed',
+            status = $4,
             last_error = $3,
             updated_at = now()
         WHERE event_key = $1
       `,
-      [eventKey, tenantId, message]
+      [eventKey, tenantId, message, status]
     );
+  }
+
+  async listRetryableDataEvents(
+    maxRetryCount: number,
+    limit = 20,
+    tenantId: string | null = null
+  ): Promise<RetryableWecomCallbackEvent[]> {
+    if (!this.hasDatabase()) {
+      return [...this.memory.entries()]
+        .filter(([, event]) => event.source === "data")
+        .filter(([, event]) => !tenantId || event.tenantId === tenantId)
+        .filter(([, event]) => event.status === "failed")
+        .filter(([, event]) => Boolean(event.payloadEncrypted))
+        .filter(([, event]) => event.retryCount < maxRetryCount)
+        .sort((left, right) => left[1].updatedAt.getTime() - right[1].updatedAt.getTime())
+        .slice(0, limit)
+        .map(([eventKey, event]) => ({
+          eventKey,
+          tenantId: event.tenantId,
+          eventType: event.eventType,
+          changeType: event.changeType,
+          payloadEncrypted: event.payloadEncrypted!,
+          retryCount: event.retryCount
+        }));
+    }
+
+    const result = await this.database!.query<RetryableCallbackEventRow>(
+      `
+        SELECT
+          event_key,
+          tenant_id,
+          event_type,
+          change_type,
+          payload_encrypted,
+          retry_count
+        FROM callback_events
+        WHERE source = 'data'
+          AND status = 'failed'
+          AND payload_encrypted IS NOT NULL
+          AND retry_count < $1
+          AND ($3::bigint IS NULL OR tenant_id = $3)
+        ORDER BY updated_at ASC, id ASC
+        LIMIT $2
+      `,
+      [maxRetryCount, limit, tenantId]
+    );
+    return result.rows.map((row) => ({
+      eventKey: row.event_key,
+      tenantId: row.tenant_id === null ? null : String(row.tenant_id),
+      eventType: row.event_type,
+      changeType: row.change_type,
+      payloadEncrypted: row.payload_encrypted,
+      retryCount: row.retry_count
+    }));
   }
 
   private beginProcessingInMemory(input: BeginWecomCallbackEventInput): BeginWecomCallbackEventResult {

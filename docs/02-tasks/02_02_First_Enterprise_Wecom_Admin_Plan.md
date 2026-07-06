@@ -32,7 +32,8 @@
 - 2026-07-06：阶段 5.4 后台同步日志查询起步：新增 `GET /api/v1/admin/sync-events`，按当前租户读取最近 `callback_events` 摘要，workbench 增加“同步日志”按钮；失败重试 job、死信/告警仍待后续落地。
 - 2026-07-07：后台员工启停配置闭环已起步：`PUT /api/v1/admin/members/{id}/card` 支持 `status=active|disabled`，数据库模式同步更新成员、主名片与公开目录状态，workbench 增加成员状态选择。
 - 2026-07-07：后台员工名片字段配置已进入数据库持久化：`GET/PUT /api/v1/admin/members/{id}/card` 数据库模式读写 `cards`，联系方式字段以 `fields_encrypted` 加密保存，姓名/职位/隐私/启停状态与公开目录同步。
-- 下一步：阶段 5.4 失败重试 job、死信/告警；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
+- 2026-07-07：阶段 5.4 失败重试/死信最小闭环已起步：新增后台 `POST /api/v1/admin/sync-events/retry`，可重放 failed data callback 的已验证密文，超过重试上限后标记 `dead`，workbench 增加“重试失败”按钮。
+- 下一步：真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件；失败告警的外部通知通道待后续接入。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -104,7 +105,7 @@
 | 5.1 | 首次授权全量同步可见范围成员（手动触发已实现） | `POST /admin/members/sync` + sync service | 试点企业成员进入 `member_identities` |
 | 5.2 | 通讯录变更回调处理（最小版已实现） | `GET/POST /wecom/callbacks/data` | 新增/更新/离职能影响成员与名片状态 |
 | 5.3 | 回调幂等日志（最小版已实现）+ 离职/停用降级 | `callback_events` + card status/public page | 重复回调可去重；离职员工公开页展示友好失效态，隐藏增强动作 |
-| 5.4 | 同步失败重试与告警（后台日志查询已起步） | `GET /admin/sync-events` + job log | 失败可重试，不阻塞已登录员工使用 |
+| 5.4 | 同步失败重试与告警（重试/死信已起步） | `GET /admin/sync-events` + `POST /admin/sync-events/retry` + job log | 失败可重试；超过上限进入 `dead`，不阻塞已登录员工使用 |
 
 阶段验收：试点企业成员变更能反映到系统员工列表和名片状态。
 

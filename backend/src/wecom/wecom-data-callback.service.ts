@@ -14,6 +14,15 @@ export interface WecomDataCallbackResult {
   handled: boolean;
 }
 
+export interface WecomDataCallbackRetryResult {
+  retriedCount: number;
+  succeededCount: number;
+  failedCount: number;
+  deadCount: number;
+}
+
+const MAX_CALLBACK_RETRIES = 5;
+
 @Injectable()
 export class WecomDataCallbackService {
   constructor(
@@ -58,6 +67,41 @@ export class WecomDataCallbackService {
       this.decryptOptions()
     );
     return this.handleDataMessage(decrypted.message, decrypted.receiveId, encrypt);
+  }
+
+  async retryFailedEvents(input: { tenantId?: string; limit?: number } = {}): Promise<WecomDataCallbackRetryResult> {
+    const candidates = await this.events.listRetryableDataEvents(
+      MAX_CALLBACK_RETRIES,
+      input.limit ?? 20,
+      input.tenantId ?? null
+    );
+    const result: WecomDataCallbackRetryResult = {
+      retriedCount: 0,
+      succeededCount: 0,
+      failedCount: 0,
+      deadCount: 0
+    };
+
+    for (const event of candidates) {
+      result.retriedCount += 1;
+      const shouldDeadLetter = event.retryCount + 1 >= MAX_CALLBACK_RETRIES;
+      try {
+        const decrypted = this.crypto.decryptTrustedCiphertext(event.payloadEncrypted, this.decryptOptions());
+        await this.handleDataMessage(decrypted.message, decrypted.receiveId, event.payloadEncrypted);
+        result.succeededCount += 1;
+      } catch (error) {
+        result.failedCount += 1;
+        if (shouldDeadLetter) {
+          result.deadCount += 1;
+        }
+        if (isDecryptFailure(error)) {
+          await this.events.markFailed(event.eventKey, error, event.tenantId, { deadLetter: true });
+          result.deadCount += shouldDeadLetter ? 0 : 1;
+        }
+      }
+    }
+
+    return result;
   }
 
   private async handleDataMessage(
@@ -134,7 +178,9 @@ export class WecomDataCallbackService {
       return { event, changeType, tenantId: tenant.tenantId, handled: false };
     } catch (error) {
       try {
-        await this.events.markFailed(eventKey, error, tenant.tenantId);
+        await this.events.markFailed(eventKey, error, tenant.tenantId, {
+          deadLetter: eventRecord.retryCount >= MAX_CALLBACK_RETRIES
+        });
       } catch {
         // Preserve the original callback processing error.
       }
@@ -150,6 +196,10 @@ export class WecomDataCallbackService {
       expectedReceiveId: null
     };
   }
+}
+
+function isDecryptFailure(error: unknown): boolean {
+  return error instanceof BadRequestException;
 }
 
 function normalizeQuery(query: WecomCallbackQueryInput): WecomCallbackQuery {
