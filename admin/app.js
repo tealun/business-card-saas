@@ -1,6 +1,8 @@
 const state = {
   token: "",
+  adminToken: localStorage.getItem("bc_admin_token") || "",
   card: null,
+  adminMemberId: "",
   shareId: "",
   visitToken: "",
   anonId: ""
@@ -9,13 +11,23 @@ const state = {
 const apiBaseInput = document.querySelector("#apiBase");
 const apiStatus = document.querySelector("#apiStatus");
 const loginStatus = document.querySelector("#loginStatus");
+const adminStatus = document.querySelector("#adminStatus");
 const shareStatus = document.querySelector("#shareStatus");
 const sessionOutput = document.querySelector("#sessionOutput");
 const publicOutput = document.querySelector("#publicOutput");
+const adminOutput = document.querySelector("#adminOutput");
+const adminCardOutput = document.querySelector("#adminCardOutput");
+const companyOutput = document.querySelector("#companyOutput");
+const configOutput = document.querySelector("#configOutput");
 const cardForm = document.querySelector("#cardForm");
+const companyForm = document.querySelector("#companyForm");
 const sharePath = document.querySelector("#sharePath");
+const adminTokenInput = document.querySelector("#adminToken");
+const adminMemberIdInput = document.querySelector("#adminMemberId");
+const templateNameInput = document.querySelector("#templateName");
 
 apiBaseInput.value = localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1";
+adminTokenInput.value = state.adminToken;
 apiBaseInput.addEventListener("change", () => localStorage.setItem("bc_api_base", apiBaseInput.value.trim()));
 
 function apiBase() {
@@ -27,8 +39,9 @@ async function request(path, options = {}) {
     "content-type": "application/json",
     ...(options.headers || {})
   };
-  if (options.auth !== false && state.token) {
-    headers.authorization = `Bearer ${state.token}`;
+  const token = options.token === undefined ? state.token : options.token;
+  if (options.auth !== false && token) {
+    headers.authorization = `Bearer ${token}`;
   }
   const response = await fetch(`${apiBase()}${path}`, {
     ...options,
@@ -41,6 +54,10 @@ async function request(path, options = {}) {
     throw new Error(body?.message || `${response.status} ${response.statusText}`);
   }
   return body && typeof body === "object" && "data" in body ? body.data : body;
+}
+
+function adminRequest(path, options = {}) {
+  return request(path, { ...options, token: state.adminToken });
 }
 
 function write(target, value) {
@@ -59,6 +76,31 @@ function fillCard(card) {
   cardForm.show_mobile.checked = Boolean(card.privacy?.show_mobile);
   cardForm.show_email.checked = Boolean(card.privacy?.show_email);
   cardForm.show_wechat.checked = Boolean(card.privacy?.show_wechat);
+}
+
+function cardPayloadFromForm() {
+  return {
+    display_name: cardForm.display_name.value,
+    title: cardForm.title.value || null,
+    fields: {
+      mobile: cardForm.mobile.value || null,
+      phone: cardForm.phone.value || null,
+      email: cardForm.email.value || null,
+      wechat_id: cardForm.wechat_id.value || null,
+      address: cardForm.address.value || null
+    },
+    privacy: {
+      show_mobile: cardForm.show_mobile.checked,
+      show_email: cardForm.show_email.checked,
+      show_wechat: cardForm.show_wechat.checked
+    }
+  };
+}
+
+function fillCompany(profile) {
+  companyForm.display_name.value = profile.display_name || "";
+  companyForm.website_url.value = profile.website_url || "";
+  companyForm.address.value = profile.address || "";
 }
 
 async function run(label, target, fn) {
@@ -99,22 +141,7 @@ document.querySelector("#loadCard").addEventListener("click", async () => {
 document.querySelector("#saveCard").addEventListener("click", async () => {
   const card = await run("saving card", sessionOutput, async () => request("/employee/cards/current", {
     method: "PUT",
-    body: {
-      display_name: cardForm.display_name.value,
-      title: cardForm.title.value,
-      fields: {
-        mobile: cardForm.mobile.value || null,
-        phone: cardForm.phone.value || null,
-        email: cardForm.email.value || null,
-        wechat_id: cardForm.wechat_id.value || null,
-        address: cardForm.address.value || null
-      },
-      privacy: {
-        show_mobile: cardForm.show_mobile.checked,
-        show_email: cardForm.show_email.checked,
-        show_wechat: cardForm.show_wechat.checked
-      }
-    }
+    body: cardPayloadFromForm()
   }));
   fillCard(card);
 });
@@ -153,6 +180,87 @@ document.querySelector("#deriveShare").addEventListener("click", async () => {
     method: "POST",
     headers: { authorization: `Bearer ${state.visitToken}` },
     body: { parent_share_id: state.shareId || "shr_demo0001" }
+  }));
+});
+
+document.querySelector("#saveAdminToken").addEventListener("click", () => {
+  state.adminToken = adminTokenInput.value.trim();
+  localStorage.setItem("bc_admin_token", state.adminToken);
+  adminStatus.textContent = state.adminToken ? "已保存" : "未连接";
+});
+
+document.querySelector("#loadAdminMe").addEventListener("click", async () => {
+  const result = await run("loading admin session", adminOutput, async () => adminRequest("/admin/session/me"));
+  adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
+  state.adminMemberId = result.admin.member_identity_id || "";
+  adminMemberIdInput.value = state.adminMemberId;
+});
+
+document.querySelector("#loadOverview").addEventListener("click", async () => {
+  await run("loading overview", adminOutput, async () => adminRequest("/admin/overview"));
+});
+
+document.querySelector("#loadMembers").addEventListener("click", async () => {
+  const result = await run("loading members", adminOutput, async () => adminRequest("/admin/members"));
+  const first = result.items?.[0];
+  if (first?.member_identity_id) {
+    state.adminMemberId = first.member_identity_id;
+    adminMemberIdInput.value = first.member_identity_id;
+  }
+});
+
+document.querySelector("#loadAdminCard").addEventListener("click", async () => {
+  state.adminMemberId = adminMemberIdInput.value.trim();
+  const card = await run("loading admin card", adminCardOutput, async () =>
+    adminRequest(`/admin/members/${encodeURIComponent(state.adminMemberId)}/card`)
+  );
+  fillCard(card);
+});
+
+document.querySelector("#saveAdminCard").addEventListener("click", async () => {
+  state.adminMemberId = adminMemberIdInput.value.trim();
+  const card = await run("saving admin card", adminCardOutput, async () =>
+    adminRequest(`/admin/members/${encodeURIComponent(state.adminMemberId)}/card`, {
+      method: "PUT",
+      body: cardPayloadFromForm()
+    })
+  );
+  fillCard(card);
+});
+
+document.querySelector("#loadCompanyProfile").addEventListener("click", async () => {
+  const profile = await run("loading company profile", companyOutput, async () => adminRequest("/admin/company-profile"));
+  fillCompany(profile);
+});
+
+document.querySelector("#saveCompanyProfile").addEventListener("click", async () => {
+  const profile = await run("saving company profile", companyOutput, async () => adminRequest("/admin/company-profile", {
+    method: "PUT",
+    body: {
+      display_name: companyForm.display_name.value,
+      website_url: companyForm.website_url.value || null,
+      address: companyForm.address.value || null
+    }
+  }));
+  fillCompany(profile);
+});
+
+document.querySelector("#loadFieldSettings").addEventListener("click", async () => {
+  await run("loading field settings", configOutput, async () => adminRequest("/admin/settings/fields"));
+});
+
+document.querySelector("#loadTemplates").addEventListener("click", async () => {
+  await run("loading templates", configOutput, async () => adminRequest("/admin/templates"));
+});
+
+document.querySelector("#createTemplate").addEventListener("click", async () => {
+  await run("creating template", configOutput, async () => adminRequest("/admin/templates", {
+    method: "POST",
+    body: {
+      name: templateNameInput.value || "商务模板",
+      color_scheme: { primary: "#1677ff", surface: "#ffffff" },
+      layout: { variant: "horizontal-business" }
+    }
   }));
 });
 

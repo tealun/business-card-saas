@@ -16,6 +16,9 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 
 - API 健康检查
 - demo `qy-login`
+- Admin token 保存与 `admin/session/me`
+- 后台概览、成员列表、成员名片读取/配置
+- 字段规则、企业资料、模板配置联调入口
 - 当前员工名片读取/更新
 - 员工分享 `share_id` 签发
 - 公开名片预览
