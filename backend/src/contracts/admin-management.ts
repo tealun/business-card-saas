@@ -23,6 +23,18 @@ export const adminMemberListResponseSchema = z.object({
   total: z.number().int().min(0)
 });
 
+export const adminMemberListQuerySchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+  status: z.enum(["active", "disabled", "all"]).optional().default("all"),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0)
+});
+
 export const adminMemberCardResponseSchema = employeeCardResponseSchema;
 export const updateAdminMemberCardRequestSchema = updateEmployeeCardRequestSchema.extend({
   status: z.enum(["active", "disabled"]).optional()
@@ -62,6 +74,7 @@ export const adminSyncEventListResponseSchema = z.object({
 export type AdminOverviewResponse = z.infer<typeof adminOverviewResponseSchema>;
 export type AdminMemberSummary = z.infer<typeof adminMemberSummarySchema>;
 export type AdminMemberListResponse = z.infer<typeof adminMemberListResponseSchema>;
+export type AdminMemberListQuery = z.infer<typeof adminMemberListQuerySchema>;
 export type AdminMemberCardResponse = z.infer<typeof adminMemberCardResponseSchema>;
 export type UpdateAdminMemberCardRequest = z.infer<typeof updateAdminMemberCardRequestSchema>;
 export type AdminMemberSyncResponse = z.infer<typeof adminMemberSyncResponseSchema>;
