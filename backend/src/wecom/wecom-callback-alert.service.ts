@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { WecomConfigService } from "./wecom-config.service.js";
 
 export interface WecomDeadLetterAlertInput {
@@ -43,7 +44,7 @@ export class WecomCallbackAlertService {
         body: JSON.stringify({
           type: "wecom_callback_dead_letter",
           source: input.source,
-          event_key: input.eventKey,
+          event_key_hash: hashEventKey(input.eventKey),
           tenant_id: input.tenantId,
           event_type: input.eventType,
           change_type: input.changeType,
@@ -59,4 +60,8 @@ export class WecomCallbackAlertService {
       clearTimeout(timeout);
     }
   }
+}
+
+function hashEventKey(eventKey: string): string {
+  return createHash("sha256").update(eventKey).digest("hex");
 }

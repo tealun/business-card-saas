@@ -182,7 +182,7 @@
 | GET `/api/v1/wecom/callbacks/data` | 企业微信签名 | 数据回调 URL 验证；使用数据回调 Token/AESKey |
 | POST `/api/v1/wecom/callbacks/data` | 企业微信签名 | 接收第三方数据回调 `InfoType=change_contact`/`AuthCorpId` 增量同步；兼容内部应用 `Event=change_contact`，当前处理 create/update/delete_user |
 
-数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推或后台 `POST /api/v1/admin/sync-events/retry` 后重新处理。为避免进程异常导致事件永久卡在 `processing`，`processing` 超过 5 分钟后按重试处理并递增 `retry_count`；超过重试上限后标记为 `dead`，由后台日志展示并进入人工排查。若配置 `WECOM_CALLBACK_ALERT_WEBHOOK_URL`，进入 `dead` 时会发送脱敏 webhook 告警。
+数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推或后台 `POST /api/v1/admin/sync-events/retry` 后重新处理。为避免进程异常导致事件永久卡在 `processing`，`processing` 超过 5 分钟后按重试处理并递增 `retry_count`；超过重试上限后标记为 `dead`，由后台日志展示并进入人工排查。若配置 `WECOM_CALLBACK_ALERT_WEBHOOK_URL`，进入 `dead` 时会发送脱敏 webhook 告警，payload 使用 `event_key_hash`，不发送原始密文或原始事件 key。
 
 ## 4. 待核对
 

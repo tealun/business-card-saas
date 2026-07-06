@@ -44,7 +44,7 @@ describe("WecomCallbackAlertService", () => {
     expect(JSON.parse(String(init.body))).toEqual({
       type: "wecom_callback_dead_letter",
       source: "data",
-      event_key: "event-001",
+      event_key_hash: "708ea4def782618c6f50836c045f386f823faedd792430c8cbfb282eaf593797",
       tenant_id: "tenant-001",
       event_type: "change_contact",
       change_type: "update_user",
@@ -53,6 +53,7 @@ describe("WecomCallbackAlertService", () => {
     });
     expect(String(init.body)).not.toContain("cipher");
     expect(String(init.body)).not.toContain("perm");
+    expect(String(init.body)).not.toContain("event-001");
   });
 });
 
