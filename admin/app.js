@@ -3,6 +3,8 @@ const state = {
   adminToken: localStorage.getItem("bc_admin_token") || "",
   card: null,
   fieldSettings: [],
+  templates: [],
+  selectedTemplateId: "",
   adminMemberId: "",
   shareId: "",
   visitToken: "",
@@ -30,7 +32,15 @@ const wecomLaunchTokenInput = document.querySelector("#wecomLaunchToken");
 const wecomRedirectUriInput = document.querySelector("#wecomRedirectUri");
 const adminMemberIdInput = document.querySelector("#adminMemberId");
 const adminCardStatusInput = document.querySelector("#adminCardStatus");
+const templateForm = document.querySelector("#templateForm");
+const templateIdInput = document.querySelector("#templateId");
 const templateNameInput = document.querySelector("#templateName");
+const templateStatusInput = document.querySelector("#templateStatus");
+const templateBackgroundUrlInput = document.querySelector("#templateBackgroundUrl");
+const templateLogoUrlInput = document.querySelector("#templateLogoUrl");
+const templatePrimaryColorInput = document.querySelector("#templatePrimaryColor");
+const templateSurfaceColorInput = document.querySelector("#templateSurfaceColor");
+const templateLayoutVariantInput = document.querySelector("#templateLayoutVariant");
 const metricMembers = document.querySelector("#metricMembers");
 const metricCards = document.querySelector("#metricCards");
 const metricActiveCards = document.querySelector("#metricActiveCards");
@@ -43,6 +53,7 @@ const syncEventRows = document.querySelector("#syncEventRows");
 apiBaseInput.value = localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1";
 adminTokenInput.value = state.adminToken;
 apiBaseInput.addEventListener("change", () => localStorage.setItem("bc_api_base", apiBaseInput.value.trim()));
+templateForm.addEventListener("submit", (event) => event.preventDefault());
 
 document.querySelectorAll("[data-view-target]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -224,11 +235,62 @@ function renderFieldSettings(result) {
 }
 
 function renderTemplates(result) {
-  renderRows(templateRows, result.items, 3, (template) => [
-    template.name,
-    template.is_default,
-    template.status
-  ]);
+  state.templates = result.items || [];
+  templateRows.replaceChildren();
+  if (!state.templates.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.textContent = "暂无数据";
+    row.append(cell);
+    templateRows.append(row);
+    return;
+  }
+  const selectedTemplate =
+    state.templates.find((template) => template.template_id === state.selectedTemplateId) ||
+    state.templates.find((template) => template.is_default) ||
+    state.templates[0];
+  if (selectedTemplate) {
+    fillTemplateForm(selectedTemplate);
+  }
+  state.templates.forEach((template) => {
+    const row = document.createElement("tr");
+    row.dataset.templateId = template.template_id;
+    row.classList.toggle("selected-row", template.template_id === state.selectedTemplateId);
+
+    const nameCell = document.createElement("td");
+    const name = document.createElement("strong");
+    name.textContent = template.name;
+    const id = document.createElement("span");
+    id.className = "muted-line";
+    id.textContent = template.template_id;
+    nameCell.append(name, id);
+    row.append(nameCell);
+
+    const defaultCell = document.createElement("td");
+    defaultCell.textContent = template.is_default ? "是" : "否";
+    row.append(defaultCell);
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = template.status;
+    row.append(statusCell);
+
+    const colorCell = document.createElement("td");
+    colorCell.append(
+      colorSwatch(String(template.color_scheme?.primary || "#1677ff")),
+      colorSwatch(String(template.color_scheme?.surface || "#ffffff"))
+    );
+    row.append(colorCell);
+
+    const actionCell = document.createElement("td");
+    actionCell.className = "table-actions";
+    actionCell.append(
+      templateActionButton("选择", "select", template.template_id),
+      templateActionButton("默认", "default", template.template_id)
+    );
+    row.append(actionCell);
+    templateRows.append(row);
+  });
 }
 
 function fieldSettingsPayloadFromTable() {
@@ -261,6 +323,68 @@ function fieldSettingsPayloadFromTable() {
       };
     })
   };
+}
+
+function colorSwatch(color) {
+  const swatch = document.createElement("span");
+  swatch.className = "color-swatch";
+  swatch.style.backgroundColor = color;
+  swatch.title = color;
+  return swatch;
+}
+
+function templateActionButton(label, action, templateId) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary mini-button";
+  button.dataset.templateAction = action;
+  button.dataset.templateId = templateId;
+  button.textContent = label;
+  return button;
+}
+
+function fillTemplateForm(template) {
+  state.selectedTemplateId = template.template_id;
+  templateIdInput.value = template.template_id;
+  templateNameInput.value = template.name;
+  templateStatusInput.value = template.status;
+  templateBackgroundUrlInput.value = template.background_url || "";
+  templateLogoUrlInput.value = template.logo_url || "";
+  templatePrimaryColorInput.value = String(template.color_scheme?.primary || "#1677ff");
+  templateSurfaceColorInput.value = String(template.color_scheme?.surface || "#ffffff");
+  templateLayoutVariantInput.value = String(template.layout?.variant || "horizontal-business");
+}
+
+function nullableUrlFromInput(input) {
+  const value = input.value.trim();
+  return value || null;
+}
+
+function templatePayloadFromForm(options = {}) {
+  const payload = {
+    name: templateNameInput.value.trim() || "商务蓝模板",
+    background_url: nullableUrlFromInput(templateBackgroundUrlInput),
+    logo_url: nullableUrlFromInput(templateLogoUrlInput),
+    color_scheme: {
+      primary: templatePrimaryColorInput.value.trim() || "#1677ff",
+      surface: templateSurfaceColorInput.value.trim() || "#ffffff"
+    },
+    layout: {
+      variant: templateLayoutVariantInput.value.trim() || "horizontal-business"
+    }
+  };
+  if (options.includeStatus) {
+    payload.status = templateStatusInput.value;
+  }
+  return payload;
+}
+
+function selectedTemplateIdFromForm() {
+  const templateId = templateIdInput.value.trim();
+  if (!templateId) {
+    throw new Error("请先选择模板");
+  }
+  return templateId;
 }
 
 async function run(label, target, fn) {
@@ -482,21 +606,78 @@ document.querySelector("#saveFieldSettings").addEventListener("click", async () 
   renderFieldSettings(result);
 });
 
-document.querySelector("#loadTemplates").addEventListener("click", async () => {
+async function loadTemplates() {
   const result = await run("loading templates", configOutput, async () => adminRequest("/admin/templates"));
   renderTemplates(result);
+  return result;
+}
+
+document.querySelector("#loadTemplates").addEventListener("click", async () => {
+  await loadTemplates();
 });
 
 document.querySelector("#createTemplate").addEventListener("click", async () => {
-  await run("creating template", configOutput, async () => adminRequest("/admin/templates", {
-    method: "POST",
-    body: {
-      name: templateNameInput.value || "商务模板",
-      color_scheme: { primary: "#1677ff", surface: "#ffffff" },
-      layout: { variant: "horizontal-business" }
-    }
-  }));
-  document.querySelector("#loadTemplates").click();
+  const template = await run("creating template", configOutput, async () =>
+    adminRequest("/admin/templates", {
+      method: "POST",
+      body: templatePayloadFromForm()
+    })
+  );
+  state.selectedTemplateId = template.template_id;
+  fillTemplateForm(template);
+  await loadTemplates();
+});
+
+document.querySelector("#updateTemplate").addEventListener("click", async () => {
+  const templateId = selectedTemplateIdFromForm();
+  const template = await run("saving template", configOutput, async () =>
+    adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, {
+      method: "PUT",
+      body: templatePayloadFromForm({ includeStatus: true })
+    })
+  );
+  state.selectedTemplateId = template.template_id;
+  fillTemplateForm(template);
+  await loadTemplates();
+});
+
+document.querySelector("#setDefaultTemplate").addEventListener("click", async () => {
+  const templateId = selectedTemplateIdFromForm();
+  const template = await run("setting default template", configOutput, async () =>
+    adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" })
+  );
+  state.selectedTemplateId = template.template_id;
+  fillTemplateForm(template);
+  await loadTemplates();
+});
+
+templateRows.addEventListener("click", async (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const button = event.target.closest("button[data-template-action]");
+  if (!(button instanceof HTMLButtonElement)) {
+    return;
+  }
+  const templateId = button.dataset.templateId || "";
+  const template = state.templates.find((item) => item.template_id === templateId);
+  if (!template) {
+    configOutput.textContent = "模板不存在，请重新加载列表";
+    return;
+  }
+  if (button.dataset.templateAction === "select") {
+    fillTemplateForm(template);
+    renderTemplates({ items: state.templates });
+    return;
+  }
+  if (button.dataset.templateAction === "default") {
+    const result = await run("setting default template", configOutput, async () =>
+      adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" })
+    );
+    state.selectedTemplateId = result.template_id;
+    fillTemplateForm(result);
+    await loadTemplates();
+  }
 });
 
 document.querySelector("#checkHealth").click();
