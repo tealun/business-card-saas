@@ -146,6 +146,7 @@ async function seedProbeData(pool) {
   await pool.query(`
     TRUNCATE
       wecom_suite_state,
+      callback_events,
       admin_claim_tokens,
       tenant_admins,
       tenant_field_settings,

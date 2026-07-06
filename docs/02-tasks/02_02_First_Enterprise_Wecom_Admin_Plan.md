@@ -28,7 +28,8 @@
 - 2026-07-06：阶段 4.5-4.7 配置持久化已落地：字段规则写入 `tenant_field_settings`，企业资料复用 `company_profiles`，模板配置复用 `templates`，并接入租户事务与 RLS；无 `DATABASE_URL` 时保留内存 fallback 供本地测试。
 - 2026-07-06：阶段 5.1 最小全量同步已起步：新增企业微信 `user/list_id` 分页适配、`WecomContactSyncService`、成员 upsert 与默认名片补齐，并新增 `POST /api/v1/admin/members/sync` 供后台手动触发；`GET /api/v1/admin/members` 在数据库模式下已可读取租户全员。
 - 2026-07-06：阶段 5.2 数据回调最小版已落地：新增 `/api/v1/wecom/callbacks/data` GET/POST，支持独立数据回调 Token/AESKey，处理 `change_contact` 的 `create_user/update_user/delete_user`，离职回调会停用已存在成员、主名片与公开目录。
-- 下一步：阶段 5.3-5.4 同步日志、回调幂等表与失败重试告警；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
+- 2026-07-06：阶段 5.3 回调幂等日志最小版已落地：新增 `callback_events` 平台表和 data callback 事件状态机，`done/processing` 重复事件直接成功返回，`failed` 事件允许企业微信重推后重试并递增 `retry_count`。
+- 下一步：阶段 5.4 失败重试 job、死信/告警与后台可视化同步日志；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -99,7 +100,7 @@
 |---|------|------|------|
 | 5.1 | 首次授权全量同步可见范围成员（手动触发已实现） | `POST /admin/members/sync` + sync service | 试点企业成员进入 `member_identities` |
 | 5.2 | 通讯录变更回调处理（最小版已实现） | `GET/POST /wecom/callbacks/data` | 新增/更新/离职能影响成员与名片状态 |
-| 5.3 | 离职/停用降级 | card status/public page | 离职员工公开页展示友好失效态，隐藏增强动作 |
+| 5.3 | 回调幂等日志（最小版已实现）+ 离职/停用降级 | `callback_events` + card status/public page | 重复回调可去重；离职员工公开页展示友好失效态，隐藏增强动作 |
 | 5.4 | 同步失败重试与告警 | job log | 失败可重试，不阻塞已登录员工使用 |
 
 阶段验收：试点企业成员变更能反映到系统员工列表和名片状态。
