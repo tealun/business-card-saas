@@ -29,6 +29,10 @@
           <strong id="loginStatus">未登录</strong>
         </div>
         <div>
+          <span class="label">Admin</span>
+          <strong id="adminStatus">未连接</strong>
+        </div>
+        <div>
           <span class="label">Share</span>
           <strong id="shareStatus">未签发</strong>
         </div>
@@ -103,6 +107,81 @@
             <button id="deriveShare" class="secondary">派生分享</button>
           </div>
           <pre id="publicOutput" class="output tall" aria-label="public output"></pre>
+        </article>
+      </section>
+
+      <section class="grid admin-grid">
+        <article class="panel compact">
+          <div class="panel-head">
+            <h2>后台会话</h2>
+            <button id="loadAdminMe" class="secondary">读取</button>
+          </div>
+          <label class="stacked">
+            <span>Admin Token</span>
+            <input id="adminToken" autocomplete="off" />
+          </label>
+          <div class="button-row">
+            <button id="saveAdminToken">保存 Token</button>
+            <button id="loadOverview" class="secondary">概览</button>
+            <button id="loadMembers" class="secondary">成员</button>
+          </div>
+          <pre id="adminOutput" class="output" aria-label="admin output"></pre>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>后台名片配置</h2>
+            <button id="saveAdminCard">保存</button>
+          </div>
+          <label class="stacked">
+            <span>Member Identity ID</span>
+            <input id="adminMemberId" autocomplete="off" />
+          </label>
+          <div class="button-row">
+            <button id="loadAdminCard" class="secondary">读取成员名片</button>
+          </div>
+          <pre id="adminCardOutput" class="output" aria-label="admin card output"></pre>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>企业资料</h2>
+            <button id="saveCompanyProfile">保存</button>
+          </div>
+          <form id="companyForm" class="form-grid single">
+            <label>
+              <span>企业名称</span>
+              <input name="display_name" />
+            </label>
+            <label>
+              <span>官网</span>
+              <input name="website_url" />
+            </label>
+            <label>
+              <span>地址</span>
+              <input name="address" />
+            </label>
+          </form>
+          <div class="button-row">
+            <button id="loadCompanyProfile" class="secondary">读取企业资料</button>
+          </div>
+          <pre id="companyOutput" class="output" aria-label="company output"></pre>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>字段与模板</h2>
+            <button id="createTemplate">新增模板</button>
+          </div>
+          <label class="stacked">
+            <span>模板名称</span>
+            <input id="templateName" value="商务蓝模板" />
+          </label>
+          <div class="button-row">
+            <button id="loadFieldSettings" class="secondary">字段规则</button>
+            <button id="loadTemplates" class="secondary">模板列表</button>
+          </div>
+          <pre id="configOutput" class="output tall" aria-label="config output"></pre>
         </article>
       </section>
     </main>
