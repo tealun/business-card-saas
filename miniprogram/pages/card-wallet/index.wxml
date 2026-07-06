@@ -1,11 +1,54 @@
 <view class="page">
-  <view class="panel">
-    <view class="eyebrow">CARD WALLET</view>
-    <view class="title">名片夹</view>
-    <view class="muted">收到的名片、交换请求、名片更新将在 M3 增强。</view>
+  <!-- 顶部 tab -->
+  <view class="wallet-tabs">
+    <view
+      class="wallet-tab {{activeTab === item.key ? 'wallet-tab--active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="switchTab"
+    >
+      {{item.label}}{{item.count}}
+    </view>
   </view>
-  <view class="panel">
-    <input placeholder="搜索姓名 / 公司 / 职位" disabled />
-    <view class="output">MVP 空状态：先保证员工分发和访客详情闭环。</view>
+
+  <!-- 搜索 -->
+  <view class="wallet-search">
+    <view class="wallet-search__box">
+      <view class="icon icon-search icon--sm"></view>
+      <input placeholder="搜索姓名 / 公司 / 职位" value="{{keyword}}" bindinput="onSearch" />
+    </view>
+    <view class="wallet-search__filter"><view class="icon icon-filter icon--sm"></view></view>
+  </view>
+
+  <!-- 列表 / 空态 -->
+  <block wx:if="{{groups.length}}">
+    <view wx:for="{{groups}}" wx:key="title" wx:for-item="group">
+      <view class="wallet-group-title">{{group.title}}</view>
+      <view class="card wallet-list">
+        <view class="wallet-item" wx:for="{{group.items}}" wx:key="id" wx:for-item="item">
+          <view class="wallet-item__avatar wallet-item__avatar--{{item.state}}">{{item.name[0]}}</view>
+          <view class="wallet-item__info">
+            <view class="f14 medium">{{item.name}}</view>
+            <view class="f12 t-secondary">{{item.title}}</view>
+            <view class="f12 t-tertiary">{{item.meta}}</view>
+          </view>
+          <view class="wallet-item__right">
+            <text class="badge badge--success" wx:if="{{item.state === 'exchanged'}}">已交换</text>
+            <text class="badge badge--warning" wx:elif="{{item.state === 'pending'}}">待通过</text>
+            <view class="btn btn--sm btn--ghost" wx:else data-id="{{item.id}}" bindtap="exchange">交换</view>
+            <text class="wallet-item__time">{{item.time}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="wallet-empty" wx:else>
+    <view class="wallet-empty__icon icon icon-contact"></view>
+    <view class="f16 medium">还没有访客记录</view>
+    <view class="f14 t-secondary">把名片发给客户，交换记录会出现在这里。</view>
+    <view class="btn btn--primary btn--sm" bindtap="goSendCard">去发名片</view>
   </view>
 </view>
+

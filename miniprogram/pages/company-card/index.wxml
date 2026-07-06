@@ -1,15 +1,70 @@
-<view class="page">
-  <view class="panel">
-    <view class="eyebrow">COMPANY CARD</view>
-    <view class="title">Demo Tenant</view>
-    <view class="muted">官方认证 / M1 演示企业</view>
+<view class="company-page">
+  <!-- Hero -->
+  <view class="c-hero">
+    <view class="c-hero__nav">企业名片</view>
+    <view class="c-hero__logo"></view>
+    <view class="c-hero__name">
+      {{company.name}}
+      <text class="badge badge--success c-hero__cert" wx:if="{{company.certified}}">已认证</text>
+    </view>
+    <view class="c-hero__stats">
+      <view class="c-hero__stat" wx:for="{{company.stats}}" wx:key="label">
+        <view class="c-hero__num">{{item.num}}</view>
+        <view class="c-hero__label">{{item.label}}</view>
+      </view>
+    </view>
   </view>
-  <view class="panel">
-    <view class="section">企业模板</view>
-    <view class="muted">当前模板：横版商务</view>
+
+  <view class="company-body">
+    <!-- 企业简介 -->
+    <view class="card">
+      <text class="card__title">企业简介</text>
+      <view class="intro-text">{{company.intro}}</view>
+      <view class="edit-tags" style="margin-top:20rpx;">
+        <text class="chip" wx:for="{{company.quals}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 联系与官网 -->
+    <view class="card">
+      <text class="card__title">联系与官网</text>
+      <view class="field-row" bindtap="callCompany">
+        <view class="field-row__label"><view class="icon icon-location icon--sm"></view><text>地址</text></view>
+        <view class="field-row__value">{{company.address}}</view>
+      </view>
+      <view class="field-row" bindtap="callCompany">
+        <view class="field-row__label"><view class="icon icon-phone icon--sm"></view><text>电话</text></view>
+        <view class="field-row__value">{{company.phone}}</view>
+      </view>
+      <view class="field-row" bindtap="copyWebsite">
+        <view class="field-row__label"><view class="icon icon-forward icon--sm"></view><text>官网</text></view>
+        <view class="field-row__value">{{company.website}}</view>
+      </view>
+    </view>
+
+    <!-- 团队成员 -->
+    <view class="card">
+      <text class="card__title">团队成员</text>
+      <block wx:for="{{departments}}" wx:key="name" wx:for-item="dept">
+        <view class="dept-title">{{dept.name}}</view>
+        <view class="member-item" wx:for="{{dept.members}}" wx:key="id" wx:for-item="member">
+          <view class="member-item__avatar">{{member.name[0]}}</view>
+          <view class="member-item__info">
+            <view class="f14 medium">
+              {{member.name}}
+              <text class="badge badge--muted" wx:if="{{member.self}}">本人</text>
+            </view>
+            <view class="f12 t-secondary">{{member.title}}</view>
+          </view>
+          <view class="member-item__entry">名片<view class="icon icon-arrow icon--sm"></view></view>
+        </view>
+      </block>
+    </view>
   </view>
-  <view class="panel">
-    <view class="section">企业内容入口</view>
-    <view class="muted">公司介绍、企业视频、公司荣誉完整维护默认放 Web 后台。</view>
+
+  <view class="company-footer">
+    <view class="btn btn--ghost company-footer__item" bindtap="copyWebsite">进入官网</view>
+    <view class="btn btn--primary company-footer__item" bindtap="followCompany">关注企业</view>
   </view>
 </view>
+

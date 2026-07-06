@@ -9,16 +9,16 @@
     "pages/employee/card"
   ],
   "window": {
-    "navigationBarTitleText": "企业名片",
-    "navigationBarBackgroundColor": "#0f7b63",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#f6f3ea"
+    "navigationBarTitleText": "智云名片",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f4f6f8"
   },
   "tabBar": {
-    "color": "#657065",
-    "selectedColor": "#1677ff",
-    "backgroundColor": "#fffdf6",
-    "borderStyle": "black",
+    "color": "#9aa1ac",
+    "selectedColor": "#2b6cff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/employee/index",

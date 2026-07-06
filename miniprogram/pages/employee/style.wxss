@@ -1,3 +1,62 @@
-.title {
-  margin: 12rpx 0;
+.style-page { padding-bottom: calc(180rpx + env(safe-area-inset-bottom)); }
+
+.style-preview { margin-bottom: 24rpx; }
+.style-preview__tag { position: absolute; right: 32rpx; bottom: 28rpx; }
+
+/* 模板选择 */
+.tpl-scroll { white-space: nowrap; margin-top: 24rpx; }
+
+.tpl-item {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  width: 180rpx;
+  margin-right: 20rpx;
+  padding: 12rpx;
+  border-radius: var(--r-chip);
+  border: 4rpx solid transparent;
+  box-sizing: border-box;
 }
+
+.tpl-item--active { border-color: var(--brand); }
+
+.tpl-item__thumb {
+  width: 100%;
+  height: 108rpx;
+  border-radius: 8rpx;
+  background: var(--brand-tint);
+}
+
+.tpl-item__name { font-size: 24rpx; color: var(--text-secondary); }
+
+.tpl-item__check {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  background-size: 24rpx;
+}
+
+/* 品牌主色 */
+.color-row { display: flex; gap: 28rpx; margin-top: 24rpx; }
+
+.color-dot {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.color-dot--active {
+  border: 6rpx solid #fff;
+  box-shadow: 0 0 0 4rpx var(--brand);
+}
+
+/* 名片码 */
+.qrcode-row { display: flex; align-items: center; justify-content: space-between; }
+.qrcode-row__right { display: flex; align-items: center; gap: 8rpx; }

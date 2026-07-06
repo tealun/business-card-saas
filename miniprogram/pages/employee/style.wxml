@@ -1,11 +1,67 @@
-<view class="page">
-  <view class="panel">
-    <view class="eyebrow">模板</view>
-    <view class="title">横版商务</view>
-    <view class="muted">M1 demo 模板，后续从企业模板库读取。</view>
+<view class="page style-page" style="--brand: {{primary}};">
+  <!-- 实时预览 -->
+  <view class="biz-card style-preview">
+    <view class="biz-card__head">
+      <view class="biz-card__logo" style="background: var(--brand);"></view>
+      <text class="biz-card__company">{{card.company || 'Demo Tenant'}}</text>
+    </view>
+    <view class="biz-card__body">
+      <view class="biz-card__info">
+        <view class="biz-card__name">{{card.display_name || '姓名'}}</view>
+        <view class="biz-card__role">{{card.title || '职位'}}</view>
+        <view class="biz-card__contact">
+          <view>{{card.fields.mobile || '138 0000 0000'}}</view>
+        </view>
+      </view>
+      <view class="biz-card__avatar">{{card.display_name ? card.display_name[0] : '名'}}</view>
+    </view>
+    <text class="badge badge--muted style-preview__tag">实时预览</text>
   </view>
-  <view class="panel">
-    <label class="field"><text>品牌色</text><input value="{{primary}}" bindinput="onPrimary" /></label>
-    <button bindtap="applyStyle">应用样式</button>
+
+  <!-- 选择模板 -->
+  <view class="card">
+    <text class="card__title">选择模板</text>
+    <scroll-view scroll-x class="tpl-scroll" enable-flex>
+      <view
+        class="tpl-item {{templateId === item.id ? 'tpl-item--active' : ''}}"
+        wx:for="{{templates}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="selectTemplate"
+      >
+        <view class="tpl-item__thumb"></view>
+        <text class="tpl-item__name">{{item.name}}</text>
+        <view class="tpl-item__check icon icon-check" wx:if="{{templateId === item.id}}"></view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 品牌主色 -->
+  <view class="card">
+    <text class="card__title">品牌主色</text>
+    <view class="color-row">
+      <view
+        class="color-dot {{primary === item ? 'color-dot--active' : ''}}"
+        wx:for="{{presets}}"
+        wx:key="*this"
+        style="background: {{item}};"
+        data-color="{{item}}"
+        bindtap="selectColor"
+      ></view>
+    </view>
+  </view>
+
+  <!-- 名片码样式 -->
+  <view class="card qrcode-row">
+    <view class="field-row__label">名片码样式</view>
+    <view class="qrcode-row__right">
+      <text class="f14 t-secondary">默认</text>
+      <view class="icon icon-arrow icon--sm"></view>
+    </view>
   </view>
 </view>
+
+<view class="edit-footer">
+  <view class="btn btn--primary btn--block" bindtap="applyStyle">应用此样式</view>
+</view>
+

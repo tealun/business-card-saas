@@ -1,5 +1,104 @@
-.section {
-  margin-bottom: 12rpx;
-  font-size: 30rpx;
+.company-page {
+  min-height: 100vh;
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+/* Hero */
+.c-hero {
+  padding: 0 32rpx 48rpx;
+  background: linear-gradient(160deg, var(--brand-deep) 0%, var(--brand) 100%);
+  color: #fff;
+  text-align: center;
+}
+
+.c-hero__nav {
+  height: 88rpx;
+  line-height: 88rpx;
+  padding-top: calc(env(safe-area-inset-top) + 20rpx);
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.c-hero__logo {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 24rpx auto 0;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.c-hero__name {
+  margin-top: 24rpx;
+  font-size: 40rpx;
   font-weight: 700;
 }
+
+.c-hero__cert { margin-left: 12rpx; vertical-align: middle; }
+
+.c-hero__stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 32rpx;
+  padding: 24rpx;
+  border-radius: var(--r-card);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.c-hero__num { font-size: 40rpx; font-weight: 700; }
+.c-hero__label { margin-top: 6rpx; font-size: 24rpx; opacity: 0.85; }
+
+/* Body */
+.company-body { padding: 24rpx 32rpx 0; margin-top: -24rpx; }
+
+.dept-title {
+  margin: 28rpx 0 8rpx;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 0;
+}
+
+.member-item + .member-item { border-top: 1rpx solid var(--divider); }
+
+.member-item__avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.member-item__info { flex: 1; }
+
+.member-item__entry {
+  display: flex;
+  align-items: center;
+  font-size: 26rpx;
+  color: var(--brand);
+}
+
+/* Footer */
+.company-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  box-shadow: 0 -4rpx 16rpx rgba(16, 24, 40, 0.05);
+}
+
+.company-footer__item { flex: 1; }
