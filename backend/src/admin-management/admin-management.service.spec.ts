@@ -28,6 +28,17 @@ describe("AdminManagementService", () => {
     expect(members.items[0]?.member_identity_id).toBe("member-001");
   });
 
+  it("filters fallback member summaries with the shared list query contract", async () => {
+    const service = createService();
+
+    await expect(
+      service.listMembers(ownerSession(), { search: "missing", status: "all", limit: 50, offset: 0 })
+    ).resolves.toEqual({ items: [], total: 0 });
+    await expect(
+      service.listMembers(ownerSession(), { search: "owner", status: "disabled", limit: 50, offset: 0 })
+    ).resolves.toEqual({ items: [], total: 0 });
+  });
+
   it("syncs members when the admin has admin or higher permission", async () => {
     const service = createService();
 

@@ -45,6 +45,10 @@ const metricMembers = document.querySelector("#metricMembers");
 const metricCards = document.querySelector("#metricCards");
 const metricActiveCards = document.querySelector("#metricActiveCards");
 const membersTotal = document.querySelector("#membersTotal");
+const memberSearchInput = document.querySelector("#memberSearch");
+const memberStatusFilterInput = document.querySelector("#memberStatusFilter");
+const memberLimitInput = document.querySelector("#memberLimit");
+const memberOffsetInput = document.querySelector("#memberOffset");
 const membersRows = document.querySelector("#membersRows");
 const fieldRows = document.querySelector("#fieldRows");
 const templateRows = document.querySelector("#templateRows");
@@ -195,6 +199,22 @@ function renderMembers(result) {
     member.public_id,
     member.userid || member.open_userid
   ]);
+}
+
+function adminMemberListPath() {
+  const params = new URLSearchParams();
+  const search = memberSearchInput.value.trim();
+  const limit = Math.min(Math.max(Number(memberLimitInput.value) || 50, 1), 100);
+  const offset = Math.max(Number(memberOffsetInput.value) || 0, 0);
+  if (search) {
+    params.set("search", search);
+  }
+  params.set("status", memberStatusFilterInput.value || "all");
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  memberLimitInput.value = String(limit);
+  memberOffsetInput.value = String(offset);
+  return `/admin/members?${params.toString()}`;
 }
 
 function renderSyncEvents(result) {
@@ -553,7 +573,7 @@ document.querySelector("#loadOverview").addEventListener("click", async () => {
 });
 
 document.querySelector("#loadMembers").addEventListener("click", async () => {
-  const result = await run("loading members", adminOutput, async () => adminRequest("/admin/members"));
+  const result = await run("loading members", adminOutput, async () => adminRequest(adminMemberListPath()));
   renderMembers(result);
   const first = result.items?.[0];
   if (first?.member_identity_id) {

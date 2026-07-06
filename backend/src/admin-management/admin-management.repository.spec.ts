@@ -46,6 +46,36 @@ describe("AdminManagementRepository", () => {
     });
   });
 
+  it("lists members with tenant-scoped filters and pagination parameters", async () => {
+    const transaction = new FakeMemberListTransaction();
+    const repository = new AdminManagementRepository(new FakeTenantTx(transaction) as unknown as TenantTx);
+
+    const result = await repository.listMembers(
+      {
+        tenantId: "tenant-001",
+        tenantName: "Pilot Corp",
+        memberIdentityId: "member-001",
+        openUserid: "ou-owner",
+        role: "owner"
+      },
+      { search: "Alice_%", status: "active", limit: 25, offset: 50 }
+    );
+
+    expect(result?.total).toBe(12);
+    expect(result?.items[0]).toMatchObject({
+      member_identity_id: "101",
+      display_name: "Alice",
+      status: "active"
+    });
+    expect(transaction.queries[0]?.values).toEqual(["tenant-001", "active", "%Alice\\_\\%%"]);
+    expect(transaction.queries[1]?.values).toEqual(["tenant-001", "active", "%Alice\\_\\%%", 25, 50]);
+    expect(transaction.queries[1]?.text).toContain("member_identities.tenant_id = $1");
+    expect(transaction.queries[1]?.text).toContain("AND (member_identities.name ILIKE $3");
+    expect(transaction.queries[1]?.text).toContain("ILIKE $3 ESCAPE");
+    expect(transaction.queries[1]?.text).toContain("LIMIT $4");
+    expect(transaction.queries[1]?.text).toContain("OFFSET $5");
+  });
+
   it("updates member, primary card, and public directory status in tenant scope", async () => {
     const tenantTx = new FakeTenantTx();
     const repository = new AdminManagementRepository(tenantTx as unknown as TenantTx);
@@ -154,7 +184,9 @@ class FakeDatabaseService {
   }
 }
 
-class FakeTenantTx<TTransaction extends FakeTransaction | FakeCardTransaction = FakeTransaction> {
+class FakeTenantTx<
+  TTransaction extends FakeTransaction | FakeCardTransaction | FakeMemberListTransaction = FakeTransaction
+> {
   tenantId = "";
   transaction: TTransaction;
 
@@ -187,6 +219,29 @@ class FakeTransaction {
       return { rows: [] };
     }
     return { rows: [] };
+  }
+}
+
+class FakeMemberListTransaction {
+  queries: Array<{ text: string; values: unknown[] | undefined }> = [];
+
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    this.queries.push({ text, values });
+    if (text.includes("count(*)::text AS total_count")) {
+      return { rows: [{ total_count: "12" } as T] };
+    }
+    return {
+      rows: [
+        {
+          id: "101",
+          userid: "alice",
+          open_userid: "ou-alice",
+          name: "Alice",
+          status: "active",
+          public_id: "pub_alice"
+        } as T
+      ]
+    };
   }
 }
 

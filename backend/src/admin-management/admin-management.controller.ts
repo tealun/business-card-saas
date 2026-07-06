@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
-import { updateAdminMemberCardRequestSchema } from "../contracts/admin-management.js";
+import { adminMemberListQuerySchema, updateAdminMemberCardRequestSchema } from "../contracts/admin-management.js";
 import { AdminManagementService } from "./admin-management.service.js";
 
 @Controller("admin")
@@ -14,8 +14,8 @@ export class AdminManagementController {
   }
 
   @Get("members")
-  members(@Req() request: AdminRequest) {
-    return this.management.listMembers(this.session(request));
+  members(@Req() request: AdminRequest, @Query() query: unknown) {
+    return this.management.listMembers(this.session(request), adminMemberListQuerySchema.parse(query));
   }
 
   @Post("members/sync")

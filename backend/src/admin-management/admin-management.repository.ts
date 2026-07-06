@@ -7,6 +7,7 @@ import type { EmployeeSession } from "../session/employee-session.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import type {
   AdminMemberCardResponse,
+  AdminMemberListQuery,
   AdminMemberListResponse,
   AdminOverviewResponse,
   AdminSyncEventListResponse,
@@ -103,12 +104,22 @@ export class AdminManagementRepository {
     };
   }
 
-  async listMembers(session: AdminSession): Promise<AdminMemberListResponse | null> {
+  async listMembers(session: AdminSession, query: AdminMemberListQuery): Promise<AdminMemberListResponse | null> {
     if (!this.hasDatabase()) {
       return null;
     }
-    const result = await this.tenantTx!.run(session.tenantId, (tx) =>
-      tx.query<MemberSummaryRow>(
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const filters = memberListFilters(session, query);
+      const countResult = await tx.query<{ total_count: string }>(
+        `
+          SELECT count(*)::text AS total_count
+          FROM member_identities
+          WHERE ${filters.whereSql}
+        `,
+        filters.values
+      );
+      const values = [...filters.values, query.limit, query.offset];
+      const result = await tx.query<MemberSummaryRow>(
         `
           SELECT
             member_identities.id,
@@ -116,8 +127,7 @@ export class AdminManagementRepository {
             member_identities.open_userid,
             member_identities.name,
             member_identities.status,
-            cards.public_id,
-            count(*) OVER()::text AS total_count
+            cards.public_id
           FROM member_identities
           LEFT JOIN LATERAL (
             SELECT public_id
@@ -129,29 +139,30 @@ export class AdminManagementRepository {
             ORDER BY cards.id ASC
             LIMIT 1
           ) cards ON true
-          WHERE member_identities.tenant_id = $1
+          WHERE ${filters.whereSql}
           ORDER BY member_identities.id ASC
-          LIMIT 200
+          LIMIT $${values.length - 1}
+          OFFSET $${values.length}
         `,
-        [session.tenantId]
-      )
-    );
-    return {
-      items: result.rows.map((row) => ({
-        member_identity_id: String(row.id),
-        userid: row.userid,
-        open_userid: row.open_userid,
-        display_name: row.name,
-        status: normalizeStatus(row.status),
-        public_id:
-          row.public_id ??
-          defaultEmployeePublicId({
-            tenantId: session.tenantId,
-            memberIdentityId: String(row.id)
-          })
-      })),
-      total: Number(result.rows[0]?.total_count ?? "0")
-    };
+        values
+      );
+      return {
+        items: result.rows.map((row) => ({
+          member_identity_id: String(row.id),
+          userid: row.userid,
+          open_userid: row.open_userid,
+          display_name: row.name,
+          status: normalizeStatus(row.status),
+          public_id:
+            row.public_id ??
+            defaultEmployeePublicId({
+              tenantId: session.tenantId,
+              memberIdentityId: String(row.id)
+            })
+        })),
+        total: Number(countResult.rows[0]?.total_count ?? "0")
+      };
+    });
   }
 
   async getMemberSession(session: AdminSession, memberIdentityId: string): Promise<EmployeeSession | null> {
@@ -595,6 +606,31 @@ export class AdminManagementRepository {
 
 function normalizeStatus(status: string): "active" | "disabled" {
   return status === "active" ? "active" : "disabled";
+}
+
+function memberListFilters(session: AdminSession, query: AdminMemberListQuery): { whereSql: string; values: unknown[] } {
+  const conditions = ["member_identities.tenant_id = $1"];
+  const values: unknown[] = [session.tenantId];
+  if (query.status !== "all") {
+    values.push(query.status);
+    conditions.push(`member_identities.status = $${values.length}`);
+  }
+  if (query.search) {
+    values.push(`%${escapeLike(query.search)}%`);
+    const index = values.length;
+    conditions.push(
+      `(${[
+        `member_identities.name ILIKE $${index} ESCAPE '\\'`,
+        `member_identities.userid ILIKE $${index} ESCAPE '\\'`,
+        `member_identities.open_userid ILIKE $${index} ESCAPE '\\'`
+      ].join(" OR ")})`
+    );
+  }
+  return { whereSql: conditions.join(" AND "), values };
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 function defaultFields(): CardFields {

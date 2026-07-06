@@ -7,7 +7,9 @@ import {
   adminOverviewResponseSchema,
   adminSyncEventRetryResponseSchema,
   adminSyncEventListResponseSchema,
+  adminMemberListQuerySchema,
   type AdminMemberCardResponse,
+  type AdminMemberListQuery,
   type AdminMemberListResponse,
   type AdminMemberSyncResponse,
   type AdminOverviewResponse,
@@ -47,8 +49,12 @@ export class AdminManagementService {
     });
   }
 
-  async listMembers(session: AdminSession): Promise<AdminMemberListResponse> {
-    const persisted = await this.repository.listMembers(session);
+  async listMembers(
+    session: AdminSession,
+    input: AdminMemberListQuery = adminMemberListQuerySchema.parse({})
+  ): Promise<AdminMemberListResponse> {
+    const query = adminMemberListQuerySchema.parse(input);
+    const persisted = await this.repository.listMembers(session, query);
     if (persisted) {
       return adminMemberListResponseSchema.parse(persisted);
     }
@@ -57,18 +63,24 @@ export class AdminManagementService {
     }
     const employeeSession = await this.toEmployeeSession(session, session.memberIdentityId);
     const card = this.employeeCards.getCurrentCard(employeeSession);
+    const item = {
+      member_identity_id: session.memberIdentityId,
+      userid: null,
+      open_userid: session.openUserid,
+      display_name: card.display_name,
+      status: card.status,
+      public_id: card.public_id
+    };
+    const matchesSearch =
+      !query.search ||
+      [item.display_name, item.open_userid, item.public_id].some((value) =>
+        value.toLowerCase().includes(query.search!.toLowerCase())
+      );
+    const matchesStatus = query.status === "all" || item.status === query.status;
+    const items = matchesSearch && matchesStatus ? [item] : [];
     return adminMemberListResponseSchema.parse({
-      items: [
-        {
-          member_identity_id: session.memberIdentityId,
-          userid: null,
-          open_userid: session.openUserid,
-          display_name: card.display_name,
-          status: card.status,
-          public_id: card.public_id
-        }
-      ],
-      total: 1
+      items: items.slice(query.offset, query.offset + query.limit),
+      total: items.length
     });
   }
 
