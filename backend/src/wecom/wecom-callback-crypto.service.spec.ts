@@ -7,7 +7,9 @@ const suite: WecomSuiteConfig = {
   suiteId: "wwsuite0001",
   suiteSecret: "suite-secret",
   callbackToken: "callback-token",
-  callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+  callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+  dataCallbackToken: "data-callback-token",
+  dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 };
 
 describe("WecomCallbackCryptoService", () => {
@@ -51,6 +53,25 @@ describe("WecomCallbackCryptoService", () => {
         encrypt
       })
     ).toThrow("invalid WeCom callback receiver");
+  });
+
+  it("can decrypt data callbacks before receiver ownership is checked", () => {
+    const message = "<xml><Event><![CDATA[change_contact]]></Event></xml>";
+    const encrypt = encryptFixture(message, "corp-001");
+    const timestamp = "1700000000";
+    const nonce = "nonce-001";
+
+    const decrypted = service.decrypt(
+      {
+        msgSignature: signFixture(encrypt, timestamp, nonce),
+        timestamp,
+        nonce,
+        encrypt
+      },
+      { expectedReceiveId: null }
+    );
+
+    expect(decrypted).toEqual({ message, receiveId: "corp-001" });
   });
 
   it("rejects callbacks with malformed PKCS7 padding bytes", () => {

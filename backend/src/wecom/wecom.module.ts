@@ -8,6 +8,8 @@ import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
 import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
+import { WecomDataCallbackController } from "./wecom-data-callback.controller.js";
+import { WecomDataCallbackService } from "./wecom-data-callback.service.js";
 import { WecomEmployeeProvisioningRepository } from "./wecom-employee-provisioning.repository.js";
 import { WecomMiniProgramLoginService } from "./wecom-miniprogram-login.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
@@ -16,7 +18,7 @@ import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
 
 @Module({
-  controllers: [WecomCommandCallbackController],
+  controllers: [WecomCommandCallbackController, WecomDataCallbackController],
   providers: [
     WecomCallbackCryptoService,
     WecomApiClientService,
@@ -26,6 +28,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomContactSyncRepository,
     WecomContactSyncService,
     WecomCorpTokenService,
+    WecomDataCallbackService,
     WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,
     WecomStateCipherService,

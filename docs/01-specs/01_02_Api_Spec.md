@@ -162,6 +162,15 @@
 - 外链只允许 `https://` 和企业白名单域名；短链需展开审核。
 - 所有内容写操作记录 `audit_logs`。
 
+### 3.7 企业微信回调（WeCom）
+
+| 方法 路径 | 鉴权 | 说明 |
+|-----------|------|------|
+| GET `/api/v1/wecom/callbacks/command` | 企业微信签名 | 指令回调 URL 验证；使用指令回调 Token/AESKey |
+| POST `/api/v1/wecom/callbacks/command` | 企业微信签名 | 接收 suite_ticket、create_auth/change_auth 等套件级事件 |
+| GET `/api/v1/wecom/callbacks/data` | 企业微信签名 | 数据回调 URL 验证；使用数据回调 Token/AESKey |
+| POST `/api/v1/wecom/callbacks/data` | 企业微信签名 | 接收第三方数据回调 `InfoType=change_contact`/`AuthCorpId` 增量同步；兼容内部应用 `Event=change_contact`，当前处理 create/update/delete_user |
+
 ## 4. 待核对
 
 - 各接口完整 Zod schema 落地在 `backend/src/contracts` 后回链本文件；若后续小程序 / 后台直接复用，再抽独立共享包。

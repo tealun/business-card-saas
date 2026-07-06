@@ -14,20 +14,29 @@ export interface WecomDecryptedMessage {
   receiveId: string;
 }
 
+export interface WecomDecryptOptions {
+  token?: string;
+  aesKey?: string;
+  expectedReceiveId?: string | null;
+}
+
 @Injectable()
 export class WecomCallbackCryptoService {
   constructor(private readonly config: WecomConfigService) {}
 
-  decrypt(payload: WecomEncryptedPayload): WecomDecryptedMessage {
+  decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
     const suite = this.config.suite;
-    if (!this.hasValidAesKey(suite.callbackAesKey)) {
+    const token = options.token ?? suite.callbackToken;
+    const encodingAesKey = options.aesKey ?? suite.callbackAesKey;
+    const expectedReceiveId = options.expectedReceiveId === undefined ? suite.suiteId : options.expectedReceiveId;
+    if (!this.hasValidAesKey(encodingAesKey)) {
       throw new ServiceUnavailableException("WeCom callback AES key is not configured");
     }
-    if (!this.verifySignature(payload, suite.callbackToken)) {
+    if (!this.verifySignature(payload, token)) {
       throw new UnauthorizedException("invalid WeCom callback signature");
     }
 
-    const aesKey = this.decodeAesKey(suite.callbackAesKey);
+    const aesKey = this.decodeAesKey(encodingAesKey);
     const decrypted = this.decryptCipherText(payload.encrypt, aesKey);
     const unpadded = this.removePkcs7Padding(decrypted);
     if (unpadded.length < 20) {
@@ -43,7 +52,7 @@ export class WecomCallbackCryptoService {
 
     const message = unpadded.subarray(messageStart, messageEnd).toString("utf8");
     const receiveId = unpadded.subarray(messageEnd).toString("utf8");
-    if (receiveId !== suite.suiteId) {
+    if (expectedReceiveId !== null && receiveId !== expectedReceiveId) {
       throw new UnauthorizedException("invalid WeCom callback receiver");
     }
     return { message, receiveId };

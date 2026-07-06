@@ -22,6 +22,12 @@ export interface SyncWecomContactMembersResult {
   skippedCount: number;
 }
 
+export interface DisableWecomContactMemberInput {
+  tenantId: string;
+  userid: string | null;
+  openUserid: string | null;
+}
+
 interface MemberIdentityRow extends QueryResultRow {
   id: string | number | bigint;
   name: string;
@@ -65,6 +71,74 @@ export class WecomContactSyncRepository {
     return { syncedCount: normalized.length, skippedCount };
   }
 
+  async disableMember(input: DisableWecomContactMemberInput): Promise<boolean> {
+    const userid = normalizeOptionalString(input.userid);
+    const openUserid = normalizeOptionalString(input.openUserid);
+    if (!userid && !openUserid) {
+      return false;
+    }
+    if (!this.hasDatabase()) {
+      const current = this.memory.get(input.tenantId) ?? [];
+      const index = current.findIndex((user) => user.userid === userid || user.openUserid === openUserid);
+      if (index < 0) {
+        return false;
+      }
+      current[index] = { ...current[index]!, status: "disabled" };
+      this.memory.set(input.tenantId, current);
+      return true;
+    }
+
+    return this.tenantTx!.run(input.tenantId, async (tx) => {
+      const members = await tx.query<MemberIdentityRow>(
+        `
+          SELECT id, name
+          FROM member_identities
+          WHERE tenant_id = $1
+            AND (
+              ($2::text IS NOT NULL AND open_userid = $2)
+              OR ($3::text IS NOT NULL AND userid = $3)
+            )
+        `,
+        [input.tenantId, openUserid, userid]
+      );
+      if (!members.rows.length) {
+        return false;
+      }
+      const memberIds = members.rows.map((row) => String(row.id));
+      await tx.query(
+        `
+          UPDATE member_identities
+          SET status = 'disabled',
+              updated_at = now()
+          WHERE tenant_id = $1 AND id = ANY($2::bigint[])
+        `,
+        [input.tenantId, memberIds]
+      );
+      const cards = await tx.query<CardRow>(
+        `
+          UPDATE cards
+          SET status = 'disabled',
+              updated_at = now()
+          WHERE tenant_id = $1
+            AND member_identity_id = ANY($2::bigint[])
+            AND card_type = 'primary'
+            AND deleted_at IS NULL
+          RETURNING id, public_id
+        `,
+        [input.tenantId, memberIds]
+      );
+      for (const card of cards.rows) {
+        await this.upsertPublicDirectory(tx, {
+          tenantId: input.tenantId,
+          cardId: String(card.id),
+          publicId: card.public_id,
+          status: "disabled"
+        });
+      }
+      return true;
+    });
+  }
+
   private async upsertMember(
     tx: TenantTransactionClient,
     tenantId: string,
@@ -98,7 +172,7 @@ export class WecomContactSyncRepository {
           UPDATE member_identities
           SET userid = COALESCE($3, userid),
               open_userid = COALESCE($2, open_userid),
-              name = $4,
+              name = COALESCE($4, name),
               department_json = $5,
               status = $6,
               updated_at = now()
@@ -109,7 +183,7 @@ export class WecomContactSyncRepository {
           tenantId,
           nextOpenUserid,
           nextUserid,
-          displayName,
+          user.name,
           JSON.stringify(user.departmentIds),
           user.status,
           current.id
