@@ -1,10 +1,14 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, Optional } from "@nestjs/common";
+import type { QueryResultRow } from "pg";
+import { TenantTx } from "../database/tenant-tx.service.js";
+
+export type TenantAdminRole = "owner" | "admin" | "operator" | "auditor";
 
 export interface TenantAdminRecord {
   tenantId: string;
   memberIdentityId: string | null;
   openUserid: string;
-  role: "owner";
+  role: TenantAdminRole;
 }
 
 export interface AdminClaimTokenRecord {
@@ -18,6 +22,8 @@ export interface AdminClaimTokenRecord {
 export class OwnerBootstrapRepository {
   private readonly tenantAdmins = new Map<string, TenantAdminRecord>();
   private readonly claimTokens = new Map<string, AdminClaimTokenRecord>();
+
+  constructor(@Optional() private readonly tenantTx?: TenantTx) {}
 
   hasOwner(tenantId: string): boolean {
     return Array.from(this.tenantAdmins.values()).some(
@@ -63,4 +69,48 @@ export class OwnerBootstrapRepository {
   findClaimToken(tokenHash: string): AdminClaimTokenRecord | undefined {
     return this.claimTokens.get(tokenHash);
   }
+
+  async findActiveAdmin(input: { tenantId: string; openUserid: string }): Promise<TenantAdminRecord | null> {
+    if (!this.hasDatabase()) {
+      return this.tenantAdmins.get(`${input.tenantId}:${input.openUserid}`) ?? null;
+    }
+
+    const result = await this.tenantTx!.run(input.tenantId, (tx) =>
+      tx.query<TenantAdminRow>(
+        `
+          SELECT tenant_id, member_identity_id, open_userid, role
+          FROM tenant_admins
+          WHERE tenant_id = $1
+            AND open_userid = $2
+            AND status = 'active'
+          LIMIT 1
+        `,
+        [input.tenantId, input.openUserid]
+      )
+    );
+    return this.rowToAdmin(result.rows[0]);
+  }
+
+  private rowToAdmin(row: TenantAdminRow | undefined): TenantAdminRecord | null {
+    if (!row) {
+      return null;
+    }
+    return {
+      tenantId: String(row.tenant_id),
+      memberIdentityId: row.member_identity_id === null ? null : String(row.member_identity_id),
+      openUserid: row.open_userid,
+      role: row.role
+    };
+  }
+
+  private hasDatabase(): boolean {
+    return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
+  }
+}
+
+interface TenantAdminRow extends QueryResultRow {
+  tenant_id: string | number | bigint;
+  member_identity_id: string | number | bigint | null;
+  open_userid: string;
+  role: TenantAdminRole;
 }

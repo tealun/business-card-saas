@@ -4,6 +4,6 @@ import { OwnerBootstrapService } from "./owner-bootstrap.service.js";
 
 @Module({
   providers: [OwnerBootstrapRepository, OwnerBootstrapService],
-  exports: [OwnerBootstrapService]
+  exports: [OwnerBootstrapRepository, OwnerBootstrapService]
 })
 export class OwnerBootstrapModule {}
