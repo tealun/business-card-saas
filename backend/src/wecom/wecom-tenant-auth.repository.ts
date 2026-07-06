@@ -21,8 +21,13 @@ export interface TenantAuthorizationSnapshot {
   authStatus: "active";
 }
 
-interface StoredTenantAuthorization extends SaveTenantAuthorizationInput {
+interface StoredTenantAuthorization {
   tenantId: string;
+  openCorpid: string;
+  corpName: string;
+  agentId: string | null;
+  authInfo: unknown;
+  authorizedAt: Date;
   permanentCodeEncrypted: string;
 }
 
@@ -49,7 +54,11 @@ export class WecomTenantAuthRepository {
     if (!this.hasDatabase()) {
       const current = this.memory.get(input.openCorpid);
       const stored: StoredTenantAuthorization = {
-        ...input,
+        openCorpid: input.openCorpid,
+        corpName: input.corpName,
+        agentId: input.agentId,
+        authInfo: input.authInfo,
+        authorizedAt: input.authorizedAt,
         tenantId: current?.tenantId ?? String(this.memory.size + 1),
         permanentCodeEncrypted: encrypted
       };
