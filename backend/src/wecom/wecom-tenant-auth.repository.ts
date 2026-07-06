@@ -21,6 +21,12 @@ export interface TenantAuthorizationSnapshot {
   authStatus: "active";
 }
 
+export interface WecomCorpAccessTokenSnapshot {
+  openCorpid: string;
+  accessToken: string;
+  expiresAt: Date;
+}
+
 interface StoredTenantAuthorization {
   tenantId: string;
   openCorpid: string;
@@ -29,6 +35,8 @@ interface StoredTenantAuthorization {
   authInfo: unknown;
   authorizedAt: Date;
   permanentCodeEncrypted: string;
+  corpAccessTokenEncrypted: string | null;
+  corpAccessTokenExpiresAt: Date | null;
 }
 
 interface TenantAuthorizationRow extends QueryResultRow {
@@ -38,6 +46,8 @@ interface TenantAuthorizationRow extends QueryResultRow {
   permanent_code_encrypted: string | null;
   agent_id: string | null;
   auth_status: "active";
+  corp_access_token_encrypted: string | null;
+  corp_access_token_expires_at: Date | string | null;
 }
 
 @Injectable()
@@ -60,7 +70,9 @@ export class WecomTenantAuthRepository {
         authInfo: input.authInfo,
         authorizedAt: input.authorizedAt,
         tenantId: current?.tenantId ?? String(this.memory.size + 1),
-        permanentCodeEncrypted: encrypted
+        permanentCodeEncrypted: encrypted,
+        corpAccessTokenEncrypted: current?.corpAccessTokenEncrypted ?? null,
+        corpAccessTokenExpiresAt: current?.corpAccessTokenExpiresAt ?? null
       };
       this.memory.set(input.openCorpid, stored);
       return this.storedToSnapshot(stored);
@@ -124,6 +136,67 @@ export class WecomTenantAuthRepository {
     return this.rowToSnapshot(result.rows[0]);
   }
 
+  async saveCorpAccessToken(
+    openCorpid: string,
+    accessToken: string,
+    expiresAt: Date
+  ): Promise<WecomCorpAccessTokenSnapshot> {
+    const encrypted = this.cipher.encrypt(accessToken);
+    if (!this.hasDatabase()) {
+      const current = this.memory.get(openCorpid);
+      if (!current) {
+        throw new Error("cannot save WeCom corp access token before tenant authorization");
+      }
+      this.memory.set(openCorpid, {
+        ...current,
+        corpAccessTokenEncrypted: encrypted,
+        corpAccessTokenExpiresAt: expiresAt
+      });
+      return { openCorpid, accessToken, expiresAt };
+    }
+
+    const result = await this.database.query<TenantAuthorizationRow>(
+      `
+        UPDATE tenants
+        SET corp_access_token_encrypted = $2,
+            corp_access_token_expires_at = $3,
+            updated_at = now()
+        WHERE open_corpid = $1
+        RETURNING open_corpid, corp_access_token_encrypted, corp_access_token_expires_at
+      `,
+      [openCorpid, encrypted, expiresAt]
+    );
+    const snapshot = this.rowToCorpTokenSnapshot(result.rows[0]);
+    if (!snapshot) {
+      throw new Error("failed to save WeCom corp access token");
+    }
+    return snapshot;
+  }
+
+  async getCorpAccessToken(openCorpid: string): Promise<WecomCorpAccessTokenSnapshot | null> {
+    if (!this.hasDatabase()) {
+      const stored = this.memory.get(openCorpid);
+      if (!stored?.corpAccessTokenEncrypted || !stored.corpAccessTokenExpiresAt) {
+        return null;
+      }
+      return {
+        openCorpid: stored.openCorpid,
+        accessToken: this.cipher.decrypt(stored.corpAccessTokenEncrypted),
+        expiresAt: stored.corpAccessTokenExpiresAt
+      };
+    }
+
+    const result = await this.database.query<TenantAuthorizationRow>(
+      `
+        SELECT open_corpid, corp_access_token_encrypted, corp_access_token_expires_at
+        FROM tenants
+        WHERE open_corpid = $1
+      `,
+      [openCorpid]
+    );
+    return this.rowToCorpTokenSnapshot(result.rows[0]);
+  }
+
   private storedToSnapshot(stored: StoredTenantAuthorization): TenantAuthorizationSnapshot {
     return {
       tenantId: stored.tenantId,
@@ -146,6 +219,17 @@ export class WecomTenantAuthRepository {
       permanentCode: this.cipher.decrypt(row.permanent_code_encrypted),
       agentId: row.agent_id,
       authStatus: "active"
+    };
+  }
+
+  private rowToCorpTokenSnapshot(row: TenantAuthorizationRow | undefined): WecomCorpAccessTokenSnapshot | null {
+    if (!row?.corp_access_token_encrypted || !row.corp_access_token_expires_at) {
+      return null;
+    }
+    return {
+      openCorpid: row.open_corpid,
+      accessToken: this.cipher.decrypt(row.corp_access_token_encrypted),
+      expiresAt: new Date(row.corp_access_token_expires_at)
     };
   }
 

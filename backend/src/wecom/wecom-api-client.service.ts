@@ -25,6 +25,17 @@ export interface FetchPermanentCodeResponse {
   authInfo: unknown;
 }
 
+export interface FetchCorpTokenRequest {
+  suiteAccessToken: string;
+  openCorpid: string;
+  permanentCode: string;
+}
+
+export interface FetchCorpTokenResponse {
+  accessToken: string;
+  expiresIn: number;
+}
+
 interface WecomSuiteTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -45,6 +56,13 @@ interface WecomPermanentCodePayload {
       agentid?: number | string;
     }>;
   };
+}
+
+interface WecomCorpTokenPayload {
+  errcode?: number;
+  errmsg?: string;
+  access_token?: string;
+  expires_in?: number;
 }
 
 @Injectable()
@@ -95,6 +113,27 @@ export class WecomApiClientService {
       permanentCode: payload.permanent_code,
       agentId: agentId === undefined ? null : String(agentId),
       authInfo: payload.auth_info ?? null
+    };
+  }
+
+  async fetchCorpAccessToken(request: FetchCorpTokenRequest): Promise<FetchCorpTokenResponse> {
+    const payload = await this.postJson<WecomCorpTokenPayload>(
+      "get_corp_token",
+      `/cgi-bin/service/get_corp_token?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {
+        auth_corpid: request.openCorpid,
+        permanent_code: request.permanentCode
+      }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom get_corp_token failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+    if (!payload.access_token || !payload.expires_in || payload.expires_in <= 0) {
+      throw new BadGatewayException("WeCom get_corp_token returned invalid payload");
+    }
+    return {
+      accessToken: payload.access_token,
+      expiresIn: payload.expires_in
     };
   }
 
