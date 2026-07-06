@@ -72,6 +72,27 @@ describe("AdminConfigService", () => {
     }
   });
 
+  it("seeds a persisted database default template when none exists", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://unit-test";
+
+    try {
+      const service = new AdminConfigService(new AdminConfigRepository(fakeTenantTx()));
+
+      const templates = await service.listTemplates(adminSession());
+
+      expect(templates.items).toHaveLength(1);
+      expect(templates.items[0]?.template_id).toBe("101");
+      expect(templates.items[0]?.is_default).toBe(true);
+    } finally {
+      if (originalDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      }
+    }
+  });
+
   it("rejects config writes from auditors", async () => {
     const service = createService();
     const auditor = { ...adminSession(), role: "auditor" as const };
@@ -109,17 +130,21 @@ function fakeTenantTx(): TenantTx {
           if (sql.includes("count(*)")) {
             return { rows: [{ count: "0" }] };
           }
+          if (sql.includes("FROM templates") && sql.includes("ORDER BY id ASC")) {
+            return { rows: [] };
+          }
           if (sql.includes("INSERT INTO templates")) {
+            const seedsDefaultTemplate = sql.includes("VALUES ($1, $2, true");
             return {
               rows: [
                 {
                   id: "101",
                   name: params[1],
-                  is_default: params[2],
-                  background_url: params[3],
-                  logo_url: params[4],
-                  color_scheme_json: params[5],
-                  layout_json: params[6],
+                  is_default: seedsDefaultTemplate ? true : params[2],
+                  background_url: seedsDefaultTemplate ? params[2] : params[3],
+                  logo_url: seedsDefaultTemplate ? params[3] : params[4],
+                  color_scheme_json: seedsDefaultTemplate ? params[4] : params[5],
+                  layout_json: seedsDefaultTemplate ? params[5] : params[6],
                   status: "active"
                 }
               ]
