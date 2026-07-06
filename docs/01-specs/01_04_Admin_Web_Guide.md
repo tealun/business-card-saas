@@ -10,7 +10,7 @@
 
 - **企业管理员**：企业微信扫码 / OAuth 登录，绑定 `tenant_admins`（`open_userid`）。第一版不做纯密码登录。
 - **平台管理员**：独立后台账号 + **MFA**；分级 超级管理员 / 客服运营 / 技术运维 / 只读审计（§16.2）。
-- 会话：JWT + Redis；后台接口经租户中间件注入 `tenant_id`，配合 RLS（§16.1）。
+- 会话：MVP 已落地签名 Admin token；生产增强再接 Redis 会话/撤销。后台接口经租户中间件注入 `tenant_id`，配合 RLS（§16.1）。
 - 登录时序（审计 A6-P1-3）：OAuth 返回 `corpid` → 定位 tenant → 事务内 `SET LOCAL app.tenant_id` → 查 `tenant_admins`（该表已纳入租户 RLS，见 [`../00-core/00_02_Database_Schema.md`](../00-core/00_02_Database_Schema.md) §2）。
 
 ## 2. 角色与权限（RBAC）

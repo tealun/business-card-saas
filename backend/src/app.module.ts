@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { HealthController } from "./health.controller.js";
+import { AdminAuthModule } from "./admin-auth/admin-auth.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { PublicCardModule } from "./public-card/public-card.module.js";
 import { AuthModule } from "./auth/auth.module.js";
@@ -11,7 +12,15 @@ import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
 import { WecomModule } from "./wecom/wecom.module.js";
 
 @Module({
-  imports: [DatabaseModule, PublicCardModule, AuthModule, EmployeeCardModule, OwnerBootstrapModule, WecomModule],
+  imports: [
+    DatabaseModule,
+    PublicCardModule,
+    AuthModule,
+    EmployeeCardModule,
+    OwnerBootstrapModule,
+    WecomModule,
+    AdminAuthModule
+  ],
   controllers: [HealthController],
   providers: [
     {
