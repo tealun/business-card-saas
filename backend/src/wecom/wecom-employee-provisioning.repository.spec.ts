@@ -31,4 +31,53 @@ describe("WecomEmployeeProvisioningRepository", () => {
     expect(second).toEqual(first);
     expect(first.publicId).toMatch(/^pub_[A-Za-z0-9_-]{24}$/);
   });
+
+  it("reuses the existing bound account when concurrent binding insert conflicts", async () => {
+    process.env.DATABASE_URL = "postgres://localhost/business-card-test";
+    const database = new FakeDatabaseService();
+    const repository = new WecomEmployeeProvisioningRepository(database as unknown as DatabaseService);
+
+    const employee = await repository.provision({
+      tenantId: "1",
+      tenantName: "Pilot Corp",
+      openUserid: "ou-001"
+    });
+
+    expect(employee.accountId).toBe("acct-existing");
+    expect(database.bindingLookupCount).toBe(2);
+  });
 });
+
+class FakeDatabaseService {
+  bindingLookupCount = 0;
+
+  async transaction<T>(callback: (tx: FakeTransaction) => Promise<T>): Promise<T> {
+    return callback(new FakeTransaction(this));
+  }
+}
+
+class FakeTransaction {
+  constructor(private readonly database: FakeDatabaseService) {}
+
+  async query<T>(text: string): Promise<{ rows: T[] }> {
+    if (text.includes("INSERT INTO member_identities")) {
+      return { rows: [{ id: "member-1", name: "ou-001" } as T] };
+    }
+    if (text.includes("SELECT account_id")) {
+      this.database.bindingLookupCount += 1;
+      return {
+        rows: this.database.bindingLookupCount === 1 ? [] : [{ account_id: "acct-existing" } as T]
+      };
+    }
+    if (text.includes("INSERT INTO accounts")) {
+      return { rows: [{ id: "acct-new" } as T] };
+    }
+    if (text.includes("INSERT INTO account_identity_bindings")) {
+      return { rows: [] };
+    }
+    if (text.includes("SELECT id, public_id")) {
+      return { rows: [{ id: "card-1", public_id: "pub_existing0001" } as T] };
+    }
+    return { rows: [] };
+  }
+}
