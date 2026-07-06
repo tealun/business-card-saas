@@ -21,7 +21,7 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 - Admin 企业微信 code 登录，可选 owner claim token 认领首个企业 owner
 - Admin token 保存与 `admin/session/me`
 - 后台概览、成员列表、成员名片读取/配置，核心数据以指标/表格呈现
-- 字段规则读取/保存、企业资料、模板创建/编辑/设默认
+- 字段规则读取/保存、企业资料完整字段保存、模板创建/编辑/设默认
 - 当前员工名片读取/更新
 - 员工分享 `share_id` 签发
 - 公开名片预览

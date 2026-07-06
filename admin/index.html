@@ -199,12 +199,35 @@
                 <input name="display_name" />
               </label>
               <label>
+                <span>企业简称</span>
+                <input name="short_name" />
+              </label>
+              <label>
+                <span>Logo URL</span>
+                <input name="logo_url" />
+              </label>
+              <label>
                 <span>官网</span>
                 <input name="website_url" />
+              </label>
+              <label>
+                <span>状态</span>
+                <select name="status">
+                  <option value="draft">draft</option>
+                  <option value="published">published</option>
+                </select>
+              </label>
+              <label class="stacked">
+                <span>可见</span>
+                <input name="visible" type="checkbox" />
               </label>
               <label class="wide">
                 <span>地址</span>
                 <input name="address" />
+              </label>
+              <label class="wide">
+                <span>简介块 JSON</span>
+                <textarea name="intro_blocks" rows="6">[]</textarea>
               </label>
             </form>
             <pre id="companyOutput" class="output compact-output" aria-label="company output"></pre>
