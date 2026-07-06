@@ -140,8 +140,13 @@ function cardPayloadFromForm() {
 
 function fillCompany(profile) {
   companyForm.display_name.value = profile.display_name || "";
+  companyForm.short_name.value = profile.short_name || "";
+  companyForm.logo_url.value = profile.logo_url || "";
   companyForm.website_url.value = profile.website_url || "";
   companyForm.address.value = profile.address || "";
+  companyForm.intro_blocks.value = JSON.stringify(profile.intro_blocks || [], null, 2);
+  companyForm.visible.checked = Boolean(profile.visible);
+  companyForm.status.value = profile.status || "draft";
 }
 
 function text(value) {
@@ -387,6 +392,28 @@ function selectedTemplateIdFromForm() {
   return templateId;
 }
 
+function companyProfilePayloadFromForm() {
+  let introBlocks;
+  try {
+    introBlocks = JSON.parse(companyForm.intro_blocks.value || "[]");
+  } catch (_) {
+    throw new Error("简介块 JSON 格式不正确");
+  }
+  if (!Array.isArray(introBlocks)) {
+    throw new Error("简介块 JSON 必须是数组");
+  }
+  return {
+    display_name: companyForm.display_name.value.trim(),
+    short_name: companyForm.short_name.value.trim() || null,
+    logo_url: companyForm.logo_url.value.trim() || null,
+    website_url: companyForm.website_url.value.trim() || null,
+    address: companyForm.address.value.trim() || null,
+    intro_blocks: introBlocks,
+    visible: companyForm.visible.checked,
+    status: companyForm.status.value
+  };
+}
+
 async function run(label, target, fn) {
   target.textContent = `${label}...`;
   try {
@@ -582,11 +609,7 @@ document.querySelector("#loadCompanyProfile").addEventListener("click", async ()
 document.querySelector("#saveCompanyProfile").addEventListener("click", async () => {
   const profile = await run("saving company profile", companyOutput, async () => adminRequest("/admin/company-profile", {
     method: "PUT",
-    body: {
-      display_name: companyForm.display_name.value,
-      website_url: companyForm.website_url.value || null,
-      address: companyForm.address.value || null
-    }
+    body: companyProfilePayloadFromForm()
   }));
   fillCompany(profile);
 });

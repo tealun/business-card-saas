@@ -31,7 +31,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -57,7 +58,8 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--divider);
@@ -65,6 +67,17 @@ select {
   padding: 8px 10px;
   background: #ffffff;
   color: var(--text-primary);
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  accent-color: var(--brand);
 }
 
 table {
