@@ -8,10 +8,10 @@ export class WecomCommandCallbackController {
 
   @Get()
   verifyUrl(
-    @Query("msg_signature") msgSignature: string,
-    @Query("timestamp") timestamp: string,
-    @Query("nonce") nonce: string,
-    @Query("echostr") echoStr: string,
+    @Query("msg_signature") msgSignature: string | undefined,
+    @Query("timestamp") timestamp: string | undefined,
+    @Query("nonce") nonce: string | undefined,
+    @Query("echostr") echoStr: string | undefined,
     @Res() reply: FastifyReply
   ) {
     const echo = this.callbacks.verifyUrl({ msgSignature, timestamp, nonce }, echoStr);
@@ -20,9 +20,9 @@ export class WecomCommandCallbackController {
 
   @Post()
   async receive(
-    @Query("msg_signature") msgSignature: string,
-    @Query("timestamp") timestamp: string,
-    @Query("nonce") nonce: string,
+    @Query("msg_signature") msgSignature: string | undefined,
+    @Query("timestamp") timestamp: string | undefined,
+    @Query("nonce") nonce: string | undefined,
     @Body() body: unknown,
     @Res() reply: FastifyReply
   ) {

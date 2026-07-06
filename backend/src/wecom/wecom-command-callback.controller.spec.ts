@@ -54,24 +54,7 @@ describe("WecomCommandCallbackController", () => {
   });
 
   it("stores suite_ticket callbacks and returns raw success text", async () => {
-    const timestamp = "1700000200";
-    const nonce = "nonce-ticket";
-    const message =
-      "<xml>" +
-      `<SuiteId><![CDATA[${suite.suiteId}]]></SuiteId>` +
-      "<InfoType><![CDATA[suite_ticket]]></InfoType>" +
-      "<TimeStamp>1700000200</TimeStamp>" +
-      "<SuiteTicket><![CDATA[ticket-002]]></SuiteTicket>" +
-      "</xml>";
-    const encrypt = encryptFixture(message, suite.suiteId);
-    const msgSignature = signFixture(encrypt, timestamp, nonce);
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/api/v1/wecom/callbacks/command?msg_signature=${msgSignature}&timestamp=${timestamp}&nonce=${nonce}`,
-      headers: { "content-type": "text/xml" },
-      payload: `<xml><Encrypt><![CDATA[${encrypt}]]></Encrypt></xml>`
-    });
+    const response = await postSuiteTicket(app, "ticket-002", 1700000200, "nonce-ticket");
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toBe("success");
@@ -80,6 +63,27 @@ describe("WecomCommandCallbackController", () => {
     const stored = await repository.getSuiteTicket(suite.suiteId);
     expect(stored?.suiteTicket).toBe("ticket-002");
     expect(stored?.updatedAt.toISOString()).toBe("2023-11-14T22:16:40.000Z");
+  });
+
+  it("keeps the newer suite_ticket when an older retry arrives later", async () => {
+    await postSuiteTicket(app, "ticket-new", 1700000400, "nonce-ticket-new");
+    await postSuiteTicket(app, "ticket-old", 1700000300, "nonce-ticket-old");
+
+    const repository = app.get(WecomSuiteStateRepository);
+    const stored = await repository.getSuiteTicket(suite.suiteId);
+    expect(stored?.suiteTicket).toBe("ticket-new");
+    expect(stored?.updatedAt.toISOString()).toBe("2023-11-14T22:20:00.000Z");
+  });
+
+  it("rejects command callbacks missing signature query fields", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/wecom/callbacks/command?timestamp=1700000200&nonce=nonce-ticket",
+      headers: { "content-type": "text/xml" },
+      payload: "<xml />"
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 
   it("rejects command callbacks with invalid signatures", async () => {
@@ -93,6 +97,31 @@ describe("WecomCommandCallbackController", () => {
     expect(response.statusCode).toBe(401);
   });
 });
+
+async function postSuiteTicket(
+  app: NestFastifyApplication,
+  suiteTicket: string,
+  eventTimestamp: number,
+  nonce: string
+) {
+  const timestamp = String(eventTimestamp);
+  const message =
+    "<xml>" +
+    `<SuiteId><![CDATA[${suite.suiteId}]]></SuiteId>` +
+    "<InfoType><![CDATA[suite_ticket]]></InfoType>" +
+    `<TimeStamp>${eventTimestamp}</TimeStamp>` +
+    `<SuiteTicket><![CDATA[${suiteTicket}]]></SuiteTicket>` +
+    "</xml>";
+  const encrypt = encryptFixture(message, suite.suiteId);
+  const msgSignature = signFixture(encrypt, timestamp, nonce);
+
+  return app.inject({
+    method: "POST",
+    url: `/api/v1/wecom/callbacks/command?msg_signature=${msgSignature}&timestamp=${timestamp}&nonce=${nonce}`,
+    headers: { "content-type": "text/xml" },
+    payload: `<xml><Encrypt><![CDATA[${encrypt}]]></Encrypt></xml>`
+  });
+}
 
 function signFixture(encrypt: string, timestamp: string, nonce: string): string {
   return createHash("sha1")

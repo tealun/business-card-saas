@@ -8,6 +8,12 @@ export interface WecomCallbackQuery {
   nonce: string;
 }
 
+export interface WecomCallbackQueryInput {
+  msgSignature: string | undefined;
+  timestamp: string | undefined;
+  nonce: string | undefined;
+}
+
 export interface WecomCommandCallbackResult {
   infoType: string;
   suiteId: string;
@@ -21,16 +27,21 @@ export class WecomCommandCallbackService {
     private readonly suiteState: WecomSuiteStateRepository
   ) {}
 
-  verifyUrl(query: WecomCallbackQuery, echoStr: string): string {
+  verifyUrl(query: WecomCallbackQueryInput, echoStr?: string): string {
+    const normalizedQuery = normalizeQuery(query);
+    if (!echoStr?.trim()) {
+      throw new BadRequestException("missing WeCom echostr");
+    }
     return this.crypto.decrypt({
-      msgSignature: query.msgSignature,
-      timestamp: query.timestamp,
-      nonce: query.nonce,
+      msgSignature: normalizedQuery.msgSignature,
+      timestamp: normalizedQuery.timestamp,
+      nonce: normalizedQuery.nonce,
       encrypt: echoStr
     }).message;
   }
 
-  async receive(query: WecomCallbackQuery, body: unknown): Promise<WecomCommandCallbackResult> {
+  async receive(query: WecomCallbackQueryInput, body: unknown): Promise<WecomCommandCallbackResult> {
+    const normalizedQuery = normalizeQuery(query);
     const encryptedXml = bodyAsXml(body);
     const encrypt = readXmlText(encryptedXml, "Encrypt");
     if (!encrypt) {
@@ -38,9 +49,9 @@ export class WecomCommandCallbackService {
     }
 
     const decrypted = this.crypto.decrypt({
-      msgSignature: query.msgSignature,
-      timestamp: query.timestamp,
-      nonce: query.nonce,
+      msgSignature: normalizedQuery.msgSignature,
+      timestamp: normalizedQuery.timestamp,
+      nonce: normalizedQuery.nonce,
       encrypt
     });
     return this.handleCommandMessage(decrypted.message, decrypted.receiveId);
@@ -67,6 +78,16 @@ export class WecomCommandCallbackService {
 
     return { infoType, suiteId, handled: false };
   }
+}
+
+function normalizeQuery(query: WecomCallbackQueryInput): WecomCallbackQuery {
+  const msgSignature = query.msgSignature?.trim();
+  const timestamp = query.timestamp?.trim();
+  const nonce = query.nonce?.trim();
+  if (!msgSignature || !timestamp || !nonce) {
+    throw new BadRequestException("missing WeCom callback signature query");
+  }
+  return { msgSignature, timestamp, nonce };
 }
 
 function bodyAsXml(body: unknown): string {
