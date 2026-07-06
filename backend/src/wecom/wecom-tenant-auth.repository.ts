@@ -136,6 +136,23 @@ export class WecomTenantAuthRepository {
     return this.rowToSnapshot(result.rows[0]);
   }
 
+  async getByTenantId(tenantId: string): Promise<TenantAuthorizationSnapshot | null> {
+    if (!this.hasDatabase()) {
+      const stored = [...this.memory.values()].find((tenant) => tenant.tenantId === tenantId);
+      return stored ? this.storedToSnapshot(stored) : null;
+    }
+
+    const result = await this.database.query<TenantAuthorizationRow>(
+      `
+        SELECT id, open_corpid, name, permanent_code_encrypted, agent_id, auth_status
+        FROM tenants
+        WHERE id = $1
+      `,
+      [tenantId]
+    );
+    return this.rowToSnapshot(result.rows[0]);
+  }
+
   async saveCorpAccessToken(
     openCorpid: string,
     accessToken: string,

@@ -47,6 +47,24 @@ export interface FetchMiniProgramSessionResponse {
   sessionKey: string | null;
 }
 
+export interface FetchContactUserIdsRequest {
+  accessToken: string;
+  cursor?: string | null;
+  limit?: number;
+}
+
+export interface WecomContactUserIdentity {
+  userid: string | null;
+  openUserid: string | null;
+  name: string | null;
+  departmentIds: string[];
+}
+
+export interface FetchContactUserIdsResponse {
+  users: WecomContactUserIdentity[];
+  nextCursor: string | null;
+}
+
 interface WecomSuiteTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -84,6 +102,21 @@ interface WecomMiniProgramSessionPayload {
   userid?: string;
   open_userid?: string;
   session_key?: string;
+}
+
+interface WecomContactUserPayload {
+  userid?: string;
+  open_userid?: string;
+  name?: string;
+  department?: Array<string | number>;
+}
+
+interface WecomContactUserListPayload {
+  errcode?: number;
+  errmsg?: string;
+  next_cursor?: string;
+  dept_user?: WecomContactUserPayload[];
+  userlist?: WecomContactUserPayload[];
 }
 
 @Injectable()
@@ -186,6 +219,31 @@ export class WecomApiClientService {
     };
   }
 
+  async fetchContactUserIds(request: FetchContactUserIdsRequest): Promise<FetchContactUserIdsResponse> {
+    const payload = await this.postJson<WecomContactUserListPayload>(
+      "contact user list_id",
+      `/cgi-bin/user/list_id?access_token=${encodeURIComponent(request.accessToken)}`,
+      {
+        cursor: request.cursor ?? "",
+        limit: request.limit ?? 1000
+      }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom user/list_id failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+
+    const rawUsers = payload.dept_user ?? payload.userlist ?? [];
+    return {
+      users: rawUsers.map((user) => ({
+        userid: normalizeOptionalString(user.userid),
+        openUserid: normalizeOptionalString(user.open_userid),
+        name: normalizeOptionalString(user.name),
+        departmentIds: Array.isArray(user.department) ? user.department.map(String) : []
+      })),
+      nextCursor: normalizeOptionalString(payload.next_cursor)
+    };
+  }
+
   private async postJson<T>(operation: string, path: string, body: unknown): Promise<T> {
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
@@ -213,4 +271,9 @@ export class WecomApiClientService {
       throw new BadGatewayException(`WeCom ${operation} returned invalid JSON`);
     }
   }
+}
+
+function normalizeOptionalString(value: string | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }

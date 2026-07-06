@@ -5,6 +5,8 @@ import { WecomCommandCallbackController } from "./wecom-command-callback.control
 import { WecomCommandCallbackService } from "./wecom-command-callback.service.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
+import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
+import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
 import { WecomEmployeeProvisioningRepository } from "./wecom-employee-provisioning.repository.js";
 import { WecomMiniProgramLoginService } from "./wecom-miniprogram-login.service.js";
@@ -21,6 +23,8 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomAuthorizationService,
     WecomCommandCallbackService,
     WecomConfigService,
+    WecomContactSyncRepository,
+    WecomContactSyncService,
     WecomCorpTokenService,
     WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,
@@ -33,6 +37,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomAuthorizationService,
     WecomCallbackCryptoService,
     WecomConfigService,
+    WecomContactSyncService,
     WecomCorpTokenService,
     WecomEmployeeProvisioningRepository,
     WecomMiniProgramLoginService,

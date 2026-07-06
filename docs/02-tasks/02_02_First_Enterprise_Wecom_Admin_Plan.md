@@ -26,7 +26,8 @@
 - 2026-07-06：阶段 4.1-4.4 后端 MVP 已起步：新增 `GET /api/v1/admin/overview`、`GET /api/v1/admin/members`、`GET/PUT /api/v1/admin/members/{id}/card`，复用员工名片服务完成当前已识别成员的名片读取/配置与公开页同步；全员列表依赖阶段 5 通讯录同步扩展。
 - 2026-07-06：阶段 4.5-4.7 后端 MVP 已落地：新增 `GET/PUT /api/v1/admin/settings/fields`、`GET/PUT /api/v1/admin/company-profile`、`GET/POST/PUT /api/v1/admin/templates` 与 `PUT /api/v1/admin/templates/{id}/default`，写操作要求 admin/owner，读操作允许 auditor。
 - 2026-07-06：阶段 4.5-4.7 配置持久化已落地：字段规则写入 `tenant_field_settings`，企业资料复用 `company_profiles`，模板配置复用 `templates`，并接入租户事务与 RLS；无 `DATABASE_URL` 时保留内存 fallback 供本地测试。
-- 下一步：阶段 5 通讯录同步扩展全员列表与企业员工配置；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
+- 2026-07-06：阶段 5.1 最小全量同步已起步：新增企业微信 `user/list_id` 分页适配、`WecomContactSyncService`、成员 upsert 与默认名片补齐，并新增 `POST /api/v1/admin/members/sync` 供后台手动触发；`GET /api/v1/admin/members` 在数据库模式下已可读取租户全员。
+- 下一步：阶段 5.2 数据回调 `change_contact` 增量同步与离职/停用状态联动；真实企业微信 Web OAuth/扫码 UI、HTTPS 回调和试点企业授权仍是端到端联调前置条件。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
 ## 阶段 0：外部准备与 M0 实测
@@ -83,7 +84,7 @@
 |---|------|----------|----------|------|
 | 4.1 | 管理后台框架升级（后端登录态已实现） | admin session/me | 登录态、导航、错误态 | 不再只是静态联调页 |
 | 4.2 | 企业概览（后端 MVP 已实现） | `GET /admin/overview` | `/admin/dashboard` | 显示成员数、名片数、访问概览 |
-| 4.3 | 员工列表（后端 MVP 已实现当前成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
+| 4.3 | 员工列表（数据库模式已支持同步成员） | `GET /admin/members` | `/admin/members` | 分页、搜索、状态筛选 |
 | 4.4 | 员工名片配置（后端 MVP 已实现当前成员） | `GET/PUT /admin/members/{id}/card` | 员工详情/名片编辑 | 管理员可维护员工姓名、职位、部门、联系方式、启停状态 |
 | 4.5 | 字段规则（后端 MVP 已实现并持久化） | `GET/PUT /admin/settings/fields` | `/admin/fields` | 可配置字段是否企业锁定、是否允许员工编辑、默认公开策略 |
 | 4.6 | 企业资料（后端 MVP 已实现并持久化） | `GET/PUT /admin/company-profile` | `/admin/company` | 企业简介、地址、电话、官网、资质标签可配置 |
@@ -95,7 +96,7 @@
 
 | # | 任务 | 产物 | 验收 |
 |---|------|------|------|
-| 5.1 | 首次授权全量同步可见范围成员 | sync service/job | 试点企业成员进入 `member_identities` |
+| 5.1 | 首次授权全量同步可见范围成员（手动触发已实现） | `POST /admin/members/sync` + sync service | 试点企业成员进入 `member_identities` |
 | 5.2 | 通讯录变更回调处理 | data callback route | 新增/更新/离职能影响成员与名片状态 |
 | 5.3 | 离职/停用降级 | card status/public page | 离职员工公开页展示友好失效态，隐藏增强动作 |
 | 5.4 | 同步失败重试与告警 | job log | 失败可重试，不阻塞已登录员工使用 |

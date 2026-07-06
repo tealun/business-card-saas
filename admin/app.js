@@ -210,6 +210,11 @@ document.querySelector("#loadMembers").addEventListener("click", async () => {
   }
 });
 
+document.querySelector("#syncMembers").addEventListener("click", async () => {
+  await run("syncing members", adminOutput, async () => adminRequest("/admin/members/sync", { method: "POST" }));
+  document.querySelector("#loadMembers").click();
+});
+
 document.querySelector("#loadAdminCard").addEventListener("click", async () => {
   state.adminMemberId = adminMemberIdInput.value.trim();
   const card = await run("loading admin card", adminCardOutput, async () =>

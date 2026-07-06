@@ -117,4 +117,46 @@ describe("WecomApiClientService", () => {
       grant_type: "authorization_code"
     });
   });
+
+  it("posts contact user list_id and maps optional identity fields", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          next_cursor: "cursor-2",
+          dept_user: [
+            { userid: "user-001", open_userid: "ou-001", name: "Ada", department: [1, "2"] },
+            { userid: "user-002", department: [] }
+          ]
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchContactUserIds({
+      accessToken: "corp-token",
+      cursor: "cursor-1",
+      limit: 500
+    });
+
+    expect(result).toEqual({
+      users: [
+        { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1", "2"] },
+        { userid: "user-002", openUserid: null, name: null, departmentIds: [] }
+      ],
+      nextCursor: "cursor-2"
+    });
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const firstCall = calls[0];
+    if (!firstCall) {
+      throw new Error("fetch was not called with request init");
+    }
+    const [url, init] = firstCall;
+    expect(url).toContain("access_token=corp-token");
+    expect(JSON.parse(String(init.body))).toEqual({ cursor: "cursor-1", limit: 500 });
+  });
 });
