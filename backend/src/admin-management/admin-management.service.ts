@@ -98,7 +98,15 @@ export class AdminManagementService {
   ): Promise<AdminMemberCardResponse> {
     requireAdminRole(session.role, "operator");
     const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
-    return adminMemberCardResponseSchema.parse(this.employeeCards.updateCurrentCard(employeeSession, request));
+    let card = this.employeeCards.updateCurrentCard(employeeSession, request);
+    if (request.status !== undefined) {
+      const persisted = await this.repository.updateMemberStatus(session, memberIdentityId, request.status);
+      if (persisted === false) {
+        throw new NotFoundException("tenant member not found");
+      }
+      card = this.employeeCards.updateCurrentCardStatus(employeeSession, request.status);
+    }
+    return adminMemberCardResponseSchema.parse(card);
   }
 
   private async toEmployeeSession(session: AdminSession, memberIdentityId: string): Promise<EmployeeSession> {

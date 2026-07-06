@@ -51,13 +51,17 @@ describe("AdminManagementService", () => {
     const card = await service.updateMemberCard(ownerSession(), "member-001", {
       display_name: "Configured Name",
       title: "Sales Lead",
-      fields: { email: "configured@example.com" }
+      fields: { email: "configured@example.com" },
+      status: "disabled"
     });
 
     expect(card.display_name).toBe("Configured Name");
     expect(card.title).toBe("Sales Lead");
     expect(card.fields.email).toBe("configured@example.com");
-    expect((await service.getMemberCard(ownerSession(), "member-001")).display_name).toBe("Configured Name");
+    expect(card.status).toBe("disabled");
+    const saved = await service.getMemberCard(ownerSession(), "member-001");
+    expect(saved.display_name).toBe("Configured Name");
+    expect(saved.status).toBe("disabled");
   });
 
   it("rejects write and sync attempts from read-only auditors", async () => {

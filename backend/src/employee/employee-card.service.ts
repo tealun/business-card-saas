@@ -35,6 +35,12 @@ export class EmployeeCardService {
     return card;
   }
 
+  updateCurrentCardStatus(session: EmployeeSession, status: "active" | "disabled"): EmployeeCardResponse {
+    const card = employeeCardResponseSchema.parse(this.repository.updateCurrentCardStatus(session, status));
+    this.publishPreview(this.repository.getPreview(session));
+    return card;
+  }
+
   getPreview(session: EmployeeSession): EmployeeCardPreviewResponse {
     return this.publishPreview(this.repository.getPreview(session));
   }
