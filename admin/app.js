@@ -57,6 +57,7 @@ async function request(path, options = {}) {
 }
 
 function adminRequest(path, options = {}) {
+  state.adminToken = adminTokenInput.value.trim();
   return request(path, { ...options, token: state.adminToken });
 }
 
