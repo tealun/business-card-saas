@@ -32,6 +32,10 @@ interface CardRow extends QueryResultRow {
   public_id: string;
 }
 
+interface MemberIdentityConflictRow extends QueryResultRow {
+  id: string | number | bigint;
+}
+
 @Injectable()
 export class WecomContactSyncRepository {
   private readonly memory = new Map<string, SyncWecomContactUser[]>();
@@ -83,6 +87,12 @@ export class WecomContactSyncRepository {
     const current = existing.rows[0];
     const displayName = user.name ?? user.openUserid ?? user.userid ?? "WeCom Member";
     if (current) {
+      const nextOpenUserid = (await this.isOpenUseridOwnedByAnotherMember(tx, tenantId, user.openUserid, current.id))
+        ? null
+        : user.openUserid;
+      const nextUserid = (await this.isUseridOwnedByAnotherMember(tx, tenantId, user.userid, current.id))
+        ? null
+        : user.userid;
       const updated = await tx.query<MemberIdentityRow>(
         `
           UPDATE member_identities
@@ -97,8 +107,8 @@ export class WecomContactSyncRepository {
         `,
         [
           tenantId,
-          user.openUserid,
-          user.userid,
+          nextOpenUserid,
+          nextUserid,
           displayName,
           JSON.stringify(user.departmentIds),
           user.status,
@@ -126,6 +136,48 @@ export class WecomContactSyncRepository {
       [tenantId, user.userid, user.openUserid, displayName, JSON.stringify(user.departmentIds), user.status]
     );
     return requireMemberRow(inserted.rows[0]);
+  }
+
+  private async isOpenUseridOwnedByAnotherMember(
+    tx: TenantTransactionClient,
+    tenantId: string,
+    openUserid: string | null,
+    currentMemberId: string | number | bigint
+  ): Promise<boolean> {
+    if (!openUserid) {
+      return false;
+    }
+    const result = await tx.query<MemberIdentityConflictRow>(
+      `
+        SELECT id
+        FROM member_identities
+        WHERE tenant_id = $1 AND open_userid = $2 AND id <> $3
+        LIMIT 1
+      `,
+      [tenantId, openUserid, currentMemberId]
+    );
+    return Boolean(result.rows[0]);
+  }
+
+  private async isUseridOwnedByAnotherMember(
+    tx: TenantTransactionClient,
+    tenantId: string,
+    userid: string | null,
+    currentMemberId: string | number | bigint
+  ): Promise<boolean> {
+    if (!userid) {
+      return false;
+    }
+    const result = await tx.query<MemberIdentityConflictRow>(
+      `
+        SELECT id
+        FROM member_identities
+        WHERE tenant_id = $1 AND userid = $2 AND id <> $3
+        LIMIT 1
+      `,
+      [tenantId, userid, currentMemberId]
+    );
+    return Boolean(result.rows[0]);
   }
 
   private async ensureDefaultCard(
