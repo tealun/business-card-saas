@@ -48,8 +48,10 @@ CREATE TABLE "wecom_suite_state" (
 CREATE TABLE "member_identities" (
     "id" BIGSERIAL NOT NULL,
     "tenant_id" BIGINT NOT NULL,
+    "userid" VARCHAR(128),
     "open_userid" VARCHAR(128),
     "name" VARCHAR(128) NOT NULL,
+    "department_json" JSONB,
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -332,6 +334,9 @@ CREATE INDEX "idx_member_tenant" ON "member_identities"("tenant_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_mi_tenant_id" ON "member_identities"("tenant_id", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_member_userid" ON "member_identities"("tenant_id", "userid") WHERE "userid" IS NOT NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_member_open_userid" ON "member_identities"("tenant_id", "open_userid");

@@ -3,9 +3,11 @@ import { defaultEmployeePublicId } from "../common/default-public-id.js";
 import {
   adminMemberCardResponseSchema,
   adminMemberListResponseSchema,
+  adminMemberSyncResponseSchema,
   adminOverviewResponseSchema,
   type AdminMemberCardResponse,
   type AdminMemberListResponse,
+  type AdminMemberSyncResponse,
   type AdminOverviewResponse,
   type UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
@@ -13,12 +15,22 @@ import type { EmployeeSession } from "../session/employee-session.js";
 import { EmployeeCardService } from "../employee/employee-card.service.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole } from "../admin-auth/admin-rbac.js";
+import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
+import { AdminManagementRepository } from "./admin-management.repository.js";
 
 @Injectable()
 export class AdminManagementService {
-  constructor(private readonly employeeCards: EmployeeCardService) {}
+  constructor(
+    private readonly employeeCards: EmployeeCardService,
+    private readonly repository: AdminManagementRepository,
+    private readonly contactSync: WecomContactSyncService
+  ) {}
 
-  getOverview(session: AdminSession): AdminOverviewResponse {
+  async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
+    const persisted = await this.repository.getOverview(session);
+    if (persisted) {
+      return adminOverviewResponseSchema.parse(persisted);
+    }
     const hasMember = Boolean(session.memberIdentityId);
     return adminOverviewResponseSchema.parse({
       tenant_id: session.tenantId,
@@ -29,16 +41,21 @@ export class AdminManagementService {
     });
   }
 
-  listMembers(session: AdminSession): AdminMemberListResponse {
+  async listMembers(session: AdminSession): Promise<AdminMemberListResponse> {
+    const persisted = await this.repository.listMembers(session);
+    if (persisted) {
+      return adminMemberListResponseSchema.parse(persisted);
+    }
     if (!session.memberIdentityId) {
       return adminMemberListResponseSchema.parse({ items: [], total: 0 });
     }
-    const employeeSession = this.toEmployeeSession(session, session.memberIdentityId);
+    const employeeSession = await this.toEmployeeSession(session, session.memberIdentityId);
     const card = this.employeeCards.getCurrentCard(employeeSession);
     return adminMemberListResponseSchema.parse({
       items: [
         {
           member_identity_id: session.memberIdentityId,
+          userid: null,
           open_userid: session.openUserid,
           display_name: card.display_name,
           status: card.status,
@@ -49,22 +66,39 @@ export class AdminManagementService {
     });
   }
 
-  getMemberCard(session: AdminSession, memberIdentityId: string): AdminMemberCardResponse {
-    const employeeSession = this.toEmployeeSession(session, memberIdentityId);
+  async syncMembers(session: AdminSession): Promise<AdminMemberSyncResponse> {
+    requireAdminRole(session.role, "admin");
+    const result = await this.contactSync.syncTenantMembers({
+      tenantId: session.tenantId,
+      tenantName: session.tenantName
+    });
+    return adminMemberSyncResponseSchema.parse({
+      tenant_id: result.tenantId,
+      synced_count: result.syncedCount,
+      skipped_count: result.skippedCount
+    });
+  }
+
+  async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {
+    const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     return adminMemberCardResponseSchema.parse(this.employeeCards.getCurrentCard(employeeSession));
   }
 
-  updateMemberCard(
+  async updateMemberCard(
     session: AdminSession,
     memberIdentityId: string,
     request: UpdateAdminMemberCardRequest
-  ): AdminMemberCardResponse {
+  ): Promise<AdminMemberCardResponse> {
     requireAdminRole(session.role, "operator");
-    const employeeSession = this.toEmployeeSession(session, memberIdentityId);
+    const employeeSession = await this.toEmployeeSession(session, memberIdentityId);
     return adminMemberCardResponseSchema.parse(this.employeeCards.updateCurrentCard(employeeSession, request));
   }
 
-  private toEmployeeSession(session: AdminSession, memberIdentityId: string): EmployeeSession {
+  private async toEmployeeSession(session: AdminSession, memberIdentityId: string): Promise<EmployeeSession> {
+    const persisted = await this.repository.getMemberSession(session, memberIdentityId);
+    if (persisted) {
+      return persisted;
+    }
     if (!session.memberIdentityId || session.memberIdentityId !== memberIdentityId) {
       throw new NotFoundException("tenant member not found");
     }
