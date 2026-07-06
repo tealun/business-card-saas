@@ -24,6 +24,7 @@ const companyForm = document.querySelector("#companyForm");
 const sharePath = document.querySelector("#sharePath");
 const adminTokenInput = document.querySelector("#adminToken");
 const adminMemberIdInput = document.querySelector("#adminMemberId");
+const adminCardStatusInput = document.querySelector("#adminCardStatus");
 const templateNameInput = document.querySelector("#templateName");
 
 apiBaseInput.value = localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1";
@@ -77,6 +78,9 @@ function fillCard(card) {
   cardForm.show_mobile.checked = Boolean(card.privacy?.show_mobile);
   cardForm.show_email.checked = Boolean(card.privacy?.show_email);
   cardForm.show_wechat.checked = Boolean(card.privacy?.show_wechat);
+  if (adminCardStatusInput) {
+    adminCardStatusInput.value = card.status || "active";
+  }
 }
 
 function cardPayloadFromForm() {
@@ -232,7 +236,10 @@ document.querySelector("#saveAdminCard").addEventListener("click", async () => {
   const card = await run("saving admin card", adminCardOutput, async () =>
     adminRequest(`/admin/members/${encodeURIComponent(state.adminMemberId)}/card`, {
       method: "PUT",
-      body: cardPayloadFromForm()
+      body: {
+        ...cardPayloadFromForm(),
+        status: adminCardStatusInput?.value || "active"
+      }
     })
   );
   fillCard(card);

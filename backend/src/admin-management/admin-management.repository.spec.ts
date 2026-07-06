@@ -1,4 +1,5 @@
 import { DatabaseService } from "../database/database.service.js";
+import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 
 describe("AdminManagementRepository", () => {
@@ -43,6 +44,30 @@ describe("AdminManagementRepository", () => {
       last_error: null
     });
   });
+
+  it("updates member, primary card, and public directory status in tenant scope", async () => {
+    const tenantTx = new FakeTenantTx();
+    const repository = new AdminManagementRepository(tenantTx as unknown as TenantTx);
+
+    await expect(
+      repository.updateMemberStatus(
+        {
+          tenantId: "tenant-001",
+          tenantName: "Pilot Corp",
+          memberIdentityId: "member-001",
+          openUserid: "ou-owner",
+          role: "owner"
+        },
+        "member-001",
+        "disabled"
+      )
+    ).resolves.toBe(true);
+
+    expect(tenantTx.tenantId).toBe("tenant-001");
+    expect(tenantTx.transaction.memberStatusParams).toEqual(["tenant-001", "member-001", "disabled"]);
+    expect(tenantTx.transaction.cardStatusParams).toEqual(["tenant-001", "member-001", "disabled"]);
+    expect(tenantTx.transaction.directoryStatusParams).toEqual(["pub_001", "tenant-001", "card-001", "disabled"]);
+  });
 });
 
 class FakeDatabaseService {
@@ -70,5 +95,37 @@ class FakeDatabaseService {
         } as T
       ]
     };
+  }
+}
+
+class FakeTenantTx {
+  tenantId = "";
+  transaction = new FakeTransaction();
+
+  async run<T>(tenantId: string, callback: (tx: TenantTransactionClient) => Promise<T>): Promise<T> {
+    this.tenantId = tenantId;
+    return callback(this.transaction as unknown as TenantTransactionClient);
+  }
+}
+
+class FakeTransaction {
+  memberStatusParams: unknown[] | undefined;
+  cardStatusParams: unknown[] | undefined;
+  directoryStatusParams: unknown[] | undefined;
+
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    if (text.includes("UPDATE member_identities")) {
+      this.memberStatusParams = values;
+      return { rows: [{ id: "member-001" } as T] };
+    }
+    if (text.includes("UPDATE cards")) {
+      this.cardStatusParams = values;
+      return { rows: [{ id: "card-001", public_id: "pub_001" } as T] };
+    }
+    if (text.includes("INSERT INTO public_card_directory")) {
+      this.directoryStatusParams = values;
+      return { rows: [] };
+    }
+    return { rows: [] };
   }
 }

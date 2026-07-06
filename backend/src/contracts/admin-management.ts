@@ -24,7 +24,9 @@ export const adminMemberListResponseSchema = z.object({
 });
 
 export const adminMemberCardResponseSchema = employeeCardResponseSchema;
-export const updateAdminMemberCardRequestSchema = updateEmployeeCardRequestSchema;
+export const updateAdminMemberCardRequestSchema = updateEmployeeCardRequestSchema.extend({
+  status: z.enum(["active", "disabled"]).optional()
+});
 
 export const adminMemberSyncResponseSchema = z.object({
   tenant_id: z.string(),

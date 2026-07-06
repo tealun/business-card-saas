@@ -129,7 +129,7 @@
 | POST `/api/v1/admin/members/sync` | 手动触发企业微信通讯录可见成员全量同步；需要 admin/owner 权限 |
 | GET `/api/v1/admin/sync-events` | 最近企业微信同步/回调事件；按当前租户过滤，不返回密文 payload |
 | GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；MVP 先覆盖当前已识别成员 |
-| PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置；需要 operator/admin/owner 权限 |
+| PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置与启停状态；需要 operator/admin/owner 权限 |
 | GET `/api/v1/admin/cards` | 名片列表 |
 | PUT `/api/v1/admin/cards/{id}/status` | 启用/停用（触发缓存失效） |
 | GET/POST `/api/v1/admin/templates` | 模板 |

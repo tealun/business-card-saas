@@ -101,6 +101,19 @@ export class EmployeeCardRepository {
     return this.cloneCard(next);
   }
 
+  updateCurrentCardStatus(session: EmployeeSession, status: "active" | "disabled"): EmployeeCardResponse {
+    const key = this.cardKey(session);
+    const current = this.ensureCurrentCard(session);
+    const next: EmployeeCardResponse = {
+      ...current,
+      fields: { ...current.fields },
+      privacy: { ...current.privacy },
+      status
+    };
+    this.cards.set(key, next);
+    return this.cloneCard(next);
+  }
+
   createShare(session: EmployeeSession): { publicId: string; shareId: string } {
     const card = this.getCurrentCard(session);
     return {

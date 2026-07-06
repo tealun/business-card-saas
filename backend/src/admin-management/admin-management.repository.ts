@@ -41,6 +41,11 @@ interface SyncEventRow extends QueryResultRow {
   total_count?: string;
 }
 
+interface UpdatedCardStatusRow extends QueryResultRow {
+  id: string | number | bigint;
+  public_id: string;
+}
+
 @Injectable()
 export class AdminManagementRepository {
   constructor(
@@ -176,6 +181,69 @@ export class AdminManagementRepository {
           memberIdentityId: String(row.id)
         })
     };
+  }
+
+  async updateMemberStatus(
+    session: AdminSession,
+    memberIdentityId: string,
+    status: "active" | "disabled"
+  ): Promise<boolean | null> {
+    if (!this.hasDatabase()) {
+      return null;
+    }
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const member = await tx.query(
+        `
+          UPDATE member_identities
+          SET status = $3,
+              updated_at = now()
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING id
+        `,
+        [session.tenantId, memberIdentityId, status]
+      );
+      if (!member.rows[0]) {
+        return false;
+      }
+
+      const cards = await tx.query<UpdatedCardStatusRow>(
+        `
+          UPDATE cards
+          SET status = $3,
+              updated_at = now()
+          WHERE tenant_id = $1
+            AND member_identity_id = $2
+            AND card_type = 'primary'
+            AND deleted_at IS NULL
+          RETURNING id, public_id
+        `,
+        [session.tenantId, memberIdentityId, status]
+      );
+      for (const card of cards.rows) {
+        await tx.query(
+          `
+            INSERT INTO public_card_directory (
+              public_id,
+              tenant_id,
+              card_id,
+              status,
+              card_updated_at,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, now(), now(), now())
+            ON CONFLICT (public_id) DO UPDATE SET
+              tenant_id = EXCLUDED.tenant_id,
+              card_id = EXCLUDED.card_id,
+              status = EXCLUDED.status,
+              card_updated_at = now(),
+              updated_at = now()
+          `,
+          [card.public_id, session.tenantId, card.id, status]
+        );
+      }
+      return true;
+    });
   }
 
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse | null> {
