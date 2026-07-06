@@ -28,6 +28,10 @@ export class WecomConfigService {
     }
     return suite;
   }
+
+  get apiBaseUrl(): string {
+    return readRequired("WECOM_API_BASE_URL", "https://qyapi.weixin.qq.com").replace(/\/+$/, "");
+  }
 }
 
 function readRequired(name: string, fallback: string): string {
