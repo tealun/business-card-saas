@@ -150,6 +150,16 @@ export class EmployeeCardRepository {
     const key = this.cardKey(session);
     const existing = this.cards.get(key);
     if (existing) {
+      if (session.status && existing.status !== session.status) {
+        const next: EmployeeCardResponse = {
+          ...existing,
+          fields: { ...existing.fields },
+          privacy: { ...existing.privacy },
+          status: session.status
+        };
+        this.cards.set(key, next);
+        return next;
+      }
       return existing;
     }
 
@@ -167,7 +177,7 @@ export class EmployeeCardRepository {
         wechat_id: null,
         address: null
       },
-      status: "active",
+      status: session.status ?? "active",
       privacy: {
         show_mobile: false,
         show_email: true,

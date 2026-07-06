@@ -130,8 +130,8 @@
 | GET `/api/v1/admin/sync-events` | 最近企业微信同步/回调事件；按当前租户过滤，不返回密文 payload |
 | GET `/api/v1/admin/members/{id}/card` | 读取员工名片配置；MVP 先覆盖当前已识别成员 |
 | PUT `/api/v1/admin/members/{id}/card` | 更新员工名片配置与启停状态；需要 operator/admin/owner 权限 |
-| GET `/api/v1/admin/cards` | 名片列表 |
-| PUT `/api/v1/admin/cards/{id}/status` | 启用/停用（触发缓存失效） |
+| GET `/api/v1/admin/cards` | 规划：独立名片列表；当前按员工进入 `GET /api/v1/admin/members/{id}/card` |
+| PUT `/api/v1/admin/cards/{id}/status` | 规划：独立名片启停；当前用 `PUT /api/v1/admin/members/{id}/card` 的 `status` 字段 |
 | GET/POST `/api/v1/admin/templates` | 模板 |
 | GET/PUT `/api/v1/admin/settings/fields` | 字段规则（企业硬边界，§11.3） |
 | GET `/api/v1/admin/stats/overview` | 统计概览（口径见 §32；后续增强，当前概览先用 `/admin/overview`） |

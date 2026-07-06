@@ -174,6 +174,7 @@ export class AdminManagementRepository {
       memberIdentityId: String(row.id),
       displayName: row.name,
       openUserid: row.open_userid ?? row.userid ?? `member:${String(row.id)}`,
+      status: normalizeStatus(row.status),
       publicId:
         row.public_id ??
         defaultEmployeePublicId({
