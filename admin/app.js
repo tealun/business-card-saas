@@ -30,10 +30,30 @@ const wecomRedirectUriInput = document.querySelector("#wecomRedirectUri");
 const adminMemberIdInput = document.querySelector("#adminMemberId");
 const adminCardStatusInput = document.querySelector("#adminCardStatus");
 const templateNameInput = document.querySelector("#templateName");
+const metricMembers = document.querySelector("#metricMembers");
+const metricCards = document.querySelector("#metricCards");
+const metricActiveCards = document.querySelector("#metricActiveCards");
+const membersTotal = document.querySelector("#membersTotal");
+const membersRows = document.querySelector("#membersRows");
+const fieldRows = document.querySelector("#fieldRows");
+const templateRows = document.querySelector("#templateRows");
+const syncEventRows = document.querySelector("#syncEventRows");
 
 apiBaseInput.value = localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1";
 adminTokenInput.value = state.adminToken;
 apiBaseInput.addEventListener("change", () => localStorage.setItem("bc_api_base", apiBaseInput.value.trim()));
+
+document.querySelectorAll("[data-view-target]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = button.getAttribute("data-view-target");
+    document.querySelectorAll("[data-view]").forEach((view) => {
+      view.classList.toggle("active", view.getAttribute("data-view") === target);
+    });
+    document.querySelectorAll("[data-view-target]").forEach((item) => {
+      item.classList.toggle("active", item === button);
+    });
+  });
+});
 
 function apiBase() {
   return apiBaseInput.value.trim().replace(/\/$/, "");
@@ -110,6 +130,81 @@ function fillCompany(profile) {
   companyForm.display_name.value = profile.display_name || "";
   companyForm.website_url.value = profile.website_url || "";
   companyForm.address.value = profile.address || "";
+}
+
+function text(value) {
+  if (value === null || value === undefined || value === "") {
+    return "--";
+  }
+  if (typeof value === "boolean") {
+    return value ? "是" : "否";
+  }
+  return String(value);
+}
+
+function renderRows(tbody, rows, colSpan, cells) {
+  tbody.replaceChildren();
+  if (!rows?.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = colSpan;
+    cell.textContent = "暂无数据";
+    row.append(cell);
+    tbody.append(row);
+    return;
+  }
+  rows.forEach((item) => {
+    const row = document.createElement("tr");
+    cells(item).forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = text(value);
+      row.append(cell);
+    });
+    tbody.append(row);
+  });
+}
+
+function renderOverview(result) {
+  metricMembers.textContent = text(result.member_count);
+  metricCards.textContent = text(result.card_count);
+  metricActiveCards.textContent = text(result.active_card_count);
+}
+
+function renderMembers(result) {
+  membersTotal.textContent = text(result.total);
+  renderRows(membersRows, result.items, 4, (member) => [
+    member.display_name,
+    member.status === "active" ? "启用" : "停用",
+    member.public_id,
+    member.userid || member.open_userid
+  ]);
+}
+
+function renderSyncEvents(result) {
+  renderRows(syncEventRows, result.items, 5, (event) => [
+    event.event_type,
+    event.change_type,
+    event.status,
+    event.retry_count,
+    event.processed_at || event.received_at
+  ]);
+}
+
+function renderFieldSettings(result) {
+  renderRows(fieldRows, result.fields, 4, (field) => [
+    field.label,
+    field.locked,
+    field.employee_editable,
+    field.default_visible
+  ]);
+}
+
+function renderTemplates(result) {
+  renderRows(templateRows, result.items, 3, (template) => [
+    template.name,
+    template.is_default,
+    template.status
+  ]);
 }
 
 async function run(label, target, fn) {
@@ -246,11 +341,13 @@ document.querySelector("#loadAdminMe").addEventListener("click", async () => {
 });
 
 document.querySelector("#loadOverview").addEventListener("click", async () => {
-  await run("loading overview", adminOutput, async () => adminRequest("/admin/overview"));
+  const result = await run("loading overview", adminOutput, async () => adminRequest("/admin/overview"));
+  renderOverview(result);
 });
 
 document.querySelector("#loadMembers").addEventListener("click", async () => {
   const result = await run("loading members", adminOutput, async () => adminRequest("/admin/members"));
+  renderMembers(result);
   const first = result.items?.[0];
   if (first?.member_identity_id) {
     state.adminMemberId = first.member_identity_id;
@@ -264,7 +361,8 @@ document.querySelector("#syncMembers").addEventListener("click", async () => {
 });
 
 document.querySelector("#loadSyncEvents").addEventListener("click", async () => {
-  await run("loading sync events", adminOutput, async () => adminRequest("/admin/sync-events"));
+  const result = await run("loading sync events", adminOutput, async () => adminRequest("/admin/sync-events"));
+  renderSyncEvents(result);
 });
 
 document.querySelector("#retrySyncEvents").addEventListener("click", async () => {
@@ -314,11 +412,13 @@ document.querySelector("#saveCompanyProfile").addEventListener("click", async ()
 });
 
 document.querySelector("#loadFieldSettings").addEventListener("click", async () => {
-  await run("loading field settings", configOutput, async () => adminRequest("/admin/settings/fields"));
+  const result = await run("loading field settings", configOutput, async () => adminRequest("/admin/settings/fields"));
+  renderFieldSettings(result);
 });
 
 document.querySelector("#loadTemplates").addEventListener("click", async () => {
-  await run("loading templates", configOutput, async () => adminRequest("/admin/templates"));
+  const result = await run("loading templates", configOutput, async () => adminRequest("/admin/templates"));
+  renderTemplates(result);
 });
 
 document.querySelector("#createTemplate").addEventListener("click", async () => {
@@ -330,6 +430,7 @@ document.querySelector("#createTemplate").addEventListener("click", async () => 
       layout: { variant: "horizontal-business" }
     }
   }));
+  document.querySelector("#loadTemplates").click();
 });
 
 document.querySelector("#checkHealth").click();
