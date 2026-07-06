@@ -127,7 +127,7 @@ sequenceDiagram
 
 涉及接口（以官方文档为准）：`service/get_pre_auth_code`、`service/set_session_info`、`service/get_permanent_code`、`service/get_auth_info`。
 
-当前落地入口：`POST /api/v1/wecom/authorization-links`。该接口由平台方使用 `x-wecom-launch-token` 发起，后端完成 `get_pre_auth_code` + `set_session_info` 后返回授权链接；真实试点企业打开该链接完成授权后，企业微信仍通过指令回调 `create_auth` 推送 `auth_code`，再由后端换取 `permanent_code`。
+当前落地入口：`POST /api/v1/wecom/authorization-links`。该接口由平台方使用 `x-wecom-launch-token` 发起，后端完成 `get_pre_auth_code` + `set_session_info` 后返回授权链接；真实试点企业打开该链接完成授权后，若企业微信把 `auth_code` 附在 `redirect_uri` 回跳，`GET /api/v1/wecom/authorization-complete` 会换取 `permanent_code` 并创建/更新 tenant；若通过指令回调 `create_auth` 推送 `auth_code`，仍由 command callback 处理。
 
 ---
 

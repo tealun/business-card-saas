@@ -47,8 +47,9 @@
 | 方法 路径 | 鉴权 | R | S |
 |-----------|------|---|---|
 | POST `/api/v1/wecom/authorization-links` | Header `x-wecom-launch-token`（匹配 `WECOM_AUTH_LAUNCH_TOKEN`） | `redirect_uri?`、`state?`、`auth_type=official\|test?`、`app_ids?` | `authorization_url`、`suite_id`、`pre_auth_code_expires_in`、`redirect_uri`、`state`、`auth_type` |
+| GET `/api/v1/wecom/authorization-complete` | 企业微信回跳 | `auth_code`、`state?` | `handled=true`、`tenant_id`、`open_corpid`、`corp_name`、`auth_status`、`state?` |
 
-说明：该接口用于平台方发起企业授权，调用前必须已有可用 `suite_ticket → suite_access_token`。服务端会先调用 `service/get_pre_auth_code`，再调用 `service/set_session_info`，最后生成 `open.work.weixin.qq.com/3rdapp/install` 授权链接。它不走租户 JWT，因为此时 tenant 可能尚未创建；生产环境必须配置高熵 `WECOM_AUTH_LAUNCH_TOKEN`。
+说明：`authorization-links` 用于平台方发起企业授权，调用前必须已有可用 `suite_ticket → suite_access_token`。服务端会先调用 `service/get_pre_auth_code`，再调用 `service/set_session_info`，最后生成 `open.work.weixin.qq.com/3rdapp/install` 授权链接。它不走租户 JWT，因为此时 tenant 可能尚未创建；生产环境必须配置高熵 `WECOM_AUTH_LAUNCH_TOKEN`。授权完成后若企业微信把 `auth_code` 附在 `redirect_uri` 回跳，`authorization-complete` 会复用授权服务换取 `permanent_code` 并创建/更新 tenant；若通过指令回调推送 `create_auth`，仍由 command callback 处理。
 
 ### 3.2 员工名片（Employee）
 

@@ -34,7 +34,7 @@
 - 2026-07-07：后台员工名片字段配置已进入数据库持久化：`GET/PUT /api/v1/admin/members/{id}/card` 数据库模式读写 `cards`，联系方式字段以 `fields_encrypted` 加密保存，姓名/职位/隐私/启停状态与公开目录同步。
 - 2026-07-07：阶段 5.4 失败重试/死信最小闭环已起步：新增后台 `POST /api/v1/admin/sync-events/retry`，可重放 failed data callback 的已验证密文，超过重试上限后标记 `dead`，workbench 增加“重试失败”按钮。
 - 2026-07-07：阶段 3.1/3.3 owner bootstrap 可联调闭环已推进：`admin_claim_tokens` 纳入租户 RLS，`tenant_admins` 增加 active owner 唯一约束，后台 `POST /api/v1/admin/auth/qy-login` 支持可选 `claim_token`，workbench 增加管理员 code + owner claim token 登录入口。
-- 2026-07-07：阶段 1 企业授权发起链路补齐：新增 `POST /api/v1/wecom/authorization-links`，用内部 `x-wecom-launch-token` 生成企业微信授权链接，后端完成 `get_pre_auth_code` 与 `set_session_info`，workbench 增加授权链接生成入口。
+- 2026-07-07：阶段 1 企业授权发起链路补齐：新增 `POST /api/v1/wecom/authorization-links`，用内部 `x-wecom-launch-token` 生成企业微信授权链接，后端完成 `get_pre_auth_code` 与 `set_session_info`，并补 `GET /api/v1/wecom/authorization-complete` 处理 `redirect_uri` 回跳 `auth_code`；workbench 增加授权链接生成入口。
 - 下一步：真实企业微信 Web OAuth/扫码跳转 URL、HTTPS 回调和试点企业授权仍是端到端联调前置条件；失败告警的外部通知通道待后续接入。
 - 外部阻塞仍存在：阶段 0 的服务商账号、公开 HTTPS 回调 URL、试点企业授权与 M0-M1 gate 实测需要真实企业微信后台配合。
 
@@ -57,7 +57,7 @@
 | 1.2 | 企业微信回调加解密与签名校验（已实现） | wecom crypto service | 单测覆盖 msg_signature 校验、AES 解密、明文解析、失败拒绝 |
 | 1.3 | 指令回调：接收 `suite_ticket`（已实现） | callback controller/repository | 能落库或缓存最近 ticket，重复/乱序安全 |
 | 1.4 | `suite_access_token` singleflight 刷新（已实现） | token service + Redis/DB fallback | 并发刷新不互相踩；过期前可复用 |
-| 1.5 | 授权发起与回调：`pre_auth_code -> auth_code -> permanent_code`（已实现） | authorization link + auth callback service | 平台可生成企业授权链接；授权成功后创建/更新 `tenant`，加密保存 permanent_code |
+| 1.5 | 授权发起与回调：`pre_auth_code -> auth_code -> permanent_code`（已实现） | authorization link + authorization complete + auth callback service | 平台可生成企业授权链接；`redirect_uri` 回跳或 `create_auth` 回调授权成功后创建/更新 `tenant`，加密保存 permanent_code |
 | 1.6 | 企业 access_token 获取（已实现） | corp token service | 可按 tenant 获取企业级 token，错误码归一 |
 
 阶段验收：试点企业授权后，系统内出现 active tenant，保存企业授权状态、open_corpid、corp_name、agent_id、可见范围摘要。

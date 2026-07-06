@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Headers, Post } from "@nestjs/common";
 import { wecomAuthorizationLinkRequestSchema } from "../contracts/wecom-authorization.js";
 import { WecomAuthorizationLinkService } from "./wecom-authorization-link.service.js";
 
@@ -8,6 +8,10 @@ export class WecomAuthorizationLinkController {
 
   @Post()
   createAuthorizationLink(@Headers("x-wecom-launch-token") launchToken: string | undefined, @Body() body: unknown) {
-    return this.links.createAuthorizationLink(wecomAuthorizationLinkRequestSchema.parse(body ?? {}), launchToken);
+    const result = wecomAuthorizationLinkRequestSchema.safeParse(body ?? {});
+    if (!result.success) {
+      throw new BadRequestException("invalid WeCom authorization link request");
+    }
+    return this.links.createAuthorizationLink(result.data, launchToken);
   }
 }
