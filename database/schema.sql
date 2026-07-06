@@ -19,6 +19,10 @@ CREATE TABLE "tenants" (
     "name" VARCHAR(255) NOT NULL,
     "open_corpid" VARCHAR(128) NOT NULL,
     "auth_status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "permanent_code_encrypted" TEXT,
+    "agent_id" VARCHAR(64),
+    "auth_scope_json" JSONB,
+    "authorized_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 

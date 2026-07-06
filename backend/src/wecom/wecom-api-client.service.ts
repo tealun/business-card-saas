@@ -12,6 +12,19 @@ export interface FetchSuiteTokenResponse {
   expiresIn: number;
 }
 
+export interface FetchPermanentCodeRequest {
+  suiteAccessToken: string;
+  authCode: string;
+}
+
+export interface FetchPermanentCodeResponse {
+  openCorpid: string;
+  corpName: string;
+  permanentCode: string;
+  agentId: string | null;
+  authInfo: unknown;
+}
+
 interface WecomSuiteTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -19,41 +32,31 @@ interface WecomSuiteTokenPayload {
   expires_in?: number;
 }
 
+interface WecomPermanentCodePayload {
+  errcode?: number;
+  errmsg?: string;
+  permanent_code?: string;
+  auth_corp_info?: {
+    corpid?: string;
+    corp_name?: string;
+  };
+  auth_info?: {
+    agent?: Array<{
+      agentid?: number | string;
+    }>;
+  };
+}
+
 @Injectable()
 export class WecomApiClientService {
   constructor(private readonly config: WecomConfigService) {}
 
   async fetchSuiteAccessToken(request: FetchSuiteTokenRequest): Promise<FetchSuiteTokenResponse> {
-    const abort = new AbortController();
-    const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
-    let response: Response;
-    try {
-      response = await fetch(`${this.config.apiBaseUrl}/cgi-bin/service/get_suite_token`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        signal: abort.signal,
-        body: JSON.stringify({
-          suite_id: request.suiteId,
-          suite_secret: request.suiteSecret,
-          suite_ticket: request.suiteTicket
-        })
-      });
-    } catch {
-      throw new ServiceUnavailableException("WeCom get_suite_token request failed");
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (!response.ok) {
-      throw new ServiceUnavailableException(`WeCom get_suite_token HTTP ${response.status}`);
-    }
-
-    let payload: WecomSuiteTokenPayload;
-    try {
-      payload = (await response.json()) as WecomSuiteTokenPayload;
-    } catch {
-      throw new BadGatewayException("WeCom get_suite_token returned invalid JSON");
-    }
+    const payload = await this.postJson<WecomSuiteTokenPayload>("get_suite_token", "/cgi-bin/service/get_suite_token", {
+      suite_id: request.suiteId,
+      suite_secret: request.suiteSecret,
+      suite_ticket: request.suiteTicket
+    });
     if (payload.errcode && payload.errcode !== 0) {
       throw new BadGatewayException(`WeCom get_suite_token failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
     }
@@ -65,5 +68,61 @@ export class WecomApiClientService {
       suiteAccessToken: payload.suite_access_token,
       expiresIn: payload.expires_in
     };
+  }
+
+  async fetchPermanentCode(request: FetchPermanentCodeRequest): Promise<FetchPermanentCodeResponse> {
+    const payload = await this.postJson<WecomPermanentCodePayload>(
+      "get_permanent_code",
+      `/cgi-bin/service/get_permanent_code?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      { auth_code: request.authCode }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(
+        `WeCom get_permanent_code failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim()
+      );
+    }
+
+    const openCorpid = payload.auth_corp_info?.corpid;
+    const corpName = payload.auth_corp_info?.corp_name;
+    if (!openCorpid || !corpName || !payload.permanent_code) {
+      throw new BadGatewayException("WeCom get_permanent_code returned invalid payload");
+    }
+
+    const agentId = payload.auth_info?.agent?.[0]?.agentid;
+    return {
+      openCorpid,
+      corpName,
+      permanentCode: payload.permanent_code,
+      agentId: agentId === undefined ? null : String(agentId),
+      authInfo: payload.auth_info ?? null
+    };
+  }
+
+  private async postJson<T>(operation: string, path: string, body: unknown): Promise<T> {
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
+    let response: Response;
+    try {
+      response = await fetch(`${this.config.apiBaseUrl}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: abort.signal,
+        body: JSON.stringify(body)
+      });
+    } catch {
+      throw new ServiceUnavailableException(`WeCom ${operation} request failed`);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(`WeCom ${operation} HTTP ${response.status}`);
+    }
+
+    try {
+      return (await response.json()) as T;
+    } catch {
+      throw new BadGatewayException(`WeCom ${operation} returned invalid JSON`);
+    }
   }
 }
