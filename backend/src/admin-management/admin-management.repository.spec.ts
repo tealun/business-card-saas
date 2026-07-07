@@ -1,6 +1,6 @@
 import { DatabaseService } from "../database/database.service.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
-import { WecomStateCipherService } from "../wecom/wecom-state-cipher.service.js";
+import { CardFieldCipherService } from "./card-field-cipher.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 
 describe("AdminManagementRepository", () => {
@@ -67,13 +67,13 @@ describe("AdminManagementRepository", () => {
       display_name: "Alice",
       status: "active"
     });
-    expect(transaction.queries[0]?.values).toEqual(["tenant-001", "active", "%Alice\\_\\%%"]);
-    expect(transaction.queries[1]?.values).toEqual(["tenant-001", "active", "%Alice\\_\\%%", 25, 50]);
-    expect(transaction.queries[1]?.text).toContain("member_identities.tenant_id = $1");
-    expect(transaction.queries[1]?.text).toContain("AND (member_identities.name ILIKE $3");
-    expect(transaction.queries[1]?.text).toContain("ILIKE $3 ESCAPE");
-    expect(transaction.queries[1]?.text).toContain("LIMIT $4");
-    expect(transaction.queries[1]?.text).toContain("OFFSET $5");
+    expect(transaction.queries).toHaveLength(1);
+    expect(transaction.queries[0]?.values).toEqual(["tenant-001", "active", "%Alice\\_\\%%", 25, 50]);
+    expect(transaction.queries[0]?.text).toContain("member_identities.tenant_id = $1");
+    expect(transaction.queries[0]?.text).toContain("AND (member_identities.name ILIKE $3");
+    expect(transaction.queries[0]?.text).toContain("ILIKE $3 ESCAPE");
+    expect(transaction.queries[0]?.text).toContain("LIMIT $4");
+    expect(transaction.queries[0]?.text).toContain("OFFSET $5");
   });
 
   it("updates member, primary card, and public directory status in tenant scope", async () => {
@@ -107,7 +107,7 @@ describe("AdminManagementRepository", () => {
     const repository = new AdminManagementRepository(
       tenantTx as unknown as TenantTx,
       undefined,
-      cipher as unknown as WecomStateCipherService
+      cipher as unknown as CardFieldCipherService
     );
 
     const result = await repository.updateMemberCard(
@@ -227,9 +227,6 @@ class FakeMemberListTransaction {
 
   async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
     this.queries.push({ text, values });
-    if (text.includes("count(*)::text AS total_count")) {
-      return { rows: [{ total_count: "12" } as T] };
-    }
     return {
       rows: [
         {
@@ -238,7 +235,8 @@ class FakeMemberListTransaction {
           open_userid: "ou-alice",
           name: "Alice",
           status: "active",
-          public_id: "pub_alice"
+          public_id: "pub_alice",
+          total_count: "12"
         } as T
       ]
     };

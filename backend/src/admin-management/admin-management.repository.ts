@@ -13,7 +13,7 @@ import type {
   AdminSyncEventListResponse,
   UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
-import { WecomStateCipherService } from "../wecom/wecom-state-cipher.service.js";
+import { CardFieldCipherService } from "./card-field-cipher.service.js";
 
 interface OverviewRow extends QueryResultRow {
   member_count: string;
@@ -73,7 +73,7 @@ export class AdminManagementRepository {
   constructor(
     @Optional() private readonly tenantTx?: TenantTx,
     @Optional() private readonly database?: DatabaseService,
-    @Optional() private readonly cipher?: WecomStateCipherService
+    @Optional() private readonly cipher?: CardFieldCipherService
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse | null> {
@@ -85,8 +85,8 @@ export class AdminManagementRepository {
         `
           SELECT
             (SELECT count(*)::text FROM member_identities WHERE tenant_id = $1) AS member_count,
-            (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND deleted_at IS NULL) AS card_count,
-            (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND status = 'active' AND deleted_at IS NULL) AS active_card_count
+            (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND card_type = 'primary' AND deleted_at IS NULL) AS card_count,
+            (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND card_type = 'primary' AND status = 'active' AND deleted_at IS NULL) AS active_card_count
         `,
         [session.tenantId]
       )
@@ -110,14 +110,6 @@ export class AdminManagementRepository {
     }
     return this.tenantTx!.run(session.tenantId, async (tx) => {
       const filters = memberListFilters(session, query);
-      const countResult = await tx.query<{ total_count: string }>(
-        `
-          SELECT count(*)::text AS total_count
-          FROM member_identities
-          WHERE ${filters.whereSql}
-        `,
-        filters.values
-      );
       const values = [...filters.values, query.limit, query.offset];
       const result = await tx.query<MemberSummaryRow>(
         `
@@ -127,7 +119,8 @@ export class AdminManagementRepository {
             member_identities.open_userid,
             member_identities.name,
             member_identities.status,
-            cards.public_id
+            cards.public_id,
+            count(*) OVER()::text AS total_count
           FROM member_identities
           LEFT JOIN LATERAL (
             SELECT public_id
@@ -160,7 +153,7 @@ export class AdminManagementRepository {
               memberIdentityId: String(row.id)
             })
         })),
-        total: Number(countResult.rows[0]?.total_count ?? "0")
+        total: Number(result.rows[0]?.total_count ?? "0")
       };
     });
   }
@@ -511,7 +504,7 @@ export class AdminManagementRepository {
         memberIdentityId
       });
     return {
-      card_id: row.card_id ? String(row.card_id) : memberIdentityId,
+      card_id: row.card_id ? String(row.card_id) : null,
       public_id: publicId,
       display_name: row.display_name ?? row.member_name,
       title: row.title,
@@ -539,7 +532,7 @@ export class AdminManagementRepository {
 
   private encrypt(value: string): string {
     if (!this.cipher) {
-      throw new Error("WeCom state cipher is required for admin member card persistence");
+      throw new Error("Card field cipher is required for admin member card persistence");
     }
     return this.cipher.encrypt(value);
   }

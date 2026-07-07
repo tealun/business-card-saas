@@ -20,7 +20,8 @@ Page({
       show_mobile: false,
       show_email: true,
       show_wechat: false
-    }
+    },
+    submitting: false
   },
 
   onLoad() {
@@ -63,6 +64,10 @@ Page({
   },
 
   async saveCard() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     const form = this.data.form;
     try {
       const card = await request("/employee/cards/current", {
@@ -91,6 +96,8 @@ Page({
       setTimeout(() => wx.navigateBack(), 600);
     } catch (error) {
       wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   }
 });

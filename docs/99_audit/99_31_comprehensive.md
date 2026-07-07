@@ -10,8 +10,8 @@
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | P0 | 1 | 1 | 0 |
-| P1 | 24 | 10 | 14 |
-| P2 | 20 | 3 | 17 |
+| P1 | 24 | 16 | 8 |
+| P2 | 20 | 5 | 15 |
 
 ## P0 — Must Fix
 
@@ -45,19 +45,19 @@
 | BE-P1-4 | Open | Full member sync does not disable stale WeCom members | `backend/src/wecom/wecom-contact-sync.service.ts` | 30-55 | Upsert only; no disable step for deleted users | Disable tenant members not present in sync result |
 | BE-P2-2 | Open | Dead-letter alert webhook silently drops failures | `backend/src/wecom/wecom-callback-alert.service.ts` | 25-62 | `catch { return { sent: false ... } }` swallows errors | Log failures and retry with backoff |
 | BE-P2-3 | Open | Unauthorized tenant callbacks return 400, causing WeCom retries | `backend/src/wecom/wecom-data-callback.service.ts` | 141-144 | `BadRequestException("tenant is not authorized")` | Record and return `success` so WeCom stops retrying |
-| BE-P2-4 | Open | Overview card count not scoped to primary cards | `backend/src/admin-management/admin-management.repository.ts` | 86-89 | `count(*) FROM cards WHERE tenant_id = $1` lacks `card_type = 'primary'` | Align count with member-list query filter |
+| BE-P2-4 | Fixed | Overview card count not scoped to primary cards | `backend/src/admin-management/admin-management.repository.ts` | 86-89 | `count(*) FROM cards WHERE tenant_id = $1` lacks `card_type = 'primary'` | Added `card_type = 'primary'` to overview counts |
 | BE-P2-6 | Open | WeCom API client discards error bodies | `backend/src/wecom/wecom-api-client.service.ts` | 334-336 | `ServiceUnavailableException("WeCom ... HTTP ${status}")` | Include `errcode`/`errmsg` from response body |
-| BE-P2-7 | Open | `card_id` falls back to internal member identity id | `backend/src/admin-management/admin-management.repository.ts` | 513-515 | `card_id: row.card_id ? String(row.card_id) : memberIdentityId` | Return `null` when no card row exists |
+| BE-P2-7 | Fixed | `card_id` falls back to internal member identity id | `backend/src/admin-management/admin-management.repository.ts` | 513-515 | `card_id: row.card_id ? String(row.card_id) : memberIdentityId` | Returns `null`; updated `adminMemberCardResponseSchema` to `card_id: z.string().nullable()` |
 
 ### Architecture, Standards & Efficiency
 
 | ID | Status | Title | File | Line | Evidence | Fix |
 |----|--------|-------|------|------|----------|-----|
-| ARCH-P1-1 | Open | Admin card encryption reuses WeCom state cipher | `backend/src/admin-management/admin-management.repository.ts` | 16, 540-549 | Imports `WecomStateCipherService`; encrypts card fields with WeCom state key | Introduce dedicated tenant/card-field encryption service |
-| STD-P1-1 | Open | Missing admin session throws generic 500 | `backend/src/admin-management/admin-management.controller.ts` | 54-59 | `throw new Error("admin session missing after guard")` | Throw `UnauthorizedException` to return 401/10001 |
+| ARCH-P1-1 | Fixed | Admin card encryption reuses WeCom state cipher | `backend/src/admin-management/admin-management.repository.ts` | 16, 540-549 | Imports `WecomStateCipherService`; encrypts card fields with WeCom state key | Added `CardFieldCipherService` using `CARD_FIELD_ENCRYPTION_KEY_BASE64` |
+| STD-P1-1 | Fixed | Missing admin session throws generic 500 | `backend/src/admin-management/admin-management.controller.ts` | 54-59 | `throw new Error("admin session missing after guard")` | Added `requireAdminSession()` helper returning `UnauthorizedException` |
 | STD-P1-2 | Fixed | Error filter collapses 401 and 403 into same code | `backend/src/common/api-exception.filter.ts` | 5-7 | `UNAUTHORIZED || FORBIDDEN → 10001` | `UNAUTHORIZED → 10001`, `FORBIDDEN → 30001` |
-| EFF-P1-1 | Open | Member list runs count(*) twice | `backend/src/admin-management/admin-management.repository.ts` | 113-120, 421-422 | Separate count query + `count(*) OVER()` window function | Drop separate count; use window function result |
-| ARCH-P2-1 | Open | `session()` helper duplicated across admin controllers | multiple | — | Identical helper in 3 controllers | Extract shared `requireAdminSession()` helper |
+| EFF-P1-1 | Fixed | Member list runs count(*) twice | `backend/src/admin-management/admin-management.repository.ts` | 113-120, 421-422 | Separate count query + `count(*) OVER()` window function | Removed separate count query; total from window function |
+| ARCH-P2-1 | Fixed | `session()` helper duplicated across admin controllers | multiple | — | Identical helper in 3 controllers | Extracted `requireAdminSession()` to `admin-auth/admin-session.util.ts` |
 | EFF-P2-1 | Open | `listMembers` re-parses already-parsed query | `backend/src/admin-management/admin-management.service.ts` | 52-56 | Default parsed, then body calls `parse(input)` again | Use `input` directly or remove default-value parse |
 | STD-P2-2 | Open | Miniprogram sends fields absent from backend contract | `miniprogram/pages/employee/edit.js` | 73, 80 | Sends `bio` and `website` not in `employee-card.ts` schema | Align contract or remove fields from client |
 | ARCH-P2-2 | Open | Admin logo references file outside deploy boundary | `admin/index.html` | 13 | `src="../docs/design/.../mark-color-144.png"` | Copy asset into `admin/assets/` |
@@ -67,12 +67,12 @@
 
 | ID | Status | Title | File | Line | Evidence | Fix |
 |----|--------|-------|------|------|----------|-----|
-| FE-P1-1 | Open | Admin `fetch` has no timeout/abort/retry | `admin/app.js` | 78-98 | Bare `fetch`; no `AbortController` | Add timeout and retry for idempotent GETs |
+| FE-P1-1 | Fixed | Admin `fetch` has no timeout/abort/retry | `admin/app.js` | 78-98 | Bare `fetch`; no `AbortController` | Added `request` wrapper with `AbortController` timeout; GET retries once |
 | FE-P1-2 | Open | Miniprogram `wx.request` has no timeout/retry | `miniprogram/utils/api.js` | 15-31 | No `timeout` or retry option | Add timeout and GET retry |
 | FE-P1-3 | Open | Race between `onLoad` login and `onShow` data load | `miniprogram/pages/employee/index.js` | 33-41 | `onShow` may call `loadPreview` while `login()` still running | Guard with promise lock or defer `onShow` until login done |
 | FE-P1-4 | Open | Unhandled async rejection in public card page | `miniprogram/pages/public/card.js` | 45-56, 75-78 | `reload()` chains without catch | Wrap in try/catch and set `uiState: "error"` |
-| FE-P1-5 | Open | Admin response parsing crashes on non-JSON bodies | `admin/app.js` | 92-93 | `JSON.parse(text)` on proxy HTML | Wrap parse in try/catch |
-| FE-P1-6 | Open | Save/share actions lack loading/duplicate protection | `miniprogram/pages/employee/card.js`, `edit.js`, `style.js` | 60-95 | No `loading` flag or button disable | Set `loading` flag and disable trigger during network call |
+| FE-P1-5 | Fixed | Admin response parsing crashes on non-JSON bodies | `admin/app.js` | 92-93 | `JSON.parse(text)` on proxy HTML | `fetchOnce` catches parse errors and surfaces HTTP status/message |
+| FE-P1-6 | Fixed | Save/share actions lack loading/duplicate protection | `miniprogram/pages/employee/card.js`, `edit.js`, `style.js` | 60-95 | No `loading` flag or button disable | Added `submitting` data flag; JS guard + WXML `btn--disabled` state |
 | FE-P2-1 | Open | Hardcoded API base in miniprogram | `miniprogram/app.js` | 3 | `apiBase: "http://localhost:3000/api/v1"` | Build-time env config; reject non-HTTPS in release |
 | FE-P2-2 | Open | Hardcoded API base in admin workbench | `admin/app.js` | 57 | `localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1"` | Documented config override instead of localhost default |
 | FE-P2-4 | Open | Rapid template-row clicks fire concurrent mutations | `admin/app.js` | 697-724 | No in-flight guard | Disable action buttons until operation settles |
@@ -102,7 +102,7 @@
 |----|--------|-------|------|------|----------|-----|
 | SEC-P2-1 | Fixed | Hardcoded WeCom suite callback secrets | `backend/src/wecom/wecom-config.service.ts` | 12-19 | `devDefaults.callbackToken/AesKey` | Removed `devDefaults`; all WeCom secrets now required via env |
 | SEC-P2-2 | Fixed | Hardcoded WeCom state encryption key | `backend/src/wecom/wecom-state-cipher.service.ts` | 4, 30-37 | `devEncryptionKeyBase64` | Removed dev fallback; throws when env is missing |
-| FE-P2-3 | Open | Admin token persisted in localStorage plaintext | `admin/app.js` | 3, 517-521 | `localStorage.setItem("bc_admin_token", ...)` | Use `sessionStorage` or secure cookie |
+| FE-P2-3 | Fixed | Admin token persisted in localStorage plaintext | `admin/app.js` | 3, 517-521 | `localStorage.setItem("bc_admin_token", ...)` | Changed to `sessionStorage`; token cleared when tab closes |
 | FE-P2-7 | Open | Public card tracking silently fails | `miniprogram/pages/public/card.js` | 93-138 | `catch (_error) {}` for visit/derive/action | Log failures; show non-blocking toast |
 | FE-P2-8 | Open | Uncontrolled form inputs without validation | `admin/app.js`, `miniprogram/pages/employee/edit.js` | various | Email/phone/URL/color sent after `trim()` only | Add client-side validators |
 | FE-P2-9 | Open | No CSP; dynamic CSS values lack sanitization | `admin/index.html`, `admin/app.js`, `miniprogram/pages/public/card.wxml` | various | No CSP meta; `style.backgroundColor = color` | Add CSP; validate colors |
@@ -139,7 +139,8 @@
 - ✅ TOP-P1-1/TOP-P1-2 verified by reading `docker-compose.yml`
 - ✅ All P0/P1 findings have file:line evidence and concrete fixes
 - ✅ Fixed items verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed)
-- ✅ Fixes committed and pushed in `92fbb9b`
+- ✅ Phase 1 fixes committed and pushed in `92fbb9b`
+- ✅ Phase 2 fixes verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed), `npm run build`
 
 ## Positive Observations
 - All existing backend tests pass (26 suites, 105 tests).

@@ -69,5 +69,7 @@
 </view>
 
 <view class="fixed-footer">
-  <view class="btn btn--primary btn--block" bindtap="applyStyle">应用此样式</view>
+  <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="applyStyle">
+    {{submitting ? '应用中…' : '应用此样式'}}
+  </view>
 </view>

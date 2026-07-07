@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
+import { requireAdminSession } from "../admin-auth/admin-session.util.js";
 import {
   createAdminTemplateRequestSchema,
   updateAdminCompanyProfileRequestSchema,
@@ -16,48 +17,48 @@ export class AdminConfigController {
 
   @Get("settings/fields")
   getFieldSettings(@Req() request: AdminRequest) {
-    return this.config.getFieldSettings(this.session(request));
+    return this.config.getFieldSettings(requireAdminSession(request));
   }
 
   @Put("settings/fields")
   @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   updateFieldSettings(@Req() request: AdminRequest, @Body() body: unknown) {
     return this.config.updateFieldSettings(
-      this.session(request),
+      requireAdminSession(request),
       updateAdminFieldSettingsRequestSchema.parse(body)
     );
   }
 
   @Get("company-profile")
   getCompanyProfile(@Req() request: AdminRequest) {
-    return this.config.getCompanyProfile(this.session(request));
+    return this.config.getCompanyProfile(requireAdminSession(request));
   }
 
   @Put("company-profile")
   @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   updateCompanyProfile(@Req() request: AdminRequest, @Body() body: unknown) {
     return this.config.updateCompanyProfile(
-      this.session(request),
+      requireAdminSession(request),
       updateAdminCompanyProfileRequestSchema.parse(body)
     );
   }
 
   @Get("templates")
   listTemplates(@Req() request: AdminRequest) {
-    return this.config.listTemplates(this.session(request));
+    return this.config.listTemplates(requireAdminSession(request));
   }
 
   @Post("templates")
   @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   createTemplate(@Req() request: AdminRequest, @Body() body: unknown) {
-    return this.config.createTemplate(this.session(request), createAdminTemplateRequestSchema.parse(body));
+    return this.config.createTemplate(requireAdminSession(request), createAdminTemplateRequestSchema.parse(body));
   }
 
   @Put("templates/:templateId")
   @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   updateTemplate(@Req() request: AdminRequest, @Param("templateId") templateId: string, @Body() body: unknown) {
     return this.config.updateTemplate(
-      this.session(request),
+      requireAdminSession(request),
       templateId,
       updateAdminTemplateRequestSchema.parse(body)
     );
@@ -66,13 +67,6 @@ export class AdminConfigController {
   @Put("templates/:templateId/default")
   @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   setDefaultTemplate(@Req() request: AdminRequest, @Param("templateId") templateId: string) {
-    return this.config.setDefaultTemplate(this.session(request), templateId);
-  }
-
-  private session(request: AdminRequest) {
-    if (!request.adminSession) {
-      throw new Error("admin session missing after guard");
-    }
-    return request.adminSession;
+    return this.config.setDefaultTemplate(requireAdminSession(request), templateId);
   }
 }

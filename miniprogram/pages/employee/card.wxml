@@ -60,9 +60,11 @@
 </view>
 
 <view class="fixed-footer">
-  <view class="btn btn--ghost card-footer__item" bindtap="saveCard">保存</view>
-  <view class="btn btn--primary card-footer__item" bindtap="createShare">
+  <view class="btn btn--ghost card-footer__item {{submitting ? 'btn--disabled' : ''}}" bindtap="saveCard">
+    {{submitting ? '保存中…' : '保存'}}
+  </view>
+  <view class="btn btn--primary card-footer__item {{submitting ? 'btn--disabled' : ''}}" bindtap="createShare">
     <view class="icon icon-send icon--sm"></view>
-    <text>发名片</text>
+    <text>{{submitting ? '生成中…' : '发名片'}}</text>
   </view>
 </view>

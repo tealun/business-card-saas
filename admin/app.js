@@ -1,6 +1,6 @@
 const state = {
   token: "",
-  adminToken: localStorage.getItem("bc_admin_token") || "",
+  adminToken: sessionStorage.getItem("bc_admin_token") || "",
   card: null,
   fieldSettings: [],
   templates: [],
@@ -76,6 +76,30 @@ function apiBase() {
 }
 
 async function request(path, options = {}) {
+  const isIdempotent = (options.method || "GET").toUpperCase() === "GET";
+  const maxRetries = isIdempotent ? 1 : 0;
+  const timeoutMs = options.timeoutMs || (isIdempotent ? 10_000 : 15_000);
+
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const result = await fetchOnce(path, options, controller.signal);
+      clearTimeout(timeoutId);
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      if (!isIdempotent || attempt === maxRetries) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
+async function fetchOnce(path, options, signal) {
   const headers = {
     "content-type": "application/json",
     ...(options.headers || {})
@@ -87,10 +111,16 @@ async function request(path, options = {}) {
   const response = await fetch(`${apiBase()}${path}`, {
     ...options,
     headers,
+    signal,
     body: options.body ? JSON.stringify(options.body) : undefined
   });
   const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { message: `服务响应异常 (${response.status} ${response.statusText})` };
+  }
   if (!response.ok) {
     throw new Error(body?.message || `${response.status} ${response.statusText}`);
   }
@@ -516,8 +546,8 @@ document.querySelector("#deriveShare").addEventListener("click", async () => {
 
 document.querySelector("#saveAdminToken").addEventListener("click", () => {
   state.adminToken = adminTokenInput.value.trim();
-  localStorage.setItem("bc_admin_token", state.adminToken);
-  adminStatus.textContent = state.adminToken ? "已保存" : "未连接";
+  sessionStorage.setItem("bc_admin_token", state.adminToken);
+  adminStatus.textContent = state.adminToken ? "已保存（当前标签页）" : "未连接";
 });
 
 document.querySelector("#adminQyLogin").addEventListener("click", async () => {
@@ -536,7 +566,7 @@ document.querySelector("#adminQyLogin").addEventListener("click", async () => {
   );
   state.adminToken = result.access_token;
   adminTokenInput.value = state.adminToken;
-  localStorage.setItem("bc_admin_token", state.adminToken);
+  sessionStorage.setItem("bc_admin_token", state.adminToken);
   adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
   state.adminMemberId = result.admin.member_identity_id || "";
   adminMemberIdInput.value = state.adminMemberId;
