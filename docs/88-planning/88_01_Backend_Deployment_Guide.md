@@ -95,6 +95,87 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_INSTALL_REDIRECT_URI`
 - `CORS_ORIGINS`
 
+## BaoTa Node Project Setup
+
+Use BaoTa only as the runtime/process manager. GitHub Actions is responsible for syncing source files into `/www/wwwroot/wecom_card`; BaoTa then installs dependencies, builds, and runs the backend from that same directory.
+
+Create the project in BaoTa:
+
+| BaoTa field | Value |
+|-------------|-------|
+| Project type | `Node.js` |
+| Project path | `/www/wwwroot/wecom_card` |
+| Project name | `wecom-card-api` |
+| Node version | Node `24.x` preferred; Node `22.x` LTS is acceptable if `24.x` is unavailable |
+| Package manager | `npm` |
+| Install command | `npm ci` |
+| Build command | `npm run build` |
+| Start command | `npm run start` |
+| Run directory | `/www/wwwroot/wecom_card` |
+| Port | Same as `.env` `PORT`, for example `3000` |
+
+If BaoTa has separate fields for environment variables, keep only non-secret basics there, such as `NODE_ENV=production`. Put all secrets in `/www/wwwroot/wecom_card/.env`, not in GitHub, not in the repository, and not in screenshots.
+
+Recommended first-time sequence in BaoTa:
+
+1. Wait until GitHub Actions has synced files and `/www/wwwroot/wecom_card/package.json` exists.
+2. Copy `/www/wwwroot/wecom_card/.env.example` to `/www/wwwroot/wecom_card/.env`.
+3. Edit `/www/wwwroot/wecom_card/.env` with production values.
+4. In BaoTa, install dependencies with `npm ci`.
+5. Build with `npm run build`.
+6. Run database migration with `npm run db:migrate`.
+7. Run database readiness check with `npm run db:check`.
+8. Start or restart the Node project.
+
+For later code-only deployments, GitHub Actions syncs source and database assets. BaoTa can then run:
+
+```bash
+npm ci
+npm run build
+npm run db:migrate
+npm run db:check
+npm run start
+```
+
+If BaoTa automatically restarts an already configured project, do not also set a GitHub Actions `DEPLOY_RESTART_COMMAND`. Use one restart owner to avoid two processes fighting over the same port.
+
+### BaoTa Reverse Proxy And Domain
+
+Point the backend domain DNS record to the server, then bind the domain in BaoTa to the Node project or to a reverse proxy that forwards to `127.0.0.1:${PORT}`.
+
+For example, if `.env` has:
+
+```env
+PORT=3000
+HOST=0.0.0.0
+```
+
+BaoTa/Nginx should proxy the public HTTPS domain to:
+
+```text
+http://127.0.0.1:3000
+```
+
+After binding HTTPS, verify these public URLs:
+
+```text
+https://your-backend-domain.example/api/v1/health/live
+https://your-backend-domain.example/api/v1/health/ready
+```
+
+Enterprise WeChat callback verification requires the public HTTPS URLs to be reachable from the internet. A local-only domain, IP-only URL, or HTTP-only URL is not enough for production callback setup.
+
+### BaoTa Files That Must Stay On Server
+
+These files/directories are intentionally protected from GitHub Actions deletion or overwrite:
+
+- `/www/wwwroot/wecom_card/.env`
+- `/www/wwwroot/wecom_card/node_modules/`
+- `/www/wwwroot/wecom_card/dist/`
+- runtime uploads, cache, logs, storage, tmp, and data directories
+
+If the server project directory looks empty after a workflow run, check GitHub Actions first. The deploy step should show `Sync backend and database assets to server`. If that step did not run or failed, BaoTa cannot install because `package.json` has not arrived yet.
+
 ## Production Domain Values
 
 For your production backend domain, use these URL-shaped values in the server-local `/www/wwwroot/wecom_card/.env`. Do not commit the real domain-specific `.env` file:
