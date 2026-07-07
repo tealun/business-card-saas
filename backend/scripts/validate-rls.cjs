@@ -69,6 +69,14 @@ assert(
   "public_card_directory must remain outside tenant RLS"
 );
 assert(
+  /ALTER TABLE\s+callback_events\s+DISABLE ROW LEVEL SECURITY/i.test(sql),
+  "callback_events must remain a platform table without tenant RLS"
+);
+assert(
+  !/CREATE POLICY\s+\S+\s+ON\s+callback_events/i.test(sql),
+  "callback_events must not define tenant RLS policies"
+);
+assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),
   "all app tenant/account current_setting calls must include missing_ok=true"
 );

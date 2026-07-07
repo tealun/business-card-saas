@@ -9,27 +9,27 @@ export class EmployeeCardController {
   constructor(private readonly cards: EmployeeCardService) {}
 
   @Get("current")
-  getCurrent(@Req() request: EmployeeRequest) {
+  async getCurrent(@Req() request: EmployeeRequest) {
     return this.cards.getCurrentCard(this.requireSession(request));
   }
 
   @Put("current")
-  updateCurrent(@Req() request: EmployeeRequest, @Body() body: unknown) {
+  async updateCurrent(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.cards.updateCurrentCard(this.requireSession(request), updateEmployeeCardRequestSchema.parse(body));
   }
 
   @Get("current/preview")
-  getPreview(@Req() request: EmployeeRequest) {
+  async getPreview(@Req() request: EmployeeRequest) {
     return this.cards.getPreview(this.requireSession(request));
   }
 
   @Put("current/style")
-  updateStyle(@Req() request: EmployeeRequest, @Body() body: unknown) {
+  async updateStyle(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.cards.updateStyle(this.requireSession(request), updateEmployeeCardStyleRequestSchema.parse(body));
   }
 
   @Post("current/share")
-  createShare(@Req() request: EmployeeRequest) {
+  async createShare(@Req() request: EmployeeRequest) {
     return this.cards.createShare(this.requireSession(request));
   }
 

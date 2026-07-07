@@ -38,8 +38,10 @@ const demoWecomMiniProgramLoginService = {
 
 describe("Auth and employee card flow", () => {
   let app: NestFastifyApplication;
+  const originalDatabaseUrl = process.env.DATABASE_URL;
 
   beforeAll(async () => {
+    delete process.env.DATABASE_URL;
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     })
@@ -55,6 +57,9 @@ describe("Auth and employee card flow", () => {
 
   afterAll(async () => {
     await app.close();
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
   });
 
   it("rejects employee current card without a bearer token", async () => {

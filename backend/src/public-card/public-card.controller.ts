@@ -12,12 +12,12 @@ export class PublicCardController {
   constructor(private readonly publicCards: PublicCardService) {}
 
   @Get(":publicId")
-  getPublicCard(@Param("publicId") publicId: string) {
+  async getPublicCard(@Param("publicId") publicId: string) {
     return this.publicCards.getPublicCard(publicIdSchema.parse(publicId));
   }
 
   @Post(":publicId/visit")
-  createVisit(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("user-agent") userAgent?: string) {
+  async createVisit(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("user-agent") userAgent?: string) {
     const request = visitRequestSchema.parse({
       ...(typeof body === "object" && body !== null ? body : {}),
       user_agent: userAgent
@@ -26,7 +26,7 @@ export class PublicCardController {
   }
 
   @Post(":publicId/actions")
-  recordAction(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("authorization") auth?: string) {
+  async recordAction(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("authorization") auth?: string) {
     const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
     if (!token) {
       throw new UnauthorizedException("visit_token required");
@@ -36,7 +36,7 @@ export class PublicCardController {
   }
 
   @Post(":publicId/shares/derive")
-  deriveShare(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("authorization") auth?: string) {
+  async deriveShare(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("authorization") auth?: string) {
     const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
     if (!token) {
       throw new UnauthorizedException("visit_token required");

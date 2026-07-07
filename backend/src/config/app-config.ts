@@ -23,6 +23,12 @@ const appConfigSchema = z
     CORS_ORIGINS: z.string().default(""),
 
     DATABASE_URL: databaseUrl.optional(),
+    DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+    DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(5_000),
+    DATABASE_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+    DATABASE_SSL: z.enum(["disable", "require"]).default("disable"),
+    DATABASE_APPLICATION_NAME: z.string().min(1).default("business-card-backend"),
 
     JWT_SECRET: z.string().min(32),
     ADMIN_JWT_SECRET: z.string().min(32),
@@ -92,5 +98,29 @@ export class AppConfig {
 
   get databaseUrl(): string | undefined {
     return this.values.DATABASE_URL;
+  }
+
+  get databasePoolMax(): number {
+    return this.values.DATABASE_POOL_MAX;
+  }
+
+  get databaseConnectTimeoutMs(): number {
+    return this.values.DATABASE_CONNECT_TIMEOUT_MS;
+  }
+
+  get databaseIdleTimeoutMs(): number {
+    return this.values.DATABASE_IDLE_TIMEOUT_MS;
+  }
+
+  get databaseStatementTimeoutMs(): number {
+    return this.values.DATABASE_STATEMENT_TIMEOUT_MS;
+  }
+
+  get databaseSsl(): "disable" | "require" {
+    return this.values.DATABASE_SSL;
+  }
+
+  get databaseApplicationName(): string {
+    return this.values.DATABASE_APPLICATION_NAME;
   }
 }

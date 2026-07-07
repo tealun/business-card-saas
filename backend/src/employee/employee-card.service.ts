@@ -22,39 +22,39 @@ export class EmployeeCardService {
     private readonly publicCards: PublicCardRepository
   ) {}
 
-  getCurrentCard(session: EmployeeSession): EmployeeCardResponse {
-    const card = employeeCardResponseSchema.parse(this.repository.getCurrentCard(session));
-    this.publishPreview(this.repository.getPreview(session));
+  async getCurrentCard(session: EmployeeSession): Promise<EmployeeCardResponse> {
+    const card = employeeCardResponseSchema.parse(await this.repository.getCurrentCard(session));
+    await this.publishPreview(await this.repository.getPreview(session));
     return card;
   }
 
-  updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): EmployeeCardResponse {
+  async updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): Promise<EmployeeCardResponse> {
     const parsed = updateEmployeeCardRequestSchema.parse(request);
-    const card = employeeCardResponseSchema.parse(this.repository.updateCurrentCard(session, parsed));
-    this.publishPreview(this.repository.getPreview(session));
+    const card = employeeCardResponseSchema.parse(await this.repository.updateCurrentCard(session, parsed));
+    await this.publishPreview(await this.repository.getPreview(session));
     return card;
   }
 
-  updateCurrentCardStatus(session: EmployeeSession, status: "active" | "disabled"): EmployeeCardResponse {
-    const card = employeeCardResponseSchema.parse(this.repository.updateCurrentCardStatus(session, status));
-    this.publishPreview(this.repository.getPreview(session));
+  async updateCurrentCardStatus(session: EmployeeSession, status: "active" | "disabled"): Promise<EmployeeCardResponse> {
+    const card = employeeCardResponseSchema.parse(await this.repository.updateCurrentCardStatus(session, status));
+    await this.publishPreview(await this.repository.getPreview(session));
     return card;
   }
 
-  getPreview(session: EmployeeSession): EmployeeCardPreviewResponse {
-    return this.publishPreview(this.repository.getPreview(session));
+  async getPreview(session: EmployeeSession): Promise<EmployeeCardPreviewResponse> {
+    return this.publishPreview(await this.repository.getPreview(session));
   }
 
-  updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
+  async updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): Promise<EmployeeCardPreviewResponse> {
     const parsed = updateEmployeeCardStyleRequestSchema.parse(request);
-    return this.publishPreview(this.repository.updateStyle(session, parsed));
+    return this.publishPreview(await this.repository.updateStyle(session, parsed));
   }
 
-  createShare(session: EmployeeSession): EmployeeShareResponse {
-    const share = this.repository.createShare(session);
-    this.publishPreview(this.repository.getPreview(session));
+  async createShare(session: EmployeeSession): Promise<EmployeeShareResponse> {
+    const share = await this.repository.createShare(session);
+    await this.publishPreview(await this.repository.getPreview(session));
     // Register the share so public derive/attribution can resolve it (A12-P2-1).
-    this.publicCards.registerRootShare({ publicId: share.publicId, shareId: share.shareId });
+    await this.publicCards.registerRootShare({ publicId: share.publicId, shareId: share.shareId });
     return employeeShareResponseSchema.parse({
       public_id: share.publicId,
       share_id: share.shareId,
@@ -63,9 +63,9 @@ export class EmployeeCardService {
     });
   }
 
-  private publishPreview(preview: EmployeeCardPreviewResponse): EmployeeCardPreviewResponse {
+  private async publishPreview(preview: EmployeeCardPreviewResponse): Promise<EmployeeCardPreviewResponse> {
     const parsed = publicCardResponseSchema.parse(preview);
-    this.publicCards.upsertPublicCard(parsed);
+    await this.publicCards.upsertPublicCard(parsed);
     return parsed;
   }
 }

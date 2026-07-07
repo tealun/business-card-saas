@@ -15,8 +15,10 @@ function dataOf<T>(body: string): T {
 
 describe("PublicCardController", () => {
   let app: NestFastifyApplication;
+  const originalDatabaseUrl = process.env.DATABASE_URL;
 
   beforeAll(async () => {
+    delete process.env.DATABASE_URL;
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
     }).compile();
@@ -29,6 +31,9 @@ describe("PublicCardController", () => {
 
   afterAll(async () => {
     await app.close();
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
   });
 
   it("serves cached public content without visit_token", async () => {

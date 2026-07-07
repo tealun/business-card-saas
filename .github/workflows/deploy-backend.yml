@@ -23,6 +23,7 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "database/**"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
 
@@ -113,7 +114,7 @@ jobs:
             exit 1
           fi
 
-      - name: Sync backend to server
+      - name: Sync backend and database assets to server
         env:
           DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
           SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
@@ -146,25 +147,35 @@ jobs:
               -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
-              "mkdir -p '${DEPLOY_PATH}'"
+              "mkdir -p '${DEPLOY_PATH}' '${DEPLOY_PATH}/database'"
 
             rsync -az --delete \
               -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
               "${excludes[@]}" \
               backend/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+
+            rsync -az --delete \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              database/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
           else
             export SSHPASS="${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}"
             sshpass -e ssh \
               -p "$DEPLOY_PORT" \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
-              "mkdir -p '${DEPLOY_PATH}'"
+              "mkdir -p '${DEPLOY_PATH}' '${DEPLOY_PATH}/database'"
 
             sshpass -e rsync -az --delete \
               -e "ssh -p ${DEPLOY_PORT}" \
               "${excludes[@]}" \
               backend/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+
+            sshpass -e rsync -az --delete \
+              -e "ssh -p ${DEPLOY_PORT}" \
+              database/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
           fi
 
       - name: Run optional restart command

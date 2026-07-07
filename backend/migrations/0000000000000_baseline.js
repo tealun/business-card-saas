@@ -7,8 +7,8 @@ const path = require("path");
  * statements rather than editing this file.
  */
 exports.up = (pgm) => {
-  const schemaSql = fs.readFileSync(path.join(__dirname, "..", "..", "database", "schema.sql"), "utf8");
-  const rlsSql = fs.readFileSync(path.join(__dirname, "..", "..", "database", "rls.sql"), "utf8");
+  const schemaSql = readDatabaseSql("schema.sql");
+  const rlsSql = readDatabaseSql("rls.sql");
   pgm.sql(schemaSql);
   pgm.sql(rlsSql);
 };
@@ -16,3 +16,15 @@ exports.up = (pgm) => {
 exports.down = () => {
   throw new Error("Baseline migration cannot be safely reversed. Restore from a backup instead.");
 };
+
+function readDatabaseSql(fileName) {
+  const candidates = [
+    path.join(__dirname, "..", "..", "database", fileName),
+    path.join(__dirname, "..", "database", fileName)
+  ];
+  const sqlPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!sqlPath) {
+    throw new Error(`Cannot find database/${fileName}. Checked: ${candidates.join(", ")}`);
+  }
+  return fs.readFileSync(sqlPath, "utf8");
+}
