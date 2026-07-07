@@ -45,9 +45,6 @@ export class WecomCallbackAlertService {
           type: "wecom_callback_dead_letter",
           source: input.source,
           event_key_hash: hashEventKey(input.eventKey),
-          tenant_id: input.tenantId,
-          event_type: input.eventType,
-          change_type: input.changeType,
           retry_count: input.retryCount,
           error_type: input.errorType
         }),

@@ -87,3 +87,11 @@ CREATE POLICY account_preferences_account_ctx ON account_preferences
 
 -- public_card_directory intentionally has no tenant RLS. Public service role may only read this table
 -- and then must enter TenantTx before reading tenant business tables.
+
+ALTER TABLE callback_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_callback_events ON callback_events;
+CREATE POLICY tenant_isolation_callback_events ON callback_events
+  USING (
+    tenant_id = current_setting('app.tenant_id', true)::bigint
+    OR (tenant_id IS NULL AND current_setting('app.tenant_id', true) = '')
+  );

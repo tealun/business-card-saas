@@ -11,7 +11,7 @@
 |----------|-------|-------|-----------|
 | P0 | 1 | 1 | 0 |
 | P1 | 24 | 24 | 0 |
-| P2 | 20 | 5 | 15 |
+| P2 | 20 | 13 | 7 |
 
 ## P0 — Must Fix
 
@@ -31,9 +31,9 @@
 | SEC-P1-3 | Fixed | No rate limiting on auth/admin/callback endpoints | `backend/src/main.ts` | 7-34 | No throttler or helmet registered | Added `@nestjs/throttler` global guard; login 5/15min, callbacks 30/1min, admin mutations 20/1min |
 | SEC-P1-4 | Fixed | Demo auth bypass backdoor | `backend/src/auth/auth.repository.ts` | 18-53 | `demoCode = "demo-qy-code"`; bypass active when `NODE_ENV !== production && DEMO_AUTH_ENABLED=1` | Removed demo bypass; tests use a mocked WeComMiniProgramLoginService |
 | SEC-P1-5 | Fixed | Miniprogram defaults to demo auth mode | `miniprogram/app.js` | 9 | `demoAuthEnabled: true` | Default changed to `false`; `utils/api.js` rejects when login fails and demo is disabled |
-| SEC-P2-3 | Open | Missing RLS on `callback_events` | `database/schema.sql`, `database/rls.sql` | 233-249 | `tenant_id` present but no RLS policy | Add `tenant_isolation_callback_events` RLS policy |
-| SEC-P2-4 | Open | Dead-letter alert webhook leaks tenant/event metadata | `backend/src/wecom/wecom-callback-alert.service.ts` | 44-53 | Sends `tenant_id`, `event_type`, `change_type`, `error_type` to external webhook | Encrypt/sign payloads or send only correlation IDs |
-| SEC-P2-6 | Open | No security headers middleware | `backend/src/main.ts` | 16-30 | Only CORS configured | Add `@fastify/helmet` with restrictive CSP |
+| SEC-P2-3 | Fixed | Missing RLS on `callback_events` | `database/schema.sql`, `database/rls.sql` | 233-249 | `tenant_id` present but no RLS policy | Added `tenant_isolation_callback_events` RLS policy in `database/rls.sql` |
+| SEC-P2-4 | Fixed | Dead-letter alert webhook leaks tenant/event metadata | `backend/src/wecom/wecom-callback-alert.service.ts` | 44-53 | Sends `tenant_id`, `event_type`, `change_type`, `error_type` to external webhook | Removed `tenant_id`, `event_type`, `change_type` from payload; only `event_key_hash`, `source`, `retry_count`, `error_type` remain |
+| SEC-P2-6 | Fixed | No security headers middleware | `backend/src/main.ts` | 16-30 | Only CORS configured | Added `@fastify/helmet` with restrictive CSP; pinned `fastify` to 5.8.5 to avoid duplicate fastify type copies |
 
 ### Backend (Platform / Data / Parameters)
 
@@ -75,7 +75,7 @@
 | FE-P1-6 | Fixed | Save/share actions lack loading/duplicate protection | `miniprogram/pages/employee/card.js`, `edit.js`, `style.js` | 60-95 | No `loading` flag or button disable | Added `submitting` data flag; JS guard + WXML `btn--disabled` state |
 | FE-P2-1 | Open | Hardcoded API base in miniprogram | `miniprogram/app.js` | 3 | `apiBase: "http://localhost:3000/api/v1"` | Build-time env config; reject non-HTTPS in release |
 | FE-P2-2 | Open | Hardcoded API base in admin workbench | `admin/app.js` | 57 | `localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1"` | Documented config override instead of localhost default |
-| FE-P2-4 | Open | Rapid template-row clicks fire concurrent mutations | `admin/app.js` | 697-724 | No in-flight guard | Disable action buttons until operation settles |
+| FE-P2-4 | Fixed | Rapid template-row clicks fire concurrent mutations | `admin/app.js` | 697-724 | No in-flight guard | Added `templateActionInProgress` flag and disabled row action buttons while a mutation is in flight |
 | FE-P2-5 | Open | Employee card/edit pages lack loading/error states | `miniprogram/pages/employee/card.js`, `edit.js` | 17-53 | Hardcoded demo data; no loading/error flags | Add flags and skeleton/error UI |
 | FE-P2-6 | Open | Hardcoded mock data shown on key user paths | `miniprogram/pages/employee/index.js`, `card-wallet/index.js`, `company-card/index.js` | various | Static demo arrays presented as real data | Gate behind explicit demo-mode banner |
 
@@ -103,12 +103,12 @@
 | SEC-P2-1 | Fixed | Hardcoded WeCom suite callback secrets | `backend/src/wecom/wecom-config.service.ts` | 12-19 | `devDefaults.callbackToken/AesKey` | Removed `devDefaults`; all WeCom secrets now required via env |
 | SEC-P2-2 | Fixed | Hardcoded WeCom state encryption key | `backend/src/wecom/wecom-state-cipher.service.ts` | 4, 30-37 | `devEncryptionKeyBase64` | Removed dev fallback; throws when env is missing |
 | FE-P2-3 | Fixed | Admin token persisted in localStorage plaintext | `admin/app.js` | 3, 517-521 | `localStorage.setItem("bc_admin_token", ...)` | Changed to `sessionStorage`; token cleared when tab closes |
-| FE-P2-7 | Open | Public card tracking silently fails | `miniprogram/pages/public/card.js` | 93-138 | `catch (_error) {}` for visit/derive/action | Log failures; show non-blocking toast |
+| FE-P2-7 | Fixed | Public card tracking silently fails | `miniprogram/pages/public/card.js` | 93-138 | `catch (_error) {}` for visit/derive/action | Added `console.error` and non-blocking `wx.showToast` for visit/derive/action failures |
 | FE-P2-8 | Open | Uncontrolled form inputs without validation | `admin/app.js`, `miniprogram/pages/employee/edit.js` | various | Email/phone/URL/color sent after `trim()` only | Add client-side validators |
-| FE-P2-9 | Open | No CSP; dynamic CSS values lack sanitization | `admin/index.html`, `admin/app.js`, `miniprogram/pages/public/card.wxml` | various | No CSP meta; `style.backgroundColor = color` | Add CSP; validate colors |
-| HLTH-P2-1 | Open | Unused dependencies in backend | `backend/package.json` | 30, 34, 39 | `@types/express`, `supertest`, `@types/supertest` | `npm uninstall` them |
+| FE-P2-9 | Fixed | No CSP; dynamic CSS values lack sanitization | `admin/index.html`, `admin/app.js`, `miniprogram/pages/public/card.wxml` | various | No CSP meta; `style.backgroundColor = color` | Added CSP meta tag to `admin/index.html`; added `isValidColor` hex validation in `admin/app.js` before saving templates |
+| HLTH-P2-1 | Fixed | Unused dependencies in backend | `backend/package.json` | 30, 34, 39 | `@types/express`, `supertest`, `@types/supertest` | Uninstalled `@types/express`, `supertest`, `@types/supertest`; reinstalled dependencies |
 | HLTH-P2-2 | Open | Stale `dist/prisma` artifacts | `backend/dist/prisma/*` | — | Generated files reference `@prisma/client` | Clean `backend/dist` before builds |
-| HLTH-P2-3 | Open | Runtime dependencies are unpinned | `backend/package.json` | 17-43 | All caret ranges | Pin exact versions or use lockfile-only CI |
+| HLTH-P2-3 | Fixed | Runtime dependencies are unpinned | `backend/package.json` | 17-43 | All caret ranges | Pinned all dependencies and devDependencies to exact versions |
 | HLTH-P2-4 | Open | Placeholder phone numbers in seed data | `backend/src/employee/employee-card.repository.ts`, `backend/src/public-card/public-card.repository.ts` | 26, 36 | `phone: "021-5566XXXX"` | Move fixtures out of production repos |
 | TOP-P2-1 | Open | Health endpoint shape not aligned with orchestration | `backend/src/health.controller.ts` | 8-28 | No `/health/live`; not wired in compose | Add liveness endpoint and probe config |
 | TOP-P2-2 | Open | Redis service has no healthcheck | `docker-compose.yml` | 18-21 | No `healthcheck` block | Add Redis healthcheck |
@@ -142,6 +142,7 @@
 - ✅ Phase 1 fixes committed and pushed in `92fbb9b`
 - ✅ Phase 2 fixes committed and pushed in `d9f599e`; verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed), `npm run build`
 - ✅ Phase 3 fixes committed and pushed in `926f928`; verified by running `npm run typecheck`, `npm run lint`, `npm test -- --coverage` (thresholds passed), `npm run build`
+- ✅ Phase 4 fixes verified by running `npm run typecheck`, `npm run lint`, `npm test -- --coverage` (26 suites, 106 tests passed; thresholds passed), `npm run build`, `npm run rls:validate`
 
 ## Positive Observations
 - All existing backend tests pass (26 suites, 105 tests).

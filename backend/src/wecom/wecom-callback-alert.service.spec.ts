@@ -45,9 +45,6 @@ describe("WecomCallbackAlertService", () => {
       type: "wecom_callback_dead_letter",
       source: "data",
       event_key_hash: "708ea4def782618c6f50836c045f386f823faedd792430c8cbfb282eaf593797",
-      tenant_id: "tenant-001",
-      event_type: "change_contact",
-      change_type: "update_user",
       retry_count: 5,
       error_type: "Error"
     });
