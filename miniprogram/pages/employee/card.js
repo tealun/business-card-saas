@@ -11,7 +11,8 @@ Page({
       email: "liming@zhiyun.tech",
       wechat_id: "liming-zy"
     },
-    sharePath: ""
+    sharePath: "",
+    submitting: false
   },
 
   onLoad() {
@@ -58,6 +59,10 @@ Page({
   },
 
   async saveCard() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     const form = this.data.form;
     try {
       const card = await request("/employee/cards/current", {
@@ -77,10 +82,16 @@ Page({
       wx.showToast({ title: "已保存", icon: "success" });
     } catch (error) {
       wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   },
 
   async createShare() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     try {
       const share = await request("/employee/cards/current/share", { method: "POST" });
       app.globalData.shareId = share.share_id;
@@ -90,6 +101,8 @@ Page({
       });
     } catch (error) {
       wx.showToast({ title: error.message || "分享失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   }
 });

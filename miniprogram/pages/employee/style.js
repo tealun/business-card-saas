@@ -18,7 +18,8 @@ Page({
       { id: "tpl_dark", name: "深色", desc: "高对比展示" },
       { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
     ],
-    presets: ["#2b6cff", "#e5484d", "#7c5cfc", "#1f8a5b", "#f5820d", "#0e9c9c"]
+    presets: ["#2b6cff", "#e5484d", "#7c5cfc", "#1f8a5b", "#f5820d", "#0e9c9c"],
+    submitting: false
   },
 
   onLoad() {
@@ -48,6 +49,10 @@ Page({
   },
 
   async applyStyle() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     try {
       await request("/employee/cards/current/style", {
         method: "PUT",
@@ -66,6 +71,8 @@ Page({
       setTimeout(() => wx.navigateBack(), 600);
     } catch (error) {
       wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   }
 });

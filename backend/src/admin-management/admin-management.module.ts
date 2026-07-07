@@ -5,10 +5,11 @@ import { WecomModule } from "../wecom/wecom.module.js";
 import { AdminManagementController } from "./admin-management.controller.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 import { AdminManagementService } from "./admin-management.service.js";
+import { CardFieldCipherService } from "./card-field-cipher.service.js";
 
 @Module({
   imports: [AdminAuthModule, EmployeeCardModule, WecomModule],
   controllers: [AdminManagementController],
-  providers: [AdminManagementRepository, AdminManagementService]
+  providers: [AdminManagementRepository, AdminManagementService, CardFieldCipherService]
 })
 export class AdminManagementModule {}

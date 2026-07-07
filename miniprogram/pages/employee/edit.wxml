@@ -82,5 +82,7 @@
 </view>
 
 <view class="fixed-footer">
-  <view class="btn btn--primary btn--block" bindtap="saveCard">保存并更新名片</view>
+  <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="saveCard">
+    {{submitting ? '保存中…' : '保存并更新名片'}}
+  </view>
 </view>

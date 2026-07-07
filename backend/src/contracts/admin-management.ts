@@ -35,7 +35,9 @@ export const adminMemberListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0)
 });
 
-export const adminMemberCardResponseSchema = employeeCardResponseSchema;
+export const adminMemberCardResponseSchema = employeeCardResponseSchema.extend({
+  card_id: z.string().nullable()
+});
 export const updateAdminMemberCardRequestSchema = updateEmployeeCardRequestSchema.extend({
   status: z.enum(["active", "disabled"]).optional()
 });
