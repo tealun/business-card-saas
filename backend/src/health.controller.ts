@@ -13,6 +13,14 @@ export class HealthController {
     };
   }
 
+  @Get("live")
+  getLiveness() {
+    return {
+      ok: true,
+      service: "business-card-api"
+    };
+  }
+
   // Readiness: liveness is not enough to route DB-backed traffic (A12-P2-3).
   @Get("ready")
   async getReadiness() {

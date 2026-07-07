@@ -340,7 +340,8 @@ export class WecomApiClientService {
         }
 
         const errorBody = await safeReadErrorBody(response);
-        const errorMessage = `WeCom ${operation} HTTP ${response.status}${errorBody ? `: ${errorBody}` : ""}`;
+        const errorDetail = formatWecomErrorBody(errorBody);
+        const errorMessage = `WeCom ${operation} HTTP ${response.status}${errorDetail ? `: ${errorDetail}` : ""}`;
         if (!isRetryableStatus(response.status)) {
           throw new ServiceUnavailableException(errorMessage);
         }
@@ -369,6 +370,21 @@ async function safeReadErrorBody(response: Response): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+function formatWecomErrorBody(body: string | null): string | null {
+  if (!body) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    if (typeof parsed.errcode === "number" || typeof parsed.errcode === "string") {
+      return `${parsed.errcode} ${parsed.errmsg ?? ""}`.trim();
+    }
+  } catch {
+    // fall through to raw body
+  }
+  return body;
 }
 
 function isRetryableStatus(status: number): boolean {

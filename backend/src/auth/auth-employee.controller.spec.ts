@@ -279,13 +279,13 @@ describe("Auth and employee card flow", () => {
     const updated = dataOf<{
       display_name: string;
       title: string;
-      fields: { email: string; mobile: string };
+      fields: { email: string; mobile: string | null };
       privacy: { show_mobile: boolean; show_email: boolean };
     }>(updateResponse.body);
     expect(updated.display_name).toBe("Updated Demo Employee");
     expect(updated.title).toBe("Account Director");
     expect(updated.fields.email).toBe("updated@example.com");
-    expect(updated.fields.mobile).toBe("13800000000");
+    expect(updated.fields.mobile).toBeNull();
     expect(updated.privacy.show_mobile).toBe(true);
     expect(updated.privacy.show_email).toBe(true);
   });

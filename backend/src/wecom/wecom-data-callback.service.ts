@@ -151,7 +151,19 @@ export class WecomDataCallbackService {
     }
     const tenant = await this.tenants.getByOpenCorpid(openCorpid);
     if (!tenant) {
-      throw new BadRequestException("WeCom data callback tenant is not authorized");
+      const eventKey = callbackEventKey(messageXml, { openCorpid, event, changeType });
+      const eventRecord = await this.events.beginProcessing({
+        source: "data",
+        eventKey,
+        tenantId: null,
+        eventType: event,
+        changeType,
+        payloadEncrypted
+      });
+      if (eventRecord.shouldProcess) {
+        await this.events.markDone(eventKey, null);
+      }
+      return { event: event ?? "unknown", changeType, tenantId: "", handled: false };
     }
 
     const eventKey = callbackEventKey(messageXml, { openCorpid, event, changeType });

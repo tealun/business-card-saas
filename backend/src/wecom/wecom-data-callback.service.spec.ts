@@ -139,14 +139,19 @@ describe("WecomDataCallbackService", () => {
     ]);
   });
 
-  it("rejects callbacks from unauthorized tenants", async () => {
+  it("records unauthorized tenant callbacks and returns success so WeCom stops retrying", async () => {
     const { service, crypto, tenants } = createService();
     crypto.message = contactXml("update_user");
     tenants.authorization = null;
 
-    await expect(service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>")).rejects.toThrow(
-      BadRequestException
+    const result = await service.receive(
+      callbackQuery(),
+      "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>"
     );
+
+    expect(result.event).toBe("change_contact");
+    expect(result.tenantId).toBe("");
+    expect(result.handled).toBe(false);
   });
 
   it("rejects callbacks when the encrypted receiver and message corp id differ", async () => {
