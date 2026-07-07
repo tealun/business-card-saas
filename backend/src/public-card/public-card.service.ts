@@ -24,18 +24,18 @@ export class PublicCardService {
     private readonly anonIds: AnonIdService
   ) {}
 
-  getPublicCard(publicId: string): PublicCardResponse {
+  async getPublicCard(publicId: string): Promise<PublicCardResponse> {
     return this.repository.findPublicCard(publicId);
   }
 
-  createVisit(publicId: string, request: VisitRequest): VisitResponse {
+  async createVisit(publicId: string, request: VisitRequest): Promise<VisitResponse> {
     // Trust an inbound anon_id only when its server signature verifies; otherwise issue a fresh one.
     const anonId = this.anonIds.verify(request.anon_id) ?? this.anonIds.issue();
     const visitInput: { publicId: string; shareId?: string; anonId: string } = { publicId, anonId };
     if (request.share) {
       visitInput.shareId = request.share;
     }
-    const visit = this.repository.createVisit(visitInput);
+    const visit = await this.repository.createVisit(visitInput);
     const visitToken = this.visitTokens.sign({
       visitId: visit.visitId,
       publicId,
@@ -51,30 +51,30 @@ export class PublicCardService {
     });
   }
 
-  recordAction(publicId: string, token: string, request: ActionRequest): ActionResponse {
+  async recordAction(publicId: string, token: string, request: ActionRequest): Promise<ActionResponse> {
     const payload = this.visitTokens.verify(token);
     if (payload.publicId !== publicId) {
       throw new UnauthorizedException("visit_token scope mismatch");
     }
-    if (!this.repository.findVisit(payload.visitId)) {
+    if (!(await this.repository.findVisit(publicId, payload.visitId))) {
       throw new UnauthorizedException("visit not found");
     }
-    const result = this.repository.recordAction(payload.visitId, request.action_type);
+    const result = await this.repository.recordAction(publicId, payload.visitId, request.action_type);
     return actionResponseSchema.parse({
       accepted: true,
       idempotent: result.idempotent
     });
   }
 
-  deriveShare(publicId: string, token: string, request: DeriveShareRequest): DeriveShareResponse {
+  async deriveShare(publicId: string, token: string, request: DeriveShareRequest): Promise<DeriveShareResponse> {
     const payload = this.visitTokens.verify(token);
     if (payload.publicId !== publicId) {
       throw new UnauthorizedException("visit_token scope mismatch");
     }
-    if (!this.repository.findVisit(payload.visitId)) {
+    if (!(await this.repository.findVisit(publicId, payload.visitId))) {
       throw new UnauthorizedException("visit not found");
     }
-    const share = this.repository.deriveShare({
+    const share = await this.repository.deriveShare({
       publicId,
       parentShareId: request.parent_share_id
     });

@@ -5,13 +5,14 @@
   "type": "commonjs",
   "main": "dist/main.js",
   "scripts": {
-    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('tsconfig.build.tsbuildinfo',{force:true});fs.rmSync('tsconfig.tsbuildinfo',{force:true})\" && tsc -p tsconfig.build.json",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --runInBand",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:verify": "node scripts/db-verify.cjs",
+    "db:check": "node scripts/db-check.cjs",
     "rls:validate": "node scripts/validate-rls.cjs",
     "db:migrate": "node-pg-migrate up",
     "db:migrate:create": "node-pg-migrate create"

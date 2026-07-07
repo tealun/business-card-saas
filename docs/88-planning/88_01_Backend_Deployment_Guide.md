@@ -7,7 +7,7 @@ This guide documents the GitHub Actions backend deployment flow for the `backend
 - Workflow: `.github/workflows/deploy-backend.yml`
 - Trigger: push to `main` when `backend/**` or the workflow changes; manual `workflow_dispatch`
 - Target path: `/www/wwwroot/wecom_card`
-- Sync strategy: `rsync --delete` from local `backend/` to the target path
+- Sync strategy: `rsync --delete` from local `backend/` to the target path, plus `database/` to `${DEPLOY_PATH}/database/`
 - Runtime secrets: kept on the server in `.env`; never committed and never uploaded by CI
 
 ## GitHub Secrets
@@ -125,9 +125,10 @@ Do not put secret values in `DEPLOY_RESTART_COMMAND`; read them from the server-
 1. Configure GitHub Secrets.
 2. Confirm `/www/wwwroot/wecom_card/.env` exists on the server and contains production values.
 3. Push a change under `backend/**` or run the workflow manually.
-4. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.
-5. On the server, confirm the backend is built/restarted by the panel or `DEPLOY_RESTART_COMMAND`.
-6. Verify `/api/v1/health/ready`.
+4. After first deployment or any schema change, run `npm run db:migrate` and `npm run db:check` on the server with the production `.env` loaded.
+5. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.
+6. On the server, confirm the backend is built/restarted by the panel or `DEPLOY_RESTART_COMMAND`.
+7. Verify `/api/v1/health/ready`.
 
 ## Rollback
 
