@@ -1,22 +1,24 @@
 import "reflect-metadata";
+import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
 import { registerXmlBodyParser } from "./common/xml-body-parser.js";
 import helmet from "@fastify/helmet";
+import { AppConfig } from "./config/app-config.js";
 
 async function bootstrap() {
-  const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+  const adapter = new FastifyAdapter();
+  registerXmlBodyParser(adapter);
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
+  const config = app.get(AppConfig);
+
+  const allowedOrigins = config.corsOrigins;
+  if (config.isProduction && allowedOrigins.length === 0) {
     throw new Error("CORS_ORIGINS must be set in production");
   }
 
-  const adapter = new FastifyAdapter();
-  registerXmlBodyParser(adapter);
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   app.setGlobalPrefix("api/v1");
   await app.register(helmet, {
     contentSecurityPolicy: {
@@ -36,7 +38,7 @@ async function bootstrap() {
     crossOriginEmbedderPolicy: false
   });
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (error: Error | null, allow: boolean) => void) => {
       if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
@@ -47,9 +49,7 @@ async function bootstrap() {
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   });
 
-  const port = Number(process.env.PORT ?? 3000);
-  const host = process.env.HOST ?? "0.0.0.0";
-  await app.listen({ port, host });
+  await app.listen({ port: config.port, host: config.host });
 }
 
 void bootstrap();

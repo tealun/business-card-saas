@@ -1,8 +1,10 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
-import { EmployeeCardRepository } from "../employee/employee-card.repository.js";
-import { EmployeeCardService } from "../employee/employee-card.service.js";
-import { PublicCardRepository } from "../public-card/public-card.repository.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
+import type {
+  AdminMemberCardResponse,
+  AdminMemberListQuery,
+  UpdateAdminMemberCardRequest
+} from "../contracts/admin-management.js";
 import {
   WecomContactSyncService,
   type SyncTenantContactMembersInput
@@ -15,7 +17,7 @@ describe("AdminManagementService", () => {
   it("returns overview and current tenant member summary", async () => {
     const service = createService();
     const overview = await service.getOverview(ownerSession());
-    const members = await service.listMembers(ownerSession());
+    const members = await service.listMembers(ownerSession(), defaultQuery());
 
     expect(overview).toEqual({
       tenant_id: "tenant-001",
@@ -28,7 +30,7 @@ describe("AdminManagementService", () => {
     expect(members.items[0]?.member_identity_id).toBe("member-001");
   });
 
-  it("filters fallback member summaries with the shared list query contract", async () => {
+  it("filters member summaries with the shared list query contract", async () => {
     const service = createService();
 
     await expect(
@@ -60,7 +62,7 @@ describe("AdminManagementService", () => {
 
   it("retries failed sync events when the admin has admin or higher permission", async () => {
     const dataCallbacks = fakeDataCallbacks();
-    const service = createService(new AdminManagementRepository(), dataCallbacks);
+    const service = createService(fakeRepository(), dataCallbacks);
 
     await expect(service.retryFailedSyncEvents(ownerSession())).resolves.toEqual({
       retried_count: 2,
@@ -114,8 +116,7 @@ describe("AdminManagementService", () => {
   it("does not fall back to in-memory cards when persistence is configured but the member is missing", async () => {
     const service = createService({
       getMemberCard: async () => null,
-      updateMemberCard: async () => null,
-      isDatabaseConfigured: () => true
+      updateMemberCard: async () => null
     } as unknown as AdminManagementRepository);
 
     await expect(service.getMemberCard(ownerSession(), "member-001")).rejects.toThrow(NotFoundException);
@@ -127,13 +128,106 @@ describe("AdminManagementService", () => {
   });
 });
 
-function createService(repository = new AdminManagementRepository(), dataCallbacks = fakeDataCallbacks()) {
+function createService(
+  repository: AdminManagementRepository = fakeRepository(),
+  dataCallbacks = fakeDataCallbacks()
+): AdminManagementService {
   return new AdminManagementService(
-    new EmployeeCardService(new EmployeeCardRepository(), new PublicCardRepository()),
     repository,
     fakeContactSync(),
     dataCallbacks as unknown as WecomDataCallbackService
   );
+}
+
+function defaultQuery(): AdminMemberListQuery {
+  return { search: "", status: "all", limit: 50, offset: 0 };
+}
+
+function fakeRepository(): AdminManagementRepository {
+  const overview = {
+    tenant_id: "tenant-001",
+    tenant_name: "Pilot Corp",
+    member_count: 1,
+    card_count: 1,
+    active_card_count: 1
+  };
+  const memberItem = {
+    member_identity_id: "member-001",
+    userid: null,
+    open_userid: "ou-owner",
+    display_name: "Owner Name",
+    status: "active" as const,
+    public_id: "pub_owner001"
+  };
+  const card: AdminMemberCardResponse = {
+    card_id: "card-001",
+    public_id: "pub_owner001",
+    display_name: "Owner Name",
+    title: "Sales Lead",
+    company: "Pilot Corp",
+    avatar_url: null,
+    fields: {
+      mobile: null,
+      phone: null,
+      email: "configured@example.com",
+      wechat_id: null,
+      address: null
+    },
+    privacy: {
+      show_mobile: false,
+      show_email: true,
+      show_wechat: false
+    },
+    status: "disabled"
+  };
+
+  let currentCard: AdminMemberCardResponse = { ...card };
+
+  return {
+    getOverview: async () => overview,
+    listMembers: async (_session: AdminSession, query: AdminMemberListQuery) => {
+      const items = [memberItem].filter((item) => {
+        const matchesSearch =
+          !query.search ||
+          [item.display_name, item.open_userid, item.public_id].some((value) =>
+            value?.toLowerCase().includes(query.search!.toLowerCase())
+          );
+        const matchesStatus = query.status === "all" || item.status === query.status;
+        return matchesSearch && matchesStatus;
+      });
+      return {
+        items: items.slice(query.offset, query.offset + query.limit),
+        total: items.length
+      };
+    },
+    listSyncEvents: async () => null,
+    getMemberCard: async (_session: AdminSession, memberIdentityId: string) =>
+      memberIdentityId === "member-001" ? currentCard : null,
+    updateMemberCard: async (
+      _session: AdminSession,
+      memberIdentityId: string,
+      request: UpdateAdminMemberCardRequest
+    ) => {
+      if (memberIdentityId !== "member-001") {
+        return null;
+      }
+      currentCard = {
+        ...currentCard,
+        display_name: request.display_name ?? currentCard.display_name,
+        title: request.title === undefined ? currentCard.title : request.title,
+        fields: { ...currentCard.fields, ...(request.fields ?? {}) } as AdminMemberCardResponse["fields"],
+        status: (request.status ?? currentCard.status) as AdminMemberCardResponse["status"]
+      };
+      return currentCard;
+    },
+    updateMemberStatus: async (_session: AdminSession, memberIdentityId: string, status: "active" | "disabled") => {
+      if (memberIdentityId !== "member-001") {
+        return false;
+      }
+      currentCard = { ...currentCard, status: status as AdminMemberCardResponse["status"] };
+      return true;
+    }
+  } as unknown as AdminManagementRepository;
 }
 
 function fakeContactSync(): WecomContactSyncService {

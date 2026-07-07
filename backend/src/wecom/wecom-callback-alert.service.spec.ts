@@ -52,6 +52,23 @@ describe("WecomCallbackAlertService", () => {
     expect(String(init.body)).not.toContain("perm");
     expect(String(init.body)).not.toContain("event-001");
   });
+
+  it("omits the authorization header when no webhook token is configured", async () => {
+    const fetchMock = jest.fn(async () => new Response("ok", { status: 200 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const service = new WecomCallbackAlertService(config({ webhookUrl: "https://ops.example.com/wecom-alerts" }));
+
+    await expect(service.notifyDeadLetter(alertInput())).resolves.toEqual({
+      sent: true,
+      status: 200,
+      skipped: false
+    });
+
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    const [, init] = calls[0]!;
+    expect(init.headers).not.toHaveProperty("authorization");
+    expect(init.headers).toMatchObject({ "content-type": "application/json" });
+  });
 });
 
 function config(input: { webhookUrl: string | null; webhookToken?: string | null }): WecomConfigService {

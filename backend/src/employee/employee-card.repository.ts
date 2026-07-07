@@ -8,35 +8,11 @@ import type {
 import type { EmployeeSession } from "../session/employee-session.js";
 import { randomToken } from "../common/id.js";
 import { defaultEmployeePublicId } from "../common/default-public-id.js";
+import { demoEmployeeCard } from "../fixtures/demo-cards.js";
 
 @Injectable()
 export class EmployeeCardRepository {
-  private readonly cards = new Map<string, EmployeeCardResponse>([
-    [
-      "1:1",
-      {
-      card_id: "1",
-      public_id: "pub_demo0001",
-      display_name: "M1 Demo Employee",
-      title: "Sales Consultant",
-      company: "Demo Tenant",
-      avatar_url: null,
-      fields: {
-        mobile: "13800000000",
-        phone: "021-5566XXXX",
-        email: "demo@example.com",
-        wechat_id: "demo_wechat",
-        address: "[示例地址]"
-      },
-      status: "active",
-      privacy: {
-        show_mobile: false,
-        show_email: true,
-        show_wechat: false
-      }
-      }
-    ]
-  ]);
+  private readonly cards = new Map<string, EmployeeCardResponse>([["1:1", demoEmployeeCard]]);
 
   private readonly styles = new Map<string, UpdateEmployeeCardStyleRequest>([
     [

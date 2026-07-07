@@ -15,6 +15,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
+  # Redis is reserved for future session/cache use; currently the backend does not connect to it.
   redis:
     image: redis:7-alpine
     ports:
@@ -40,7 +41,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/ready || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
