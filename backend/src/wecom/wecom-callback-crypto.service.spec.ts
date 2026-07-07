@@ -12,14 +12,25 @@ const suite: WecomSuiteConfig = {
   dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 };
 
+let nonceCounter = 0;
+
+function freshTimestamp(): string {
+  return String(Math.floor(Date.now() / 1000));
+}
+
+function freshNonce(): string {
+  nonceCounter += 1;
+  return `nonce-${nonceCounter}`;
+}
+
 describe("WecomCallbackCryptoService", () => {
   const service = new WecomCallbackCryptoService(stubConfig(suite));
 
   it("decrypts a signed WeCom callback message", () => {
     const message = "<xml><SuiteTicket><![CDATA[ticket-001]]></SuiteTicket></xml>";
     const encrypt = encryptFixture(message, suite.suiteId);
-    const timestamp = "1700000000";
-    const nonce = "nonce-001";
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
     const msgSignature = signFixture(encrypt, timestamp, nonce);
 
     const decrypted = service.decrypt({ msgSignature, timestamp, nonce, encrypt });
@@ -33,8 +44,8 @@ describe("WecomCallbackCryptoService", () => {
     expect(() =>
       service.decrypt({
         msgSignature: "bad-signature",
-        timestamp: "1700000000",
-        nonce: "nonce-001",
+        timestamp: freshTimestamp(),
+        nonce: freshNonce(),
         encrypt
       })
     ).toThrow(UnauthorizedException);
@@ -42,8 +53,8 @@ describe("WecomCallbackCryptoService", () => {
 
   it("rejects callbacks encrypted for a different receiver", () => {
     const encrypt = encryptFixture("<xml />", "wrong-suite");
-    const timestamp = "1700000000";
-    const nonce = "nonce-001";
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
 
     expect(() =>
       service.decrypt({
@@ -58,8 +69,8 @@ describe("WecomCallbackCryptoService", () => {
   it("can decrypt data callbacks before receiver ownership is checked", () => {
     const message = "<xml><Event><![CDATA[change_contact]]></Event></xml>";
     const encrypt = encryptFixture(message, "corp-001");
-    const timestamp = "1700000000";
-    const nonce = "nonce-001";
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
 
     const decrypted = service.decrypt(
       {
@@ -88,8 +99,8 @@ describe("WecomCallbackCryptoService", () => {
 
   it("rejects callbacks with malformed PKCS7 padding bytes", () => {
     const encrypt = encryptFixture("<xml />", suite.suiteId, { corruptPadding: true });
-    const timestamp = "1700000000";
-    const nonce = "nonce-001";
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
 
     expect(() =>
       service.decrypt({
@@ -99,6 +110,35 @@ describe("WecomCallbackCryptoService", () => {
         encrypt
       })
     ).toThrow("invalid WeCom callback padding");
+  });
+
+  it("rejects callbacks outside the allowed timestamp window", () => {
+    const message = "<xml><SuiteTicket><![CDATA[ticket-001]]></SuiteTicket></xml>";
+    const encrypt = encryptFixture(message, suite.suiteId);
+    const timestamp = String(Math.floor(Date.now() / 1000) - 10 * 60);
+    const nonce = freshNonce();
+
+    expect(() =>
+      service.decrypt({
+        msgSignature: signFixture(encrypt, timestamp, nonce),
+        timestamp,
+        nonce,
+        encrypt
+      })
+    ).toThrow("WeCom callback timestamp is outside the allowed window");
+  });
+
+  it("rejects callbacks with a replayed nonce", () => {
+    const message = "<xml><SuiteTicket><![CDATA[ticket-replay]]></SuiteTicket></xml>";
+    const encrypt = encryptFixture(message, suite.suiteId);
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
+    const msgSignature = signFixture(encrypt, timestamp, nonce);
+    const payload = { msgSignature, timestamp, nonce, encrypt };
+
+    service.decrypt(payload);
+
+    expect(() => service.decrypt(payload)).toThrow("WeCom callback nonce has already been processed");
   });
 });
 

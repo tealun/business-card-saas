@@ -31,7 +31,7 @@ export class AnonIdService {
   }
 
   private signature(value: string): string {
-    const secret = readSecret("VISIT_TOKEN_SECRET", "dev-only-change-me");
+    const secret = readSecret("VISIT_TOKEN_SECRET");
     return createHmac("sha256", secret).update(`v1.anon.${value}`).digest("base64url");
   }
 

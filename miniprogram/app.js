@@ -6,6 +6,6 @@ App({
     shareId: "",
     visitToken: "",
     anonId: "",
-    demoAuthEnabled: true
+    demoAuthEnabled: false
   }
 });

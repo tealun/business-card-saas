@@ -10,7 +10,15 @@
 
 ## 本地验证
 
-后端静态与单元验证：
+1. 复制环境配置并填写所有必填 secret：
+
+```powershell
+cd backend
+copy .env.example .env
+# 编辑 .env，将 JWT_SECRET / ADMIN_JWT_SECRET / VISIT_TOKEN_SECRET / WECOM_* 替换为强随机值
+```
+
+2. 后端静态与单元验证：
 
 ```powershell
 cd backend
@@ -19,7 +27,15 @@ npm test
 npm run rls:validate
 ```
 
-如果本机有 Docker，可启动本地 PostgreSQL / Redis 后跑真实数据库探针：
+3. 如果本机有 Docker，可一键启动完整栈（包含后端、PostgreSQL、Redis）：
+
+```powershell
+$env:POSTGRES_USER="postgres"
+$env:POSTGRES_PASSWORD="postgres"
+docker compose up -d
+```
+
+或仅启动数据库后跑真实数据库探针：
 
 ```powershell
 docker compose up -d postgres redis
@@ -36,13 +52,23 @@ npm run db:verify
 - 静态后台工作台：[`admin/index.html`](admin/index.html)
 - 微信小程序骨架：[`miniprogram/`](miniprogram/)（三栏 Tab：我的名片 / 名片夹 / 企业名片）
 
-服务器 PgSQL 联调建议顺序：
+服务器 PgSQL 联调建议顺序（所有 secret 必须显式设置，无 fallback）：
 
 ```powershell
 cd backend
 $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
 $env:JWT_SECRET="<32+ chars random>"
+$env:ADMIN_JWT_SECRET="<32+ chars random>"
 $env:VISIT_TOKEN_SECRET="<32+ chars random>"
+$env:WECOM_STATE_ENCRYPTION_KEY_BASE64="<32-byte base64>"
+$env:WECOM_SUITE_ID="<your-suite-id>"
+$env:WECOM_SUITE_SECRET="<your-suite-secret>"
+$env:WECOM_CALLBACK_TOKEN="<your-callback-token>"
+$env:WECOM_CALLBACK_AES_KEY="<43-char aes key>"
+$env:WECOM_DATA_CALLBACK_TOKEN="<your-data-callback-token>"
+$env:WECOM_DATA_CALLBACK_AES_KEY="<43-char aes key>"
+$env:WECOM_AUTH_LAUNCH_TOKEN="<random-launch-token>"
+$env:WECOM_INSTALL_REDIRECT_URI="https://api.example.com/api/v1/wecom/authorization-complete"
 $env:CORS_ORIGINS="https://admin.example.com"
 npm run build
 npm start

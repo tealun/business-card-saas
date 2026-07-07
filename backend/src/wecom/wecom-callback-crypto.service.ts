@@ -20,11 +20,20 @@ export interface WecomDecryptOptions {
   expectedReceiveId?: string | null;
 }
 
+const REPLAY_WINDOW_SECONDS = 5 * 60;
+const NONCE_TTL_MS = 10 * 60 * 1000;
+
 @Injectable()
 export class WecomCallbackCryptoService {
+  // In-memory nonce deduplication. For multi-instance deployments this should be
+  // replaced with Redis or a shared cache so replays cannot slip through load balancers.
+  private readonly seenNonces = new Map<string, number>();
+
   constructor(private readonly config: WecomConfigService) {}
 
   decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
+    this.guardFreshness(payload);
+
     const suite = this.config.suite;
     const token = options.token ?? suite.callbackToken;
     const encodingAesKey = options.aesKey ?? suite.callbackAesKey;
@@ -76,6 +85,30 @@ export class WecomCallbackCryptoService {
     return createHash("sha1")
       .update([token, payload.timestamp, payload.nonce, payload.encrypt].sort().join(""))
       .digest("hex");
+  }
+
+  private guardFreshness(payload: WecomEncryptedPayload): void {
+    const now = Math.floor(Date.now() / 1000);
+    const timestamp = Number(payload.timestamp);
+    if (!Number.isFinite(timestamp) || Math.abs(now - timestamp) > REPLAY_WINDOW_SECONDS) {
+      throw new UnauthorizedException("WeCom callback timestamp is outside the allowed window");
+    }
+
+    const nonceKey = `${payload.timestamp}:${payload.nonce}`;
+    if (this.seenNonces.has(nonceKey)) {
+      throw new UnauthorizedException("WeCom callback nonce has already been processed");
+    }
+    this.seenNonces.set(nonceKey, Date.now());
+    this.pruneNonces();
+  }
+
+  private pruneNonces(): void {
+    const cutoff = Date.now() - NONCE_TTL_MS;
+    for (const [key, seenAt] of this.seenNonces) {
+      if (seenAt < cutoff) {
+        this.seenNonces.delete(key);
+      }
+    }
   }
 
   private verifySignature(payload: WecomEncryptedPayload, token: string): boolean {

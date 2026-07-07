@@ -4,7 +4,10 @@ import { AppModule } from "../app.module.js";
 import { defaultEmployeePublicId } from "../common/default-public-id.js";
 import { SessionTokenService } from "../session/session-token.service.js";
 import { AuthRepository } from "./auth.repository.js";
-import type { WecomMiniProgramIdentity, WecomMiniProgramLoginService } from "../wecom/wecom-miniprogram-login.service.js";
+import {
+  WecomMiniProgramLoginService,
+  type WecomMiniProgramIdentity
+} from "../wecom/wecom-miniprogram-login.service.js";
 
 function dataOf<T>(body: string): T {
   const envelope = JSON.parse(body) as { code: number; data: T; trace_id: string };
@@ -13,14 +16,36 @@ function dataOf<T>(body: string): T {
   return envelope.data;
 }
 
+function demoIdentity(): WecomMiniProgramIdentity {
+  return {
+    accountId: "1",
+    tenantId: "1",
+    tenantName: "Demo Tenant",
+    memberIdentityId: "1",
+    displayName: "M1 Demo Employee",
+    openCorpid: "corp_demo0001",
+    openUserid: "ou_demo0001",
+    publicId: "pub_demo0001",
+    sessionKey: "demo-session-key"
+  };
+}
+
+const demoWecomMiniProgramLoginService = {
+  async resolveJsCode(): Promise<WecomMiniProgramIdentity> {
+    return demoIdentity();
+  }
+} as unknown as WecomMiniProgramLoginService;
+
 describe("Auth and employee card flow", () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
-    process.env.DEMO_AUTH_ENABLED = "1";
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule]
-    }).compile();
+    })
+      .overrideProvider(WecomMiniProgramLoginService)
+      .useValue(demoWecomMiniProgramLoginService)
+      .compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     app.setGlobalPrefix("api/v1");
@@ -41,20 +66,10 @@ describe("Auth and employee card flow", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("does not resolve demo qy-login unless demo auth is explicitly enabled", async () => {
-    const original = process.env.DEMO_AUTH_ENABLED;
-    delete process.env.DEMO_AUTH_ENABLED;
-    const repository = new AuthRepository();
+  it("rejects empty qy-login codes", async () => {
+    const repository = new AuthRepository(demoWecomMiniProgramLoginService);
 
-    await expect(repository.resolveQyCode("demo-qy-code")).rejects.toThrow("WeCom qy-login is not configured");
-
-    process.env.DEMO_AUTH_ENABLED = original;
-  });
-
-  it("rejects arbitrary qy-login codes even when demo auth is enabled", async () => {
-    const repository = new AuthRepository();
-
-    await expect(repository.resolveQyCode("not-real")).rejects.toThrow("invalid demo qy login code");
+    await expect(repository.resolveQyCode("   ")).rejects.toThrow("invalid qy login code");
   });
 
   it("resolves real qy-login through the WeCom adapter when available", async () => {

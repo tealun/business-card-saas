@@ -1,0 +1,15 @@
+process.env.JWT_SECRET = "test-jwt-secret-must-be-at-least-32-bytes-long";
+process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-must-be-at-least-32-bytes-long";
+process.env.VISIT_TOKEN_SECRET = "test-visit-token-secret-must-be-at-least-32-bytes";
+process.env.WECOM_STATE_ENCRYPTION_KEY_BASE64 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+process.env.WECOM_SUITE_ID = "test-suite-id";
+process.env.WECOM_SUITE_SECRET = "test-suite-secret";
+process.env.WECOM_CALLBACK_TOKEN = "test-callback-token";
+process.env.WECOM_CALLBACK_AES_KEY = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
+process.env.WECOM_DATA_CALLBACK_TOKEN = "test-data-callback-token";
+process.env.WECOM_DATA_CALLBACK_AES_KEY = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
+process.env.WECOM_API_BASE_URL = "https://qyapi.weixin.qq.com";
+process.env.WECOM_HTTP_TIMEOUT_MS = "5000";
+process.env.WECOM_INSTALL_BASE_URL = "https://open.work.weixin.qq.com/3rdapp/install";
+process.env.WECOM_INSTALL_REDIRECT_URI = "http://localhost:3000/api/v1/wecom/authorization-complete";
+process.env.WECOM_AUTH_LAUNCH_TOKEN = "test-auth-launch-token";

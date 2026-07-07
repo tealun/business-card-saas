@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Post, Query, Res } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { FastifyReply } from "fastify";
 import { WecomCommandCallbackService } from "./wecom-command-callback.service.js";
 
 @Controller("wecom/callbacks/command")
+@Throttle({ callback: { ttl: 60_000, limit: 30 } })
 export class WecomCommandCallbackController {
   constructor(private readonly callbacks: WecomCommandCallbackService) {}
 

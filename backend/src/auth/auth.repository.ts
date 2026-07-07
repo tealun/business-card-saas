@@ -1,4 +1,4 @@
-import { Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import type { IdentitySummary } from "../contracts/auth.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { WecomMiniProgramLoginService, type WecomMiniProgramIdentity } from "../wecom/wecom-miniprogram-login.service.js";
@@ -15,41 +15,14 @@ export interface LoginIdentity {
 
 @Injectable()
 export class AuthRepository {
-  private static readonly demoCode = "demo-qy-code";
-
-  private readonly demoIdentity: LoginIdentity = {
-    accountId: "1",
-    tenantId: "1",
-    tenantName: "Demo Tenant",
-    memberIdentityId: "1",
-    displayName: "M1 Demo Employee",
-    openUserid: "ou_demo0001",
-    publicId: "pub_demo0001"
-  };
-
-  constructor(@Optional() private readonly wecomLogin?: WecomMiniProgramLoginService) {}
+  constructor(private readonly wecomLogin: WecomMiniProgramLoginService) {}
 
   async resolveQyCode(code: string): Promise<LoginIdentity> {
     const normalizedCode = code.trim();
-    if (this.demoAuthEnabled() && normalizedCode === AuthRepository.demoCode) {
-      return this.demoIdentity;
-    }
-
-    if (!this.wecomLogin) {
-      if (this.demoAuthEnabled()) {
-        throw new UnauthorizedException("invalid demo qy login code");
-      }
-      throw new ServiceUnavailableException("WeCom qy-login is not configured");
-    }
-
     if (!normalizedCode) {
-      throw new UnauthorizedException("invalid demo qy login code");
+      throw new UnauthorizedException("invalid qy login code");
     }
     return this.fromWecomIdentity(await this.wecomLogin.resolveJsCode(normalizedCode));
-  }
-
-  private demoAuthEnabled(): boolean {
-    return process.env.NODE_ENV !== "production" && process.env.DEMO_AUTH_ENABLED === "1";
   }
 
   toSession(identity: LoginIdentity): EmployeeSession {

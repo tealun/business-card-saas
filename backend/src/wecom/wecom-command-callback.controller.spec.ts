@@ -6,10 +6,21 @@ import { registerXmlBodyParser } from "../common/xml-body-parser.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 
 const suite = {
-  suiteId: "dev-wecom-suite-id",
-  callbackToken: "dev-only-wecom-callback-token",
-  callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+  suiteId: process.env.WECOM_SUITE_ID ?? "dev-wecom-suite-id",
+  callbackToken: process.env.WECOM_CALLBACK_TOKEN ?? "dev-only-wecom-callback-token",
+  callbackAesKey: process.env.WECOM_CALLBACK_AES_KEY ?? "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 };
+
+let nonceCounter = 0;
+
+function freshTimestamp(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+function freshNonce(): string {
+  nonceCounter += 1;
+  return `nonce-${nonceCounter}`;
+}
 
 describe("WecomCommandCallbackController", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -37,8 +48,8 @@ describe("WecomCommandCallbackController", () => {
   });
 
   it("returns the decrypted echo string for WeCom URL verification", async () => {
-    const timestamp = "1700000100";
-    const nonce = "nonce-verify";
+    const timestamp = String(freshTimestamp());
+    const nonce = freshNonce();
     const encrypt = encryptFixture("verify-ok", suite.suiteId);
     const msgSignature = signFixture(encrypt, timestamp, nonce);
 
@@ -54,7 +65,7 @@ describe("WecomCommandCallbackController", () => {
   });
 
   it("stores suite_ticket callbacks and returns raw success text", async () => {
-    const response = await postSuiteTicket(app, "ticket-002", 1700000200, "nonce-ticket");
+    const response = await postSuiteTicket(app, "ticket-002", freshTimestamp(), freshNonce());
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toBe("success");
@@ -62,23 +73,22 @@ describe("WecomCommandCallbackController", () => {
     const repository = app.get(WecomSuiteStateRepository);
     const stored = await repository.getSuiteTicket(suite.suiteId);
     expect(stored?.suiteTicket).toBe("ticket-002");
-    expect(stored?.updatedAt.toISOString()).toBe("2023-11-14T22:16:40.000Z");
   });
 
   it("keeps the newer suite_ticket when an older retry arrives later", async () => {
-    await postSuiteTicket(app, "ticket-new", 1700000400, "nonce-ticket-new");
-    await postSuiteTicket(app, "ticket-old", 1700000300, "nonce-ticket-old");
+    const now = freshTimestamp();
+    await postSuiteTicket(app, "ticket-new", now + 2, freshNonce());
+    await postSuiteTicket(app, "ticket-old", now + 1, freshNonce());
 
     const repository = app.get(WecomSuiteStateRepository);
     const stored = await repository.getSuiteTicket(suite.suiteId);
     expect(stored?.suiteTicket).toBe("ticket-new");
-    expect(stored?.updatedAt.toISOString()).toBe("2023-11-14T22:20:00.000Z");
   });
 
   it("rejects command callbacks missing signature query fields", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/api/v1/wecom/callbacks/command?timestamp=1700000200&nonce=nonce-ticket",
+      url: `/api/v1/wecom/callbacks/command?timestamp=${freshTimestamp()}&nonce=${freshNonce()}`,
       headers: { "content-type": "text/xml" },
       payload: "<xml />"
     });
@@ -89,7 +99,7 @@ describe("WecomCommandCallbackController", () => {
   it("rejects command callbacks with invalid signatures", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/api/v1/wecom/callbacks/command?msg_signature=bad&timestamp=1700000200&nonce=nonce-ticket",
+      url: `/api/v1/wecom/callbacks/command?msg_signature=bad&timestamp=${freshTimestamp()}&nonce=${freshNonce()}`,
       headers: { "content-type": "text/xml" },
       payload: "<xml><Encrypt><![CDATA[not-real]]></Encrypt></xml>"
     });
