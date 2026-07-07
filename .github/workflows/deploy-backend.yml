@@ -1,12 +1,22 @@
-name: Deploy Backend
-
+# Backend deployment workflow.
+#
 # Required GitHub repository secrets:
-# - DEPLOY_HOST: server hostname or IP
-# - DEPLOY_PORT: SSH port, optional; defaults to 22
-# - DEPLOY_USER: SSH user with write access to /www/wwwroot/wecom_card
-# - DEPLOY_SSH_KEY: private key for the SSH user
-# - DEPLOY_RESTART_COMMAND: server-side restart script, for example sourcing
-#   server-local env vars and reloading the Node process manager.
+# - DEPLOY_HOST or SSH_HOST: server hostname or IP
+# - DEPLOY_USER or SSH_USER: SSH user with write access to /www/wwwroot/wecom_card
+# - DEPLOY_PORT or SSH_PORT: SSH port, optional; defaults to 22
+# - DEPLOY_SSH_KEY or SSH_PRIVATE_KEY or SSH_KEY: optional private key for key-based auth
+# - DEPLOY_PASSWORD or SSH_PASSWORD: optional password fallback when no key is configured
+# - DEPLOY_RESTART_COMMAND: optional server-side restart script
+#
+# Auth selection:
+# - If DEPLOY_SSH_KEY/SSH_PRIVATE_KEY/SSH_KEY is present, rsync uses that key.
+# - Otherwise, rsync uses sshpass with DEPLOY_PASSWORD/SSH_PASSWORD.
+# - The workflow fails if neither key nor password is configured.
+#
+# Server files protected from deletion/overwrite:
+# node_modules, dist, .env*, logs, certs, uploads, data/cache/storage/tmp/runtime files.
+
+name: Deploy Backend
 
 on:
   push:
@@ -26,7 +36,7 @@ env:
 
 jobs:
   deploy:
-    name: Build and deploy backend
+    name: Verify and deploy backend
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -51,71 +61,136 @@ jobs:
           npm run lint
           npm test -- --coverage --coverageThreshold='{"global":{"branches":60,"functions":75,"lines":75,"statements":75}}'
           npm run rls:validate
+          npm run build
 
-      - name: Build backend
-        working-directory: ./backend
-        run: npm run build
+      - name: Install deploy tools
+        run: sudo apt-get update && sudo apt-get install -y rsync sshpass
 
-      - name: Pack release
-        run: |
-          set -euo pipefail
-          rm -rf release backend-release.tgz
-          mkdir -p release
-          cp backend/package.json backend/package-lock.json release/
-          cp -R backend/dist release/dist
-          if [ -d backend/migrations ]; then
-            cp -R backend/migrations release/migrations
-          fi
-          tar -C release -czf backend-release.tgz .
-
-      - name: Configure SSH
+      - name: Resolve deployment credentials
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
+          DEPLOY_HOST_SECRET: ${{ secrets.DEPLOY_HOST }}
+          SSH_HOST_SECRET: ${{ secrets.SSH_HOST }}
+          DEPLOY_PORT_SECRET: ${{ secrets.DEPLOY_PORT }}
+          SSH_PORT_SECRET: ${{ secrets.SSH_PORT }}
+          DEPLOY_USER_SECRET: ${{ secrets.DEPLOY_USER }}
+          SSH_USER_SECRET: ${{ secrets.SSH_USER }}
+          DEPLOY_SSH_KEY_SECRET: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_PRIVATE_KEY_SECRET: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KEY_SECRET: ${{ secrets.SSH_KEY }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$DEPLOY_HOST"
-          test -n "$DEPLOY_USER"
-          test -n "$DEPLOY_SSH_KEY"
-          test -n "$DEPLOY_RESTART_COMMAND"
-          echo "DEPLOY_PORT=${DEPLOY_PORT:-22}" >> "$GITHUB_ENV"
+
+          host="${DEPLOY_HOST_SECRET:-${SSH_HOST_SECRET:-}}"
+          port="${DEPLOY_PORT_SECRET:-${SSH_PORT_SECRET:-22}}"
+          user="${DEPLOY_USER_SECRET:-${SSH_USER_SECRET:-}}"
+
+          test -n "$host"
+          test -n "$user"
+
+          {
+            echo "DEPLOY_HOST=$host"
+            echo "DEPLOY_PORT=$port"
+            echo "DEPLOY_USER=$user"
+          } >> "$GITHUB_ENV"
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Upload and activate release
+          ssh_key="${DEPLOY_SSH_KEY_SECRET:-${SSH_PRIVATE_KEY_SECRET:-${SSH_KEY_SECRET:-}}}"
+
+          if [ -n "$ssh_key" ]; then
+            printf '%s\n' "$ssh_key" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            echo "DEPLOY_AUTH_MODE=key" >> "$GITHUB_ENV"
+          elif [ -n "${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}" ]; then
+            echo "DEPLOY_AUTH_MODE=password" >> "$GITHUB_ENV"
+          else
+            echo "DEPLOY_SSH_KEY or DEPLOY_PASSWORD/SSH_PASSWORD is required" >&2
+            exit 1
+          fi
+
+      - name: Sync backend to server
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
         run: |
           set -euo pipefail
-          ssh_opts=(-i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o IdentitiesOnly=yes)
-          release_dir="${DEPLOY_PATH}/releases/${GITHUB_SHA}"
 
-          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "mkdir -p '${release_dir}' '${DEPLOY_PATH}/releases'"
+          excludes=(
+            --exclude='node_modules/'
+            --exclude='dist/'
+            --exclude='.env'
+            --exclude='.env.*'
+            --exclude='*.log'
+            --exclude='logs/'
+            --exclude='coverage/'
+            --exclude='*.tsbuildinfo'
+            --exclude='certs/'
+            --exclude='public/uploads/'
+            --exclude='uploads/'
+            --exclude='data/'
+            --exclude='cache/'
+            --exclude='storage/'
+            --exclude='tmp/'
+            --exclude='runtime/'
+            --exclude='.git/'
+            --exclude='.vscode/'
+          )
 
-          scp "${ssh_opts[@]}" backend-release.tgz \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:${release_dir}/backend-release.tgz"
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            ssh -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
 
-          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "set -euo pipefail
-             cd '${release_dir}'
-             tar -xzf backend-release.tgz
-             rm backend-release.tgz
-             npm ci --omit=dev
-             ln -sfn '${release_dir}' '${DEPLOY_PATH}/current'
-             cd '${DEPLOY_PATH}/current'"
+            rsync -az --delete \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              "${excludes[@]}" \
+              backend/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          else
+            export SSHPASS="${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}"
+            sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
 
-          printf '%s\n' "$DEPLOY_RESTART_COMMAND" | ssh "${ssh_opts[@]}" \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}/current' && bash -s"
+            sshpass -e rsync -az --delete \
+              -e "ssh -p ${DEPLOY_PORT}" \
+              "${excludes[@]}" \
+              backend/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          fi
 
-          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}/releases' && ls -1t | tail -n +6 | xargs -r rm -rf"
+      - name: Run optional restart command
+        env:
+          DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_RESTART_COMMAND:-}" ]; then
+            echo "DEPLOY_RESTART_COMMAND is empty; synced files only."
+            exit 0
+          fi
+
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            printf '%s\n' "$DEPLOY_RESTART_COMMAND" | ssh \
+              -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && bash -s"
+          else
+            export SSHPASS="${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}"
+            printf '%s\n' "$DEPLOY_RESTART_COMMAND" | sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && bash -s"
+          fi
