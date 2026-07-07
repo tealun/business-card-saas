@@ -1,4 +1,8 @@
 <view class="page wallet-page">
+  <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
+    当前访客与交换记录为演示样例，接入真实统计接口后会显示企业数据。
+  </view>
+
   <view class="wallet-tabs">
     <view
       class="wallet-tab {{activeTab === item.key ? 'wallet-tab--active' : ''}}"

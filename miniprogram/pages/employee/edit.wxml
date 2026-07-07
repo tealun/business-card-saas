@@ -1,4 +1,13 @@
 <view class="page page--with-footer edit-page">
+  <view class="status-bar status-bar--warning" wx:if="{{error}}">
+    当前为演示资料，连接企业微信后会自动同步真实名片。
+  </view>
+  <view class="card skeleton-card" wx:if="{{loading}}">
+    <view class="skeleton skeleton-line skeleton-line--short"></view>
+    <view class="skeleton skeleton-line skeleton-line--name"></view>
+    <view class="skeleton skeleton-line"></view>
+    <view class="skeleton skeleton-line skeleton-line--short"></view>
+  </view>
   <view class="card">
     <view class="row-between">
       <text class="card__title">基础信息</text>
@@ -19,10 +28,6 @@
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>部门</text></view>
       <view class="field-row__value field-row__value--locked">{{form.department || "企业统一维护"}}</view>
-    </view>
-    <view class="field-row field-row--textarea">
-      <text class="field-row__label">简介</text>
-      <input class="field-row__value" value="{{form.bio}}" data-key="bio" bindinput="onInput" placeholder="一句话介绍自己" />
     </view>
   </view>
 

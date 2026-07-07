@@ -54,7 +54,7 @@ const fieldRows = document.querySelector("#fieldRows");
 const templateRows = document.querySelector("#templateRows");
 const syncEventRows = document.querySelector("#syncEventRows");
 
-apiBaseInput.value = localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1";
+apiBaseInput.value = defaultApiBase();
 adminTokenInput.value = state.adminToken;
 apiBaseInput.addEventListener("change", () => localStorage.setItem("bc_api_base", apiBaseInput.value.trim()));
 templateForm.addEventListener("submit", (event) => event.preventDefault());
@@ -72,7 +72,25 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
 });
 
 function apiBase() {
-  return apiBaseInput.value.trim().replace(/\/$/, "");
+  const value = apiBaseInput.value.trim().replace(/\/$/, "");
+  if (!value) {
+    throw new Error("请先配置 API Base");
+  }
+  if (!/^https?:\/\//.test(value)) {
+    throw new Error("API Base 必须是 http(s) URL");
+  }
+  return value;
+}
+
+function defaultApiBase() {
+  const saved = localStorage.getItem("bc_api_base");
+  if (saved) {
+    return saved;
+  }
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+    return `${window.location.origin}/api/v1`;
+  }
+  return "";
 }
 
 async function request(path, options = {}) {
@@ -154,6 +172,10 @@ function fillCard(card) {
 }
 
 function cardPayloadFromForm() {
+  assertRequired(cardForm.display_name.value, "姓名");
+  validateOptionalPhone(cardForm.mobile.value, "手机");
+  validateOptionalPhone(cardForm.phone.value, "座机");
+  validateOptionalEmail(cardForm.email.value, "邮箱");
   return {
     display_name: cardForm.display_name.value,
     title: cardForm.title.value || null,
@@ -412,6 +434,7 @@ function fillTemplateForm(template) {
 
 function nullableUrlFromInput(input) {
   const value = input.value.trim();
+  validateOptionalUrl(value, input.name || "URL");
   return value || null;
 }
 
@@ -464,6 +487,9 @@ function companyProfilePayloadFromForm() {
   if (!Array.isArray(introBlocks)) {
     throw new Error("简介块 JSON 必须是数组");
   }
+  assertRequired(companyForm.display_name.value, "企业名称");
+  validateOptionalUrl(companyForm.logo_url.value, "企业 Logo");
+  validateOptionalUrl(companyForm.website_url.value, "企业官网");
   return {
     display_name: companyForm.display_name.value.trim(),
     short_name: companyForm.short_name.value.trim() || null,
@@ -474,6 +500,41 @@ function companyProfilePayloadFromForm() {
     visible: companyForm.visible.checked,
     status: companyForm.status.value
   };
+}
+
+function assertRequired(value, label) {
+  if (!String(value || "").trim()) {
+    throw new Error(`${label}不能为空`);
+  }
+}
+
+function validateOptionalEmail(value, label) {
+  const normalized = String(value || "").trim();
+  if (normalized && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    throw new Error(`${label}格式不正确`);
+  }
+}
+
+function validateOptionalPhone(value, label) {
+  const normalized = String(value || "").trim();
+  if (normalized && !/^[0-9+\-\s()]{5,32}$/.test(normalized)) {
+    throw new Error(`${label}格式不正确`);
+  }
+}
+
+function validateOptionalUrl(value, label) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return;
+  }
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error("invalid protocol");
+    }
+  } catch (_) {
+    throw new Error(`${label}必须是有效的 http(s) URL`);
+  }
 }
 
 async function run(label, target, fn) {

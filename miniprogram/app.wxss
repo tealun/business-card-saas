@@ -119,6 +119,19 @@ button::after { border: none; }
 .badge--danger { color: var(--danger); background: var(--danger-tint); }
 .badge--muted { color: var(--text-tertiary); background: var(--divider); }
 
+.status-bar {
+  margin: 0 0 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: var(--r-card);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.status-bar--warning {
+  color: #b54708;
+  background: var(--warning-tint);
+}
+
 .chip {
   display: inline-flex;
   align-items: center;

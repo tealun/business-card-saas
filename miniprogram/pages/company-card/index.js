@@ -1,5 +1,6 @@
 Page({
   data: {
+    demoMode: true,
     company: {
       name: "智云科技",
       fullName: "智云科技（深圳）有限公司",

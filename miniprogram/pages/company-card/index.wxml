@@ -15,6 +15,10 @@
   </view>
 
   <view class="page company-body">
+    <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
+      当前企业资料与成员列表为演示样例，接入企业配置接口后会显示真实数据。
+    </view>
+
     <view class="card">
       <text class="card__title">企业简介</text>
       <view class="company-intro">{{company.intro}}</view>

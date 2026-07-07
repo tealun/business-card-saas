@@ -10,8 +10,8 @@
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | P0 | 1 | 1 | 0 |
-| P1 | 24 | 22 | 2 |
-| P2 | 30 | 23 | 7 |
+| P1 | 24 | 24 | 0 |
+| P2 | 30 | 30 | 0 |
 
 ## P0 — Must Fix
 
@@ -59,8 +59,8 @@
 | EFF-P1-1 | Fixed | Member list runs count(*) twice | `backend/src/admin-management/admin-management.repository.ts` | 113-120, 421-422 | Separate count query + `count(*) OVER()` window function | Removed separate count query; total from window function |
 | ARCH-P2-1 | Fixed | `session()` helper duplicated across admin controllers | multiple | — | Identical helper in 3 controllers | Extracted `requireAdminSession()` to `admin-auth/admin-session.util.ts` |
 | EFF-P2-1 | Fixed | `listMembers` re-parses already-parsed query | `backend/src/admin-management/admin-management.service.ts` | 52-56 | Default parsed, then body calls `parse(input)` again | Use `input` directly; removed redundant parse and member-list fallback |
-| STD-P2-2 | Open | Miniprogram sends fields absent from backend contract | `miniprogram/pages/employee/edit.js` | 73, 80 | Sends `bio` and `website` not in `employee-card.ts` schema | Align contract or remove fields from client |
-| ARCH-P2-2 | Open | Admin logo references file outside deploy boundary | `admin/index.html` | 13 | `src="../docs/design/.../mark-color-144.png"` | Copy asset into `admin/assets/` |
+| STD-P2-2 | Fixed | Miniprogram sends fields absent from backend contract | `miniprogram/pages/employee/edit.js` | 73, 80 | Sends `bio` and `website` not in `employee-card.ts` schema | Removed unsupported `bio`/`website` payload fields from edit page; client now only sends fields accepted by `employee-card.ts` |
+| ARCH-P2-2 | Fixed | Admin logo references file outside deploy boundary | `admin/index.html` | 13 | `src="../docs/design/.../mark-color-144.png"` | Copied logo to `admin/assets/mark-color-144.png` and updated `admin/index.html` to use the deploy-local asset |
 | ARCH-P2-3 | Fixed | Admin-management service maintains parallel in-memory fallback paths | `backend/src/admin-management/admin-management.service.ts` | 37-151 | Branches on `isDatabaseConfigured()`; reconstructs state from maps | Removed all fallback paths; `getMemberCard`/`updateMemberCard` now throw `NotFoundException` when DB row missing |
 
 ### Frontend Runtime & UX
@@ -73,11 +73,11 @@
 | FE-P1-4 | Fixed | Unhandled async rejection in public card page | `miniprogram/pages/public/card.js` | 45-56, 75-78 | `reload()` chains without catch | Wrapped `onLoad` and `reload()` chains in catch; sets `uiState: "error"` |
 | FE-P1-5 | Fixed | Admin response parsing crashes on non-JSON bodies | `admin/app.js` | 92-93 | `JSON.parse(text)` on proxy HTML | `fetchOnce` catches parse errors and surfaces HTTP status/message |
 | FE-P1-6 | Fixed | Save/share actions lack loading/duplicate protection | `miniprogram/pages/employee/card.js`, `edit.js`, `style.js` | 60-95 | No `loading` flag or button disable | Added `submitting` data flag; JS guard + WXML `btn--disabled` state |
-| FE-P2-1 | Open | Hardcoded API base in miniprogram | `miniprogram/app.js` | 3 | `apiBase: "http://localhost:3000/api/v1"` | Build-time env config; reject non-HTTPS in release |
-| FE-P2-2 | Open | Hardcoded API base in admin workbench | `admin/app.js` | 57 | `localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1"` | Documented config override instead of localhost default |
+| FE-P2-1 | Fixed | Hardcoded API base in miniprogram | `miniprogram/app.js` | 3 | `apiBase: "http://localhost:3000/api/v1"` | Removed localhost default; `utils/api.js` reads ext config/global config and rejects missing API base plus non-HTTPS API base outside develop builds |
+| FE-P2-2 | Fixed | Hardcoded API base in admin workbench | `admin/app.js` | 57 | `localStorage.getItem("bc_api_base") || "http://localhost:3000/api/v1"` | Removed localhost default; hosted admin defaults to current origin `/api/v1`, file-open usage requires explicit API Base |
 | FE-P2-4 | Fixed | Rapid template-row clicks fire concurrent mutations | `admin/app.js` | 697-724 | No in-flight guard | Added `templateActionInProgress` flag and disabled row action buttons while a mutation is in flight |
-| FE-P2-5 | Open | Employee card/edit pages lack loading/error states | `miniprogram/pages/employee/card.js`, `edit.js` | 17-53 | Hardcoded demo data; no loading/error flags | Add flags and skeleton/error UI |
-| FE-P2-6 | Open | Hardcoded mock data shown on key user paths | `miniprogram/pages/employee/index.js`, `card-wallet/index.js`, `company-card/index.js` | various | Static demo arrays presented as real data | Gate behind explicit demo-mode banner |
+| FE-P2-5 | Fixed | Employee card/edit pages lack loading/error states | `miniprogram/pages/employee/card.js`, `edit.js` | 17-53 | Hardcoded demo data; no loading/error flags | Added loading/error flags, skeleton state, and warning bars to card/edit pages |
+| FE-P2-6 | Fixed | Hardcoded mock data shown on key user paths | `miniprogram/pages/employee/index.js`, `card-wallet/index.js`, `company-card/index.js` | various | Static demo arrays presented as real data | Added explicit demo-mode warning bars on employee index, card wallet, and company card pages |
 
 ### Health & Ops
 
@@ -89,12 +89,12 @@
 | TOP-P1-3 | Fixed | No CI/GitHub Actions workflows | `.github/workflows/ci.yml` | — | No workflow files existed | Added CI workflow running typecheck, lint, test with coverage thresholds, rls:validate |
 | TOP-P1-4 | Fixed | Critical HTTP paths have no controller/guard tests | `backend/src/*/*.controller.ts` | — | No `*.controller.spec.ts` for admin/auth/employee controllers | Added NestJS controller specs for admin-management, employee-card, public-card, auth-employee, health, metrics; includes RBAC rejections where applicable |
 | TOP-P1-5 | Fixed | Auth guards have no dedicated specs | `backend/src/admin-auth/admin-auth.guard.ts`, `backend/src/session/employee-auth.guard.ts` | 13-22 | No guard specs | Added unit specs for token parsing and 401 behavior |
-| TOP-P1-6 | Open | No database migration strategy | `database/schema.sql`, `database/rls.sql` | — | Static SQL only; no migrations | `node-pg-migrate` installed; `db:migrate`/`db:migrate:create` scripts added; still needs numbered migrations and runbook |
+| TOP-P1-6 | Fixed | No database migration strategy | `database/schema.sql`, `database/rls.sql` | — | Static SQL only; no migrations | `node-pg-migrate` installed with baseline migration/scripts; dev doc now records migration/runbook expectations |
 | TOP-P1-7 | Fixed | No structured logging, metrics, monitoring | `backend/src/main.ts` | 7-35 | Default Nest logger only | Wired `nestjs-pino` JSON logger and `/metrics` Prometheus endpoint |
 | TOP-P1-8 | Fixed | Environment config lacks validation schema | `backend/src/main.ts`, `backend/src/database/database.service.ts`, etc. | — | `process.env.*` scattered; `PORT` not validated | Added `ConfigModule` with `AppConfig` zod schema validated at startup |
 | TOP-P1-9 | Fixed | No coverage threshold enforcement | `backend/jest.config.cjs` | — | No `coverageThreshold`; branch coverage 61.64% | Added `coverageThreshold` (branches 60, functions/lines/statements 75) and enforced in CI |
 | TOP-P1-10 | Fixed | No Dockerfile for backend | `backend/Dockerfile` | — | No `Dockerfile` existed | Added multi-stage Node 24 Alpine Dockerfile with non-root user |
-| TOP-P1-11 | Open | Redis configured but unused | `docker-compose.yml` | 18-21 | Redis exposed; no code usage | Remove Redis or document planned use |
+| TOP-P1-11 | Fixed | Redis configured but unused | `docker-compose.yml` | 18-21 | Redis exposed; no code usage | Removed unused Redis service, dependency condition, and `REDIS_URL` from compose |
 
 ## P2 — Nice to Have
 
@@ -104,14 +104,14 @@
 | SEC-P2-2 | Fixed | Hardcoded WeCom state encryption key | `backend/src/wecom/wecom-state-cipher.service.ts` | 4, 30-37 | `devEncryptionKeyBase64` | Removed dev fallback; throws when env is missing |
 | FE-P2-3 | Fixed | Admin token persisted in localStorage plaintext | `admin/app.js` | 3, 517-521 | `localStorage.setItem("bc_admin_token", ...)` | Changed to `sessionStorage`; token cleared when tab closes |
 | FE-P2-7 | Fixed | Public card tracking silently fails | `miniprogram/pages/public/card.js` | 93-138 | `catch (_error) {}` for visit/derive/action | Added `console.error` and non-blocking `wx.showToast` for visit/derive/action failures |
-| FE-P2-8 | Open | Uncontrolled form inputs without validation | `admin/app.js`, `miniprogram/pages/employee/edit.js` | various | Email/phone/URL/color sent after `trim()` only | Add client-side validators |
+| FE-P2-8 | Fixed | Uncontrolled form inputs without validation | `admin/app.js`, `miniprogram/pages/employee/edit.js` | various | Email/phone/URL/color sent after `trim()` only | Added client-side email/phone/URL/required-field validation in admin and miniprogram employee card/edit save flows |
 | FE-P2-9 | Fixed | No CSP; dynamic CSS values lack sanitization | `admin/index.html`, `admin/app.js`, `miniprogram/pages/public/card.wxml` | various | No CSP meta; `style.backgroundColor = color` | Added CSP meta tag to `admin/index.html`; added `isValidColor` hex validation in `admin/app.js` before saving templates |
 | HLTH-P2-1 | Fixed | Unused dependencies in backend | `backend/package.json` | 30, 34, 39 | `@types/express`, `supertest`, `@types/supertest` | Uninstalled `@types/express`, `supertest`, `@types/supertest`; reinstalled dependencies |
-| HLTH-P2-2 | Fixed | Stale `dist/prisma` artifacts | `backend/dist/prisma/*` | — | Generated files reference `@prisma/client` | `npm run build` now runs `rm -rf dist` before `tsc`; verified `dist/prisma` is removed |
+| HLTH-P2-2 | Fixed | Stale `dist/prisma` artifacts | `backend/dist/prisma/*` | — | Generated files reference `@prisma/client` | Corrected the build cleanup to a cross-platform Node `fs.rmSync` command before `tsc`; verified `dist/prisma` is removed |
 | HLTH-P2-3 | Fixed | Runtime dependencies are unpinned | `backend/package.json` | 17-43 | All caret ranges | Pinned all dependencies and devDependencies to exact versions |
 | HLTH-P2-4 | Fixed | Placeholder phone numbers in seed data | `backend/src/employee/employee-card.repository.ts`, `backend/src/public-card/public-card.repository.ts` | 26, 36 | `phone: "021-5566XXXX"` | Moved demo cards to `backend/src/fixtures/demo-cards.ts`; repositories import the fixture |
-| TOP-P2-1 | Fixed | Health endpoint shape not aligned with orchestration | `backend/src/health.controller.ts` | 8-28 | No `/health/live`; not wired in compose | Added `/health` (liveness) and `/health/ready` (readiness); compose readiness probe points to `/api/v1/health/ready` |
-| TOP-P2-2 | Fixed | Redis service has no healthcheck | `docker-compose.yml` | 18-21 | No `healthcheck` block | Added Redis `healthcheck` using `redis-cli ping` |
+| TOP-P2-1 | Fixed | Health endpoint shape not aligned with orchestration | `backend/src/health.controller.ts` | 8-28 | No `/health/live`; not wired in compose | Added `/health/live` and `/health/ready`; compose backend healthcheck now uses `/api/v1/health/ready` |
+| TOP-P2-2 | Fixed | Redis service has no healthcheck | `docker-compose.yml` | 18-21 | No `healthcheck` block | Superseded by TOP-P1-11 fix: unused Redis service was removed from compose |
 
 ## Fix Guide
 
@@ -122,10 +122,10 @@
 5. **P1 ARCH-P1-1 / STD-P1-1 / STD-P1-2**: Extract dedicated encryption service; fix admin session error handling; split 401/403 error codes.
 6. **P1 TOP-P1-1 / TOP-P1-2 / TOP-P1-3 / TOP-P1-10**: Add backend service to compose; externalize DB creds; add CI workflow; add Dockerfile.
 7. **P1 TOP-P1-4 / TOP-P1-5 / TOP-P1-9**: Add controller/guard tests; enforce coverage thresholds.
-8. **P1 TOP-P1-6 / TOP-P1-7 / TOP-P1-8 / TOP-P1-11**: Finish migration runbook, structured logger, validated config module, and Redis usage decision.
+8. **P1 TOP-P1-6 / TOP-P1-7 / TOP-P1-8 / TOP-P1-11**: Migration runbook, structured logger, validated config module, and Redis usage decision are closed.
 9. **P1 FE-P1-1 / FE-P1-2 / FE-P1-3 / FE-P1-4**: Add timeouts/retries, promise locks, and error states in miniprogram/admin.
 10. **P1 EFF-P1-1 / ARCH-P2-3 / BE-P1-4**: Remove duplicate count query and in-memory fallback paths; disable stale members after sync.
-11. **P2 FE-P2-1 / FE-P2-2 / FE-P2-5 / FE-P2-6 / FE-P2-8 / STD-P2-2 / ARCH-P2-2**: Complete frontend runtime/validation cleanup and asset boundary fixes.
+11. **P2 FE-P2-1 / FE-P2-2 / FE-P2-5 / FE-P2-6 / FE-P2-8 / STD-P2-2 / ARCH-P2-2**: Frontend runtime/config/validation cleanup and asset boundary fixes are closed.
 
 ## Doc Updates Needed
 - `docs/01-specs/01_02_Api_Spec.md` — update error-code table for 401/403 split.
@@ -145,6 +145,8 @@
 - ✅ Phase 3 fixes committed and pushed in `926f928`; verified by running `npm run typecheck`, `npm run lint`, `npm test -- --coverage` (thresholds passed), `npm run build`
 - ✅ Phase 4 fixes verified by running `npm run typecheck`, `npm run lint`, `npm test -- --coverage` (26 suites, 106 tests passed; thresholds passed), `npm run build`, `npm run rls:validate`
 - ✅ Phase 5 fixes verified by running `npm run typecheck`, `npm run lint`, `npm run build`, `npm run rls:validate`, and `npm test -- --coverage` (34 suites, 137 tests passed; branch coverage 60.11% >= 60% threshold)
+- ✅ Follow-up verification pass closed remaining Open items: frontend API-base defaults, client validation, demo-state banners, admin asset boundary, compose readiness, Redis removal, and migration runbook.
+- ✅ Follow-up found and corrected one invalid prior fix: `npm run build` used Unix-only `rm -rf`; build now cleans `dist` with Node `fs.rmSync` and passes on Windows.
 
 ## Positive Observations
 - All existing backend tests pass (34 suites, 137 tests).

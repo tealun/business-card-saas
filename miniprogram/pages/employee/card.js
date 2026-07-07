@@ -12,6 +12,8 @@ Page({
       wechat_id: "liming-zy"
     },
     sharePath: "",
+    loading: true,
+    error: false,
     submitting: false
   },
 
@@ -30,6 +32,7 @@ Page({
       app.globalData.token = session.access_token;
       await this.loadCard();
     } catch (error) {
+      this.setData({ loading: false, error: true });
       wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
     }
   },
@@ -46,9 +49,12 @@ Page({
           mobile: card.fields.mobile || "",
           email: card.fields.email || "",
           wechat_id: card.fields.wechat_id || ""
-        }
+        },
+        loading: false,
+        error: false
       });
     } catch (error) {
+      this.setData({ loading: false, error: true });
       wx.showToast({ title: error.message || "读取失败", icon: "none" });
     }
   },
@@ -65,6 +71,7 @@ Page({
     this.setData({ submitting: true });
     const form = this.data.form;
     try {
+      validateCardForm(form);
       const card = await request("/employee/cards/current", {
         method: "PUT",
         data: {
@@ -106,3 +113,17 @@ Page({
     }
   }
 });
+
+function validateCardForm(form) {
+  if (!String(form.display_name || "").trim()) {
+    throw new Error("姓名不能为空");
+  }
+  const email = String(form.email || "").trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("邮箱格式不正确");
+  }
+  const phone = String(form.mobile || "").trim();
+  if (phone && !/^[0-9+\-\s()]{5,32}$/.test(phone)) {
+    throw new Error("手机号格式不正确");
+  }
+}
