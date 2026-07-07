@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
 import { registerXmlBodyParser } from "./common/xml-body-parser.js";
+import helmet from "@fastify/helmet";
 
 async function bootstrap() {
   const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
@@ -17,6 +18,23 @@ async function bootstrap() {
   registerXmlBodyParser(adapter);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
   app.setGlobalPrefix("api/v1");
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"]
+      }
+    },
+    crossOriginEmbedderPolicy: false
+  });
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {

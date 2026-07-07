@@ -415,14 +415,26 @@ function nullableUrlFromInput(input) {
   return value || null;
 }
 
+function isValidColor(value) {
+  return /^#[0-9A-Fa-f]{6}$/.test(value) || /^#[0-9A-Fa-f]{3}$/.test(value);
+}
+
 function templatePayloadFromForm(options = {}) {
+  const primary = templatePrimaryColorInput.value.trim() || "#1677ff";
+  const surface = templateSurfaceColorInput.value.trim() || "#ffffff";
+  if (!isValidColor(primary)) {
+    throw new Error(`primary 颜色格式错误: ${primary}`);
+  }
+  if (!isValidColor(surface)) {
+    throw new Error(`surface 颜色格式错误: ${surface}`);
+  }
   const payload = {
     name: templateNameInput.value.trim() || "商务蓝模板",
     background_url: nullableUrlFromInput(templateBackgroundUrlInput),
     logo_url: nullableUrlFromInput(templateLogoUrlInput),
     color_scheme: {
-      primary: templatePrimaryColorInput.value.trim() || "#1677ff",
-      surface: templateSurfaceColorInput.value.trim() || "#ffffff"
+      primary,
+      surface
     },
     layout: {
       variant: templateLayoutVariantInput.value.trim() || "horizontal-business"
@@ -724,6 +736,14 @@ document.querySelector("#setDefaultTemplate").addEventListener("click", async ()
   await loadTemplates();
 });
 
+let templateActionInProgress = false;
+
+function setTemplateActionsDisabled(disabled) {
+  templateRows.querySelectorAll("button[data-template-action]").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
 templateRows.addEventListener("click", async (event) => {
   if (!(event.target instanceof Element)) {
     return;
@@ -743,13 +763,24 @@ templateRows.addEventListener("click", async (event) => {
     renderTemplates({ items: state.templates });
     return;
   }
-  if (button.dataset.templateAction === "default") {
-    const result = await run("setting default template", configOutput, async () =>
-      adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" })
-    );
-    state.selectedTemplateId = result.template_id;
-    fillTemplateForm(result);
-    await loadTemplates();
+  if (templateActionInProgress) {
+    configOutput.textContent = "模板操作进行中，请稍候";
+    return;
+  }
+  templateActionInProgress = true;
+  setTemplateActionsDisabled(true);
+  try {
+    if (button.dataset.templateAction === "default") {
+      const result = await run("setting default template", configOutput, async () =>
+        adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" })
+      );
+      state.selectedTemplateId = result.template_id;
+      fillTemplateForm(result);
+      await loadTemplates();
+    }
+  } finally {
+    templateActionInProgress = false;
+    setTemplateActionsDisabled(false);
   }
 });
 

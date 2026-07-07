@@ -111,7 +111,10 @@ Page({
       app.globalData.anonId = visit.anon_id;
       this.setData({ visitId: visit.visit_id });
       await this.prepareDerivedShare();
-    } catch (_error) {}
+    } catch (error) {
+      console.error("create visit failed", error);
+      wx.showToast({ title: "访问记录未上报", icon: "none" });
+    }
   },
 
   async prepareDerivedShare() {
@@ -125,7 +128,9 @@ Page({
         data: { parent_share_id: this.data.shareId }
       });
       this.setData({ nextShareId: derived.share_id });
-    } catch (_error) {
+    } catch (error) {
+      console.error("derive share failed", error);
+      wx.showToast({ title: "裂变关系未上报", icon: "none" });
       this.setData({ nextShareId: this.data.shareId });
     }
   },
@@ -140,7 +145,10 @@ Page({
         header: { authorization: `Bearer ${app.globalData.visitToken}` },
         data: { action_type: actionType }
       });
-    } catch (_error) {}
+    } catch (error) {
+      console.error(`record action ${actionType} failed`, error);
+      wx.showToast({ title: "行为记录未上报", icon: "none" });
+    }
   },
 
   callPhone() {
