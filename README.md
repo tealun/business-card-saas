@@ -79,6 +79,14 @@ npm start
 
 生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化；不要执行 `db:verify`。非本地一次性测试库运行 `db:verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。
 
+## 自动部署
+
+GitHub Actions 后端自动部署配置见 [`docs/88-planning/88_01_Backend_Deployment_Guide.md`](docs/88-planning/88_01_Backend_Deployment_Guide.md)。
+
+- 部署目标目录：`/www/wwwroot/wecom_card`
+- 认证方式：优先 SSH key，缺失时使用密码
+- 保护内容：服务器 `.env`、缓存、日志、上传文件、证书、`node_modules`、`dist` 等运行态内容不会被 CI 删除或覆盖
+
 ## 阅读入口
 
 文档全部在 [`docs/`](docs/)，索引见 [`docs/README.md`](docs/README.md)。建议顺序：
