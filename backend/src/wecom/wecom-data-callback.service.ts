@@ -86,28 +86,39 @@ export class WecomDataCallbackService {
 
     for (const event of candidates) {
       result.retriedCount += 1;
-      const shouldDeadLetter = event.retryCount + 1 >= MAX_CALLBACK_RETRIES;
+      let decryptedMessage: string | undefined;
+      let decryptedReceiveId: string | undefined;
+
       try {
         const decrypted = this.crypto.decryptTrustedCiphertext(event.payloadEncrypted, this.decryptOptions());
-        await this.handleDataMessage(decrypted.message, decrypted.receiveId, event.payloadEncrypted);
+        decryptedMessage = decrypted.message;
+        decryptedReceiveId = decrypted.receiveId;
+      } catch (error) {
+        // Pre-processing decrypt failures are the only errors we own here.
+        // handleDataMessage owns its own failure bookkeeping.
+        result.failedCount += 1;
+        result.deadCount += 1;
+        await this.events.markFailed(event.eventKey, error, event.tenantId, { deadLetter: true });
+        await this.alerts.notifyDeadLetter({
+          source: "data",
+          eventKey: event.eventKey,
+          tenantId: event.tenantId,
+          eventType: event.eventType,
+          changeType: event.changeType,
+          retryCount: event.retryCount + 1,
+          errorType: errorType(error)
+        });
+        continue;
+      }
+
+      try {
+        await this.handleDataMessage(decryptedMessage, decryptedReceiveId, event.payloadEncrypted);
         result.succeededCount += 1;
       } catch (error) {
+        // handleDataMessage already marks failed/dead-letter and alerts.
         result.failedCount += 1;
-        if (shouldDeadLetter) {
+        if (event.retryCount + 1 >= MAX_CALLBACK_RETRIES) {
           result.deadCount += 1;
-        }
-        if (isDecryptFailure(error)) {
-          await this.events.markFailed(event.eventKey, error, event.tenantId, { deadLetter: true });
-          await this.alerts.notifyDeadLetter({
-            source: "data",
-            eventKey: event.eventKey,
-            tenantId: event.tenantId,
-            eventType: event.eventType,
-            changeType: event.changeType,
-            retryCount: event.retryCount + 1,
-            errorType: errorType(error)
-          });
-          result.deadCount += shouldDeadLetter ? 0 : 1;
         }
       }
     }
@@ -219,10 +230,6 @@ export class WecomDataCallbackService {
   }
 }
 
-function isDecryptFailure(error: unknown): boolean {
-  return error instanceof BadRequestException;
-}
-
 function errorType(error: unknown): string {
   return error instanceof Error ? error.constructor.name : typeof error;
 }
@@ -261,8 +268,7 @@ function callbackEventKey(messageXml: string, input: { openCorpid: string; event
         readXmlText(messageXml, "TimeStamp") ?? readXmlText(messageXml, "CreateTime") ?? "",
         readXmlText(messageXml, "UserID") ?? "",
         readXmlText(messageXml, "NewUserID") ?? "",
-        readXmlText(messageXml, "OpenUserID") ?? "",
-        messageXml.trim()
+        readXmlText(messageXml, "OpenUserID") ?? ""
       ].join("\0")
     )
     .digest("hex");

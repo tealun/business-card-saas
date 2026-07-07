@@ -9,5 +9,14 @@ module.exports = {
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  setupFiles: ["<rootDir>/jest.setup.cjs"]
+  setupFiles: ["<rootDir>/jest.setup.cjs"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.spec.ts"],
+  coverageThreshold: {
+    global: {
+      branches: 60,
+      functions: 75,
+      lines: 75,
+      statements: 75
+    }
+  }
 };

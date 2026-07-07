@@ -28,9 +28,19 @@ export interface DisableWecomContactMemberInput {
   openUserid: string | null;
 }
 
+export interface DisableStaleWecomContactMembersInput {
+  tenantId: string;
+  activeOpenUserids: string[];
+  activeUserids: string[];
+}
+
 interface MemberIdentityRow extends QueryResultRow {
   id: string | number | bigint;
   name: string;
+}
+
+interface DisabledMemberRow extends QueryResultRow {
+  id: string | number | bigint;
 }
 
 interface CardRow extends QueryResultRow {
@@ -69,6 +79,65 @@ export class WecomContactSyncRepository {
       }
     });
     return { syncedCount: normalized.length, skippedCount };
+  }
+
+  async disableStaleMembers(input: DisableStaleWecomContactMembersInput): Promise<number> {
+    if (!this.hasDatabase()) {
+      const current = this.memory.get(input.tenantId) ?? [];
+      let disabledCount = 0;
+      const updated = current.map((user) => {
+        if (
+          user.status === "active" &&
+          ((user.openUserid && !input.activeOpenUserids.includes(user.openUserid)) ||
+            (user.userid && !input.activeUserids.includes(user.userid)))
+        ) {
+          disabledCount += 1;
+          return { ...user, status: "disabled" as const };
+        }
+        return user;
+      });
+      this.memory.set(input.tenantId, updated);
+      return disabledCount;
+    }
+
+    return this.tenantTx!.run(input.tenantId, async (tx) => {
+      const result = await tx.query<DisabledMemberRow>(
+        `
+          WITH stale AS (
+            SELECT id
+            FROM member_identities
+            WHERE tenant_id = $1
+              AND status = 'active'
+              AND (
+                (open_userid IS NOT NULL AND NOT (open_userid = ANY($2::text[])))
+                OR (userid IS NOT NULL AND NOT (userid = ANY($3::text[])))
+              )
+          )
+          UPDATE member_identities
+          SET status = 'disabled',
+              updated_at = now()
+          WHERE tenant_id = $1 AND id IN (SELECT id FROM stale)
+          RETURNING id
+        `,
+        [input.tenantId, input.activeOpenUserids, input.activeUserids]
+      );
+      const disabledIds = result.rows.map((row) => String(row.id));
+      if (disabledIds.length > 0) {
+        await tx.query(
+          `
+            UPDATE cards
+            SET status = 'disabled',
+                updated_at = now()
+            WHERE tenant_id = $1
+              AND member_identity_id = ANY($2::bigint[])
+              AND card_type = 'primary'
+              AND deleted_at IS NULL
+          `,
+          [input.tenantId, disabledIds]
+        );
+      }
+      return disabledIds.length;
+    });
   }
 
   async disableMember(input: DisableWecomContactMemberInput): Promise<boolean> {

@@ -315,32 +315,76 @@ export class WecomApiClientService {
   }
 
   private async postJson<T>(operation: string, path: string, body: unknown): Promise<T> {
-    const abort = new AbortController();
-    const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
-    let response: Response;
-    try {
-      response = await fetch(`${this.config.apiBaseUrl}${path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        signal: abort.signal,
-        body: JSON.stringify(body)
-      });
-    } catch {
-      throw new ServiceUnavailableException(`WeCom ${operation} request failed`);
-    } finally {
-      clearTimeout(timeout);
+    const maxRetries = 3;
+    const baseDelayMs = 200;
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+      const abort = new AbortController();
+      const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
+      try {
+        const response = await fetch(`${this.config.apiBaseUrl}${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: abort.signal,
+          body: JSON.stringify(body)
+        });
+        clearTimeout(timeout);
+
+        if (response.ok) {
+          try {
+            return (await response.json()) as T;
+          } catch {
+            throw new BadGatewayException(`WeCom ${operation} returned invalid JSON`);
+          }
+        }
+
+        const errorBody = await safeReadErrorBody(response);
+        const errorMessage = `WeCom ${operation} HTTP ${response.status}${errorBody ? `: ${errorBody}` : ""}`;
+        if (!isRetryableStatus(response.status)) {
+          throw new ServiceUnavailableException(errorMessage);
+        }
+        lastError = new ServiceUnavailableException(errorMessage);
+      } catch (error) {
+        clearTimeout(timeout);
+        if (error instanceof BadGatewayException || (error instanceof ServiceUnavailableException && !isRetryableError(error))) {
+          throw error;
+        }
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+
+      if (attempt < maxRetries - 1) {
+        await delay(baseDelayMs * 2 ** attempt);
+      }
     }
 
-    if (!response.ok) {
-      throw new ServiceUnavailableException(`WeCom ${operation} HTTP ${response.status}`);
-    }
-
-    try {
-      return (await response.json()) as T;
-    } catch {
-      throw new BadGatewayException(`WeCom ${operation} returned invalid JSON`);
-    }
+    throw new ServiceUnavailableException(`WeCom ${operation} request failed after ${maxRetries} attempts: ${lastError?.message}`);
   }
+}
+
+async function safeReadErrorBody(response: Response): Promise<string | null> {
+  try {
+    const text = await response.clone().text();
+    return text.length > 200 ? `${text.slice(0, 200)}...` : text;
+  } catch {
+    return null;
+  }
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 429 || status === 408;
+}
+
+function isRetryableError(error: Error): boolean {
+  // Do not retry client errors (4xx) or malformed responses.
+  if (error instanceof BadGatewayException) {
+    return false;
+  }
+  return !error.message.includes("HTTP 4");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function normalizeOptionalString(value: string | undefined): string | null {

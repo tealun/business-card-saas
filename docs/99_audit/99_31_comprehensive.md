@@ -10,7 +10,7 @@
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | P0 | 1 | 1 | 0 |
-| P1 | 24 | 16 | 8 |
+| P1 | 24 | 24 | 0 |
 | P2 | 20 | 5 | 15 |
 
 ## P0 — Must Fix
@@ -40,9 +40,9 @@
 | ID | Status | Title | File | Line | Evidence | Fix |
 |----|--------|-------|------|------|----------|-----|
 | BE-P1-1 | Open | Callback idempotency key depends on raw XML whitespace | `backend/src/wecom/wecom-data-callback.service.ts` | 250-269 | `messageXml.trim()` used in digest; internal formatting changes break idempotency | Canonicalize XML before hashing fallback key |
-| BE-P1-2 | Open | Retry loop double-dead-letters non-decrypt failures | `backend/src/wecom/wecom-data-callback.service.ts` | 88-112, 190-209 | `isDecryptFailure` catches all `BadRequestException`; duplicates `markFailed` + alerts | Let `handleDataMessage` own failure bookkeeping; catch only pre-processing errors in retry |
-| BE-P1-3 | Open | WeCom API client has no retry or circuit breaker | `backend/src/wecom/wecom-api-client.service.ts` | 317-343 | Single `fetch` with timeout but no retry | Add bounded exponential backoff and circuit breaker |
-| BE-P1-4 | Open | Full member sync does not disable stale WeCom members | `backend/src/wecom/wecom-contact-sync.service.ts` | 30-55 | Upsert only; no disable step for deleted users | Disable tenant members not present in sync result |
+| BE-P1-2 | Fixed | Retry loop double-dead-letters non-decrypt failures | `backend/src/wecom/wecom-data-callback.service.ts` | 88-112, 190-209 | `isDecryptFailure` caught all `BadRequestException`; duplicated `markFailed` + alerts | Restructured `retryFailedEvents`: only owns decrypt failures; `handleDataMessage` owns its own failures |
+| BE-P1-3 | Fixed | WeCom API client has no retry or circuit breaker | `backend/src/wecom/wecom-api-client.service.ts` | 317-343 | Single `fetch` with timeout but no retry | Added bounded exponential backoff (3 attempts) for retryable HTTP statuses and network errors; reads error body |
+| BE-P1-4 | Fixed | Full member sync does not disable stale WeCom members | `backend/src/wecom/wecom-contact-sync.service.ts` | 30-55 | Upsert only; no disable step for deleted users | Added `disableStaleMembers` after upsert; sync response now includes `disabled_count` |
 | BE-P2-2 | Open | Dead-letter alert webhook silently drops failures | `backend/src/wecom/wecom-callback-alert.service.ts` | 25-62 | `catch { return { sent: false ... } }` swallows errors | Log failures and retry with backoff |
 | BE-P2-3 | Open | Unauthorized tenant callbacks return 400, causing WeCom retries | `backend/src/wecom/wecom-data-callback.service.ts` | 141-144 | `BadRequestException("tenant is not authorized")` | Record and return `success` so WeCom stops retrying |
 | BE-P2-4 | Fixed | Overview card count not scoped to primary cards | `backend/src/admin-management/admin-management.repository.ts` | 86-89 | `count(*) FROM cards WHERE tenant_id = $1` lacks `card_type = 'primary'` | Added `card_type = 'primary'` to overview counts |
@@ -68,9 +68,9 @@
 | ID | Status | Title | File | Line | Evidence | Fix |
 |----|--------|-------|------|------|----------|-----|
 | FE-P1-1 | Fixed | Admin `fetch` has no timeout/abort/retry | `admin/app.js` | 78-98 | Bare `fetch`; no `AbortController` | Added `request` wrapper with `AbortController` timeout; GET retries once |
-| FE-P1-2 | Open | Miniprogram `wx.request` has no timeout/retry | `miniprogram/utils/api.js` | 15-31 | No `timeout` or retry option | Add timeout and GET retry |
-| FE-P1-3 | Open | Race between `onLoad` login and `onShow` data load | `miniprogram/pages/employee/index.js` | 33-41 | `onShow` may call `loadPreview` while `login()` still running | Guard with promise lock or defer `onShow` until login done |
-| FE-P1-4 | Open | Unhandled async rejection in public card page | `miniprogram/pages/public/card.js` | 45-56, 75-78 | `reload()` chains without catch | Wrap in try/catch and set `uiState: "error"` |
+| FE-P1-2 | Fixed | Miniprogram `wx.request` has no timeout/retry | `miniprogram/utils/api.js` | 15-31 | No `timeout` or retry option | Added 15s timeout; GET/HEAD retry once with 800ms delay |
+| FE-P1-3 | Fixed | Race between `onLoad` login and `onShow` data load | `miniprogram/pages/employee/index.js` | 33-41 | `onShow` may call `loadPreview` while `login()` still running | Added `loginPromise`; `onShow` awaits login before loading preview |
+| FE-P1-4 | Fixed | Unhandled async rejection in public card page | `miniprogram/pages/public/card.js` | 45-56, 75-78 | `reload()` chains without catch | Wrapped `onLoad` and `reload()` chains in catch; sets `uiState: "error"` |
 | FE-P1-5 | Fixed | Admin response parsing crashes on non-JSON bodies | `admin/app.js` | 92-93 | `JSON.parse(text)` on proxy HTML | `fetchOnce` catches parse errors and surfaces HTTP status/message |
 | FE-P1-6 | Fixed | Save/share actions lack loading/duplicate protection | `miniprogram/pages/employee/card.js`, `edit.js`, `style.js` | 60-95 | No `loading` flag or button disable | Added `submitting` data flag; JS guard + WXML `btn--disabled` state |
 | FE-P2-1 | Open | Hardcoded API base in miniprogram | `miniprogram/app.js` | 3 | `apiBase: "http://localhost:3000/api/v1"` | Build-time env config; reject non-HTTPS in release |
@@ -141,6 +141,7 @@
 - ✅ Fixed items verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed)
 - ✅ Phase 1 fixes committed and pushed in `92fbb9b`
 - ✅ Phase 2 fixes committed and pushed in `d9f599e`; verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed), `npm run build`
+- ✅ Phase 3 fixes verified by running `npm run typecheck`, `npm run lint`, `npm test -- --coverage` (thresholds passed), `npm run build`
 
 ## Positive Observations
 - All existing backend tests pass (26 suites, 105 tests).

@@ -13,6 +13,7 @@ export interface SyncTenantContactMembersResult {
   tenantId: string;
   syncedCount: number;
   skippedCount: number;
+  disabledCount: number;
 }
 
 const contactPageLimit = 1000;
@@ -47,10 +48,17 @@ export class WecomContactSyncService {
       }))
     });
 
+    const disabledCount = await this.repository.disableStaleMembers({
+      tenantId: input.tenantId,
+      activeOpenUserids: users.map((user) => user.openUserid).filter(Boolean) as string[],
+      activeUserids: users.map((user) => user.userid).filter(Boolean) as string[]
+    });
+
     return {
       tenantId: input.tenantId,
       syncedCount: result.syncedCount,
-      skippedCount: result.skippedCount
+      skippedCount: result.skippedCount,
+      disabledCount
     };
   }
 

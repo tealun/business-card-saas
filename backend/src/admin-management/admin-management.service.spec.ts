@@ -47,7 +47,8 @@ describe("AdminManagementService", () => {
     expect(result).toEqual({
       tenant_id: "tenant-001",
       synced_count: 2,
-      skipped_count: 0
+      skipped_count: 0,
+      disabled_count: 0
     });
   });
 
@@ -140,7 +141,8 @@ function fakeContactSync(): WecomContactSyncService {
     syncTenantMembers: async (input: SyncTenantContactMembersInput) => ({
       tenantId: input.tenantId,
       syncedCount: 2,
-      skippedCount: 0
+      skippedCount: 0,
+      disabledCount: 0
     })
   } as WecomContactSyncService;
 }
