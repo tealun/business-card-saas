@@ -140,7 +140,7 @@
 - ✅ All P0/P1 findings have file:line evidence and concrete fixes
 - ✅ Fixed items verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed)
 - ✅ Phase 1 fixes committed and pushed in `92fbb9b`
-- ✅ Phase 2 fixes verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed), `npm run build`
+- ✅ Phase 2 fixes committed and pushed in `d9f599e`; verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed), `npm run build`
 
 ## Positive Observations
 - All existing backend tests pass (26 suites, 105 tests).
