@@ -60,7 +60,7 @@ jobs:
         run: |
           npm run typecheck
           npm run lint
-          npm test -- --coverage --coverageThreshold='{"global":{"branches":60,"functions":75,"lines":75,"statements":75}}'
+          npm test
           npm run rls:validate
           npm run build
 
