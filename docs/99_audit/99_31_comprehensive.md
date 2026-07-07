@@ -139,7 +139,7 @@
 - ✅ TOP-P1-1/TOP-P1-2 verified by reading `docker-compose.yml`
 - ✅ All P0/P1 findings have file:line evidence and concrete fixes
 - ✅ Fixed items verified by running `npm run typecheck`, `npm run lint`, `npm test` (26 suites, 106 tests passed)
-- ℹ️ Fix statuses updated in working tree; commit pending user approval
+- ✅ Fixes committed and pushed in `92fbb9b`
 
 ## Positive Observations
 - All existing backend tests pass (26 suites, 105 tests).
