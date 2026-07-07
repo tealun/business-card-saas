@@ -1,6 +1,6 @@
 App({
   globalData: {
-    apiBase: "http://localhost:3000/api/v1",
+    apiBase: "",
     token: "",
     currentCard: null,
     shareId: "",

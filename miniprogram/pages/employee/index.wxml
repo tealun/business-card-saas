@@ -1,6 +1,6 @@
 <view class="page" style="--brand: {{themeBrand}};">
-  <view class="status-bar status-bar--warning" wx:if="{{error}}">
-    当前为演示数据，连接企业微信后会自动同步真实名片。
+  <view class="status-bar status-bar--warning" wx:if="{{error || demoMode}}">
+    当前互动数据为演示样例，连接企业微信后名片资料会同步真实数据。
   </view>
 
   <block wx:if="{{loading}}">

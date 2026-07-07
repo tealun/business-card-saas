@@ -1,7 +1,18 @@
 const app = getApp();
 
 function apiBase() {
-  return app.globalData.apiBase.replace(/\/$/, "");
+  const extConfig = typeof wx.getExtConfigSync === "function" ? wx.getExtConfigSync() : {};
+  const base = String(extConfig.apiBase || app.globalData.apiBase || "").trim().replace(/\/$/, "");
+  if (!base) {
+    throw new Error("API Base 未配置");
+  }
+  const envVersion = typeof wx.getAccountInfoSync === "function"
+    ? wx.getAccountInfoSync()?.miniProgram?.envVersion
+    : "develop";
+  if (envVersion !== "develop" && !base.startsWith("https://")) {
+    throw new Error("体验版/正式版 API Base 必须使用 HTTPS");
+  }
+  return base;
 }
 
 function request(path, options = {}) {
@@ -10,7 +21,6 @@ function request(path, options = {}) {
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
 
-  let lastError;
   const attempt = (retryIndex) => new Promise((resolve, reject) => {
     const headers = {
       "content-type": "application/json",
@@ -40,7 +50,6 @@ function request(path, options = {}) {
   });
 
   const run = () => attempt().catch((error) => {
-    lastError = error;
     if (maxRetries > 0) {
       return new Promise((resolve) => setTimeout(resolve, 800)).then(attempt);
     }

@@ -1,5 +1,6 @@
 Page({
   data: {
+    demoMode: true,
     activeTab: "visitors",
     tabs: [
       { key: "visitors", label: "我的访客", count: 328 },

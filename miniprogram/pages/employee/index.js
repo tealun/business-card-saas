@@ -16,6 +16,7 @@ Page({
   data: {
     loading: true,
     error: false,
+    demoMode: true,
     card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
@@ -67,7 +68,8 @@ Page({
         card: Object.assign({ status: preview.status, fields: {} }, preview.card),
         themeBrand: brand,
         loading: false,
-        error: false
+        error: false,
+        demoMode: true
       });
     } catch (error) {
       this.setData({ loading: false, error: true });

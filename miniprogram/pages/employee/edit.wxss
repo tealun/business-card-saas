@@ -1,5 +1,28 @@
 .edit-page { padding-top: 24rpx; }
 
+.status-bar {
+  margin: 0 0 20rpx;
+  padding: 18rpx 22rpx;
+  border-radius: var(--r-card);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.status-bar--warning {
+  color: #b54708;
+  background: var(--warning-tint);
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.skeleton-line { width: 100%; height: 28rpx; }
+.skeleton-line--short { width: 45%; }
+.skeleton-line--name { width: 62%; height: 56rpx; }
+
 .edit-avatar-row {
   display: flex;
   align-items: center;
