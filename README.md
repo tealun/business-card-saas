@@ -56,10 +56,13 @@ npm run db:verify
 
 ```powershell
 cd backend
+# Generate 32-byte base64 keys with:
+# node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
 $env:JWT_SECRET="<32+ chars random>"
 $env:ADMIN_JWT_SECRET="<32+ chars random>"
 $env:VISIT_TOKEN_SECRET="<32+ chars random>"
+$env:CARD_FIELD_ENCRYPTION_KEY_BASE64="<32-byte base64>"
 $env:WECOM_STATE_ENCRYPTION_KEY_BASE64="<32-byte base64>"
 $env:WECOM_SUITE_ID="<your-suite-id>"
 $env:WECOM_SUITE_SECRET="<your-suite-secret>"

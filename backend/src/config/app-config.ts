@@ -11,6 +11,10 @@ function base64Key(name: string) {
   );
 }
 
+const databaseUrl = z.string().min(1).refine((value) => /^postgres(ql)?:\/\//.test(value), {
+  message: 'DATABASE_URL must start with "postgres://" or "postgresql://"'
+});
+
 const appConfigSchema = z
   .object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -18,29 +22,29 @@ const appConfigSchema = z
     HOST: z.string().min(1).default("0.0.0.0"),
     CORS_ORIGINS: z.string().default(""),
 
-    DATABASE_URL: z.string().min(1).startsWith("postgres://").optional(),
+    DATABASE_URL: databaseUrl.optional(),
 
     JWT_SECRET: z.string().min(32),
-  ADMIN_JWT_SECRET: z.string().min(32),
-  VISIT_TOKEN_SECRET: z.string().min(32),
-  CARD_FIELD_ENCRYPTION_KEY_BASE64: base64Key("CARD_FIELD_ENCRYPTION_KEY_BASE64"),
-  WECOM_STATE_ENCRYPTION_KEY_BASE64: base64Key("WECOM_STATE_ENCRYPTION_KEY_BASE64"),
+    ADMIN_JWT_SECRET: z.string().min(32),
+    VISIT_TOKEN_SECRET: z.string().min(32),
+    CARD_FIELD_ENCRYPTION_KEY_BASE64: base64Key("CARD_FIELD_ENCRYPTION_KEY_BASE64"),
+    WECOM_STATE_ENCRYPTION_KEY_BASE64: base64Key("WECOM_STATE_ENCRYPTION_KEY_BASE64"),
 
-  WECOM_SUITE_ID: z.string().min(1),
-  WECOM_SUITE_SECRET: z.string().min(1),
-  WECOM_CALLBACK_TOKEN: z.string().min(1),
-  WECOM_CALLBACK_AES_KEY: z.string().length(43),
-  WECOM_DATA_CALLBACK_TOKEN: z.string().min(1),
-  WECOM_DATA_CALLBACK_AES_KEY: z.string().length(43),
-  WECOM_API_BASE_URL: z.string().url(),
-  WECOM_HTTP_TIMEOUT_MS: z.coerce.number().int().positive(),
-  WECOM_INSTALL_BASE_URL: z.string().url(),
-  WECOM_INSTALL_REDIRECT_URI: z.string().url(),
-  WECOM_AUTH_LAUNCH_TOKEN: z.string().min(1),
+    WECOM_SUITE_ID: z.string().min(1),
+    WECOM_SUITE_SECRET: z.string().min(1),
+    WECOM_CALLBACK_TOKEN: z.string().min(1),
+    WECOM_CALLBACK_AES_KEY: z.string().length(43),
+    WECOM_DATA_CALLBACK_TOKEN: z.string().min(1),
+    WECOM_DATA_CALLBACK_AES_KEY: z.string().length(43),
+    WECOM_API_BASE_URL: z.string().url(),
+    WECOM_HTTP_TIMEOUT_MS: z.coerce.number().int().positive(),
+    WECOM_INSTALL_BASE_URL: z.string().url(),
+    WECOM_INSTALL_REDIRECT_URI: z.string().url(),
+    WECOM_AUTH_LAUNCH_TOKEN: z.string().min(1),
 
-  WECOM_CALLBACK_ALERT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
-  WECOM_CALLBACK_ALERT_WEBHOOK_TOKEN: z.string().min(1).optional().or(z.literal(""))
-})
+    WECOM_CALLBACK_ALERT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
+    WECOM_CALLBACK_ALERT_WEBHOOK_TOKEN: z.string().min(1).optional().or(z.literal(""))
+  })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production" && !data.DATABASE_URL) {
       ctx.addIssue({

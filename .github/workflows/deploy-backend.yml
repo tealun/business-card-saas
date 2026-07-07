@@ -1,0 +1,121 @@
+name: Deploy Backend
+
+# Required GitHub repository secrets:
+# - DEPLOY_HOST: server hostname or IP
+# - DEPLOY_PORT: SSH port, optional; defaults to 22
+# - DEPLOY_USER: SSH user with write access to /www/wwwroot/wecom_card
+# - DEPLOY_SSH_KEY: private key for the SSH user
+# - DEPLOY_RESTART_COMMAND: server-side restart script, for example sourcing
+#   server-local env vars and reloading the Node process manager.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24"
+  DEPLOY_PATH: /www/wwwroot/wecom_card
+
+jobs:
+  deploy:
+    name: Build and deploy backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Verify backend
+        working-directory: ./backend
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --coverage --coverageThreshold='{"global":{"branches":60,"functions":75,"lines":75,"statements":75}}'
+          npm run rls:validate
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Pack release
+        run: |
+          set -euo pipefail
+          rm -rf release backend-release.tgz
+          mkdir -p release
+          cp backend/package.json backend/package-lock.json release/
+          cp -R backend/dist release/dist
+          if [ -d backend/migrations ]; then
+            cp -R backend/migrations release/migrations
+          fi
+          tar -C release -czf backend-release.tgz .
+
+      - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_SSH_KEY"
+          test -n "$DEPLOY_RESTART_COMMAND"
+          echo "DEPLOY_PORT=${DEPLOY_PORT:-22}" >> "$GITHUB_ENV"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload and activate release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
+        run: |
+          set -euo pipefail
+          ssh_opts=(-i ~/.ssh/deploy_key -p "$DEPLOY_PORT" -o IdentitiesOnly=yes)
+          release_dir="${DEPLOY_PATH}/releases/${GITHUB_SHA}"
+
+          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "mkdir -p '${release_dir}' '${DEPLOY_PATH}/releases'"
+
+          scp "${ssh_opts[@]}" backend-release.tgz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${release_dir}/backend-release.tgz"
+
+          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -euo pipefail
+             cd '${release_dir}'
+             tar -xzf backend-release.tgz
+             rm backend-release.tgz
+             npm ci --omit=dev
+             ln -sfn '${release_dir}' '${DEPLOY_PATH}/current'
+             cd '${DEPLOY_PATH}/current'"
+
+          printf '%s\n' "$DEPLOY_RESTART_COMMAND" | ssh "${ssh_opts[@]}" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}/current' && bash -s"
+
+          ssh "${ssh_opts[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}/releases' && ls -1t | tail -n +6 | xargs -r rm -rf"

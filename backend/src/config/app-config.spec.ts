@@ -30,6 +30,12 @@ describe("AppConfig", () => {
     expect(() => new AppConfig()).not.toThrow();
   });
 
+  it("accepts the standard postgresql URL scheme used by compose and docs", () => {
+    process.env.NODE_ENV = "production";
+    process.env.DATABASE_URL = "postgresql://localhost/business-card-prod";
+    expect(() => new AppConfig()).not.toThrow();
+  });
+
   it("rejects an invalid base64 encryption key", () => {
     process.env.CARD_FIELD_ENCRYPTION_KEY_BASE64 = "not-valid-base64!!!";
     expect(() => new AppConfig()).toThrow("CARD_FIELD_ENCRYPTION_KEY_BASE64");
