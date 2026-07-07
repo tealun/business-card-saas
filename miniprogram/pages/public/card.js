@@ -51,8 +51,12 @@ Page({
       wx.showToast({ title: "当前展示演示名片", icon: "none" });
       return;
     }
-    await this.loadPublicCard();
-    await this.createVisit();
+    try {
+      await this.loadPublicCard();
+      await this.createVisit();
+    } catch (_error) {
+      this.setData({ uiState: "error" });
+    }
   },
 
   async loadPublicCard() {
@@ -74,7 +78,9 @@ Page({
 
   reload() {
     this.setData({ uiState: "loading" });
-    this.loadPublicCard().then(() => this.createVisit());
+    this.loadPublicCard()
+      .then(() => this.createVisit())
+      .catch(() => this.setData({ uiState: "error" }));
   },
 
   goBack() {

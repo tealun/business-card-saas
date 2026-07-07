@@ -30,7 +30,7 @@ describe("WecomContactSyncService", () => {
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
-    expect(result).toEqual({ tenantId: "tenant-001", syncedCount: 2, skippedCount: 0 });
+    expect(result).toEqual({ tenantId: "tenant-001", syncedCount: 2, skippedCount: 0, disabledCount: 0 });
     expect(api.requests).toEqual([
       { accessToken: "corp-token", cursor: "", limit: 1000 },
       { accessToken: "corp-token", cursor: "cursor-2", limit: 1000 }
@@ -89,6 +89,7 @@ class FakeWecomApiClient {
 
 class FakeContactSyncRepository {
   lastInput: SyncWecomContactMembersInput | null = null;
+  lastStaleInput: { tenantId: string; activeOpenUserids: string[]; activeUserids: string[] } | null = null;
 
   async upsertMembers(input: SyncWecomContactMembersInput): Promise<SyncWecomContactMembersResult> {
     this.lastInput = input;
@@ -96,6 +97,11 @@ class FakeContactSyncRepository {
       syncedCount: input.users.length,
       skippedCount: 0
     };
+  }
+
+  async disableStaleMembers(input: { tenantId: string; activeOpenUserids: string[]; activeUserids: string[] }): Promise<number> {
+    this.lastStaleInput = input;
+    return 0;
   }
 }
 

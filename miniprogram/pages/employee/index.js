@@ -19,6 +19,7 @@ Page({
     card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
+    submitting: false,
     requests: [
       { id: "req1", name: "周琳", title: "采购经理 · 华宇集团" }
     ],
@@ -31,10 +32,11 @@ Page({
   },
 
   onLoad() {
-    this.login();
+    this.loginPromise = this.login();
   },
 
-  onShow() {
+  async onShow() {
+    await this.loginPromise;
     if (app.globalData.token) {
       this.loadPreview();
     }
@@ -98,6 +100,10 @@ Page({
   },
 
   async createShare() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     try {
       const share = await request("/employee/cards/current/share", { method: "POST" });
       app.globalData.shareId = share.share_id;
@@ -107,15 +113,23 @@ Page({
       });
     } catch (error) {
       wx.showToast({ title: error.message || "分享失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   },
 
   async copyLink() {
+    if (this.data.submitting) {
+      return;
+    }
+    this.setData({ submitting: true });
     try {
       const share = await request("/employee/cards/current/share", { method: "POST" });
       wx.setClipboardData({ data: share.path || `pages/public/card?card=${share.public_id}` });
     } catch (error) {
       wx.showToast({ title: error.message || "复制失败", icon: "none" });
+    } finally {
+      this.setData({ submitting: false });
     }
   },
 

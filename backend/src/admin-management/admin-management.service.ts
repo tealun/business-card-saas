@@ -93,7 +93,8 @@ export class AdminManagementService {
     return adminMemberSyncResponseSchema.parse({
       tenant_id: result.tenantId,
       synced_count: result.syncedCount,
-      skipped_count: result.skippedCount
+      skipped_count: result.skippedCount,
+      disabled_count: result.disabledCount
     });
   }
 

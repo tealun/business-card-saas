@@ -216,7 +216,7 @@ class FakeContactSyncRepository {
       throw new Error("sync failed");
     }
     this.lastUpsert = input;
-    return { syncedCount: input.users.length, skippedCount: 0 };
+    return { syncedCount: input.users.length, skippedCount: 0, disabledCount: 0 };
   }
 
   async disableMember(input: DisableWecomContactMemberInput): Promise<boolean> {
