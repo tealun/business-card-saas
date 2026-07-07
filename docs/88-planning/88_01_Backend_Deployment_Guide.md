@@ -5,10 +5,11 @@
 This guide documents the GitHub Actions backend deployment flow for the `backend/` project.
 
 - Workflow: `.github/workflows/deploy-backend.yml`
-- Trigger: push to `main` when `backend/**` or the workflow changes; manual `workflow_dispatch`
+- Trigger: push to `main` when `backend/**`, `database/**`, or the workflow changes; manual `workflow_dispatch`
 - Target path: `/www/wwwroot/wecom_card`
 - Sync strategy: `rsync --delete` from local `backend/` to the target path, plus `database/` to `${DEPLOY_PATH}/database/`
 - Runtime secrets: kept on the server in `.env`; never committed and never uploaded by CI
+- Template env file: `backend/.env.example` is synced to `/www/wwwroot/wecom_card/.env.example`
 
 ## GitHub Secrets
 
@@ -49,7 +50,7 @@ The deploy job uses `rsync --delete`, but excludes server-owned runtime files so
 
 - `node_modules/`
 - `dist/`
-- `.env`, `.env.*`
+- `.env`, `.env.local`, `.env.*.local`, `.env.production`, `.env.staging`
 - `*.log`, `logs/`
 - `coverage/`, `*.tsbuildinfo`
 - `certs/`
@@ -58,6 +59,8 @@ The deploy job uses `rsync --delete`, but excludes server-owned runtime files so
 - `.git/`, `.vscode/`
 
 Because `dist/` and `node_modules/` are protected, the server should build/install through the panel or through `DEPLOY_RESTART_COMMAND`.
+
+`backend/.env.example` is deliberately not protected by the exclude list. It is safe to sync as a template because it contains placeholders only, and it lets the server root keep an up-to-date example file beside the real `.env`.
 
 ## Suggested Server Setup
 
@@ -92,11 +95,63 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_INSTALL_REDIRECT_URI`
 - `CORS_ORIGINS`
 
-Generate 32-byte base64 keys with:
+## Production Domain Values
+
+For your production backend domain, use these URL-shaped values in the server-local `/www/wwwroot/wecom_card/.env`. Do not commit the real domain-specific `.env` file:
+
+```env
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=3000
+WECOM_INSTALL_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/authorization-complete
+WECOM_INSTALL_BASE_URL=https://open.work.weixin.qq.com/3rdapp/install
+```
+
+If the admin web app calls this API from another domain, include that admin origin in `CORS_ORIGINS`, for example:
+
+```env
+CORS_ORIGINS=https://your-admin-domain.example
+```
+
+If the admin UI is not deployed yet, keep the final admin domain blank until it exists; WeCom server-to-server callbacks do not depend on browser CORS.
+
+## WeCom Third-Party SaaS Configuration
+
+The `WECOM_*` suite and callback variables in `.env` are provider-level settings for this SaaS application's Enterprise WeChat third-party suite. They are not a customer's CorpID, AgentID, or app secret.
+
+Tenant companies connect by authorizing this third-party suite. After authorization, the backend stores each company's `open_corpid`, encrypted `permanent_code`, `agent_id`, and related status in the database `tenants` table. That is how one fixed SaaS suite supports many Enterprise WeChat companies.
+
+Configure these URLs in the Enterprise WeChat third-party app / service provider console:
+
+| Purpose | URL |
+|---------|-----|
+| Authorization redirect | `https://your-backend-domain.example/api/v1/wecom/authorization-complete` |
+| Command callback | `https://your-backend-domain.example/api/v1/wecom/callbacks/command` |
+| Data callback | `https://your-backend-domain.example/api/v1/wecom/callbacks/data` |
+
+Keep the callback Token and EncodingAESKey values consistent between the Enterprise WeChat console and the server `.env`:
+
+```env
+WECOM_SUITE_ID=wwsuite_real_value_from_wecom
+WECOM_SUITE_SECRET=real_suite_secret_from_wecom
+WECOM_CALLBACK_TOKEN=real_command_callback_token
+WECOM_CALLBACK_AES_KEY=real_43_character_command_encoding_aes_key
+WECOM_DATA_CALLBACK_TOKEN=real_data_callback_token
+WECOM_DATA_CALLBACK_AES_KEY=real_43_character_data_encoding_aes_key
+```
+
+Generate internal backend-only keys locally and paste only into the server `.env`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
+
+Use that command for:
+
+- `CARD_FIELD_ENCRYPTION_KEY_BASE64`
+- `WECOM_STATE_ENCRYPTION_KEY_BASE64`
+
+Use a long random string for `JWT_SECRET`, `ADMIN_JWT_SECRET`, `VISIT_TOKEN_SECRET`, and `WECOM_AUTH_LAUNCH_TOKEN`.
 
 ## Restart Command Examples
 
