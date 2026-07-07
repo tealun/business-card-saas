@@ -18,6 +18,7 @@ function request(path, options = {}) {
       method: options.method || "GET",
       data: options.data,
       header: headers,
+      timeout: options.timeout || 15000,
       success(response) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           resolve(response.data && typeof response.data === "object" && "data" in response.data ? response.data.data : response.data);
@@ -31,23 +32,37 @@ function request(path, options = {}) {
 }
 
 function qyLoginCode() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (wx.qy && wx.qy.login) {
       wx.qy.login({
         success(result) {
-          resolve(result.code || demoCode());
+          if (result.code) {
+            resolve(result.code);
+            return;
+          }
+          resolve(maybeDemoCode());
         },
-        fail() {
-          resolve(demoCode());
+        fail(error) {
+          const demo = maybeDemoCode();
+          if (demo) {
+            resolve(demo);
+            return;
+          }
+          reject(error);
         }
       });
       return;
     }
-    resolve(demoCode());
+    const demo = maybeDemoCode();
+    if (demo) {
+      resolve(demo);
+      return;
+    }
+    reject(new Error("wx.qy.login is not available"));
   });
 }
 
-function demoCode() {
+function maybeDemoCode() {
   if (app.globalData.demoAuthEnabled) {
     return "demo-qy-code";
   }

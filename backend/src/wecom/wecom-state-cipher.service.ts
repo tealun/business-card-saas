@@ -1,8 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 
-const devEncryptionKeyBase64 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
-
 @Injectable()
 export class WecomStateCipherService {
   encrypt(plaintext: string): string {
@@ -30,10 +28,7 @@ export class WecomStateCipherService {
   private key(): Buffer {
     const value = process.env.WECOM_STATE_ENCRYPTION_KEY_BASE64?.trim();
     if (!value) {
-      if (process.env.NODE_ENV === "production") {
-        throw new Error("WECOM_STATE_ENCRYPTION_KEY_BASE64 must be set in production");
-      }
-      return Buffer.from(devEncryptionKeyBase64, "base64");
+      throw new Error("WECOM_STATE_ENCRYPTION_KEY_BASE64 must be set");
     }
 
     const key = Buffer.from(value, "base64");

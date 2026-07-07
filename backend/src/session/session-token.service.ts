@@ -13,7 +13,7 @@ interface TokenEnvelope {
 @Injectable()
 export class SessionTokenService {
   readonly expiresIn = 60 * 60 * 24;
-  private readonly secret = readSecret("JWT_SECRET", "dev-only-change-me");
+  private readonly secret = readSecret("JWT_SECRET");
 
   sign(session: EmployeeSession): string {
     const payload = {

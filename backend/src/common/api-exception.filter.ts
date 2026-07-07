@@ -2,8 +2,11 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import { randomUUID } from "node:crypto";
 
 function errorCode(status: number): number {
-  if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
+  if (status === HttpStatus.UNAUTHORIZED) {
     return 10001;
+  }
+  if (status === HttpStatus.FORBIDDEN) {
+    return 30001;
   }
   if (status === HttpStatus.BAD_REQUEST) {
     return 20001;

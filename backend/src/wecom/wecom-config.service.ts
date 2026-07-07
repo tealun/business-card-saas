@@ -9,33 +9,18 @@ export interface WecomSuiteConfig {
   dataCallbackAesKey: string;
 }
 
-const devDefaults: WecomSuiteConfig = {
-  suiteId: "dev-wecom-suite-id",
-  suiteSecret: "dev-only-wecom-suite-secret",
-  callbackToken: "dev-only-wecom-callback-token",
-  callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
-  dataCallbackToken: "dev-only-wecom-data-callback-token",
-  dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-};
-
 @Injectable()
 export class WecomConfigService {
   get suite(): WecomSuiteConfig {
-    const callbackToken = readRequired("WECOM_CALLBACK_TOKEN", devDefaults.callbackToken);
-    const callbackAesKey = readRequired("WECOM_CALLBACK_AES_KEY", devDefaults.callbackAesKey);
+    const callbackToken = readRequired("WECOM_CALLBACK_TOKEN");
+    const callbackAesKey = readRequired("WECOM_CALLBACK_AES_KEY");
     const suite = {
-      suiteId: readRequired("WECOM_SUITE_ID", devDefaults.suiteId),
-      suiteSecret: readRequired("WECOM_SUITE_SECRET", devDefaults.suiteSecret),
+      suiteId: readRequired("WECOM_SUITE_ID"),
+      suiteSecret: readRequired("WECOM_SUITE_SECRET"),
       callbackToken,
       callbackAesKey,
-      dataCallbackToken: readRequired(
-        "WECOM_DATA_CALLBACK_TOKEN",
-        process.env.NODE_ENV === "production" ? "" : callbackToken || devDefaults.dataCallbackToken
-      ),
-      dataCallbackAesKey: readRequired(
-        "WECOM_DATA_CALLBACK_AES_KEY",
-        process.env.NODE_ENV === "production" ? "" : callbackAesKey || devDefaults.dataCallbackAesKey
-      )
+      dataCallbackToken: readRequired("WECOM_DATA_CALLBACK_TOKEN"),
+      dataCallbackAesKey: readRequired("WECOM_DATA_CALLBACK_AES_KEY")
     };
     if (suite.callbackAesKey.length !== 43) {
       throw new Error("WECOM_CALLBACK_AES_KEY must be 43 characters");
@@ -47,11 +32,11 @@ export class WecomConfigService {
   }
 
   get apiBaseUrl(): string {
-    return readRequired("WECOM_API_BASE_URL", "https://qyapi.weixin.qq.com").replace(/\/+$/, "");
+    return readRequired("WECOM_API_BASE_URL").replace(/\/+$/, "");
   }
 
   get httpTimeoutMs(): number {
-    const raw = readRequired("WECOM_HTTP_TIMEOUT_MS", "5000");
+    const raw = readRequired("WECOM_HTTP_TIMEOUT_MS");
     const timeout = Number(raw);
     if (!Number.isFinite(timeout) || timeout <= 0) {
       throw new Error("WECOM_HTTP_TIMEOUT_MS must be a positive number");
@@ -60,15 +45,15 @@ export class WecomConfigService {
   }
 
   get authorizationInstallBaseUrl(): string {
-    return readRequired("WECOM_INSTALL_BASE_URL", "https://open.work.weixin.qq.com/3rdapp/install").replace(/\/+$/, "");
+    return readRequired("WECOM_INSTALL_BASE_URL").replace(/\/+$/, "");
   }
 
   get authorizationRedirectUri(): string {
-    return readRequired("WECOM_INSTALL_REDIRECT_URI", "http://localhost:3000/api/v1/wecom/authorization-complete");
+    return readRequired("WECOM_INSTALL_REDIRECT_URI").replace(/\/+$/, "");
   }
 
   get authorizationLaunchToken(): string {
-    return readRequired("WECOM_AUTH_LAUNCH_TOKEN", "dev-only-wecom-auth-launch-token");
+    return readRequired("WECOM_AUTH_LAUNCH_TOKEN");
   }
 
   get callbackAlertWebhookUrl(): string | null {
@@ -80,15 +65,12 @@ export class WecomConfigService {
   }
 }
 
-function readRequired(name: string, fallback: string): string {
+function readRequired(name: string): string {
   const value = process.env[name]?.trim();
-  if (value) {
-    return value;
+  if (!value) {
+    throw new Error(`${name} must be set`);
   }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(`${name} must be set in production`);
-  }
-  return fallback;
+  return value;
 }
 
 function readOptional(name: string): string | null {

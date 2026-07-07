@@ -48,7 +48,7 @@ export class VisitTokenService {
   }
 
   private signature(encodedPayload: string): string {
-    const secret = readSecret("VISIT_TOKEN_SECRET", "dev-only-change-me");
+    const secret = readSecret("VISIT_TOKEN_SECRET");
     // Domain-separated from session/anon HMACs sharing this secret (A12-P2-2).
     return createHmac("sha256", secret).update(`v1.visit.${encodedPayload}`).digest("base64url");
   }

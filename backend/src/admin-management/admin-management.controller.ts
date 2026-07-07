@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { adminMemberListQuerySchema, updateAdminMemberCardRequestSchema } from "../contracts/admin-management.js";
 import { AdminManagementService } from "./admin-management.service.js";
@@ -19,6 +20,7 @@ export class AdminManagementController {
   }
 
   @Post("members/sync")
+  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   syncMembers(@Req() request: AdminRequest) {
     return this.management.syncMembers(this.session(request));
   }
@@ -29,6 +31,7 @@ export class AdminManagementController {
   }
 
   @Post("sync-events/retry")
+  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   retrySyncEvents(@Req() request: AdminRequest) {
     return this.management.retryFailedSyncEvents(this.session(request));
   }
@@ -39,6 +42,7 @@ export class AdminManagementController {
   }
 
   @Put("members/:memberIdentityId/card")
+  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
   updateMemberCard(
     @Req() request: AdminRequest,
     @Param("memberIdentityId") memberIdentityId: string,

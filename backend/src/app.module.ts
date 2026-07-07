@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
-import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { HealthController } from "./health.controller.js";
 import { AdminAuthModule } from "./admin-auth/admin-auth.module.js";
 import { AdminConfigModule } from "./admin-config/admin-config.module.js";
@@ -15,6 +16,15 @@ import { WecomModule } from "./wecom/wecom.module.js";
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: "default",
+          ttl: 60_000,
+          limit: 100
+        }
+      ]
+    }),
     DatabaseModule,
     PublicCardModule,
     AuthModule,
@@ -34,6 +44,10 @@ import { WecomModule } from "./wecom/wecom.module.js";
     {
       provide: APP_FILTER,
       useClass: ApiExceptionFilter
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
     }
   ]
 })

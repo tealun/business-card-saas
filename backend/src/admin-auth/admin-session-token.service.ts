@@ -13,7 +13,7 @@ interface AdminTokenEnvelope {
 @Injectable()
 export class AdminSessionTokenService {
   readonly expiresIn = 60 * 60 * 8;
-  private readonly secret = readSecret("ADMIN_JWT_SECRET", "dev-only-admin-change-me");
+  private readonly secret = readSecret("ADMIN_JWT_SECRET");
 
   sign(session: AdminSession): string {
     const payload = {
