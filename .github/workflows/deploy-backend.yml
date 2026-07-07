@@ -60,7 +60,7 @@ jobs:
         run: |
           npm run typecheck
           npm run lint
-          npm test
+          npm test -- --coverage --coverageThreshold='{}'
           npm run rls:validate
           npm run build
 
