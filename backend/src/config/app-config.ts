@@ -64,6 +64,13 @@ const appConfigSchema = z
         path: ["DATABASE_URL"]
       });
     }
+    if (data.NODE_ENV === "production" && data.DEMO_AUTH_ENABLED) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "DEMO_AUTH_ENABLED must be disabled in production",
+        path: ["DEMO_AUTH_ENABLED"]
+      });
+    }
   });
 
 export type AppConfigValues = z.infer<typeof appConfigSchema>;
