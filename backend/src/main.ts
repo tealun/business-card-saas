@@ -1,7 +1,7 @@
 import "reflect-metadata";
-import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module.js";
 import { registerXmlBodyParser } from "./common/xml-body-parser.js";
 import helmet from "@fastify/helmet";
