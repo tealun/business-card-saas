@@ -11,8 +11,8 @@
 
 - P0: 0
 - P1: 0 new open findings
-- P2: 2 verified deferred findings remain valid
-- Copilot audit verdict: materially accurate. Its fixed findings are fixed; its deferred findings are real and still open.
+- P2: 2 verified findings were fixed in the follow-up hardening patch
+- Copilot audit verdict: materially accurate. Its fixed findings are fixed; its deferred findings were real and are now fixed.
 - Minor audit-document issue: the original `99_38` report, now renamed to `99_51`, is stale on metadata. It reports range `51986dd..42151ac` and `141/141 tests`, while current audited HEAD is `d58e8fa` and the current backend test run is `142/142`.
 
 ## Copilot Audit Verification
@@ -21,29 +21,29 @@
 |------------|---------|----------|-------|
 | S-P1-1 | Verified fixed | `backend/src/config/app-config.ts:67` rejects `NODE_ENV=production` with `DEMO_AUTH_ENABLED=true`; `backend/src/config/app-config.spec.ts` covers the guard. | This was a real production auth foot-gun and the current fix is correct. |
 | B-P2-2 | Verified fixed | `backend/src/auth/wx-miniprogram-login.service.ts:28` trims the code and `:30` throws `UnauthorizedException("invalid WeChat login code")` for empty values. | Correctly changes a client/input error from 502-class to 4xx-class behavior. |
-| S-P2-1 | Verified open | `backend/src/auth/auth.controller.ts:25` and `:31` have no route-specific `@Throttle`. | Severity remains P2 because `backend/src/app.module.ts` applies a global default throttle of 100/min, and the endpoints require a valid employee session. |
-| B-P2-3 | Verified open | `backend/src/auth/personal-identity.repository.ts:166` performs SELECT-then-INSERT; `:197` inserts a new account without `ON CONFLICT`. | The race applies to `primary_wx_openid` and can also surface around `wx_unionid` matching. Rare, but real. |
+| S-P2-1 | Verified fixed | `backend/src/auth/auth.controller.ts` now adds route-level `identity` throttles to `identities` and `switch-identity`. | The endpoints still require a valid employee session and are additionally bounded below the global default throttle. |
+| B-P2-3 | Verified fixed | `backend/src/auth/personal-identity.repository.ts` now acquires transaction-scoped advisory locks for openid/unionid before account lookup and insert. | This serializes concurrent first-login provisioning for the same WeChat account keys. |
 
-## Open Findings
+## Fixed Findings
 
-### P2-1 - Authenticated identity endpoints rely only on global throttling
+### P2-1 - Authenticated identity endpoints relied only on global throttling
 
 - Files:
   - `backend/src/auth/auth.controller.ts:25`
   - `backend/src/auth/auth.controller.ts:31`
   - `backend/src/app.module.ts:28`
-- Current behavior: `GET /auth/identities` and `POST /auth/switch-identity` are guarded by `EmployeeAuthGuard`, but only receive the global 100/min throttle.
-- Risk: a valid session can repeatedly enumerate/switch identity state faster than intended. Invalid cross-account switches still return 403, so this is not an isolation break.
-- Recommendation: add modest route-level throttles, for example stricter limits for switch attempts and a slightly looser limit for identity listing.
-- Status: already deferred in `docs/99-audits/99_9999_deferred.md`.
+- Previous behavior: `GET /auth/identities` and `POST /auth/switch-identity` were guarded by `EmployeeAuthGuard`, but only received the global 100/min throttle.
+- Fix: added route-level `identity` throttles, 30/min for listing and 20/min for switching.
+- Status: fixed.
 
-### P2-2 - First personal-login account creation has a rare unique-conflict race
+
+### P2-2 - First personal-login account creation had a rare unique-conflict race
 
 - File: `backend/src/auth/personal-identity.repository.ts:166`
-- Current behavior: `findOrCreateAccount()` checks for an existing account, then inserts if none is found.
-- Risk: two concurrent first logins for the same WeChat identity can both observe no row and race into the insert. The loser can hit a unique constraint and return a transient 500.
-- Recommendation: use `INSERT ... ON CONFLICT (...) DO UPDATE ... RETURNING id`, or catch unique-violation and retry the lookup in the same logical flow.
-- Status: already deferred in `docs/99-audits/99_9999_deferred.md`.
+- Previous behavior: `findOrCreateAccount()` checked for an existing account, then inserted if none was found.
+- Fix: added deterministic transaction-scoped advisory locks for the relevant `openid` and `unionid` keys before the SELECT/INSERT path, plus a regression test asserting locks occur before account lookup and insert.
+- Status: fixed.
+
 
 ## Security / Isolation Review
 
@@ -75,4 +75,4 @@
 - The Copilot audit is substantively true.
 - The only inaccuracy found is audit metadata staleness, not a code/security conclusion.
 - No additional P0/P1 defects were verified in this pass.
-- The remaining P2 issues are suitable for a hardening phase rather than an emergency fix.
+- The verified P2 issues from this report have been fixed in the follow-up hardening patch.

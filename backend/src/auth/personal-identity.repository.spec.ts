@@ -28,6 +28,27 @@ describe("PersonalIdentityRepository", () => {
       "member-enterprise"
     ]);
   });
+
+  it("locks the WeChat account keys before selecting or inserting an account", async () => {
+    const repository = new PersonalIdentityRepository({} as DatabaseService) as unknown as {
+      findOrCreateAccount(input: { openid: string; unionid: string | null }, tx: AccountCreationTransaction): Promise<string>;
+    };
+    const tx = new AccountCreationTransaction();
+
+    const accountId = await repository.findOrCreateAccount({ openid: "openid-1", unionid: "unionid-1" }, tx);
+
+    expect(accountId).toBe("account-1");
+    expect(tx.queries.map((query) => query.text)).toEqual([
+      expect.stringContaining("pg_advisory_xact_lock"),
+      expect.stringContaining("pg_advisory_xact_lock"),
+      expect.stringContaining("SELECT id"),
+      expect.stringContaining("INSERT INTO accounts")
+    ]);
+    expect(tx.queries.slice(0, 2).map((query) => query.values)).toEqual([
+      ["account:openid:openid-1"],
+      ["account:unionid:unionid-1"]
+    ]);
+  });
 });
 
 class FakeDatabaseService {
@@ -71,6 +92,21 @@ class FakeTransaction {
           } as T
         ]
       };
+    }
+    return { rows: [] };
+  }
+}
+
+class AccountCreationTransaction {
+  readonly queries: Array<{ text: string; values?: unknown[] }> = [];
+
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    this.queries.push(values === undefined ? { text } : { text, values });
+    if (text.includes("SELECT id") && text.includes("FROM accounts")) {
+      return { rows: [] };
+    }
+    if (text.includes("INSERT INTO accounts")) {
+      return { rows: [{ id: "account-1" } as T] };
     }
     return { rows: [] };
   }

@@ -21,12 +21,14 @@ export class AuthController {
   }
 
   @Get("identities")
+  @Throttle({ identity: { ttl: 60_000, limit: 30 } })
   @UseGuards(EmployeeAuthGuard)
   identities(@Req() request: EmployeeRequest) {
     return this.auth.listIdentities(this.requireSession(request));
   }
 
   @Post("switch-identity")
+  @Throttle({ identity: { ttl: 60_000, limit: 20 } })
   @UseGuards(EmployeeAuthGuard)
   switchIdentity(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.auth.switchIdentity(this.requireSession(request), switchIdentityRequestSchema.parse(body));
