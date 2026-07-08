@@ -21,7 +21,7 @@ function request(path, options = {}) {
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
 
-  const attempt = (retryIndex) => new Promise((resolve, reject) => {
+  const attempt = () => new Promise((resolve, reject) => {
     const headers = {
       "content-type": "application/json",
       ...(options.header || {})

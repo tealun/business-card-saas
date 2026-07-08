@@ -36,6 +36,7 @@
 | [`01_03_Miniprogram_Guide.md`](01-specs/01_03_Miniprogram_Guide.md) | 小程序：环境/登录、页面路由、分享矩阵、详情页、状态降级、埋点（扩展 §6/§7/§11/§12/§30） |
 | [`01_04_Admin_Web_Guide.md`](01-specs/01_04_Admin_Web_Guide.md) | 管理后台：登录鉴权、RBAC、页面清单、隔离约束（扩展 §12.3/§16/§15.3） |
 | [`01_05_Development_Guide.md`](01-specs/01_05_Development_Guide.md) | 开发执行指引：仓库结构、脚手架习惯、验证命令、部署边界、文档同步规则 |
+| [`01_06_Miniprogram_Config_Guide.md`](01-specs/01_06_Miniprogram_Config_Guide.md) | 小程序配置与后端对接：微信小程序后台、企业微信服务商后台、后端域名、`apiBase`、联调顺序 |
 
 ### design（设计交付）
 

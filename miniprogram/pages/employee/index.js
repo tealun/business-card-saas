@@ -69,7 +69,7 @@ Page({
         themeBrand: brand,
         loading: false,
         error: false,
-        demoMode: true
+        demoMode: false
       });
     } catch (error) {
       this.setData({ loading: false, error: true });
