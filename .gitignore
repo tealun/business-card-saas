@@ -11,3 +11,6 @@ npm-debug.log*
 prisma/*.db
 backend/prisma/*.db
 .vscode/
+
+# Local Agent customizations (not committed)
+.github/agents/*.agent.md
