@@ -45,11 +45,15 @@ describe("WecomEmployeeProvisioningRepository", () => {
 
     expect(employee.accountId).toBe("acct-existing");
     expect(database.bindingLookupCount).toBe(2);
+    expect(database.preferenceUpsertSql).toContain(
+      "last_member_identity_id = COALESCE(account_preferences.last_member_identity_id, EXCLUDED.last_member_identity_id)"
+    );
   });
 });
 
 class FakeDatabaseService {
   bindingLookupCount = 0;
+  preferenceUpsertSql = "";
 
   async transaction<T>(callback: (tx: FakeTransaction) => Promise<T>): Promise<T> {
     return callback(new FakeTransaction(this));
@@ -73,6 +77,10 @@ class FakeTransaction {
       return { rows: [{ id: "acct-new" } as T] };
     }
     if (text.includes("INSERT INTO account_identity_bindings")) {
+      return { rows: [] };
+    }
+    if (text.includes("INSERT INTO account_preferences")) {
+      this.database.preferenceUpsertSql = text;
       return { rows: [] };
     }
     if (text.includes("SELECT id, public_id")) {
