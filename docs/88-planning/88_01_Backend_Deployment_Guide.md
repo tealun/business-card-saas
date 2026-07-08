@@ -118,7 +118,7 @@ Create the project in BaoTa:
 | Package manager | `npm` |
 | Install command | `npm ci` |
 | Build command | `npm run build` |
-| Start command | `npm run start` |
+| Start command | `npm run start:prod` |
 | Run directory | Same as `BACKEND_DEPLOY_PATH` |
 | Port | Same as `.env` `PORT`, for example `3000` |
 
@@ -139,10 +139,9 @@ For later code-only deployments, GitHub Actions syncs source and database assets
 
 ```bash
 npm ci
-npm run build
 npm run db:migrate
 npm run db:check
-npm run start
+npm run start:prod
 ```
 
 If BaoTa automatically restarts an already configured project, do not also set a GitHub Actions `DEPLOY_RESTART_COMMAND`. Use one restart owner to avoid two processes fighting over the same port.
