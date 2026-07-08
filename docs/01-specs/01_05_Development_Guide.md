@@ -31,12 +31,13 @@ npm run build
 npm run typecheck
 npm test
 npm run lint
-npm run rls:validate
 npm audit --omit=dev
 ```
 
 - 安全审计优先消除生产依赖漏洞；本项目后端已改用 Fastify 适配器以避免 Express/Multer 链路带来的高危审计噪音。
 - 测试以真实框架入口为准；Fastify 场景优先用 `app.inject()` 做 HTTP 层测试。
+
+??????????`cd database && npm run rls:validate`????????? `npm run migrate` / `npm run check`?
 
 ## 4. 部署边界
 

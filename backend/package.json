@@ -11,12 +11,7 @@
     "start:prod": "npm install --silent --no-fund && npm run --silent build && node --env-file=.env dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --runInBand",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:verify": "node scripts/db-verify.cjs",
-    "db:check": "node scripts/db-check.cjs",
-    "rls:validate": "node scripts/validate-rls.cjs",
-    "db:migrate": "node-pg-migrate up",
-    "db:migrate:create": "node-pg-migrate create"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fastify/helmet": "13.0.2",
@@ -27,7 +22,6 @@
     "@nestjs/throttler": "6.5.0",
     "fastify": "5.8.5",
     "nestjs-pino": "4.6.1",
-    "node-pg-migrate": "8.0.4",
     "pg": "8.22.0",
     "pino": "10.3.1",
     "pino-http": "11.0.0",

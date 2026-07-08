@@ -24,6 +24,10 @@ copy .env.example .env
 cd backend
 npm run typecheck
 npm test
+npm run lint
+
+cd ../database
+npm ci
 npm run rls:validate
 ```
 
@@ -39,12 +43,13 @@ docker compose up -d
 
 ```powershell
 docker compose up -d postgres redis
-cd backend
+cd database
 $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/business_card_saas"
-npm run db:verify
+npm ci
+npm run verify
 ```
 
-`db:verify` 是**破坏性测试探针**：它会重建目标库的 `public` schema，应用 `database/schema.sql` 和 `database/rls.sql`，再插入探针数据验证租户隔离；默认只允许 `localhost` / `127.0.0.1` 数据库，避免误清非本地库。详细边界见 [`database/README.md`](database/README.md)。
+`database` ? `verify` 是**破坏性测试探针**：它会重建目标库的 `public` schema，应用 `database/schema.sql` 和 `database/rls.sql`，再插入探针数据验证租户隔离；默认只允许 `localhost` / `127.0.0.1` 数据库，避免误清非本地库。详细边界见 [`database/README.md`](database/README.md)。
 
 ## 多端入口
 
@@ -77,7 +82,7 @@ npm run build
 npm start
 ```
 
-生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化；不要执行 `db:verify`。非本地一次性测试库运行 `db:verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。
+生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化；不要执行 `database` ? `verify`。非本地一次性测试库运行 `database` ? `verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。
 
 ## 自动部署
 

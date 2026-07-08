@@ -2672,11 +2672,11 @@ https://card.example.com/c/{public_id}
 
 **数据库迁移运行约定（实现基线）**
 
-- 后端迁移工具使用 `node-pg-migrate`，迁移文件位于 `backend/migrations/`。
+- Database migrations use `node-pg-migrate`; migration files live in `database/migrations/`; commands live in `database/package.json`.
 - `0000000000000_baseline.js` 只用于首次初始化，读取 `database/schema.sql` 与 `database/rls.sql`；后续变更必须新增编号迁移，不直接改 baseline 表达历史变更。
-- 本地/CI 验证顺序：`npm run db:migrate` → `npm run rls:validate` → `npm test`。
+- 本地/CI 验证顺序：`cd database && npm run migrate` → `cd database && npm run rls:validate` → `npm test`。
 - 生产执行前先完成数据库备份并确认回滚方案；baseline migration 不提供 down 回滚，失败恢复走备份/PITR。
-- 新建迁移用 `npm run db:migrate:create <name>`，PR 中需同时说明 schema 变更、回填步骤和 RLS 影响。
+- 新建迁移用 `cd database && npm run migrate:create <name>`，PR 中需同时说明 schema 变更、回填步骤和 RLS 影响。
 
 ### 31.3 备份与灾备
 

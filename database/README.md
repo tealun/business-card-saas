@@ -4,17 +4,38 @@
 
 - `schema.sql` is the authoritative PostgreSQL initialization schema.
 - `rls.sql` is the authoritative row-level security policy file.
+- `migrations/` contains incremental database migrations.
+- `scripts/` contains database validation and readiness probes.
 
-The backend must not maintain a second ORM schema. Application code accesses PostgreSQL through `pg` and parameterized SQL only.
+The backend must not own database lifecycle commands or maintain a second ORM schema. Application code accesses PostgreSQL through `pg` and parameterized SQL only.
 
-## `npm run db:verify`
+## Commands
 
-`db:verify` is a destructive test probe for disposable databases.
+Run database commands from this directory:
+
+```bash
+cd database
+npm ci
+npm run migrate
+npm run check
+npm run rls:validate
+```
+
+Create a new migration here, not under `backend/`:
+
+```bash
+cd database
+npm run migrate:create <name>
+```
+
+## `npm run verify`
+
+`verify` is a destructive test probe for disposable databases.
 
 It exists to prove that:
 
-1. `database/schema.sql` can initialize an empty PostgreSQL database.
-2. `database/rls.sql` can be applied successfully.
+1. `schema.sql` can initialize an empty PostgreSQL database.
+2. `rls.sql` can be applied successfully.
 3. tenant RLS actually isolates A/B tenant data.
 4. `public_card_directory` remains readable for public-card resolution without granting `BYPASSRLS`.
 
@@ -31,6 +52,6 @@ Use it only with:
 - a disposable test database;
 - a remote empty test database with `DB_VERIFY_ALLOW_NONLOCAL=1`.
 
-Never run `db:verify` on a production database or any database containing data that must be kept.
+Never run `verify` on a production database or any database containing data that must be kept.
 
-Production initialization should execute `schema.sql` and `rls.sql` directly with a migration/admin role, then run only non-destructive checks.
+Production initialization and upgrades should run `npm run migrate` with a migration/admin role, then run only non-destructive checks.
