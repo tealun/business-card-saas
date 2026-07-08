@@ -1,6 +1,9 @@
 const app = getApp();
 
 function apiBase() {
+  if (app.globalData.configError) {
+    throw new Error(`本地配置加载失败：${app.globalData.configError}`);
+  }
   const extConfig = typeof wx.getExtConfigSync === "function" ? wx.getExtConfigSync() : {};
   const base = String(extConfig.apiBase || app.globalData.apiBase || "").trim().replace(/\/$/, "");
   if (!base) {
