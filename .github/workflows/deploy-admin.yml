@@ -1,0 +1,197 @@
+# Admin static deployment workflow.
+#
+# Required GitHub repository secrets:
+# - ADMIN_DEPLOY_PATH: absolute server directory for admin static files
+# - ADMIN_DEPLOY_HOST or DEPLOY_HOST or SSH_HOST: server hostname or IP
+# - ADMIN_DEPLOY_USER or DEPLOY_USER or SSH_USER: SSH user with write access to ADMIN_DEPLOY_PATH
+# - ADMIN_DEPLOY_PORT or DEPLOY_PORT or SSH_PORT: SSH port, optional; defaults to 22
+# - ADMIN_DEPLOY_SSH_KEY or DEPLOY_SSH_KEY or SSH_PRIVATE_KEY or SSH_KEY: optional private key
+# - ADMIN_DEPLOY_PASSWORD or DEPLOY_PASSWORD or SSH_PASSWORD: optional password fallback
+# - ADMIN_DEPLOY_RESTART_COMMAND: optional server-side reload script
+#
+# Admin-specific variables are checked first so the admin UI can deploy to a
+# different server/path from the backend. General DEPLOY_* values remain a
+# convenient fallback for same-server deployments.
+
+name: Deploy Admin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "admin/**"
+      - ".github/workflows/deploy-admin.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-admin-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify and deploy admin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify admin static files
+        run: |
+          set -euo pipefail
+
+          test -f admin/index.html
+          test -f admin/app.js
+          test -f admin/styles.css
+
+      - name: Install deploy tools
+        run: sudo apt-get update && sudo apt-get install -y rsync sshpass
+
+      - name: Resolve deployment credentials
+        env:
+          ADMIN_DEPLOY_HOST_SECRET: ${{ secrets.ADMIN_DEPLOY_HOST }}
+          DEPLOY_HOST_SECRET: ${{ secrets.DEPLOY_HOST }}
+          SSH_HOST_SECRET: ${{ secrets.SSH_HOST }}
+          ADMIN_DEPLOY_PORT_SECRET: ${{ secrets.ADMIN_DEPLOY_PORT }}
+          DEPLOY_PORT_SECRET: ${{ secrets.DEPLOY_PORT }}
+          SSH_PORT_SECRET: ${{ secrets.SSH_PORT }}
+          ADMIN_DEPLOY_USER_SECRET: ${{ secrets.ADMIN_DEPLOY_USER }}
+          DEPLOY_USER_SECRET: ${{ secrets.DEPLOY_USER }}
+          SSH_USER_SECRET: ${{ secrets.SSH_USER }}
+          ADMIN_DEPLOY_PATH_SECRET: ${{ secrets.ADMIN_DEPLOY_PATH }}
+          ADMIN_DEPLOY_SSH_KEY_SECRET: ${{ secrets.ADMIN_DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KEY_SECRET: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_PRIVATE_KEY_SECRET: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KEY_SECRET: ${{ secrets.SSH_KEY }}
+          ADMIN_DEPLOY_PASSWORD_SECRET: ${{ secrets.ADMIN_DEPLOY_PASSWORD }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          host="${ADMIN_DEPLOY_HOST_SECRET:-${DEPLOY_HOST_SECRET:-${SSH_HOST_SECRET:-}}}"
+          port="${ADMIN_DEPLOY_PORT_SECRET:-${DEPLOY_PORT_SECRET:-${SSH_PORT_SECRET:-22}}}"
+          user="${ADMIN_DEPLOY_USER_SECRET:-${DEPLOY_USER_SECRET:-${SSH_USER_SECRET:-}}}"
+          path="${ADMIN_DEPLOY_PATH_SECRET:-}"
+
+          test -n "$host"
+          test -n "$user"
+          test -n "$path"
+
+          case "$path" in
+            /*) ;;
+            *)
+              echo "ADMIN_DEPLOY_PATH must be an absolute server path" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$path" in
+            *"'"*|*[[:space:]]*)
+              echo "ADMIN_DEPLOY_PATH must not contain quotes or whitespace" >&2
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "DEPLOY_HOST=$host"
+            echo "DEPLOY_PORT=$port"
+            echo "DEPLOY_USER=$user"
+            echo "DEPLOY_PATH=$path"
+          } >> "$GITHUB_ENV"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+          ssh_key="${ADMIN_DEPLOY_SSH_KEY_SECRET:-${DEPLOY_SSH_KEY_SECRET:-${SSH_PRIVATE_KEY_SECRET:-${SSH_KEY_SECRET:-}}}}"
+
+          if [ -n "$ssh_key" ]; then
+            printf '%s\n' "$ssh_key" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            echo "DEPLOY_AUTH_MODE=key" >> "$GITHUB_ENV"
+          elif [ -n "${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}" ]; then
+            echo "DEPLOY_AUTH_MODE=password" >> "$GITHUB_ENV"
+          else
+            echo "ADMIN_DEPLOY_SSH_KEY or ADMIN_DEPLOY_PASSWORD/DEPLOY_PASSWORD/SSH_PASSWORD is required" >&2
+            exit 1
+          fi
+
+      - name: Sync admin static files to server
+        env:
+          ADMIN_DEPLOY_PASSWORD_SECRET: ${{ secrets.ADMIN_DEPLOY_PASSWORD }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          excludes=(
+            --exclude='.env'
+            --exclude='.env.local'
+            --exclude='.env.*.local'
+            --exclude='*.log'
+            --exclude='logs/'
+            --exclude='certs/'
+            --exclude='uploads/'
+            --exclude='cache/'
+            --exclude='tmp/'
+            --exclude='.git/'
+            --exclude='.vscode/'
+          )
+
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            ssh -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
+
+            rsync -az --delete \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              "${excludes[@]}" \
+              admin/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          else
+            export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+            sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
+
+            sshpass -e rsync -az --delete \
+              -e "ssh -p ${DEPLOY_PORT}" \
+              "${excludes[@]}" \
+              admin/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          fi
+
+      - name: Run optional admin reload command
+        env:
+          ADMIN_DEPLOY_RESTART_COMMAND: ${{ secrets.ADMIN_DEPLOY_RESTART_COMMAND }}
+          ADMIN_DEPLOY_PASSWORD_SECRET: ${{ secrets.ADMIN_DEPLOY_PASSWORD }}
+          DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
+          SSH_PASSWORD_SECRET: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${ADMIN_DEPLOY_RESTART_COMMAND:-}" ]; then
+            echo "ADMIN_DEPLOY_RESTART_COMMAND is empty; synced files only."
+            exit 0
+          fi
+
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            printf '%s\n' "$ADMIN_DEPLOY_RESTART_COMMAND" | ssh \
+              -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && bash -s"
+          else
+            export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+            printf '%s\n' "$ADMIN_DEPLOY_RESTART_COMMAND" | sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && bash -s"
+          fi

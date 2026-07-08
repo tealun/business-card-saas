@@ -6,10 +6,10 @@ This guide documents the GitHub Actions backend deployment flow for the `backend
 
 - Workflow: `.github/workflows/deploy-backend.yml`
 - Trigger: push to `main` when `backend/**`, `database/**`, or the workflow changes; manual `workflow_dispatch`
-- Target path: `/www/wwwroot/wecom_card`
+- Target path: configured by GitHub Actions secret `BACKEND_DEPLOY_PATH` or `DEPLOY_PATH`
 - Sync strategy: `rsync --delete` from local `backend/` to the target path, plus `database/` to `${DEPLOY_PATH}/database/`
 - Runtime secrets: kept on the server in `.env`; never committed and never uploaded by CI
-- Template env file: `backend/.env.example` is synced to `/www/wwwroot/wecom_card/.env.example`
+- Template env file: `backend/.env.example` is synced to `${DEPLOY_PATH}/.env.example`
 
 ## GitHub Secrets
 
@@ -22,8 +22,15 @@ Required server identity:
 | Secret | Required | Notes |
 |--------|----------|-------|
 | `DEPLOY_HOST` | yes | Server IP or hostname. `SSH_HOST` is also accepted. |
-| `DEPLOY_USER` | yes | SSH user with write access to `/www/wwwroot/wecom_card`. `SSH_USER` is also accepted. |
+| `DEPLOY_USER` | yes | SSH user with write access to the backend deploy path. `SSH_USER` is also accepted. |
 | `DEPLOY_PORT` | no | SSH port. Defaults to `22`. `SSH_PORT` is also accepted. |
+
+Required target path:
+
+| Secret | Required | Notes |
+|--------|----------|-------|
+| `BACKEND_DEPLOY_PATH` | yes | Preferred backend target directory, for example `/www/wwwroot/wecom_card`. |
+| `DEPLOY_PATH` | fallback | Backward-compatible generic target directory. Used only when `BACKEND_DEPLOY_PATH` is empty. |
 
 Authentication, choose one:
 
@@ -36,7 +43,7 @@ Optional restart:
 
 | Secret | Required | Notes |
 |--------|----------|-------|
-| `DEPLOY_RESTART_COMMAND` | no | Server-side shell script run after sync from `/www/wwwroot/wecom_card`. If empty, CI only syncs files. |
+| `DEPLOY_RESTART_COMMAND` | no | Server-side shell script run after sync from `${DEPLOY_PATH}`. If empty, CI only syncs files. |
 
 Authentication priority:
 
@@ -64,16 +71,17 @@ Because `dist/` and `node_modules/` are protected, the server should build/insta
 
 ## Suggested Server Setup
 
-Create the target directory once:
+Create the target directory once. Example:
 
 ```bash
-mkdir -p /www/wwwroot/wecom_card
+BACKEND_DEPLOY_PATH=/www/wwwroot/wecom_card
+mkdir -p "$BACKEND_DEPLOY_PATH"
 ```
 
 Keep production environment variables on the server:
 
 ```bash
-cd /www/wwwroot/wecom_card
+cd "$BACKEND_DEPLOY_PATH"
 cp .env.example .env
 ```
 
@@ -97,30 +105,30 @@ Then edit `.env` on the server only. Required production secrets include:
 
 ## BaoTa Node Project Setup
 
-Use BaoTa only as the runtime/process manager. GitHub Actions is responsible for syncing source files into `/www/wwwroot/wecom_card`; BaoTa then installs dependencies, builds, and runs the backend from that same directory.
+Use BaoTa only as the runtime/process manager. GitHub Actions is responsible for syncing source files into the configured backend deploy path; BaoTa then installs dependencies, builds, and runs the backend from that same directory.
 
 Create the project in BaoTa:
 
 | BaoTa field | Value |
 |-------------|-------|
 | Project type | `Node.js` |
-| Project path | `/www/wwwroot/wecom_card` |
+| Project path | Same as `BACKEND_DEPLOY_PATH`, for example `/www/wwwroot/wecom_card` |
 | Project name | `wecom-card-api` |
 | Node version | Node `24.x` preferred; Node `22.x` LTS is acceptable if `24.x` is unavailable |
 | Package manager | `npm` |
 | Install command | `npm ci` |
 | Build command | `npm run build` |
 | Start command | `npm run start` |
-| Run directory | `/www/wwwroot/wecom_card` |
+| Run directory | Same as `BACKEND_DEPLOY_PATH` |
 | Port | Same as `.env` `PORT`, for example `3000` |
 
-If BaoTa has separate fields for environment variables, keep only non-secret basics there, such as `NODE_ENV=production`. Put all secrets in `/www/wwwroot/wecom_card/.env`, not in GitHub, not in the repository, and not in screenshots.
+If BaoTa has separate fields for environment variables, keep only non-secret basics there, such as `NODE_ENV=production`. Put all secrets in `${BACKEND_DEPLOY_PATH}/.env`, not in GitHub, not in the repository, and not in screenshots.
 
 Recommended first-time sequence in BaoTa:
 
-1. Wait until GitHub Actions has synced files and `/www/wwwroot/wecom_card/package.json` exists.
-2. Copy `/www/wwwroot/wecom_card/.env.example` to `/www/wwwroot/wecom_card/.env`.
-3. Edit `/www/wwwroot/wecom_card/.env` with production values.
+1. Wait until GitHub Actions has synced files and `${BACKEND_DEPLOY_PATH}/package.json` exists.
+2. Copy `${BACKEND_DEPLOY_PATH}/.env.example` to `${BACKEND_DEPLOY_PATH}/.env`.
+3. Edit `${BACKEND_DEPLOY_PATH}/.env` with production values.
 4. In BaoTa, install dependencies with `npm ci`.
 5. Build with `npm run build`.
 6. Run database migration with `npm run db:migrate`.
@@ -169,16 +177,16 @@ Enterprise WeChat callback verification requires the public HTTPS URLs to be rea
 
 These files/directories are intentionally protected from GitHub Actions deletion or overwrite:
 
-- `/www/wwwroot/wecom_card/.env`
-- `/www/wwwroot/wecom_card/node_modules/`
-- `/www/wwwroot/wecom_card/dist/`
+- `${BACKEND_DEPLOY_PATH}/.env`
+- `${BACKEND_DEPLOY_PATH}/node_modules/`
+- `${BACKEND_DEPLOY_PATH}/dist/`
 - runtime uploads, cache, logs, storage, tmp, and data directories
 
 If the server project directory looks empty after a workflow run, check GitHub Actions first. The deploy step should show `Sync backend and database assets to server`. If that step did not run or failed, BaoTa cannot install because `package.json` has not arrived yet.
 
 ## Production Domain Values
 
-For your production backend domain, use these URL-shaped values in the server-local `/www/wwwroot/wecom_card/.env`. Do not commit the real domain-specific `.env` file:
+For your production backend domain, use these URL-shaped values in the server-local `${BACKEND_DEPLOY_PATH}/.env`. Do not commit the real domain-specific `.env` file:
 
 ```env
 NODE_ENV=production
@@ -259,7 +267,7 @@ Do not put secret values in `DEPLOY_RESTART_COMMAND`; read them from the server-
 ## Deployment Checklist
 
 1. Configure GitHub Secrets.
-2. Confirm `/www/wwwroot/wecom_card/.env` exists on the server and contains production values.
+2. Confirm `${BACKEND_DEPLOY_PATH}/.env` exists on the server and contains production values.
 3. Push a change under `backend/**` or run the workflow manually.
 4. After first deployment or any schema change, run `npm run db:migrate` and `npm run db:check` on the server with the production `.env` loaded.
 5. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.

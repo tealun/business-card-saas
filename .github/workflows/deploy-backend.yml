@@ -2,8 +2,9 @@
 #
 # Required GitHub repository secrets:
 # - DEPLOY_HOST or SSH_HOST: server hostname or IP
-# - DEPLOY_USER or SSH_USER: SSH user with write access to /www/wwwroot/wecom_card
+# - DEPLOY_USER or SSH_USER: SSH user with write access to the backend deploy path
 # - DEPLOY_PORT or SSH_PORT: SSH port, optional; defaults to 22
+# - BACKEND_DEPLOY_PATH or DEPLOY_PATH: absolute server directory for backend files
 # - DEPLOY_SSH_KEY or SSH_PRIVATE_KEY or SSH_KEY: optional private key for key-based auth
 # - DEPLOY_PASSWORD or SSH_PASSWORD: optional password fallback when no key is configured
 # - DEPLOY_RESTART_COMMAND: optional server-side restart script
@@ -35,7 +36,6 @@ concurrency:
 
 env:
   NODE_VERSION: "24"
-  DEPLOY_PATH: /www/wwwroot/wecom_card
 
 jobs:
   deploy:
@@ -77,6 +77,8 @@ jobs:
           SSH_PORT_SECRET: ${{ secrets.SSH_PORT }}
           DEPLOY_USER_SECRET: ${{ secrets.DEPLOY_USER }}
           SSH_USER_SECRET: ${{ secrets.SSH_USER }}
+          BACKEND_DEPLOY_PATH_SECRET: ${{ secrets.BACKEND_DEPLOY_PATH }}
+          DEPLOY_PATH_SECRET: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_SSH_KEY_SECRET: ${{ secrets.DEPLOY_SSH_KEY }}
           SSH_PRIVATE_KEY_SECRET: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_KEY_SECRET: ${{ secrets.SSH_KEY }}
@@ -88,14 +90,32 @@ jobs:
           host="${DEPLOY_HOST_SECRET:-${SSH_HOST_SECRET:-}}"
           port="${DEPLOY_PORT_SECRET:-${SSH_PORT_SECRET:-22}}"
           user="${DEPLOY_USER_SECRET:-${SSH_USER_SECRET:-}}"
+          path="${BACKEND_DEPLOY_PATH_SECRET:-${DEPLOY_PATH_SECRET:-}}"
 
           test -n "$host"
           test -n "$user"
+          test -n "$path"
+
+          case "$path" in
+            /*) ;;
+            *)
+              echo "BACKEND_DEPLOY_PATH/DEPLOY_PATH must be an absolute server path" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$path" in
+            *"'"*|*[[:space:]]*)
+              echo "BACKEND_DEPLOY_PATH/DEPLOY_PATH must not contain quotes or whitespace" >&2
+              exit 1
+              ;;
+          esac
 
           {
             echo "DEPLOY_HOST=$host"
             echo "DEPLOY_PORT=$port"
             echo "DEPLOY_USER=$user"
+            echo "DEPLOY_PATH=$path"
           } >> "$GITHUB_ENV"
 
           mkdir -p ~/.ssh

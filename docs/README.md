@@ -65,7 +65,8 @@
 
 | 文档 | 内容 |
 |------|------|
-| [`88_01_Backend_Deployment_Guide.md`](88-planning/88_01_Backend_Deployment_Guide.md) | GitHub Actions 后端自动部署配置：Secrets、SSH key / password 兼容、rsync 保护目录、可选重启命令与回滚步骤。 |
+| [`88_01_Backend_Deployment_Guide.md`](88-planning/88_01_Backend_Deployment_Guide.md) | GitHub Actions 后端自动部署配置：路径 Secret、SSH key / password 兼容、rsync 保护目录、可选重启命令与回滚步骤。 |
+| [`88_02_Admin_Deployment_Guide.md`](88-planning/88_02_Admin_Deployment_Guide.md) | GitHub Actions 管理后台静态部署配置：admin 专用变量、同服/分服部署方式、rsync 保护目录与回滚步骤。 |
 
 ### 99-audits（审计）
 
