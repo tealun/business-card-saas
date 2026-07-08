@@ -47,6 +47,9 @@ export class SessionTokenService {
       memberIdentityId: envelope.payload.memberIdentityId,
       openUserid: envelope.payload.openUserid
     };
+    if (envelope.payload.identityType !== undefined) {
+      session.identityType = envelope.payload.identityType;
+    }
     if (envelope.payload.tenantName !== undefined) {
       session.tenantName = envelope.payload.tenantName;
     }

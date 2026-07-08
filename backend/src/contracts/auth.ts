@@ -4,12 +4,17 @@ export const authCodeRequestSchema = z.object({
   code: z.string().min(1).max(256)
 });
 
+export const switchIdentityRequestSchema = z.object({
+  member_identity_id: z.string().min(1).max(64)
+});
+
 export const identitySummarySchema = z.object({
+  identity_type: z.enum(["personal", "wecom_member"]),
   tenant_id: z.string(),
   tenant_name: z.string(),
   member_identity_id: z.string(),
   display_name: z.string(),
-  open_userid: z.string(),
+  open_userid: z.string().nullable(),
   public_id: z.string()
 });
 
@@ -26,5 +31,6 @@ export const qyLoginResponseSchema = z.object({
 });
 
 export type AuthCodeRequest = z.infer<typeof authCodeRequestSchema>;
+export type SwitchIdentityRequest = z.infer<typeof switchIdentityRequestSchema>;
 export type IdentitySummary = z.infer<typeof identitySummarySchema>;
 export type QyLoginResponse = z.infer<typeof qyLoginResponseSchema>;

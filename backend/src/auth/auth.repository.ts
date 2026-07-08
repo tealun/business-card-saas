@@ -5,11 +5,12 @@ import { WecomMiniProgramLoginService, type WecomMiniProgramIdentity } from "../
 
 export interface LoginIdentity {
   accountId: string;
+  identityType: "personal" | "wecom_member";
   tenantId: string;
   tenantName: string;
   memberIdentityId: string;
   displayName: string;
-  openUserid: string;
+  openUserid: string | null;
   publicId: string;
 }
 
@@ -28,12 +29,13 @@ export class AuthRepository {
   toSession(identity: LoginIdentity): EmployeeSession {
     return {
       accountId: identity.accountId,
+      identityType: identity.identityType,
       tenantId: identity.tenantId,
       tenantName: identity.tenantName,
       memberIdentityId: identity.memberIdentityId,
       displayName: identity.displayName,
       publicId: identity.publicId,
-      openUserid: identity.openUserid
+      openUserid: identity.openUserid ?? ""
     };
   }
 
@@ -43,6 +45,7 @@ export class AuthRepository {
       tenant_name: identity.tenantName,
       member_identity_id: identity.memberIdentityId,
       display_name: identity.displayName,
+      identity_type: identity.identityType,
       open_userid: identity.openUserid,
       public_id: identity.publicId
     };
@@ -51,6 +54,7 @@ export class AuthRepository {
   private fromWecomIdentity(identity: WecomMiniProgramIdentity): LoginIdentity {
     return {
       accountId: identity.accountId,
+      identityType: "wecom_member",
       tenantId: identity.tenantId,
       tenantName: identity.tenantName,
       memberIdentityId: identity.memberIdentityId,

@@ -49,7 +49,11 @@ const appConfigSchema = z
     WECOM_AUTH_LAUNCH_TOKEN: z.string().min(1),
 
     WECOM_CALLBACK_ALERT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
-    WECOM_CALLBACK_ALERT_WEBHOOK_TOKEN: z.string().min(1).optional().or(z.literal(""))
+    WECOM_CALLBACK_ALERT_WEBHOOK_TOKEN: z.string().min(1).optional().or(z.literal("")),
+
+    WECHAT_MINIPROGRAM_APPID: z.string().min(1).optional().or(z.literal("")),
+    WECHAT_MINIPROGRAM_SECRET: z.string().min(1).optional().or(z.literal("")),
+    WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000)
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production" && !data.DATABASE_URL) {
@@ -122,5 +126,17 @@ export class AppConfig {
 
   get databaseApplicationName(): string {
     return this.values.DATABASE_APPLICATION_NAME;
+  }
+
+  get wechatMiniProgramAppId(): string {
+    return this.values.WECHAT_MINIPROGRAM_APPID ?? "";
+  }
+
+  get wechatMiniProgramSecret(): string {
+    return this.values.WECHAT_MINIPROGRAM_SECRET ?? "";
+  }
+
+  get wechatHttpTimeoutMs(): number {
+    return this.values.WECHAT_HTTP_TIMEOUT_MS;
   }
 }
