@@ -81,9 +81,12 @@ npm start
 
 ## 自动部署
 
-GitHub Actions 后端自动部署配置见 [`docs/88-planning/88_01_Backend_Deployment_Guide.md`](docs/88-planning/88_01_Backend_Deployment_Guide.md)。
+GitHub Actions 自动部署配置见：
 
-- 部署目标目录：`/www/wwwroot/wecom_card`
+- 后端：[`docs/88-planning/88_01_Backend_Deployment_Guide.md`](docs/88-planning/88_01_Backend_Deployment_Guide.md)
+- 管理后台：[`docs/88-planning/88_02_Admin_Deployment_Guide.md`](docs/88-planning/88_02_Admin_Deployment_Guide.md)
+- 后端部署目录通过 GitHub Secret `BACKEND_DEPLOY_PATH` 或 `DEPLOY_PATH` 配置，不在 workflow 中写死
+- 管理后台部署目录通过 GitHub Secret `ADMIN_DEPLOY_PATH` 配置；如果后台和后端在不同服务器，使用 `ADMIN_DEPLOY_HOST` / `ADMIN_DEPLOY_USER` / `ADMIN_DEPLOY_PORT` / `ADMIN_DEPLOY_SSH_KEY` 或 `ADMIN_DEPLOY_PASSWORD`
 - 认证方式：优先 SSH key，缺失时使用密码
 - 保护内容：服务器 `.env`、缓存、日志、上传文件、证书、`node_modules`、`dist` 等运行态内容不会被 CI 删除或覆盖
 
