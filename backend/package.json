@@ -8,7 +8,7 @@
     "build": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.rmSync('tsconfig.build.tsbuildinfo',{force:true});fs.rmSync('tsconfig.tsbuildinfo',{force:true})\" && tsc -p tsconfig.build.json",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "start:prod": "npm ci && npm run build && node --env-file=.env dist/main.js",
+    "start:prod": "npm install && npm run build && node --env-file=.env dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest --runInBand",
     "typecheck": "tsc -p tsconfig.json --noEmit",

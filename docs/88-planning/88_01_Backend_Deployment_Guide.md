@@ -116,7 +116,7 @@ Create the project in BaoTa:
 | Project name | `wecom-card-api` |
 | Node version | Node `24.x` preferred; Node `22.x` LTS is acceptable if `24.x` is unavailable |
 | Package manager | `npm` |
-| Install command | Leave empty if using `start:prod`, or `npm ci` |
+| Install command | Leave empty if using `start:prod`, or `npm install` |
 | Build command | Leave empty if using `start:prod`, or `npm run build` |
 | Start command | `npm run start:prod` |
 | Run directory | Same as `BACKEND_DEPLOY_PATH` |
