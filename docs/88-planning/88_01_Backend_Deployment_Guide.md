@@ -116,8 +116,8 @@ Create the project in BaoTa:
 | Project name | `wecom-card-api` |
 | Node version | Node `24.x` preferred; Node `22.x` LTS is acceptable if `24.x` is unavailable |
 | Package manager | `npm` |
-| Install command | `npm ci` |
-| Build command | `npm run build` |
+| Install command | Leave empty if using `start:prod`, or `npm ci` |
+| Build command | Leave empty if using `start:prod`, or `npm run build` |
 | Start command | `npm run start:prod` |
 | Run directory | Same as `BACKEND_DEPLOY_PATH` |
 | Port | Same as `.env` `PORT`, for example `3000` |
@@ -138,7 +138,6 @@ Recommended first-time sequence in BaoTa:
 For later code-only deployments, GitHub Actions syncs source and database assets. BaoTa can then run:
 
 ```bash
-npm ci
 npm run db:migrate
 npm run db:check
 npm run start:prod
