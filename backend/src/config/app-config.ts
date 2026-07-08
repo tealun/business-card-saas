@@ -35,6 +35,7 @@ const appConfigSchema = z
     VISIT_TOKEN_SECRET: z.string().min(32),
     CARD_FIELD_ENCRYPTION_KEY_BASE64: base64Key("CARD_FIELD_ENCRYPTION_KEY_BASE64"),
     WECOM_STATE_ENCRYPTION_KEY_BASE64: base64Key("WECOM_STATE_ENCRYPTION_KEY_BASE64"),
+    DEMO_AUTH_ENABLED: z.coerce.boolean().default(false),
 
     WECOM_SUITE_ID: z.string().min(1),
     WECOM_SUITE_SECRET: z.string().min(1),
@@ -126,6 +127,10 @@ export class AppConfig {
 
   get databaseApplicationName(): string {
     return this.values.DATABASE_APPLICATION_NAME;
+  }
+
+  get demoAuthEnabled(): boolean {
+    return this.values.DEMO_AUTH_ENABLED;
   }
 
   get wechatMiniProgramAppId(): string {
