@@ -1,11 +1,18 @@
+let localConfig = {};
+try {
+  localConfig = require("./config.local");
+} catch (error) {
+  localConfig = {};
+}
+
 App({
   globalData: {
-    apiBase: "",
+    apiBase: localConfig.apiBase || "",
     token: "",
     currentCard: null,
     shareId: "",
     visitToken: "",
     anonId: "",
-    demoAuthEnabled: false
+    demoAuthEnabled: Boolean(localConfig.demoAuthEnabled)
   }
 });

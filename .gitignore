@@ -12,5 +12,9 @@ prisma/*.db
 backend/prisma/*.db
 .vscode/
 
+# Miniprogram local runtime config (not committed)
+miniprogram/config.local.js
+miniprogram/project.private.config.json
+
 # Local Agent customizations (not committed)
 .github/agents/*.agent.md
