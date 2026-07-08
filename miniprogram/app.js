@@ -14,6 +14,8 @@ App({
     apiBase: localConfig.apiBase || "",
     configError: localConfigError,
     token: "",
+    currentIdentity: null,
+    identities: [],
     currentCard: null,
     shareId: "",
     visitToken: "",

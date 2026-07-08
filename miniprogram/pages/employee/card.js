@@ -1,5 +1,6 @@
 const app = getApp();
-const { request, qyLoginCode } = require("../../utils/api");
+const { ensureSession } = require("../../utils/auth");
+const { request } = require("../../utils/api");
 
 Page({
   data: {
@@ -23,13 +24,7 @@ Page({
 
   async login() {
     try {
-      const code = await qyLoginCode();
-      const session = await request("/auth/qy-login", {
-        method: "POST",
-        auth: false,
-        data: { code }
-      });
-      app.globalData.token = session.access_token;
+      await ensureSession();
       await this.loadCard();
     } catch (error) {
       this.setData({ loading: false, error: true });

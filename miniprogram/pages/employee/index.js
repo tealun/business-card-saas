@@ -1,5 +1,6 @@
 const app = getApp();
-const { request, qyLoginCode } = require("../../utils/api");
+const { ensureSession, switchIdentity } = require("../../utils/auth");
+const { request } = require("../../utils/api");
 
 const demoCard = {
   display_name: "李明",
@@ -20,7 +21,11 @@ Page({
     card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
+    identitySheetVisible: false,
     submitting: false,
+    switchingIdentity: false,
+    currentIdentity: null,
+    identities: [],
     requests: [
       { id: "req1", name: "周琳", title: "采购经理 · 华宇集团" }
     ],
@@ -45,18 +50,22 @@ Page({
 
   async login() {
     try {
-      const code = await qyLoginCode();
-      const session = await request("/auth/qy-login", {
-        method: "POST",
-        auth: false,
-        data: { code }
-      });
-      app.globalData.token = session.access_token;
+      const session = await ensureSession({ force: true });
+      this.syncIdentityState(session);
       await this.loadPreview();
     } catch (error) {
       this.setData({ loading: false, error: true });
       wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
     }
+  },
+
+  syncIdentityState(session) {
+    const currentIdentity = session.currentIdentity || app.globalData.currentIdentity;
+    const currentId = currentIdentity && currentIdentity.member_identity_id;
+    const identities = (session.identities || app.globalData.identities || []).map((identity) =>
+      Object.assign({}, identity, { selected: identity.member_identity_id === currentId })
+    );
+    this.setData({ currentIdentity, identities });
   },
 
   async loadPreview() {
@@ -74,6 +83,41 @@ Page({
     } catch (error) {
       this.setData({ loading: false, error: true });
       wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
+    }
+  },
+
+  openIdentitySheet() {
+    if (!this.data.identities.length) {
+      wx.showToast({ title: "暂无可切换身份", icon: "none" });
+      return;
+    }
+    this.setData({ identitySheetVisible: true });
+  },
+
+  closeIdentitySheet() {
+    this.setData({ identitySheetVisible: false });
+  },
+
+  async chooseIdentity(event) {
+    const memberIdentityId = event.currentTarget.dataset.id;
+    if (!memberIdentityId || this.data.switchingIdentity) {
+      return;
+    }
+    if (this.data.currentIdentity && memberIdentityId === this.data.currentIdentity.member_identity_id) {
+      this.closeIdentitySheet();
+      return;
+    }
+    this.setData({ switchingIdentity: true });
+    try {
+      const session = await switchIdentity(memberIdentityId);
+      this.syncIdentityState(session);
+      await this.loadPreview();
+      this.setData({ identitySheetVisible: false });
+      wx.showToast({ title: "已切换名片", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "切换失败", icon: "none" });
+    } finally {
+      this.setData({ switchingIdentity: false });
     }
   },
 

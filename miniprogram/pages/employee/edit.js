@@ -1,4 +1,5 @@
 const app = getApp();
+const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 
 Page({
@@ -25,8 +26,14 @@ Page({
     submitting: false
   },
 
-  onLoad() {
-    this.loadCard();
+  async onLoad() {
+    try {
+      await ensureSession();
+      await this.loadCard();
+    } catch (error) {
+      this.setData({ loading: false, error: true });
+      wx.showToast({ title: error.message || "登录失败，已展示演示资料", icon: "none" });
+    }
   },
 
   async loadCard() {

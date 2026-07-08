@@ -2,6 +2,16 @@
   <view class="status-bar status-bar--warning" wx:if="{{error || demoMode}}">
     当前互动数据为演示样例，连接企业微信后名片资料会同步真实数据。
   </view>
+  <view class="identity-strip" wx:if="{{currentIdentity}}">
+    <view class="identity-strip__main">
+      <text class="badge {{currentIdentity.badgeClass}}">{{currentIdentity.typeLabel}}</text>
+      <view class="identity-strip__text">
+        <view class="identity-strip__name">{{currentIdentity.display_name || "我的名片"}}</view>
+        <view class="identity-strip__sub">{{currentIdentity.subtitle}}</view>
+      </view>
+    </view>
+    <view class="btn btn--sm btn--soft identity-strip__btn" bindtap="openIdentitySheet">切换</view>
+  </view>
 
   <block wx:if="{{loading}}">
     <view class="card skeleton-card">
@@ -50,7 +60,7 @@
         <text>名片样式</text>
       </view>
       <view class="quick-bar__sep"></view>
-      <view class="quick-bar__item" bindtap="goStyle">
+      <view class="quick-bar__item" bindtap="openIdentitySheet">
         <view class="icon icon-switch"></view>
         <text>切换名片</text>
       </view>
@@ -175,4 +185,33 @@
     </view>
   </view>
   <view class="sheet__tip">分享链接仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
+</view>
+
+<view class="sheet-mask {{identitySheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeIdentitySheet"></view>
+<view class="sheet {{identitySheetVisible ? 'sheet--show' : ''}}">
+  <view class="sheet__grab"></view>
+  <view class="row-between sheet__head">
+    <text class="card__title">切换名片</text>
+    <view class="icon icon-close icon--sm" catchtap="closeIdentitySheet"></view>
+  </view>
+  <view class="identity-list">
+    <view
+      class="identity-option {{item.selected ? 'identity-option--active' : ''}}"
+      wx:for="{{identities}}"
+      wx:key="member_identity_id"
+      data-id="{{item.member_identity_id}}"
+      bindtap="chooseIdentity"
+    >
+      <view class="identity-option__avatar">{{item.display_name ? item.display_name[0] : "名"}}</view>
+      <view class="identity-option__body">
+        <view class="identity-option__top">
+          <text class="identity-option__name">{{item.display_name || "我的名片"}}</text>
+          <text class="badge {{item.badgeClass}}">{{item.typeLabel}}</text>
+        </view>
+        <view class="identity-option__sub">{{item.subtitle}}</view>
+      </view>
+      <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
+    </view>
+  </view>
+  <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份…" : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
 </view>
