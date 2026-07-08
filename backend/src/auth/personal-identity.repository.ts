@@ -167,6 +167,8 @@ export class PersonalIdentityRepository {
     input: { openid: string; unionid: string | null },
     tx: Tx
   ): Promise<string> {
+    await this.lockAccountIdentity(input, tx);
+
     const existing = await tx.query<AccountRow>(
       `
         SELECT id
@@ -205,6 +207,22 @@ export class PersonalIdentityRepository {
       throw new Error("failed to create personal account");
     }
     return String(accountId);
+  }
+
+  private async lockAccountIdentity(input: { openid: string; unionid: string | null }, tx: Tx): Promise<void> {
+    const keys = [`account:openid:${input.openid}`];
+    if (input.unionid) {
+      keys.push(`account:unionid:${input.unionid}`);
+    }
+    keys.sort();
+    for (const key of keys) {
+      await tx.query(
+        `
+          SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
+        `,
+        [key]
+      );
+    }
   }
 
   private async findOrCreatePersonalTenant(accountId: string, tx: Tx): Promise<TenantRow> {
