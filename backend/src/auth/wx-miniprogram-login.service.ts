@@ -1,4 +1,9 @@
-import { BadGatewayException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException
+} from "@nestjs/common";
 import { AppConfig } from "../config/app-config.js";
 
 export interface WxMiniProgramSession {
@@ -22,7 +27,7 @@ export class WxMiniProgramLoginService {
   async resolveJsCode(code: string): Promise<WxMiniProgramSession> {
     const normalizedCode = code.trim();
     if (!normalizedCode) {
-      throw new BadGatewayException("empty WeChat login code");
+      throw new UnauthorizedException("invalid WeChat login code");
     }
     if (normalizedCode === "demo-wx-code" && (this.config.nodeEnv === "test" || this.config.demoAuthEnabled)) {
       return {

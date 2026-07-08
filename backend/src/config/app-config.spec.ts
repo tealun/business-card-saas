@@ -36,6 +36,13 @@ describe("AppConfig", () => {
     expect(() => new AppConfig()).not.toThrow();
   });
 
+  it("rejects DEMO_AUTH_ENABLED in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.DATABASE_URL = "postgres://localhost/business-card-prod";
+    process.env.DEMO_AUTH_ENABLED = "true";
+    expect(() => new AppConfig()).toThrow("DEMO_AUTH_ENABLED must be disabled in production");
+  });
+
   it("rejects an invalid base64 encryption key", () => {
     process.env.CARD_FIELD_ENCRYPTION_KEY_BASE64 = "not-valid-base64!!!";
     expect(() => new AppConfig()).toThrow("CARD_FIELD_ENCRYPTION_KEY_BASE64");
