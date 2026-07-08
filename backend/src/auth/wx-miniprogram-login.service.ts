@@ -24,7 +24,7 @@ export class WxMiniProgramLoginService {
     if (!normalizedCode) {
       throw new BadGatewayException("empty WeChat login code");
     }
-    if (normalizedCode === "demo-wx-code" && !this.config.isProduction) {
+    if (normalizedCode === "demo-wx-code" && (this.config.nodeEnv === "test" || this.config.demoAuthEnabled)) {
       return {
         openid: "wx_openid_demo0001",
         unionid: "wx_unionid_demo0001",
