@@ -17,6 +17,7 @@ CREATE TABLE "accounts" (
 CREATE TABLE "tenants" (
     "id" BIGSERIAL NOT NULL,
     "name" VARCHAR(255) NOT NULL,
+    "tenant_type" VARCHAR(32) NOT NULL DEFAULT 'enterprise',
     "open_corpid" VARCHAR(128) NOT NULL,
     "auth_status" VARCHAR(32) NOT NULL DEFAULT 'active',
     "permanent_code_encrypted" TEXT,
@@ -346,6 +347,9 @@ CREATE TABLE "card_style_overrides" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_accounts_unionid" ON "accounts"("wx_unionid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_accounts_primary_wx_openid" ON "accounts"("primary_wx_openid") WHERE "primary_wx_openid" IS NOT NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_tenants_open_corpid" ON "tenants"("open_corpid");

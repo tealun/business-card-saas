@@ -10,8 +10,9 @@
 
 - 判定运行环境：普通微信 vs 企业微信工作台（`wx.qy.*` 可用性）。
 - 企业微信：`wx.qy.login` 取 code → 后端 qy-login（§6.1 / 见 [`01_01_Wecom_Integration.md`](01_01_Wecom_Integration.md) §6）。
-- 普通微信：`wx.login` 取 code → 后端 wx-login；unionid 可能为空，走 openid-only 降级（§6.2）。
-- 多身份默认进 `account_preferences.last_member_identity_id`，不每次强弹选择器（§6.2）。
+- 普通微信：`wx.login` 取 code → 后端 wx-login；unionid 可能为空，走 openid-only 降级（§6.2）。若没有企业身份，后端自动创建 `personal` 个人名片身份。
+- 多身份默认进 `account_preferences.last_member_identity_id`，不每次强弹选择器（§6.2）。用户可在“当前发送身份”中切换个人名片或企业名片。
+- 同一账号可同时拥有 `personal` 个人名片与多个 `wecom_member` 企业员工名片；企业同步资料不能覆盖个人名片。
 
 ## 2. 页面清单与路由
 

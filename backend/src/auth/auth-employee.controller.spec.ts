@@ -98,6 +98,7 @@ describe("Auth and employee card flow", () => {
     expect(adapter.resolveJsCode).toHaveBeenCalledWith("real-code");
     expect(repository.toSession(identity)).toEqual({
       accountId: "acct-001",
+      identityType: "wecom_member",
       tenantId: "tenant-001",
       tenantName: "Pilot Corp",
       memberIdentityId: "member-001",
@@ -117,9 +118,10 @@ describe("Auth and employee card flow", () => {
     expect(loginResponse.statusCode).toBe(201);
     const login = dataOf<{
       access_token: string;
-      current_identity: { public_id: string; open_userid: string };
+      current_identity: { identity_type: string; public_id: string; open_userid: string };
     }>(loginResponse.body);
     expect(login.access_token).toBeTruthy();
+    expect(login.current_identity.identity_type).toBe("wecom_member");
     expect(login.current_identity.open_userid).toBe("ou_demo0001");
     expect(login.current_identity.public_id).toBe("pub_demo0001");
 
@@ -136,6 +138,59 @@ describe("Auth and employee card flow", () => {
     }>(cardResponse.body);
     expect(card.public_id).toBe("pub_demo0001");
     expect(card.privacy.show_mobile).toBe(false);
+  });
+
+  it("logs in from WeChat and creates a personal card identity", async () => {
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/wx-login",
+      payload: { code: "demo-wx-code" }
+    });
+
+    expect(loginResponse.statusCode).toBe(201);
+    const login = dataOf<{
+      access_token: string;
+      current_identity: {
+        identity_type: "personal";
+        tenant_name: string;
+        member_identity_id: string;
+        public_id: string;
+      };
+      identities: Array<{ identity_type: string; member_identity_id: string }>;
+    }>(loginResponse.body);
+    expect(login.access_token).toBeTruthy();
+    expect(login.current_identity.identity_type).toBe("personal");
+    expect(login.current_identity.tenant_name).toBe("个人名片");
+    expect(login.identities.some((identity) => identity.identity_type === "personal")).toBe(true);
+
+    const cardResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/employee/cards/current",
+      headers: { authorization: `Bearer ${login.access_token}` }
+    });
+    expect(cardResponse.statusCode).toBe(200);
+    const card = dataOf<{ public_id: string; company: string; display_name: string }>(cardResponse.body);
+    expect(card.public_id).toBe(login.current_identity.public_id);
+    expect(card.company).toBe("个人名片");
+    expect(card.display_name).toBe("我的名片");
+  });
+
+  it("rejects switching to an identity owned by another account", async () => {
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/wx-login",
+      payload: { code: "demo-wx-code" }
+    });
+    const login = dataOf<{ access_token: string }>(loginResponse.body);
+
+    const switchResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/switch-identity",
+      headers: { authorization: `Bearer ${login.access_token}` },
+      payload: { member_identity_id: "not-owned-by-this-account" }
+    });
+
+    expect(switchResponse.statusCode).toBe(403);
   });
 
   it("initializes and publishes a default card for a real employee session", async () => {

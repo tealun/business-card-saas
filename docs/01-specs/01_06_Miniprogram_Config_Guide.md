@@ -301,9 +301,11 @@ WECOM_DATA_CALLBACK_TOKEN=...
 WECOM_DATA_CALLBACK_AES_KEY=...
 WECOM_AUTH_LAUNCH_TOKEN=...
 WECOM_INSTALL_REDIRECT_URI=https://api.example.com/api/v1/wecom/authorization-complete
+WECHAT_MINIPROGRAM_APPID=...
+WECHAT_MINIPROGRAM_SECRET=...
 ```
 
-小程序请求不走浏览器 CORS，但管理后台会走 CORS，所以 `CORS_ORIGINS` 至少包含管理后台域名。
+小程序请求不走浏览器 CORS，但管理后台会走 CORS，所以 `CORS_ORIGINS` 至少包含管理后台域名。`WECHAT_MINIPROGRAM_SECRET` 是后端密钥，不能写进小程序 `config.local.js` 或任何前端包。
 
 ### 5.2 反向代理
 
@@ -345,7 +347,10 @@ apiBase=https://api.example.com/api/v1
 
 | 场景 | 方法和路径 |
 |------|------------|
+| 普通微信个人账号登录 | `POST /api/v1/auth/wx-login` |
 | 企业微信员工登录 | `POST /api/v1/auth/qy-login` |
+| 当前账号身份列表 | `GET /api/v1/auth/identities` |
+| 切换个人/企业名片身份 | `POST /api/v1/auth/switch-identity` |
 | 读取当前员工名片 | `GET /api/v1/employee/cards/current` |
 | 读取员工首页预览 | `GET /api/v1/employee/cards/current/preview` |
 | 保存名片资料 | `POST /api/v1/employee/cards/current` |

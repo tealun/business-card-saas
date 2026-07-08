@@ -37,10 +37,19 @@
 | POST `/api/v1/auth/wx-login` | 无 | `code` | 登录态、身份列表或单身份 |
 | POST `/api/v1/auth/qy-login` | 无 | `code` | 同上（企业微信，open_userid） |
 | POST `/api/v1/auth/bind-account` | JWT | `member_identity_id`、验证信息 | 绑定结果 |
-| GET `/api/v1/auth/identities` | JWT | — | 已绑定企业身份列表 |
+| GET `/api/v1/auth/identities` | JWT | — | 当前账号可用身份列表（个人 + 企业） |
 | POST `/api/v1/auth/switch-identity` | JWT | `member_identity_id` | 新登录态；更新 `account_preferences.last` |
 
 登录降级：unionid 可能为空，openid-only 时仅返回当前 openid 绑定的身份（§5.2/§6.2）。
+
+身份列表每项包含 `identity_type`：
+
+| identity_type | 含义 |
+|---------------|------|
+| `personal` | 微信个人名片身份；普通微信登录无企业身份时自动创建 |
+| `wecom_member` | 企业微信员工名片身份；由企业微信授权企业 + `wx.qy.login` 建立 |
+
+`switch-identity` 只接受当前账号已绑定的 `member_identity_id`。服务端必须校验绑定关系，禁止前端传 `tenant_id` 决定身份。
 
 ### 3.1.1 企业微信授权发起（Platform / WeCom）
 
@@ -55,7 +64,7 @@
 
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
-| GET `/api/v1/employee/cards/current` | JWT | 当前身份名片 |
+| GET `/api/v1/employee/cards/current` | JWT | 当前身份名片；个人身份和企业员工身份共用同一接口 |
 | PUT `/api/v1/employee/cards/current` | JWT | 更新（字段权限校验；触发缓存失效 §32） |
 | GET `/api/v1/employee/cards/current/preview` | JWT | 当前名片访客视角预览，含模板、公司内容、隐私判定后的公开字段 |
 | PUT `/api/v1/employee/cards/current/style` | JWT | 员工选择企业允许的模板、背景、色彩；企业锁定项不可改 |
