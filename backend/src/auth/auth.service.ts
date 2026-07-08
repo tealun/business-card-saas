@@ -22,8 +22,11 @@ export class AuthService {
 
   async qyLogin(request: AuthCodeRequest): Promise<QyLoginResponse> {
     const identity = await this.repository.resolveQyCode(request.code);
-    const identities = await this.personalIdentities.listAccountIdentities(identity.accountId);
-    return this.loginResponse(identity, identities.length ? identities : [identity]);
+    const { current, identities } = await this.personalIdentities.preferredAccountIdentity(
+      identity.accountId,
+      identity.memberIdentityId
+    );
+    return this.loginResponse(current ?? identity, identities.length ? identities : [identity]);
   }
 
   async wxLogin(request: AuthCodeRequest): Promise<QyLoginResponse> {

@@ -70,10 +70,15 @@ export class PersonalIdentityRepository {
         publicId,
         displayName: member.name
       }, tx);
-      await this.setLastIdentity({ accountId, memberIdentityId: String(member.id) }, tx);
+      await this.ensureDefaultIdentity({ accountId, memberIdentityId: String(member.id) }, tx);
 
       const identities = await this.listAccountIdentitiesInTx(accountId, tx);
-      const current = identities.find((identity) => identity.memberIdentityId === String(member.id)) ?? {
+      const current = await this.pickPreferredIdentity({
+        accountId,
+        fallbackMemberIdentityId: String(member.id),
+        identities,
+        tx
+      }) ?? {
         accountId,
         identityType: "personal",
         tenantId: String(tenant.id),
@@ -84,6 +89,26 @@ export class PersonalIdentityRepository {
         publicId: card.public_id
       };
       return { current, identities };
+    });
+  }
+
+  async preferredAccountIdentity(
+    accountId: string,
+    fallbackMemberIdentityId: string
+  ): Promise<{ current: LoginIdentity | null; identities: LoginIdentity[] }> {
+    if (!this.hasDatabase()) {
+      const identities = this.memoryIdentities.get(accountId) ?? [];
+      return {
+        current: identities.find((identity) => identity.memberIdentityId === fallbackMemberIdentityId) ?? identities[0] ?? null,
+        identities
+      };
+    }
+    return this.database.transaction(async (tx) => {
+      const identities = await this.listAccountIdentitiesInTx(accountId, tx);
+      return {
+        current: await this.pickPreferredIdentity({ accountId, fallbackMemberIdentityId, identities, tx }),
+        identities
+      };
     });
   }
 
@@ -337,6 +362,50 @@ export class PersonalIdentityRepository {
       `,
       [input.accountId, input.memberIdentityId]
     );
+  }
+
+  private async ensureDefaultIdentity(input: { accountId: string; memberIdentityId: string }, tx: Tx): Promise<void> {
+    await tx.query(
+      `
+        INSERT INTO account_preferences (
+          account_id,
+          default_member_identity_id,
+          last_member_identity_id,
+          updated_at
+        )
+        VALUES ($1, $2, $2, now())
+        ON CONFLICT (account_id) DO UPDATE SET
+          default_member_identity_id = COALESCE(account_preferences.default_member_identity_id, EXCLUDED.default_member_identity_id),
+          last_member_identity_id = COALESCE(account_preferences.last_member_identity_id, EXCLUDED.last_member_identity_id),
+          updated_at = now()
+      `,
+      [input.accountId, input.memberIdentityId]
+    );
+  }
+
+  private async pickPreferredIdentity(input: {
+    accountId: string;
+    fallbackMemberIdentityId: string;
+    identities: LoginIdentity[];
+    tx: Tx;
+  }): Promise<LoginIdentity | null> {
+    const preferences = await input.tx.query<{ last_member_identity_id: string | number | bigint | null; default_member_identity_id: string | number | bigint | null }>(
+      `
+        SELECT last_member_identity_id, default_member_identity_id
+        FROM account_preferences
+        WHERE account_id = $1
+        LIMIT 1
+      `,
+      [input.accountId]
+    );
+    const preference = preferences.rows[0];
+    const preferredMemberIdentityId = String(
+      preference?.last_member_identity_id ?? preference?.default_member_identity_id ?? input.fallbackMemberIdentityId
+    );
+    return input.identities.find((identity) => identity.memberIdentityId === preferredMemberIdentityId)
+      ?? input.identities.find((identity) => identity.memberIdentityId === input.fallbackMemberIdentityId)
+      ?? input.identities[0]
+      ?? null;
   }
 
   private async listAccountIdentitiesInTx(accountId: string, tx: Tx): Promise<LoginIdentity[]> {

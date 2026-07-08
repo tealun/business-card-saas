@@ -122,7 +122,7 @@ export class WecomEmployeeProvisioningRepository {
           VALUES ($1, $2, $2, now())
           ON CONFLICT (account_id) DO UPDATE SET
             default_member_identity_id = COALESCE(account_preferences.default_member_identity_id, EXCLUDED.default_member_identity_id),
-            last_member_identity_id = EXCLUDED.last_member_identity_id,
+            last_member_identity_id = COALESCE(account_preferences.last_member_identity_id, EXCLUDED.last_member_identity_id),
             updated_at = now()
         `,
         [accountId, memberIdentityId]
