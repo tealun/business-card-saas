@@ -71,7 +71,12 @@ function qyLoginCode() {
             resolve(result.code);
             return;
           }
-          resolve(maybeDemoCode());
+          const demo = maybeDemoCode();
+          if (demo) {
+            resolve(demo);
+            return;
+          }
+          reject(new Error("wx.qy.login did not return code"));
         },
         fail(error) {
           const demo = maybeDemoCode();
