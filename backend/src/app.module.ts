@@ -5,6 +5,7 @@ import { LoggerModule } from "nestjs-pino";
 import { HealthController } from "./health.controller.js";
 import { MetricsController } from "./metrics/metrics.controller.js";
 import { AdminAuthModule } from "./admin-auth/admin-auth.module.js";
+import { AdminDatabaseModule } from "./admin-database/admin-database.module.js";
 import { AdminConfigModule } from "./admin-config/admin-config.module.js";
 import { AdminManagementModule } from "./admin-management/admin-management.module.js";
 import { DatabaseModule } from "./database/database.module.js";
@@ -41,6 +42,7 @@ import { ConfigModule } from "./config/config.module.js";
     OwnerBootstrapModule,
     WecomModule,
     AdminAuthModule,
+    AdminDatabaseModule,
     AdminManagementModule,
     AdminConfigModule
   ],

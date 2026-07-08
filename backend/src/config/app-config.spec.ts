@@ -36,6 +36,11 @@ describe("AppConfig", () => {
     expect(() => new AppConfig()).not.toThrow();
   });
 
+  it("exposes the configured database operations directory", () => {
+    process.env.DATABASE_DIR = "database";
+    expect(new AppConfig().databaseDir).toBe("database");
+  });
+
   it("rejects DEMO_AUTH_ENABLED in production", () => {
     process.env.NODE_ENV = "production";
     process.env.DATABASE_URL = "postgres://localhost/business-card-prod";

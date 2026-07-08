@@ -55,3 +55,17 @@ Use it only with:
 Never run `verify` on a production database or any database containing data that must be kept.
 
 Production initialization and upgrades should run `npm run migrate` with a migration/admin role, then run only non-destructive checks.
+
+## Admin Console Migration Entry
+
+The admin console can display pending migrations and let an owner manually run them. The database assets still live here; the backend only acts as a controlled executor.
+
+Configure the backend environment with:
+
+```bash
+DATABASE_DIR=database
+```
+
+Use the path that is correct for the backend process working directory. In the deployed layout produced by this repository, `database` is usually correct. When running the backend locally from `backend/`, use `../database`.
+
+The console checks `database/migrations` against PostgreSQL's `pgmigrations` table. Running migrations executes `npm run migrate` in `DATABASE_DIR`, so production servers must have database dependencies installed in that directory.

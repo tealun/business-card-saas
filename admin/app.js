@@ -53,6 +53,11 @@ const membersRows = document.querySelector("#membersRows");
 const fieldRows = document.querySelector("#fieldRows");
 const templateRows = document.querySelector("#templateRows");
 const syncEventRows = document.querySelector("#syncEventRows");
+const databaseDirText = document.querySelector("#databaseDir");
+const databaseMigrationFilesText = document.querySelector("#databaseMigrationFiles");
+const databasePendingCountText = document.querySelector("#databasePendingCount");
+const databaseMigrationRows = document.querySelector("#databaseMigrationRows");
+const databaseOutput = document.querySelector("#databaseOutput");
 
 apiBaseInput.value = defaultApiBase();
 adminTokenInput.value = state.adminToken;
@@ -276,6 +281,24 @@ function renderSyncEvents(result) {
     event.status,
     event.retry_count,
     event.processed_at || event.received_at
+  ]);
+}
+
+function renderDatabaseMigrations(result) {
+  databaseDirText.textContent = result.database_dir || (result.configured ? "--" : "未配置");
+  databaseMigrationFilesText.textContent = text(result.migration_files?.length || 0);
+  databasePendingCountText.textContent = text(result.pending_count);
+  const rows = result.pending_migrations?.length
+    ? result.pending_migrations
+    : (result.migration_files || []).map((fileName) => ({
+        name: fileName.replace(/\.js$/, ""),
+        file_name: fileName,
+        applied: true
+      }));
+  renderRows(databaseMigrationRows, rows, 3, (migration) => [
+    migration.name,
+    migration.file_name,
+    migration.applied ? "已执行" : "待执行"
   ]);
 }
 
@@ -700,6 +723,26 @@ document.querySelector("#retrySyncEvents").addEventListener("click", async () =>
     adminRequest("/admin/sync-events/retry", { method: "POST" })
   );
   document.querySelector("#loadSyncEvents").click();
+});
+
+document.querySelector("#loadDatabaseMigrations").addEventListener("click", async () => {
+  const result = await run("loading database migrations", databaseOutput, async () =>
+    adminRequest("/admin/database/migrations")
+  );
+  renderDatabaseMigrations(result);
+});
+
+document.querySelector("#runDatabaseMigrations").addEventListener("click", async () => {
+  if (!window.confirm("确认执行数据库迁移？执行前请确认已备份生产数据库。")) {
+    return;
+  }
+  const result = await run("running database migrations", databaseOutput, async () =>
+    adminRequest("/admin/database/migrations/run", {
+      method: "POST",
+      timeoutMs: 130_000
+    })
+  );
+  renderDatabaseMigrations(result.after || result.before);
 });
 
 document.querySelector("#loadAdminCard").addEventListener("click", async () => {

@@ -29,6 +29,7 @@ const appConfigSchema = z
     DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
     DATABASE_SSL: z.enum(["disable", "require"]).default("disable"),
     DATABASE_APPLICATION_NAME: z.string().min(1).default("business-card-backend"),
+    DATABASE_DIR: z.string().optional().or(z.literal("")),
 
     JWT_SECRET: z.string().min(32),
     ADMIN_JWT_SECRET: z.string().min(32),
@@ -134,6 +135,10 @@ export class AppConfig {
 
   get databaseApplicationName(): string {
     return this.values.DATABASE_APPLICATION_NAME;
+  }
+
+  get databaseDir(): string {
+    return this.values.DATABASE_DIR ?? "";
   }
 
   get demoAuthEnabled(): boolean {
