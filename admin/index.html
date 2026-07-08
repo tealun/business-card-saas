@@ -26,6 +26,7 @@
           <button class="nav-item" data-view-target="company">企业资料</button>
           <button class="nav-item" data-view-target="rules">字段与模板</button>
           <button class="nav-item" data-view-target="sync">同步</button>
+          <button class="nav-item" data-view-target="database">数据库</button>
           <button class="nav-item" data-view-target="setup">授权与联调</button>
         </nav>
       </aside>
@@ -384,6 +385,50 @@
                 </tbody>
               </table>
             </div>
+          </article>
+        </section>
+
+        <section class="view" data-view="database">
+          <div class="view-head">
+            <div>
+              <h2>数据库迁移</h2>
+              <p>检测 database/migrations 中尚未写入 pgmigrations 的迁移，并由 owner 手动执行。</p>
+            </div>
+            <div class="button-row compact-row">
+              <button id="runDatabaseMigrations" class="secondary">执行迁移</button>
+              <button id="loadDatabaseMigrations">检测迁移</button>
+            </div>
+          </div>
+          <article class="panel">
+            <div class="metric-grid database-metrics">
+              <div class="metric">
+                <span>数据库目录</span>
+                <strong id="databaseDir">--</strong>
+              </div>
+              <div class="metric">
+                <span>迁移文件</span>
+                <strong id="databaseMigrationFiles">--</strong>
+              </div>
+              <div class="metric">
+                <span>待执行</span>
+                <strong id="databasePendingCount">--</strong>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>迁移</th>
+                    <th>文件</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody id="databaseMigrationRows">
+                  <tr><td colspan="3">尚未加载</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre id="databaseOutput" class="output compact-output" aria-label="database output"></pre>
           </article>
         </section>
 

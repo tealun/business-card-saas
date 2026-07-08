@@ -64,6 +64,7 @@ cd backend
 # Generate 32-byte base64 keys with:
 # node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB"
+$env:DATABASE_DIR="database"
 $env:JWT_SECRET="<32+ chars random>"
 $env:ADMIN_JWT_SECRET="<32+ chars random>"
 $env:VISIT_TOKEN_SECRET="<32+ chars random>"
@@ -82,7 +83,7 @@ npm run build
 npm start
 ```
 
-生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化；不要执行 `database` ? `verify`。非本地一次性测试库运行 `database` ? `verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。
+生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化，或通过管理后台的数据库迁移入口由 owner 手动触发 `database` 子项目中的 `npm run migrate`；不要执行 `database` ? `verify`。非本地一次性测试库运行 `database` ? `verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。管理后台迁移入口依赖后端 `.env` 中的 `DATABASE_DIR`，部署布局通常填 `database`，本地从 `backend/` 启动时填 `../database`。
 
 ## 自动部署
 
