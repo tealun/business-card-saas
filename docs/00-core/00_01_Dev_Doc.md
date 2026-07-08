@@ -5,11 +5,11 @@
 文档定位：产品技术方案 / 架构设计草案 / 研发启动文档  
 适用对象：产品负责人、技术负责人、后端、前端、小程序、测试、运维、企业微信服务商配置人员
 
-> v0.3 变更说明：依据设计审计（`docs/99-audits/99_01_Design_Audit.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 29 章。
+> v0.3 变更说明：依据设计审计（`docs/99_audits/99_01_Design_Audit.md`）补充平台前置条件、企业微信第三方应用回调架构、PIPL 合规、DDL 补全、可观测性与 API 规范。审计对照见第 29 章。
 >
-> v0.4 变更说明：吸收落地性深度审计（`docs/99-audits/99_02_Landability_Audit.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
+> v0.4 变更说明：吸收落地性深度审计（`docs/99_audits/99_02_Landability_Audit.md`）及交叉复核补充。核心修复：公开名片全局 `public_id`、分享归因 `share_id`（不再暴露内部 ID）、联系我配置策略（禁止动态爆量）、隐私默认收紧（升 P0）、欢迎语调度、若干唯一约束与租户管理员/客户归属/配额表、缓存失效与分享矩阵。审计对照见第 29 章，落地补充见第 30–32 章。
 >
-> v0.4.5 变更说明：**docs/ 参考 moread 编号体系重构**。采用 `00-core / 01-specs / 02-tasks / 03-compliance / 88-planning / 99-audits / design` + `NN_MM_Title` 命名。本主文档移至 `docs/00-core/00_01_Dev_Doc.md`；审计移至 `docs/99-audits/99_01_Design_Audit.md`、`99_02_Landability_Audit.md`；`docs/README.md` 重写为索引 + 目录约定 + 维护规则；更新 §24 仓库结构。
+> v0.4.5 变更说明：**docs/ 参考 moread 编号体系重构**。采用 `00-core / 01-specs / 02-tasks / 03-compliance / 88-planning / 99_audits / design` + `NN_MM_Title` 命名。本主文档移至 `docs/00-core/00_01_Dev_Doc.md`；审计移至 `docs/99_audits/99_01_Design_Audit.md`、`99_02_Landability_Audit.md`；`docs/README.md` 重写为索引 + 目录约定 + 维护规则；更新 §24 仓库结构。
 >
 > v0.4.3 变更说明：**技术栈全面选定并去歧义**。后端选定 Node.js + TypeScript + NestJS（运行时后于 v0.4.6 由 Node 20 升为 **Node 24 LTS**，因 Node 20 已 EOL，见 §3.1 / §33）；对象存储腾讯云 COS、队列 BullMQ、加密腾讯云 KMS 等散落多选项一律收敛为单一选定；新增 **§33 技术栈与工程决策（单一事实源）**，实现期不再重新选型。见 §3.1、§17.1、§33。
 >
@@ -17,7 +17,7 @@
 >
 > v0.4.1 变更说明：**开发策略改为“垂直切片优先（walking skeleton）”**——MVP（M1）一次打通“微信级别名片 + 首个企业微信第三方应用对接”并 demo 成功，多租户地基一次到位；企业微信授权作为价值前提与最高风险项不再后置；平台接入作为前置并行轨（M0）。原 MVP-A/MVP-B 分层后置方案作废。见 §1.2、§19、§23、§25。
 >
-> v0.4.7 变更说明：吸收深度审计 #06（`docs/99-audits/99_06_Deep_Audit_And_Fixes.md`，九维度：架构 / 平台对接 / 安全 / 代码高效 / 运行流畅 / 信息隔离 / 数据准确 / 参数传递 / 用户体验）。核心修复：`visit_token` 签发与公开读缓存解耦（GET 可 CDN 缓存，token 改由 `POST /visit` 签发）；`card_visits` 补 `share_id` / `visit_id` / `anon_id` 归因字段；二次转发派生 `share_id` 公开签发通道与 `card_shares` 签发者字段；`tenant_admins` 纳入 RLS 清单；留资接口收紧鉴权；`visit_token` 形态选定 HMAC opaque；补 `## 19` 缺失标题与若干措辞 / 指针残留（§17.3、§22.3、§33.2）。对照见 §29.2。
+> v0.4.7 变更说明：吸收深度审计 #06（`docs/99_audits/99_06_Deep_Audit_And_Fixes.md`，九维度：架构 / 平台对接 / 安全 / 代码高效 / 运行流畅 / 信息隔离 / 数据准确 / 参数传递 / 用户体验）。核心修复：`visit_token` 签发与公开读缓存解耦（GET 可 CDN 缓存，token 改由 `POST /visit` 签发）；`card_visits` 补 `share_id` / `visit_id` / `anon_id` 归因字段；二次转发派生 `share_id` 公开签发通道与 `card_shares` 签发者字段；`tenant_admins` 纳入 RLS 清单；留资接口收紧鉴权；`visit_token` 形态选定 HMAC opaque；补 `## 19` 缺失标题与若干措辞 / 指针残留（§17.3、§22.3、§33.2）。对照见 §29.2。
 
 ---
 
@@ -1840,7 +1840,7 @@ CREATE INDEX idx_lead_status ON growth_leads (status);
 
 ### 15.4 v0.4.6 审计 #04 / #05 落地变更
 
-本节吸收 `99-audits/99_04_*` 与 `99_05_*`。全新库直接以最终形态建表；以下为在 §15/§15.3 之上的收口。
+本节吸收 `99_audits/99_04_*` 与 `99_05_*`。全新库直接以最终形态建表；以下为在 §15/§15.3 之上的收口。
 
 **A4-P0-1：公开名片解析目录（解决 public_id 与 RLS 启动矛盾）**
 
@@ -2410,7 +2410,7 @@ business-card-saas/
     02-tasks/                   # 任务执行记录与计划（里程碑拆分、Deferred）
     03-compliance/              # 合规（PIPL、隐私政策、SDK 清单）
     88-planning/                # 中长期规划（愿景、路线图、商业化、部署运维、灾备）
-    99-audits/                  # 审计报告（99_NN_<desc>.md）
+    99_audits/                  # 审计报告（99_NN_<desc>.md）
     design/                     # 设计交付与素材
 ```
 
@@ -2529,7 +2529,7 @@ business-card-saas/
 
 ## 29. 审计对照表
 
-本文档 v0.3 依据设计审计（`docs/99-audits/99_01_Design_Audit.md`）修订，逐条对照：
+本文档 v0.3 依据设计审计（`docs/99_audits/99_01_Design_Audit.md`）修订，逐条对照：
 
 | 审计 ID | 级别 | 处理位置 | 状态 |
 |---------|------|----------|------|

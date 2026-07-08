@@ -4,7 +4,7 @@
 审计对象：`docs/` v0.4.5 文档体系（HEAD `2ca0125`）
 审计类型：**核验前次审计（#04）真实性 + 补充新问题**
 自动分级：Deep（风险分 ≥ 6：企业微信第三方接入 +3、PII/加密 +3、多租户 admin/permission +3、webhook 回调 +1）
-基线：`docs/99-audits/99_04_Implementation_Readiness_Audit.md`
+基线：`docs/99_audits/99_04_Implementation_Readiness_Audit.md`
 
 > 说明：自 #04（本日提交）以来工作区无改动，#04 所列 P0/P1 全部仍为开放状态。本轮不重复列举修复建议，只做两件事：(1) 逐条核验 #04 findings 是否属实（防止上一轮审计凭空捏造）；(2) 报告 #04 未覆盖的新问题。
 
@@ -61,7 +61,7 @@ API 规格 §3.4: GET  /api/v1/contact-way/cards/{public_id}
 
 ### N-2（P2，文档治理）：README 索引漏登 `99_04`（且将漏 `99_05`）
 
-**位置**：`docs/README.md` §99-audits 表（:54-56）
+**位置**：`docs/README.md` §99_audits 表（:54-56）
 
 **现状**：索引只列 `99_01/02/03`，本日已提交的 `99_04_Implementation_Readiness_Audit.md` 未登记；README 自称「本索引统一维护」，已开始滞后。
 

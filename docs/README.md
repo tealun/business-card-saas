@@ -9,7 +9,7 @@
 - `02-tasks/`：任务执行记录与计划（里程碑拆分、Deferred）
 - `03-compliance/`：合规（PIPL、隐私政策、用户协议、第三方 SDK 清单）
 - `88-planning/`：中长期规划（产品愿景、路线图、商业化、部署与运维、灾备）
-- `99-audits/`：审计记录
+- `99_audits/`：审计记录
 - `design/`：设计交付与素材（原型、图标、切图）
 
 ## 命名规范
@@ -69,17 +69,17 @@
 | [`88_01_Backend_Deployment_Guide.md`](88-planning/88_01_Backend_Deployment_Guide.md) | GitHub Actions 后端自动部署配置：路径 Secret、SSH key / password 兼容、rsync 保护目录、可选重启命令与回滚步骤。 |
 | [`88_02_Admin_Deployment_Guide.md`](88-planning/88_02_Admin_Deployment_Guide.md) | GitHub Actions 管理后台静态部署配置：admin 专用变量、同服/分服部署方式、rsync 保护目录与回滚步骤。 |
 
-### 99-audits（审计）
+### 99_audits（审计）
 
 | 文档 | 内容 |
 |------|------|
-| [`99_01_Design_Audit.md`](99-audits/99_01_Design_Audit.md) | 设计审计（原 audit_01） |
-| [`99_02_Landability_Audit.md`](99-audits/99_02_Landability_Audit.md) | 落地性深度审计（原 audit_02） |
-| [`99_03_Docs_Split_Audit.md`](99-audits/99_03_Docs_Split_Audit.md) | 文档拆分一致性审计 |
-| [`99_04_Implementation_Readiness_Audit.md`](99-audits/99_04_Implementation_Readiness_Audit.md) | 实施就绪深度审计（P0/P1/P2） |
-| [`99_05_Verification_And_New_Findings.md`](99-audits/99_05_Verification_And_New_Findings.md) | 核验 #04 + 新发现（N-1/N-2）；修复见 §15.4 |
-| [`99_06_Deep_Audit_And_Fixes.md`](99-audits/99_06_Deep_Audit_And_Fixes.md) | 九维度深度审计（架构/平台对接/安全/代码高效/运行流畅/信息隔离/数据准确/参数传递/用户体验）+ 修复落地（v0.4.7） |
-| [`99_07_Nine_Dimension_Docs_Reaudit.md`](99-audits/99_07_Nine_Dimension_Docs_Reaudit.md) | 九维度开发文档复审（#06 后）：无新 P0；4 个 P1、5 个 P2 已修复落地 |
+| [`99_01_Design_Audit.md`](99_audits/99_01_Design_Audit.md) | 设计审计（原 audit_01） |
+| [`99_02_Landability_Audit.md`](99_audits/99_02_Landability_Audit.md) | 落地性深度审计（原 audit_02） |
+| [`99_03_Docs_Split_Audit.md`](99_audits/99_03_Docs_Split_Audit.md) | 文档拆分一致性审计 |
+| [`99_04_Implementation_Readiness_Audit.md`](99_audits/99_04_Implementation_Readiness_Audit.md) | 实施就绪深度审计（P0/P1/P2） |
+| [`99_05_Verification_And_New_Findings.md`](99_audits/99_05_Verification_And_New_Findings.md) | 核验 #04 + 新发现（N-1/N-2）；修复见 §15.4 |
+| [`99_06_Deep_Audit_And_Fixes.md`](99_audits/99_06_Deep_Audit_And_Fixes.md) | 九维度深度审计（架构/平台对接/安全/代码高效/运行流畅/信息隔离/数据准确/参数传递/用户体验）+ 修复落地（v0.4.7） |
+| [`99_07_Nine_Dimension_Docs_Reaudit.md`](99_audits/99_07_Nine_Dimension_Docs_Reaudit.md) | 九维度开发文档复审（#06 后）：无新 P0；4 个 P1、5 个 P2 已修复落地 |
 
 ## 建议阅读顺序
 
@@ -92,4 +92,4 @@
 - **单一事实源**：主文档是决策事实源；各 `01-specs` 指引是其领域执行细节事实源。不复制正文，跨文档用相对链接互引。
 - **以实现为准**：文档与代码冲突时以代码为准并立即修订。
 - **变更同步**：路由、数据库结构、企业微信链路、技术选型变更时同步更新 `00-core` 与相关 spec；技术选型以 §33 为唯一事实源。
-- **审计**：报告放 `99-audits/`，按最新文件为准，不在索引维护易过期的“全部关闭”统计。
+- **审计**：报告放 `99_audits/`，按最新文件为准，不在索引维护易过期的“全部关闭”统计。

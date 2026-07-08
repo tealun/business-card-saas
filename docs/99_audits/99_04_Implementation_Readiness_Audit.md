@@ -11,7 +11,7 @@
 - `docs/01-specs/01_03_Miniprogram_Guide.md`
 - `docs/01-specs/01_04_Admin_Web_Guide.md`
 - `docs/03-compliance/03_01_PIPL.md`
-- `docs/99-audits/99_03_Docs_Split_Audit.md`
+- `docs/99_audits/99_03_Docs_Split_Audit.md`
 
 审计类型：实施就绪 / 多租户安全 / 企业微信关键链路 / PostgreSQL RLS / 技术栈生命周期 / 合规边界  
 结论等级：**可以进入 M0/M1 预研与脚手架阶段，但不建议直接进入完整 M1 编码。先修 P0，再开主干开发。**
@@ -24,7 +24,7 @@
 
 v0.4.5 比 v0.3/v0.4 已经成熟很多。值得肯定的改进包括：
 
-- 文档目录已重构为 `00-core / 01-specs / 03-compliance / 99-audits`，并且有索引与事实源约定。
+- 文档目录已重构为 `00-core / 01-specs / 03-compliance / 99_audits`，并且有索引与事实源约定。
 - 主文档已吸收 `public_id`、`share_id`、联系我配置策略、welcome_code 调度、隐私默认收紧、PostgreSQL/RLS、技术栈收敛等关键修复。
 - M1 从“先微信、后企微”改为“垂直切片”，尽早验证企业微信服务商模式，这是合理的。
 - 已经意识到 M0 平台接入有审核周期，且单独作为前置并行轨。

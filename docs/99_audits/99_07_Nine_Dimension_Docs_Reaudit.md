@@ -201,4 +201,4 @@
 - 逐条取证：`Select-String` 检查 `visitor_accounts`、`current_setting`、`anon_id`、`contact_way`、M0/M1/M3 门槛、API path、`UNIQUE(tenant_id, member_identity_id, strategy, channel)`。
 - 修复写入：`00_01`、`00_02`、`01_01`、`01_02`、`02_00`、`02_01`、`99_07`、`docs/README.md`。
 - 外部核验：Node.js 官方 release schedule（仅用于确认技术栈版本时效）。
-- 报告写入：`docs/99-audits/99_07_Nine_Dimension_Docs_Reaudit.md`。
+- 报告写入：`docs/99_audits/99_07_Nine_Dimension_Docs_Reaudit.md`。

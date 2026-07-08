@@ -3,7 +3,7 @@
 ## Scope
 
 - Repository state: `main` at `d58e8fa`
-- Primary target: verify `docs/99-audits/99_51_daily_identity_audit.md`, then run an independent deep audit of the identity/login/public-card surfaces.
+- Primary target: verify `docs/99_audits/99_51_daily_identity_audit.md`, then run an independent deep audit of the identity/login/public-card surfaces.
 - Skill mode: Tasker Level L + Project Audit highest-depth review.
 - Phase boundary: audit only. No source-code fixes were made in this pass.
 
