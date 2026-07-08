@@ -14,6 +14,13 @@
 - 多身份默认进 `account_preferences.last_member_identity_id`，不每次强弹选择器（§6.2）。用户可在“当前发送身份”中切换个人名片或企业名片。
 - 同一账号可同时拥有 `personal` 个人名片与多个 `wecom_member` 企业员工名片；企业同步资料不能覆盖个人名片。
 
+小程序端实现约定：
+
+- `miniprogram/utils/auth.js` 是员工端唯一登录入口。页面不得直接调用 `/auth/qy-login` 或 `/auth/wx-login` 后自行覆盖 token。
+- 当 `wx.qy.login` 可用时优先按企业微信登录；普通微信环境走 `wx.login`，登录后可编辑和分享个人名片。
+- 登录响应里的 `current_identity` 和 `identities` 写入 `app.globalData.currentIdentity` / `app.globalData.identities`。首页“切换名片”只向后端提交 `member_identity_id`，不得提交 `tenant_id`。
+- 进入编辑、分享、样式等员工页时复用当前 token；没有 token 时才重新 `ensureSession()`，避免用户刚切到个人名片又被页面重新企微登录覆盖。
+
 ## 2. 页面清单与路由
 
 员工端（§12.1）：`employee/index`、`identity-switch`、`edit`、`share`、`poster`、`stats`、`bind`。

@@ -1,6 +1,6 @@
 <view class="page page--with-footer edit-page">
   <view class="status-bar status-bar--warning" wx:if="{{error}}">
-    当前为演示资料，连接企业微信后会自动同步真实名片。
+    当前为演示资料，登录后会同步真实名片。
   </view>
   <view class="card skeleton-card" wx:if="{{loading}}">
     <view class="skeleton skeleton-line skeleton-line--short"></view>

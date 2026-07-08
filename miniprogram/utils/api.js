@@ -64,7 +64,7 @@ function request(path, options = {}) {
 
 function qyLoginCode() {
   return new Promise((resolve, reject) => {
-    if (wx.qy && wx.qy.login) {
+    if (isWeComRuntime()) {
       wx.qy.login({
         success(result) {
           if (result.code) {
@@ -93,14 +93,56 @@ function qyLoginCode() {
   });
 }
 
-function maybeDemoCode() {
+function wxLoginCode() {
+  return new Promise((resolve, reject) => {
+    if (typeof wx.login !== "function") {
+      const demo = maybeDemoCode("wx");
+      if (demo) {
+        resolve(demo);
+        return;
+      }
+      reject(new Error("wx.login is not available"));
+      return;
+    }
+    wx.login({
+      success(result) {
+        if (result.code) {
+          resolve(result.code);
+          return;
+        }
+        const demo = maybeDemoCode("wx");
+        if (demo) {
+          resolve(demo);
+          return;
+        }
+        reject(new Error("wx.login did not return code"));
+      },
+      fail(error) {
+        const demo = maybeDemoCode("wx");
+        if (demo) {
+          resolve(demo);
+          return;
+        }
+        reject(error);
+      }
+    });
+  });
+}
+
+function isWeComRuntime() {
+  return Boolean(wx.qy && typeof wx.qy.login === "function");
+}
+
+function maybeDemoCode(type = "qy") {
   if (app.globalData.demoAuthEnabled) {
-    return "demo-qy-code";
+    return type === "wx" ? "demo-wx-code" : "demo-qy-code";
   }
   return "";
 }
 
 module.exports = {
   request,
-  qyLoginCode
+  qyLoginCode,
+  wxLoginCode,
+  isWeComRuntime
 };

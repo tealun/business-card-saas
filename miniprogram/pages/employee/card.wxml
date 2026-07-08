@@ -1,6 +1,6 @@
 <view class="page page--with-footer card-page">
   <view class="status-bar status-bar--warning" wx:if="{{error}}">
-    当前为演示名片，连接企业微信后会自动同步真实资料。
+    当前为演示名片，登录后会同步真实资料。
   </view>
   <view class="card skeleton-card" wx:if="{{loading}}">
     <view class="skeleton skeleton-line skeleton-line--short"></view>
@@ -27,7 +27,7 @@
   </view>
 
   <view class="card-actions">
-    <view class="btn btn--sm btn--ghost" bindtap="login">企微登录</view>
+    <view class="btn btn--sm btn--ghost" bindtap="login">重新登录</view>
     <view class="btn btn--sm btn--soft" bindtap="loadCard">
       <view class="icon icon-reload icon--sm"></view>
       <text>刷新</text>
