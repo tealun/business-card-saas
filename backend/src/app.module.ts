@@ -22,7 +22,7 @@ import { ConfigModule } from "./config/config.module.js";
     ConfigModule,
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.NODE_ENV === "production" ? "info" : "debug"
+        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "error" : "debug")
       }
     }),
     ThrottlerModule.forRoot({
