@@ -1,0 +1,17 @@
+{
+  "name": "business-card-database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "migrate": "node-pg-migrate up --migrations-dir migrations",
+    "migrate:create": "node-pg-migrate create --migrations-dir migrations",
+    "check": "node scripts/db-check.cjs",
+    "verify": "node scripts/db-verify.cjs",
+    "rls:validate": "node scripts/validate-rls.cjs"
+  },
+  "dependencies": {
+    "node-pg-migrate": "8.0.4",
+    "pg": "8.22.0"
+  }
+}

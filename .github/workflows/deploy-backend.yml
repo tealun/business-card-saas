@@ -51,10 +51,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: ./backend/package-lock.json
+          cache-dependency-path: |
+            ./backend/package-lock.json
+            ./database/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         working-directory: ./backend
+        run: npm ci
+
+      - name: Install database dependencies
+        working-directory: ./database
         run: npm ci
 
       - name: Verify backend
@@ -63,8 +69,11 @@ jobs:
           npm run typecheck
           npm run lint
           npm test -- --coverage --coverageThreshold='{}'
-          npm run rls:validate
           npm run build
+
+      - name: Verify database assets
+        working-directory: ./database
+        run: npm run rls:validate
 
       - name: Install deploy tools
         run: sudo apt-get update && sudo apt-get install -y rsync sshpass
@@ -182,6 +191,7 @@ jobs:
 
             rsync -az --delete \
               -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              "${excludes[@]}" \
               database/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
           else
@@ -199,6 +209,7 @@ jobs:
 
             sshpass -e rsync -az --delete \
               -e "ssh -p ${DEPLOY_PORT}" \
+              "${excludes[@]}" \
               database/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
           fi

@@ -129,17 +129,18 @@ Recommended first-time sequence in BaoTa:
 1. Wait until GitHub Actions has synced files and `${BACKEND_DEPLOY_PATH}/package.json` exists.
 2. Copy `${BACKEND_DEPLOY_PATH}/.env.example` to `${BACKEND_DEPLOY_PATH}/.env`.
 3. Edit `${BACKEND_DEPLOY_PATH}/.env` with production values.
-4. In BaoTa, install dependencies with `npm ci`.
-5. Build with `npm run build`.
-6. Run database migration with `npm run db:migrate`.
-7. Run database readiness check with `npm run db:check`.
-8. Start or restart the Node project.
+4. In BaoTa, install backend dependencies from `${BACKEND_DEPLOY_PATH}` with `npm ci`.
+5. Build backend with `npm run build`.
+6. Install database dependencies from `${BACKEND_DEPLOY_PATH}/database` with `npm ci`.
+7. Run database migration from `${BACKEND_DEPLOY_PATH}/database` with `npm run migrate`.
+8. Run database readiness check from `${BACKEND_DEPLOY_PATH}/database` with `npm run check`.
+9. Start or restart the Node project.
 
 For later code-only deployments, GitHub Actions syncs source and database assets. BaoTa can then run:
 
 ```bash
-npm run db:migrate
-npm run db:check
+(cd database && npm run migrate)
+(cd database && npm run check)
 npm run start:prod
 ```
 
@@ -267,7 +268,7 @@ Do not put secret values in `DEPLOY_RESTART_COMMAND`; read them from the server-
 1. Configure GitHub Secrets.
 2. Confirm `${BACKEND_DEPLOY_PATH}/.env` exists on the server and contains production values.
 3. Push a change under `backend/**` or run the workflow manually.
-4. After first deployment or any schema change, run `npm run db:migrate` and `npm run db:check` on the server with the production `.env` loaded.
+4. After first deployment or any schema change, run `npm run migrate` and `npm run check` from `${BACKEND_DEPLOY_PATH}/database` on the server with the production `DATABASE_URL` loaded.
 5. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.
 6. On the server, confirm the backend is built/restarted by the panel or `DEPLOY_RESTART_COMMAND`.
 7. Verify `/api/v1/health/ready`.
