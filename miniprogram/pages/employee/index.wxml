@@ -1,217 +1,233 @@
-<view class="page" style="--brand: {{themeBrand}};">
-  <view class="status-bar status-bar--warning" wx:if="{{error || demoMode}}">
-    当前互动数据为演示样例，连接企业微信后名片资料会同步真实数据。
-  </view>
-  <view class="identity-strip" wx:if="{{currentIdentity}}">
-    <view class="identity-strip__main">
-      <text class="badge {{currentIdentity.badgeClass}}">{{currentIdentity.typeLabel}}</text>
-      <view class="identity-strip__text">
-        <view class="identity-strip__name">{{currentIdentity.display_name || "我的名片"}}</view>
-        <view class="identity-strip__sub">{{currentIdentity.subtitle}}</view>
-      </view>
+<view class="page {{!loggedIn ? 'page--with-login' : ''}}" style="--brand: {{themeBrand}};">
+  <view class="page__content">
+    <view class="status-bar status-bar--warning" wx:if="{{authState === 'guest'}}">
+      当前为未登录体验，演示数据仅用于预览流程，登录后会同步你的真实名片。
     </view>
-    <view class="btn btn--sm btn--soft identity-strip__btn" bindtap="openIdentitySheet">切换</view>
-  </view>
-
-  <block wx:if="{{loading}}">
-    <view class="card skeleton-card">
-      <view class="skeleton skeleton-line skeleton-line--short"></view>
-      <view class="skeleton skeleton-line skeleton-line--name"></view>
-      <view class="skeleton skeleton-line"></view>
-      <view class="skeleton skeleton-line skeleton-line--short"></view>
+    <view class="status-bar status-bar--danger" wx:elif="{{authState === 'failed'}}">
+      登录失败，当前展示演示数据。请点击底部登录按钮重试。
     </view>
-  </block>
-
-  <block wx:else>
-    <view class="biz-card home-card" bindtap="goEdit">
-      <view class="biz-card__head">
-        <view class="biz-card__logo"></view>
-        <text class="biz-card__company">{{card.company || "智云科技"}}</text>
+    <view class="identity-strip" wx:if="{{currentIdentity}}">
+      <view class="identity-strip__main">
+        <text class="badge {{currentIdentity.badgeClass}}">{{currentIdentity.typeLabel}}</text>
+        <view class="identity-strip__text">
+          <view class="identity-strip__name">{{currentIdentity.display_name || "我的名片"}}</view>
+          <view class="identity-strip__sub">{{currentIdentity.subtitle}}</view>
+        </view>
       </view>
-      <view class="biz-card__body">
-        <view class="biz-card__info">
-          <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
-          <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
-          <view class="biz-card__contact">
-            <view>{{card.fields.mobile || card.fields.phone || "联系方式未公开"}}</view>
-            <view>{{card.fields.email || "邮箱未公开"}}</view>
+      <view class="btn btn--sm btn--soft identity-strip__btn" bindtap="openIdentitySheet">切换</view>
+    </view>
+
+    <block wx:if="{{loading}}">
+      <view class="card skeleton-card">
+        <view class="skeleton skeleton-line skeleton-line--short"></view>
+        <view class="skeleton skeleton-line skeleton-line--name"></view>
+        <view class="skeleton skeleton-line"></view>
+        <view class="skeleton skeleton-line skeleton-line--short"></view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="biz-card home-card" bindtap="goEdit">
+        <view class="biz-card__head">
+          <view class="biz-card__logo"></view>
+          <text class="biz-card__company">{{card.company || "智云科技"}}</text>
+        </view>
+        <view class="biz-card__body">
+          <view class="biz-card__info">
+            <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
+            <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
+            <view class="biz-card__contact">
+              <view>{{card.fields.mobile || card.fields.phone || "联系方式未公开"}}</view>
+              <view>{{card.fields.email || "邮箱未公开"}}</view>
+            </view>
+          </view>
+          <view class="biz-card__avatar">
+            <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+            <text wx:else>{{card.display_name ? card.display_name[0] : "名"}}</text>
           </view>
         </view>
-        <view class="biz-card__avatar">
-          <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
-          <text wx:else>{{card.display_name ? card.display_name[0] : "名"}}</text>
+        <view class="biz-card__status">
+          <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
+          <text wx:elif="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
+          <text wx:else class="badge badge--muted">未启用</text>
         </view>
       </view>
-      <view class="biz-card__status">
-        <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
-        <text wx:elif="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
-        <text wx:else class="badge badge--muted">未启用</text>
-      </view>
-    </view>
 
-    <view class="card quick-bar">
-      <view class="quick-bar__item" bindtap="goEdit">
-        <view class="icon icon-edit"></view>
-        <text>编辑资料</text>
+      <view class="card quick-bar">
+        <view class="quick-bar__item" bindtap="goEdit">
+          <view class="icon icon-edit"></view>
+          <text>编辑资料</text>
+        </view>
+        <view class="quick-bar__sep"></view>
+        <view class="quick-bar__item" bindtap="goStyle">
+          <view class="icon icon-style"></view>
+          <text>名片样式</text>
+        </view>
+        <view class="quick-bar__sep"></view>
+        <view class="quick-bar__item" bindtap="openIdentitySheet">
+          <view class="icon icon-switch"></view>
+          <text>切换名片</text>
+        </view>
       </view>
-      <view class="quick-bar__sep"></view>
-      <view class="quick-bar__item" bindtap="goStyle">
-        <view class="icon icon-style"></view>
-        <text>名片样式</text>
-      </view>
-      <view class="quick-bar__sep"></view>
-      <view class="quick-bar__item" bindtap="openIdentitySheet">
-        <view class="icon icon-switch"></view>
-        <text>切换名片</text>
-      </view>
-    </view>
 
-    <view class="btn btn--primary btn--block send-btn" bindtap="openSheet">
-      <view class="icon icon-send icon--sm"></view>
-      <text>发名片</text>
-    </view>
+      <view class="btn btn--primary btn--block send-btn" bindtap="openSheet">
+        <view class="icon icon-send icon--sm"></view>
+        <text>发名片</text>
+      </view>
 
-    <view class="card tool-grid">
-      <view class="tool-grid__item" bindtap="openSheet">
-        <view class="icon icon-image"></view>
-        <text>名片图片</text>
+      <view class="card tool-grid">
+        <view class="tool-grid__item" bindtap="openSheet">
+          <view class="icon icon-image"></view>
+          <text>名片图片</text>
+        </view>
+        <view class="tool-grid__item" bindtap="goStyle">
+          <view class="icon icon-text"></view>
+          <text>文字转名片</text>
+        </view>
+        <view class="tool-grid__item" bindtap="goWallet">
+          <view class="icon icon-rank"></view>
+          <text>名片榜单</text>
+        </view>
+        <view class="tool-grid__item" bindtap="createShare">
+          <view class="icon icon-qrcode"></view>
+          <text>名片码</text>
+        </view>
+        <view class="tool-grid__item" bindtap="openSheet">
+          <view class="icon icon-grid"></view>
+          <text>全部</text>
+        </view>
       </view>
-      <view class="tool-grid__item" bindtap="goStyle">
-        <view class="icon icon-text"></view>
-        <text>文字转名片</text>
-      </view>
-      <view class="tool-grid__item" bindtap="goWallet">
-        <view class="icon icon-rank"></view>
-        <text>名片榜单</text>
-      </view>
-      <view class="tool-grid__item" bindtap="createShare">
-        <view class="icon icon-qrcode"></view>
-        <text>名片码</text>
-      </view>
-      <view class="tool-grid__item" bindtap="openSheet">
-        <view class="icon icon-grid"></view>
-        <text>全部</text>
-      </view>
-    </view>
 
-    <view class="card" wx:if="{{requests.length}}">
-      <view class="row-between">
-        <text class="card__title">交换请求</text>
-        <text class="card__more">有 {{requests.length}} 人请求交换</text>
-      </view>
-      <view class="request-item" wx:for="{{requests}}" wx:key="id">
-        <view class="request-item__avatar">{{item.name[0]}}</view>
-        <view class="request-item__info">
-          <view class="f14 medium">{{item.name}}</view>
-          <view class="f12 t-secondary">{{item.title}}</view>
+      <view class="card" wx:if="{{requests.length}}">
+        <view class="row-between">
+          <text class="card__title">交换请求</text>
+          <text class="card__more">有 {{requests.length}} 人请求交换</text>
         </view>
-        <view class="btn btn--sm btn--muted" data-id="{{item.id}}" catchtap="ignoreRequest">忽略</view>
-        <view class="btn btn--sm btn--primary" data-id="{{item.id}}" catchtap="acceptRequest">同意</view>
+        <view class="request-item" wx:for="{{requests}}" wx:key="id">
+          <view class="request-item__avatar">{{item.name[0]}}</view>
+          <view class="request-item__info">
+            <view class="f14 medium">{{item.name}}</view>
+            <view class="f12 t-secondary">{{item.title}}</view>
+          </view>
+          <view class="btn btn--sm btn--muted" data-id="{{item.id}}" catchtap="ignoreRequest">忽略</view>
+          <view class="btn btn--sm btn--primary" data-id="{{item.id}}" catchtap="acceptRequest">同意</view>
+        </view>
       </view>
-    </view>
 
-    <view class="card">
-      <text class="card__title">我的名片数据</text>
-      <view class="stat-row">
-        <view class="stat-row__item">
-          <view class="stat-row__num t-brand">{{stats.visitors}}</view>
-          <view class="stat-row__label">访客</view>
+      <view class="card">
+        <text class="card__title">我的名片数据</text>
+        <view class="stat-row">
+          <view class="stat-row__item">
+            <view class="stat-row__num t-brand">{{stats.visitors}}</view>
+            <view class="stat-row__label">访客</view>
+          </view>
+          <view class="stat-row__item">
+            <view class="stat-row__num">{{stats.viewed}}</view>
+            <view class="stat-row__label">我看过</view>
+          </view>
+          <view class="stat-row__item">
+            <view class="stat-row__num">{{stats.friends}}</view>
+            <view class="stat-row__label">好友名片</view>
+          </view>
         </view>
-        <view class="stat-row__item">
-          <view class="stat-row__num">{{stats.viewed}}</view>
-          <view class="stat-row__label">我看过</view>
-        </view>
-        <view class="stat-row__item">
-          <view class="stat-row__num">{{stats.friends}}</view>
-          <view class="stat-row__label">好友名片</view>
+        <view class="divider"></view>
+        <view class="visitor-item" wx:for="{{recentVisitors}}" wx:key="id">
+          <view class="visitor-item__avatar visitor-item__avatar--{{item.state}}">{{item.name[0]}}</view>
+          <view class="visitor-item__info">
+            <view class="f14 medium">{{item.name}}</view>
+            <view class="f12 t-secondary">{{item.title}}</view>
+          </view>
+          <view class="visitor-item__right">
+            <text class="badge badge--success" wx:if="{{item.state === 'exchanged'}}">已交换</text>
+            <text class="badge badge--warning" wx:elif="{{item.state === 'pending'}}">待通过</text>
+            <text class="f12 t-secondary" wx:else>{{item.meta}}</text>
+            <text class="visitor-item__time">{{item.time}}</text>
+          </view>
         </view>
       </view>
-      <view class="divider"></view>
-      <view class="visitor-item" wx:for="{{recentVisitors}}" wx:key="id">
-        <view class="visitor-item__avatar visitor-item__avatar--{{item.state}}">{{item.name[0]}}</view>
-        <view class="visitor-item__info">
-          <view class="f14 medium">{{item.name}}</view>
-          <view class="f12 t-secondary">{{item.title}}</view>
-        </view>
-        <view class="visitor-item__right">
-          <text class="badge badge--success" wx:if="{{item.state === 'exchanged'}}">已交换</text>
-          <text class="badge badge--warning" wx:elif="{{item.state === 'pending'}}">待通过</text>
-          <text class="f12 t-secondary" wx:else>{{item.meta}}</text>
-          <text class="visitor-item__time">{{item.time}}</text>
-        </view>
-      </view>
-    </view>
-  </block>
-</view>
-
-<view class="sheet-mask {{sheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeSheet"></view>
-<view class="sheet {{sheetVisible ? 'sheet--show' : ''}}">
-  <view class="sheet__grab"></view>
-  <view class="row-between sheet__head">
-    <text class="card__title">发名片</text>
-    <view class="icon icon-close icon--sm" catchtap="closeSheet"></view>
+    </block>
   </view>
-  <view class="sheet__thumb">
-    <view class="sheet__thumb-title">{{card.display_name || "我的名片"}}</view>
-    <view class="sheet__thumb-sub">{{card.title || "职位未设置"}} · {{card.company || "智云科技"}}</view>
-  </view>
-  <view class="sheet__grid">
-    <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
-      <view class="icon icon-forward"></view>
-      <text>转发给好友/群</text>
-    </view>
-    <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
-      <view class="icon icon-image"></view>
-      <text>生成名片海报</text>
-    </view>
-    <view class="sheet__cell" bindtap="createShare">
-      <view class="icon icon-qrcode"></view>
-      <text>名片小程序码</text>
-    </view>
-    <view class="sheet__cell" bindtap="copyLink">
-      <view class="icon icon-paper"></view>
-      <text>复制链接</text>
-    </view>
-  </view>
-  <view class="poster-preview">
-    <view class="poster-card">
-      <view class="poster-card__top">{{card.company || "智云科技"}}</view>
-      <view class="poster-card__name">{{card.display_name || "李明"}}</view>
-      <view class="poster-card__qr"></view>
-    </view>
-    <view class="poster-preview__copy">
-      <view class="medium">名片海报已按企业品牌生成</view>
-      <view class="f12 t-secondary">可保存到相册，也可直接转发给客户。</view>
-    </view>
-  </view>
-  <view class="sheet__tip">分享链接仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
-</view>
 
-<view class="sheet-mask {{identitySheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeIdentitySheet"></view>
-<view class="sheet {{identitySheetVisible ? 'sheet--show' : ''}}">
-  <view class="sheet__grab"></view>
-  <view class="row-between sheet__head">
-    <text class="card__title">切换名片</text>
-    <view class="icon icon-close icon--sm" catchtap="closeIdentitySheet"></view>
-  </view>
-  <view class="identity-list">
-    <view
-      class="identity-option {{item.selected ? 'identity-option--active' : ''}}"
-      wx:for="{{identities}}"
-      wx:key="member_identity_id"
-      data-id="{{item.member_identity_id}}"
-      bindtap="chooseIdentity"
+  <view class="login-fixed" wx:if="{{!loggedIn}}">
+    <button
+      class="btn btn--block login-fixed__btn login-fixed__btn--orange"
+      bindtap="triggerLogin"
+      disabled="{{loginSubmitting}}"
+      loading="{{loginSubmitting}}"
     >
-      <view class="identity-option__avatar">{{item.display_name ? item.display_name[0] : "名"}}</view>
-      <view class="identity-option__body">
-        <view class="identity-option__top">
-          <text class="identity-option__name">{{item.display_name || "我的名片"}}</text>
-          <text class="badge {{item.badgeClass}}">{{item.typeLabel}}</text>
-        </view>
-        <view class="identity-option__sub">{{item.subtitle}}</view>
-      </view>
-      <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
-    </view>
+      {{loginSubmitting ? "登录中..." : "立即登录，同步我的名片"}}
+    </button>
   </view>
-  <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份…" : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
+
+  <view class="sheet-mask {{sheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeSheet"></view>
+  <view class="sheet {{sheetVisible ? 'sheet--show' : ''}}">
+    <view class="sheet__grab"></view>
+    <view class="row-between sheet__head">
+      <text class="card__title">发名片</text>
+      <view class="icon icon-close icon--sm" catchtap="closeSheet"></view>
+    </view>
+    <view class="sheet__thumb">
+      <view class="sheet__thumb-title">{{card.display_name || "我的名片"}}</view>
+      <view class="sheet__thumb-sub">{{card.title || "职位未设置"}} · {{card.company || "智云科技"}}</view>
+    </view>
+    <view class="sheet__grid">
+      <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
+        <view class="icon icon-forward"></view>
+        <text>转发给好友/群</text>
+      </view>
+      <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
+        <view class="icon icon-image"></view>
+        <text>生成名片海报</text>
+      </view>
+      <view class="sheet__cell" bindtap="createShare">
+        <view class="icon icon-qrcode"></view>
+        <text>名片小程序码</text>
+      </view>
+      <view class="sheet__cell" bindtap="copyLink">
+        <view class="icon icon-paper"></view>
+        <text>复制链接</text>
+      </view>
+    </view>
+    <view class="poster-preview">
+      <view class="poster-card">
+        <view class="poster-card__top">{{card.company || "智云科技"}}</view>
+        <view class="poster-card__name">{{card.display_name || "李明"}}</view>
+        <view class="poster-card__qr"></view>
+      </view>
+      <view class="poster-preview__copy">
+        <view class="medium">名片海报已按企业品牌生成</view>
+        <view class="f12 t-secondary">可保存到相册，也可直接转发给客户。</view>
+      </view>
+    </view>
+    <view class="sheet__tip">分享链接仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
+  </view>
+
+  <view class="sheet-mask {{identitySheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeIdentitySheet"></view>
+  <view class="sheet {{identitySheetVisible ? 'sheet--show' : ''}}">
+    <view class="sheet__grab"></view>
+    <view class="row-between sheet__head">
+      <text class="card__title">切换名片</text>
+      <view class="icon icon-close icon--sm" catchtap="closeIdentitySheet"></view>
+    </view>
+    <view class="identity-list">
+      <view
+        class="identity-option {{item.selected ? 'identity-option--active' : ''}}"
+        wx:for="{{identities}}"
+        wx:key="member_identity_id"
+        data-id="{{item.member_identity_id}}"
+        bindtap="chooseIdentity"
+      >
+        <view class="identity-option__avatar">{{item.display_name ? item.display_name[0] : "名"}}</view>
+        <view class="identity-option__body">
+          <view class="identity-option__top">
+            <text class="identity-option__name">{{item.display_name || "我的名片"}}</text>
+            <text class="badge {{item.badgeClass}}">{{item.typeLabel}}</text>
+          </view>
+          <view class="identity-option__sub">{{item.subtitle}}</view>
+        </view>
+        <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
+      </view>
+    </view>
+    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份…" : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
+  </view>
 </view>
