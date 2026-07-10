@@ -1,18 +1,18 @@
-let localConfig = {};
-let localConfigError = "";
+let config = {};
+let configError = "";
 try {
-  localConfig = require("./config.local");
+  config = require("./config");
 } catch (error) {
-  if (!isMissingLocalConfigError(error)) {
-    localConfigError = error && error.message ? error.message : "config.local.js 加载失败";
+  if (!isMissingConfigError(error)) {
+    configError = error && error.message ? error.message : "config.js 加载失败";
   }
-  localConfig = {};
+  config = {};
 }
 
 App({
   globalData: {
-    apiBase: localConfig.apiBase || "",
-    configError: localConfigError,
+    apiBase: config.apiBase || "",
+    configError,
     token: "",
     currentIdentity: null,
     identities: [],
@@ -20,11 +20,11 @@ App({
     shareId: "",
     visitToken: "",
     anonId: "",
-    demoAuthEnabled: Boolean(localConfig.demoAuthEnabled)
+    demoAuthEnabled: Boolean(config.demoAuthEnabled)
   }
 });
 
-function isMissingLocalConfigError(error) {
+function isMissingConfigError(error) {
   const message = error && error.message ? String(error.message) : "";
-  return /Cannot find module|module .*config\.local.*not (found|defined)|not found/.test(message);
+  return /Cannot find module|module .*config(\.js)?.*not (found|defined)|not found/.test(message);
 }

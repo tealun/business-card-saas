@@ -15,6 +15,23 @@ const databaseUrl = z.string().min(1).refine((value) => /^postgres(ql)?:\/\//.te
   message: 'DATABASE_URL must start with "postgres://" or "postgresql://"'
 });
 
+// Env values are always strings, so `z.coerce.boolean()` would treat "0"/"false"
+// as `true` (any non-empty string is truthy). Parse a fixed token set instead so
+// "0"/"false"/""/unset all mean false and only explicit truthy tokens enable it.
+function booleanFlag(defaultValue: boolean) {
+  return z
+    .preprocess(
+      (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
+      z.enum(["1", "0", "true", "false", "yes", "no", "on", "off", ""]).optional()
+    )
+    .transform((value) => {
+      if (value === undefined || value === "") {
+        return defaultValue;
+      }
+      return value === "1" || value === "true" || value === "yes" || value === "on";
+    });
+}
+
 const appConfigSchema = z
   .object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -36,7 +53,7 @@ const appConfigSchema = z
     VISIT_TOKEN_SECRET: z.string().min(32),
     CARD_FIELD_ENCRYPTION_KEY_BASE64: base64Key("CARD_FIELD_ENCRYPTION_KEY_BASE64"),
     WECOM_STATE_ENCRYPTION_KEY_BASE64: base64Key("WECOM_STATE_ENCRYPTION_KEY_BASE64"),
-    DEMO_AUTH_ENABLED: z.coerce.boolean().default(false),
+    DEMO_AUTH_ENABLED: booleanFlag(false),
 
     WECOM_SUITE_ID: z.string().min(1),
     WECOM_SUITE_SECRET: z.string().min(1),

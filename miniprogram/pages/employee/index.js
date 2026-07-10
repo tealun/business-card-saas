@@ -18,6 +18,9 @@ Page({
     loading: true,
     error: false,
     demoMode: true,
+    authState: "guest",
+    loggedIn: false,
+    loginSubmitting: false,
     card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
@@ -38,24 +41,54 @@ Page({
   },
 
   onLoad() {
-    this.loginPromise = this.login();
+    this.bootstrap();
   },
 
   async onShow() {
-    await this.loginPromise;
-    if (app.globalData.token) {
-      this.loadPreview();
+    if (this.data.loggedIn && app.globalData.token) {
+      await this.loadPreview();
+      return;
     }
+    await this.bootstrap();
   },
 
-  async login() {
+  async bootstrap() {
+    const hasSession = Boolean(app.globalData.token && app.globalData.currentIdentity);
+    if (!hasSession) {
+      this.setData({
+        loading: false,
+        error: false,
+        demoMode: true,
+        authState: "guest",
+        loggedIn: false,
+        currentIdentity: null,
+        identities: []
+      });
+      return;
+    }
+    this.syncIdentityState({
+      currentIdentity: app.globalData.currentIdentity,
+      identities: app.globalData.identities || []
+    });
+    this.setData({ authState: "logged", loggedIn: true });
+    await this.loadPreview();
+  },
+
+  async triggerLogin() {
+    if (this.data.loginSubmitting) {
+      return;
+    }
+    this.setData({ loginSubmitting: true, loading: true });
     try {
       const session = await ensureSession({ force: true });
       this.syncIdentityState(session);
+      this.setData({ authState: "logged", loggedIn: true });
       await this.loadPreview();
     } catch (error) {
-      this.setData({ loading: false, error: true });
+      this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
       wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
+    } finally {
+      this.setData({ loginSubmitting: false });
     }
   },
 
@@ -78,15 +111,20 @@ Page({
         themeBrand: brand,
         loading: false,
         error: false,
-        demoMode: false
+        demoMode: false,
+        authState: "logged",
+        loggedIn: true
       });
     } catch (error) {
-      this.setData({ loading: false, error: true });
+      this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
       wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
     }
   },
 
   openIdentitySheet() {
+    if (!this.ensureLoggedIn("请先登录后切换身份")) {
+      return;
+    }
     if (!this.data.identities.length) {
       wx.showToast({ title: "暂无可切换身份", icon: "none" });
       return;
@@ -99,6 +137,9 @@ Page({
   },
 
   async chooseIdentity(event) {
+    if (!this.ensureLoggedIn("请先登录后切换身份")) {
+      return;
+    }
     const memberIdentityId = event.currentTarget.dataset.id;
     if (!memberIdentityId || this.data.switchingIdentity) {
       return;
@@ -122,10 +163,16 @@ Page({
   },
 
   goEdit() {
+    if (!this.ensureLoggedIn("请先登录后编辑资料")) {
+      return;
+    }
     wx.navigateTo({ url: "/pages/employee/edit" });
   },
 
   goStyle() {
+    if (!this.ensureLoggedIn("请先登录后设置样式")) {
+      return;
+    }
     wx.navigateTo({ url: "/pages/employee/style" });
   },
 
@@ -134,6 +181,9 @@ Page({
   },
 
   openSheet() {
+    if (!this.ensureLoggedIn("请先登录后发名片")) {
+      return;
+    }
     if (this.data.card.status === "disabled") {
       wx.showToast({ title: "名片已停用，暂不可分发", icon: "none" });
       return;
@@ -146,6 +196,9 @@ Page({
   },
 
   async createShare() {
+    if (!this.ensureLoggedIn("请先登录后发名片")) {
+      return;
+    }
     if (this.data.submitting) {
       return;
     }
@@ -165,6 +218,9 @@ Page({
   },
 
   async copyLink() {
+    if (!this.ensureLoggedIn("请先登录后复制链接")) {
+      return;
+    }
     if (this.data.submitting) {
       return;
     }
@@ -193,5 +249,13 @@ Page({
   onShareAppMessage() {
     const card = this.data.card;
     return { title: `${card.display_name || "我的"}的数字名片` };
+  },
+
+  ensureLoggedIn(message) {
+    if (this.data.loggedIn && app.globalData.token) {
+      return true;
+    }
+    wx.showToast({ title: message || "请先登录", icon: "none" });
+    return false;
   }
 });

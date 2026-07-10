@@ -31,15 +31,15 @@ wx.getExtConfigSync().apiBase
 普通小程序开发不要去微信后台找 `apiBase` 配置项，微信后台没有这个表单。当前项目使用“小程序版 env”：
 
 - [`../../miniprogram/config.example.js`](../../miniprogram/config.example.js)：提交到公开仓库的模板说明，运行时不会读取。
-- `miniprogram/config.local.js`：本地真实配置，运行时只读这个文件；已加入 `.gitignore`，不要提交。
+- `miniprogram/config.js`：本地真实配置，运行时只读这个文件；已加入 `.gitignore`，不要提交。
 
 先复制示例文件：
 
 ```powershell
-Copy-Item miniprogram\config.example.js miniprogram\config.local.js
+Copy-Item miniprogram\config.example.js miniprogram\config.js
 ```
 
-再打开 `miniprogram/config.local.js`，把 `apiBase` 从空字符串改成你的后端地址：
+再打开 `miniprogram/config.js`，把 `apiBase` 从空字符串改成你的后端地址：
 
 ```js
 module.exports = {
@@ -48,7 +48,7 @@ module.exports = {
 };
 ```
 
-`app.js` 只会读取 `config.local.js`。如果这个文件不存在或没有填写 `apiBase`，小程序会在发请求时提示 `API Base 未配置`，不会回落读取示例文件。`wx.getExtConfigSync().apiBase` 是第三方平台 / 代开发模板场景才会用的覆盖配置；当前阶段可以先忽略。
+`app.js` 只会读取 `config.js`。如果这个文件不存在或没有填写 `apiBase`，小程序会在发请求时提示 `API Base 未配置`，不会回落读取示例文件。`wx.getExtConfigSync().apiBase` 是第三方平台 / 代开发模板场景才会用的覆盖配置；当前阶段可以先忽略。
 
 示例模板在：
 
@@ -96,7 +96,7 @@ https://api.example.com/api/v1
 
 ### 2.2 开发版后端地址
 
-开发版允许使用本机或局域网 HTTP。为了最快联调，打开 `miniprogram/config.local.js`，把 `apiBase` 改成：
+开发版允许使用本机或局域网 HTTP。为了最快联调，打开 `miniprogram/config.js`，把 `apiBase` 改成：
 
 ```js
 apiBase: "http://127.0.0.1:3030/api/v1"
@@ -305,7 +305,7 @@ WECHAT_MINIPROGRAM_APPID=...
 WECHAT_MINIPROGRAM_SECRET=...
 ```
 
-小程序请求不走浏览器 CORS，但管理后台会走 CORS，所以 `CORS_ORIGINS` 至少包含管理后台域名。`WECHAT_MINIPROGRAM_SECRET` 是后端密钥，不能写进小程序 `config.local.js` 或任何前端包。
+小程序请求不走浏览器 CORS，但管理后台会走 CORS，所以 `CORS_ORIGINS` 至少包含管理后台域名。`WECHAT_MINIPROGRAM_SECRET` 是后端密钥，不能写进小程序 `config.js` 或任何前端包。
 
 ### 5.2 反向代理
 
@@ -338,7 +338,7 @@ apiBase=https://api.example.com/api/v1
 
 可配置在两处：
 
-1. 当前阶段：改本地文件 `miniprogram/config.local.js` 里的 `apiBase`。
+1. 当前阶段：改本地文件 `miniprogram/config.js` 里的 `apiBase`。
 2. 后续第三方平台 / 代开发模板场景：用 ext config 提供 `apiBase`，代码会通过 `wx.getExtConfigSync().apiBase` 读取。
 
 当前普通小程序直接开发，建议先用 `app.js` 明确写环境值；进入多租户第三方发布或动态部署时，再改为 ext config / 构建注入。
