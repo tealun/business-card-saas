@@ -72,7 +72,10 @@ const appConfigSchema = z
 
     WECHAT_MINIPROGRAM_APPID: z.string().min(1).optional().or(z.literal("")),
     WECHAT_MINIPROGRAM_SECRET: z.string().min(1).optional().or(z.literal("")),
-    WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000)
+    WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+
+    // Bearer token required to scrape GET /api/v1/metrics. Unset => endpoint disabled (A54-P1-1).
+    METRICS_TOKEN: z.string().min(1).optional().or(z.literal(""))
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === "production" && !data.DATABASE_URL) {
@@ -172,5 +175,9 @@ export class AppConfig {
 
   get wechatHttpTimeoutMs(): number {
     return this.values.WECHAT_HTTP_TIMEOUT_MS;
+  }
+
+  get metricsToken(): string {
+    return this.values.METRICS_TOKEN ?? "";
   }
 }

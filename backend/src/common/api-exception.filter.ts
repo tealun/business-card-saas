@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 
 function errorCode(status: number): number {
@@ -40,16 +40,33 @@ function errorMessage(exception: unknown): string {
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ApiExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const context = host.switchToHttp();
     const request = context.getRequest<{ traceId?: string }>();
     const reply = context.getResponse<{ status: (status: number) => { send: (body: unknown) => void } }>();
-    const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const isHttpException = exception instanceof HttpException;
+    const status = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const traceId = request.traceId ?? randomUUID();
+
+    // Only expose curated HttpException messages. Unhandled errors (e.g. pg driver
+    // errors exposing schema/query fragments) are logged server-side by trace_id and
+    // replaced with a generic message so internal details never reach the client (A54-P1-2).
+    let message: string;
+    if (isHttpException) {
+      message = errorMessage(exception);
+    } else {
+      message = "internal server error";
+      this.logger.error(
+        `Unhandled exception trace_id=${traceId}: ${errorMessage(exception)}`,
+        exception instanceof Error ? exception.stack : undefined
+      );
+    }
 
     reply.status(status).send({
       code: errorCode(status),
-      message: errorMessage(exception),
+      message,
       data: null,
       trace_id: traceId
     });

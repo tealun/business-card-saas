@@ -23,7 +23,12 @@ import { ConfigModule } from "./config/config.module.js";
     ConfigModule,
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "error" : "debug")
+        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "error" : "debug"),
+        // Keep bearer tokens and login codes out of request logs (A54-P2-1).
+        redact: {
+          paths: ["req.headers.authorization", "req.body.code"],
+          censor: "[redacted]"
+        }
       }
     }),
     ThrottlerModule.forRoot({
