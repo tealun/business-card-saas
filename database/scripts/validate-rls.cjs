@@ -7,7 +7,7 @@ const schemaSql = fs.readFileSync(schemaPath, "utf8");
 const sql = fs.readFileSync(rlsPath, "utf8");
 
 const accountTables = ["account_preferences"];
-const tenantRlsExceptions = new Set(["public_card_directory"]);
+const tenantRlsExceptions = new Set(["public_card_directory", "platform_admins"]);
 
 function assert(condition, message) {
   if (!condition) {

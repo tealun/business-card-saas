@@ -40,7 +40,7 @@
 
 | ID | Type | Confidence | Status | 标题 | 位置 | 证据与影响 | 整改建议 |
 |----|------|------------|--------|------|------|-----------|---------|
-| A-P1-1 | Confirmed | High | Open | **全部命名 @Throttle 覆盖失效** | app.module.ts:34-42 + 全部控制器 | ThrottlerModule 只注册了 `default`；库源码（throttler.guard.js:44,77）证实 guard 只按已注册 throttler 的名字读路由覆盖 → `login`(5/15min)、`adminMutation`(20/min)、`identity`、`callback`、迁移(3/5min) 全是死元数据，实际一律 100/min。登录爆破、迁移滥触的预期防线不存在 | 在 ThrottlerModule 注册同名 throttlers：`login`、`adminMutation`、`identity`、`callback`（各配显式 ttl/limit），并加一条回归测试断言命名限流生效 |
+| A-P1-1 | Confirmed | High | Fixed | **全部命名 @Throttle 覆盖失效** | app.module.ts:34-42 + 全部控制器 | ThrottlerModule 只注册了 `default`；库源码（throttler.guard.js:44,77）证实 guard 只按已注册 throttler 的名字读路由覆盖 → `login`(5/15min)、`adminMutation`(20/min)、`identity`、`callback`、迁移(3/5min) 全是死元数据，实际一律 100/min。登录爆破、迁移滥触的预期防线不存在 | 已修：全部 @Throttle 键改为已注册的 `default`（对该路由生效的覆盖）；新增 throttle-config.spec.ts 回归测试禁止未注册键再次出现 |
 | A-P1-2 | Confirmed | High | Open | 管理令牌不可撤销、无刷新 | admin-session-token.service.ts | 自包含 HMAC 令牌，无版本号/黑名单：管理员离职或降权后旧 token 仍有效至多 8h；无 refresh，8h 一到强制重登 | 短期：session 里加 `token_version`，落库到 tenant_admins，verify 时比对（一次 DB 读，可缓存）；中期：短 TTL(1h) + refresh token |
 | A-P1-3 | Confirmed | High | Fixed (68a0a06) | 前端无登录墙、无 401 处理、无登出 | admin/app.js（grep 无 logout/401 处理） | 未登录也渲染全部控制台；token 过期后每个按钮各自报错；无登出入口。这是「感觉没鉴权」的直接来源 | 已修：登录门（boot 时校验 /admin/session/me）、adminRequest 统一拦 401 清会话回登录页、顶栏登出按钮与身份徽标 |
 | A-P1-4 | Confirmed | High | Open | 界面是联调控制台，不是产品后台 | admin/index.html:435-499 | 「授权与联调」面板把 demo 登录、claim token 输入、visit/derive share 调试入口直接暴露给企业管理员；主反馈是 JSON `<pre>`；顶栏常驻 API Base 输入框 | 见「整改路线」两档方案 |

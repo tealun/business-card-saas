@@ -17,6 +17,7 @@ const requiredTables = [
   "card_actions",
   "card_shares",
   "tenant_admins",
+  "platform_admins",
   "admin_claim_tokens",
   "callback_events",
   "tenant_field_settings",
@@ -126,6 +127,7 @@ async function main() {
 
     assert(!(await relSecurity(pool, "public_card_directory")), "public_card_directory must not enable RLS");
     assert(!(await relSecurity(pool, "callback_events")), "callback_events must not enable RLS");
+    assert(!(await relSecurity(pool, "platform_admins")), "platform_admins must not enable RLS");
 
     console.log("Database check passed: schema objects, critical indexes, and RLS posture are present.");
   } finally {

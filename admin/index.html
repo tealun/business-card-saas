@@ -15,24 +15,35 @@
       <div class="auth-card">
         <img src="./assets/mark-color-144.png" alt="" />
         <h1>智云名片 · 企业管理后台</h1>
-        <p class="auth-hint">请使用企业微信授权登录后台</p>
-        <label class="stacked">
-          <span>企业微信登录 Code</span>
-          <input id="gateLoginCode" autocomplete="off" placeholder="企微 OAuth 回调获取的 code" />
-        </label>
-        <label class="stacked">
-          <span>Owner Claim Token（仅首次认领企业时填写）</span>
-          <input id="gateClaimToken" autocomplete="off" placeholder="可留空" />
-        </label>
-        <button id="gateLogin">登录</button>
-        <button id="gateTokenToggle" class="secondary" type="button">使用访问令牌登录</button>
-        <div id="gateTokenBox" class="hidden">
+        <p class="auth-hint">请输入管理员账号密码登录</p>
+        <form id="gatePasswordForm" class="gate-form">
+          <label class="stacked">
+            <span>账号</span>
+            <input id="gateUsername" name="username" autocomplete="username" />
+          </label>
+          <label class="stacked">
+            <span>密码</span>
+            <input id="gatePassword" name="password" type="password" autocomplete="current-password" />
+          </label>
+          <button id="gatePasswordLogin" type="submit">登录</button>
+        </form>
+        <details class="gate-alt">
+          <summary>其他登录方式</summary>
+          <label class="stacked">
+            <span>企业微信登录 Code</span>
+            <input id="gateLoginCode" autocomplete="off" placeholder="企微 OAuth 回调获取的 code" />
+          </label>
+          <label class="stacked">
+            <span>Owner Claim Token（仅首次认领企业时填写）</span>
+            <input id="gateClaimToken" autocomplete="off" placeholder="可留空" />
+          </label>
+          <button id="gateLogin" type="button" class="secondary">企微 Code 登录</button>
           <label class="stacked">
             <span>访问令牌（由运维 admin-bootstrap 签发）</span>
             <input id="gateTokenInput" autocomplete="off" placeholder="粘贴 access token" />
           </label>
-          <button id="gateTokenLogin" type="button">令牌登录</button>
-        </div>
+          <button id="gateTokenLogin" type="button" class="secondary">令牌登录</button>
+        </details>
         <p id="gateError" class="auth-error" role="alert"></p>
       </div>
     </div>
@@ -69,6 +80,7 @@
             </label>
             <div class="topbar-session">
               <span id="topbarAdmin" class="pill">未登录</span>
+              <button id="changePasswordButton" class="secondary" type="button">修改密码</button>
               <button id="logoutButton" class="secondary" type="button">退出登录</button>
             </div>
           </div>
@@ -530,6 +542,28 @@
         </section>
       </section>
     </main>
+    <dialog id="passwordDialog" class="password-dialog">
+      <form id="passwordForm" method="dialog">
+        <h3>修改密码</h3>
+        <label class="stacked">
+          <span>当前密码</span>
+          <input id="pwdOld" type="password" autocomplete="current-password" />
+        </label>
+        <label class="stacked">
+          <span>新密码（至少 8 位）</span>
+          <input id="pwdNew" type="password" autocomplete="new-password" />
+        </label>
+        <label class="stacked">
+          <span>确认新密码</span>
+          <input id="pwdConfirm" type="password" autocomplete="new-password" />
+        </label>
+        <p id="pwdError" class="auth-error" role="alert"></p>
+        <div class="button-row">
+          <button id="pwdSave" type="button">保存</button>
+          <button id="pwdCancel" type="button" class="secondary">取消</button>
+        </div>
+      </form>
+    </dialog>
     <script src="./app.js"></script>
   </body>
 </html>

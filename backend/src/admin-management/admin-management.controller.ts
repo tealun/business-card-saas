@@ -21,7 +21,7 @@ export class AdminManagementController {
   }
 
   @Post("members/sync")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   syncMembers(@Req() request: AdminRequest) {
     return this.management.syncMembers(requireAdminSession(request));
   }
@@ -32,7 +32,7 @@ export class AdminManagementController {
   }
 
   @Post("sync-events/retry")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   retrySyncEvents(@Req() request: AdminRequest) {
     return this.management.retryFailedSyncEvents(requireAdminSession(request));
   }
@@ -43,7 +43,7 @@ export class AdminManagementController {
   }
 
   @Put("members/:memberIdentityId/card")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   updateMemberCard(
     @Req() request: AdminRequest,
     @Param("memberIdentityId") memberIdentityId: string,

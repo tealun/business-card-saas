@@ -771,13 +771,93 @@ logoutButton.addEventListener("click", () => {
   expireAdminSession("");
 });
 
-const gateTokenToggle = document.querySelector("#gateTokenToggle");
-const gateTokenBox = document.querySelector("#gateTokenBox");
 const gateTokenInput = document.querySelector("#gateTokenInput");
 const gateTokenLoginButton = document.querySelector("#gateTokenLogin");
+const gatePasswordForm = document.querySelector("#gatePasswordForm");
+const gateUsernameInput = document.querySelector("#gateUsername");
+const gatePasswordInput = document.querySelector("#gatePassword");
+const gatePasswordLoginButton = document.querySelector("#gatePasswordLogin");
 
-gateTokenToggle.addEventListener("click", () => {
-  gateTokenBox.classList.toggle("hidden");
+function completeLogin(accessToken, admin) {
+  state.adminToken = accessToken;
+  sessionStorage.setItem("bc_admin_token", accessToken);
+  adminTokenInput.value = accessToken;
+  applyAdminIdentity(admin);
+  gateError.textContent = "";
+  gatePasswordInput.value = "";
+  showConsole();
+}
+
+gatePasswordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const username = gateUsernameInput.value.trim();
+  const password = gatePasswordInput.value;
+  if (!username || !password) {
+    gateError.textContent = "请输入账号和密码";
+    return;
+  }
+  gatePasswordLoginButton.disabled = true;
+  gateError.textContent = "登录中...";
+  try {
+    const result = await request("/admin/auth/login", {
+      method: "POST",
+      auth: false,
+      body: { username, password }
+    });
+    completeLogin(result.access_token, result.admin);
+  } catch (error) {
+    gateError.textContent = error && error.status === 401
+      ? "账号或密码错误"
+      : error instanceof Error ? error.message : String(error);
+  } finally {
+    gatePasswordLoginButton.disabled = false;
+  }
+});
+
+const passwordDialog = document.querySelector("#passwordDialog");
+const pwdOldInput = document.querySelector("#pwdOld");
+const pwdNewInput = document.querySelector("#pwdNew");
+const pwdConfirmInput = document.querySelector("#pwdConfirm");
+const pwdError = document.querySelector("#pwdError");
+
+document.querySelector("#changePasswordButton").addEventListener("click", () => {
+  pwdOldInput.value = "";
+  pwdNewInput.value = "";
+  pwdConfirmInput.value = "";
+  pwdError.textContent = "";
+  passwordDialog.showModal();
+});
+
+document.querySelector("#pwdCancel").addEventListener("click", () => {
+  passwordDialog.close();
+});
+
+document.querySelector("#pwdSave").addEventListener("click", async () => {
+  const oldPassword = pwdOldInput.value;
+  const newPassword = pwdNewInput.value;
+  if (!oldPassword || !newPassword) {
+    pwdError.textContent = "请填写当前密码和新密码";
+    return;
+  }
+  if (newPassword.length < 8) {
+    pwdError.textContent = "新密码至少 8 位";
+    return;
+  }
+  if (newPassword !== pwdConfirmInput.value) {
+    pwdError.textContent = "两次输入的新密码不一致";
+    return;
+  }
+  pwdError.textContent = "保存中...";
+  try {
+    await adminRequest("/admin/auth/password", {
+      method: "PUT",
+      body: { old_password: oldPassword, new_password: newPassword }
+    });
+    passwordDialog.close();
+    adminOutput.textContent = "密码已修改";
+  } catch (error) {
+    pwdError.textContent = error instanceof Error ? error.message : String(error);
+  }
 });
 
 gateTokenLoginButton.addEventListener("click", async () => {

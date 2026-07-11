@@ -219,6 +219,23 @@ CREATE TABLE "tenant_admins" (
 );
 
 -- CreateTable
+-- platform_admins is a platform-level table (password login happens before any
+-- tenant context exists); it intentionally has no tenant RLS, like callback_events.
+CREATE TABLE "platform_admins" (
+    "id" BIGSERIAL NOT NULL,
+    "username" VARCHAR(64) NOT NULL,
+    "password_hash" VARCHAR(255) NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "role" VARCHAR(32) NOT NULL DEFAULT 'owner',
+    "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "password_updated_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "platform_admins_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "admin_claim_tokens" (
     "id" BIGSERIAL NOT NULL,
     "tenant_id" BIGINT NOT NULL,
@@ -347,6 +364,9 @@ CREATE TABLE "card_style_overrides" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_accounts_unionid" ON "accounts"("wx_unionid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "uk_platform_admins_username" ON "platform_admins"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_accounts_primary_wx_openid" ON "accounts"("primary_wx_openid") WHERE "primary_wx_openid" IS NOT NULL;
@@ -521,6 +541,9 @@ ALTER TABLE "card_shares" ADD CONSTRAINT "card_shares_tenant_id_card_id_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "platform_admins" ADD CONSTRAINT "platform_admins_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_member_identity_id_fkey" FOREIGN KEY ("tenant_id", "member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
