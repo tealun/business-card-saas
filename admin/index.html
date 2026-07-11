@@ -25,6 +25,14 @@
           <input id="gateClaimToken" autocomplete="off" placeholder="可留空" />
         </label>
         <button id="gateLogin">登录</button>
+        <button id="gateTokenToggle" class="secondary" type="button">使用访问令牌登录</button>
+        <div id="gateTokenBox" class="hidden">
+          <label class="stacked">
+            <span>访问令牌（由运维 admin-bootstrap 签发）</span>
+            <input id="gateTokenInput" autocomplete="off" placeholder="粘贴 access token" />
+          </label>
+          <button id="gateTokenLogin" type="button">令牌登录</button>
+        </div>
         <p id="gateError" class="auth-error" role="alert"></p>
       </div>
     </div>

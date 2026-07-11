@@ -579,3 +579,9 @@ body:not(.dev-mode) [data-dev-only] {
   gap: 10px;
   white-space: nowrap;
 }
+
+#gateTokenBox {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}

@@ -106,3 +106,32 @@ This workflow syncs static files into the target path directly. Rollback is a Gi
 1. Revert the bad commit or push a known-good commit to `main`.
 2. Let the deploy workflow sync again.
 3. Clear browser cache if the old static assets are still visible.
+
+## First Owner Bootstrap（首个管理员引导，一次性）
+
+管理后台的登录与迁移执行都要求数据库里已有 owner。首个 owner 由服务器上的一次性 CLI 创建（该工具只在服务器本地运行，依赖 `.env` 里的 `DATABASE_URL` 与 `ADMIN_JWT_SECRET`，不新增任何远程入口）：
+
+```bash
+cd <backend-deploy-path>
+
+# 查看现有租户（新库为空时会提示用 setup 创建）
+node --env-file=.env scripts/admin-bootstrap.cjs list
+
+# 创建租户 + owner + 标记基线迁移 + 签发 8 小时 owner 访问令牌
+node --env-file=.env scripts/admin-bootstrap.cjs setup \
+  --tenant-name "平台运营" \
+  --open-userid <你的标识> \
+  --mark migrate_v1_1,migrate_v1_2
+```
+
+输出末尾的 access token 粘贴到后台登录页「使用访问令牌登录」即可进入。已有租户时用 `--tenant-id` 替代 `--tenant-name`。
+
+`--mark` 用于存量库收编：把「表结构已存在」的迁移标记为已应用（不执行），之后的迁移全部通过后台「数据库」页检测并执行。
+
+## Console Migration Runner Requirements
+
+后台「数据库」页可用的前提：
+
+1. 后端 `.env` 配置 `DATABASE_DIR=database` 并重启后端（缺失时页面显示 `DATABASE_DIR is not configured`）。
+2. 存量库已用 `--mark`（或 `database/scripts/migrate.cjs mark`）收编基线，否则待执行列表会包含基线迁移，执行时会因表已存在而失败。
+3. 执行迁移要求 owner 角色令牌；检测只需 admin。
