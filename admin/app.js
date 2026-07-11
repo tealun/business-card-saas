@@ -102,6 +102,12 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
 
 function apiBase() {
   if (!DEV_MODE) {
+    // Production API base comes from the operator-managed config.js (absent =>
+    // same origin). Never from user input, so tokens cannot be redirected.
+    const configured = String(window.BC_ADMIN_CONFIG?.apiBase || "").trim().replace(/\/$/, "");
+    if (configured && /^https:\/\//.test(configured)) {
+      return configured;
+    }
     return `${window.location.origin}/api/v1`;
   }
   const value = apiBaseInput.value.trim().replace(/\/$/, "");
