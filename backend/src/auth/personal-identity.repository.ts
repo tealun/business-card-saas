@@ -56,6 +56,11 @@ export class PersonalIdentityRepository {
     return this.database.transaction(async (tx) => {
       const accountId = await this.findOrCreateAccount({ openid, unionid: session.unionid }, tx);
       const tenant = await this.findOrCreatePersonalTenant(accountId, tx);
+      // accounts/tenants carry no RLS, but every table touched below (member_identities,
+      // account_identity_bindings, cards, account_preferences) is tenant/account isolated via
+      // current_setting('app.tenant_id'|'app.account_id'). The runtime DB role is not BYPASSRLS,
+      // so the context must be set here or the first RLS INSERT is rejected (login 500). See 99_55.
+      await this.setRlsContext({ accountId, tenantId: String(tenant.id) }, tx);
       const member = await this.findOrCreatePersonalMember({ tenantId: String(tenant.id), openid }, tx);
       await this.ensureBinding({
         accountId,
@@ -207,6 +212,11 @@ export class PersonalIdentityRepository {
       throw new Error("failed to create personal account");
     }
     return String(accountId);
+  }
+
+  private async setRlsContext(input: { accountId: string; tenantId: string }, tx: Tx): Promise<void> {
+    await tx.query("SELECT set_config('app.account_id', $1, true)", [input.accountId]);
+    await tx.query("SELECT set_config('app.tenant_id', $1, true)", [input.tenantId]);
   }
 
   private async lockAccountIdentity(input: { openid: string; unionid: string | null }, tx: Tx): Promise<void> {

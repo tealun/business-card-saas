@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { ZodError } from "zod";
 
 function errorCode(status: number): number {
   if (status === HttpStatus.UNAUTHORIZED) {
@@ -47,15 +48,24 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<{ traceId?: string }>();
     const reply = context.getResponse<{ status: (status: number) => { send: (body: unknown) => void } }>();
     const isHttpException = exception instanceof HttpException;
-    const status = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const isValidationError = exception instanceof ZodError;
+    const status = isHttpException
+      ? exception.getStatus()
+      : isValidationError
+        ? HttpStatus.BAD_REQUEST
+        : HttpStatus.INTERNAL_SERVER_ERROR;
     const traceId = request.traceId ?? randomUUID();
 
     // Only expose curated HttpException messages. Unhandled errors (e.g. pg driver
     // errors exposing schema/query fragments) are logged server-side by trace_id and
     // replaced with a generic message so internal details never reach the client (A54-P1-2).
+    // Request-body schema failures are client errors, not 500s: surface a generic 400
+    // without echoing the raw Zod issue list (which can leak field/shape internals).
     let message: string;
     if (isHttpException) {
       message = errorMessage(exception);
+    } else if (isValidationError) {
+      message = "invalid request payload";
     } else {
       message = "internal server error";
       this.logger.error(
