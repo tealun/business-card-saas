@@ -2,19 +2,38 @@ const app = getApp();
 const { request } = require("../../utils/api");
 const { mapRecentVisitors } = require("../../utils/format");
 
+// 未登录演示数据：配合横幅展示访客/交换能力；登录后替换为真实统计。
+const demoTabs = [
+  { key: "visitors", label: "我的访客", count: 328 },
+  { key: "viewed", label: "我看过的", count: 56 },
+  { key: "friends", label: "好友名片", count: 4 }
+];
+const demoGroups = [
+  {
+    title: "今天",
+    items: [
+      { id: "v1", name: "李明浩", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
+      { id: "v2", name: "王思远", title: "商务拓展 · 云图数据", meta: "访问 1 次", state: "pending", time: "09:12" }
+    ]
+  },
+  {
+    title: "本周",
+    items: [
+      { id: "v3", name: "陈可欣", title: "市场经理 · 万联传媒", meta: "访问 2 次", state: "none", time: "周一" },
+      { id: "v4", name: "赵启航", title: "技术负责人 · 智造科技", meta: "访问 5 次", state: "exchanged", time: "周日" }
+    ]
+  }
+];
+
 Page({
   data: {
-    // 未登录时空态 + 横幅；登录后展示当前身份的真实访客数据。
-    // 「我看过/好友名片」后端功能未上线，计数保持 0。
+    // 初始为未登录演示态；onShow 按登录态切换。
+    // 「我看过/好友名片」后端功能未上线，登录后计数为 0。
     demoMode: true,
     activeTab: "visitors",
-    tabs: [
-      { key: "visitors", label: "我的访客", count: 0 },
-      { key: "viewed", label: "我看过的", count: 0 },
-      { key: "friends", label: "好友名片", count: 0 }
-    ],
+    tabs: demoTabs,
     keyword: "",
-    groups: []
+    groups: demoGroups
   },
 
   onShow() {
@@ -23,11 +42,7 @@ Page({
 
   async loadStats() {
     if (!app.globalData.token || !app.globalData.currentIdentity) {
-      this.setData({
-        demoMode: true,
-        tabs: this.data.tabs.map((tab) => Object.assign({}, tab, { count: 0 })),
-        groups: []
-      });
+      this.setData({ demoMode: true, tabs: demoTabs, groups: demoGroups });
       return;
     }
     try {

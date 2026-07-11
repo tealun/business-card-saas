@@ -1,6 +1,6 @@
 <view class="page wallet-page">
   <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
-    访客统计与名片交换功能即将上线，发出名片后这里会展示访问与交换记录。
+    当前访客与交换记录为演示样例，登录后会展示你的真实名片数据。
   </view>
 
   <view class="wallet-tabs">

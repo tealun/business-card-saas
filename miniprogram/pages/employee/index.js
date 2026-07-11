@@ -14,6 +14,16 @@ const demoCard = {
   status: "active"
 };
 
+// 未登录演示数据：配合顶部“演示数据”横幅展示产品能力。
+// 登录后一律替换为当前身份的真实数据（statistics 来自 /employee/cards/current/stats）。
+const demoRequests = [{ id: "req1", name: "周琳", title: "采购经理 · 华宇集团" }];
+const demoStats = { visitors: 328, viewed: 56, friends: 4 };
+const demoRecentVisitors = [
+  { id: "v1", name: "李明浩", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
+  { id: "v2", name: "王思远", title: "商务拓展 · 云图数据", meta: "访问 1 次", state: "pending", time: "昨天" },
+  { id: "v3", name: "陈可欣", title: "市场经理 · 万联传媒", meta: "访问 2 次", state: "none", time: "周一" }
+];
+
 Page({
   data: {
     loading: true,
@@ -30,11 +40,10 @@ Page({
     switchingIdentity: false,
     currentIdentity: null,
     identities: [],
-    // 交换请求/访客统计的后端功能尚未上线：保持空数据 + 空态展示，
-    // 不再用演示人名占位（见 99_56 整改讨论）。
-    requests: [],
-    stats: { visitors: 0, viewed: 0, friends: 0 },
-    recentVisitors: []
+    // 初始为未登录演示态；bootstrap/登录成功后按登录态切换。
+    requests: demoRequests,
+    stats: demoStats,
+    recentVisitors: demoRecentVisitors
   },
 
   onLoad() {
@@ -60,8 +69,9 @@ Page({
         loggedIn: false,
         currentIdentity: null,
         identities: [],
-        stats: { visitors: 0, viewed: 0, friends: 0 },
-        recentVisitors: []
+        requests: demoRequests,
+        stats: demoStats,
+        recentVisitors: demoRecentVisitors
       });
       return;
     }
@@ -84,7 +94,16 @@ Page({
       this.setData({ authState: "logged", loggedIn: true });
       await this.loadPreview();
     } catch (error) {
-      this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
+      this.setData({
+        loading: false,
+        error: true,
+        demoMode: true,
+        authState: "failed",
+        loggedIn: false,
+        requests: demoRequests,
+        stats: demoStats,
+        recentVisitors: demoRecentVisitors
+      });
       wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
     } finally {
       this.setData({ loginSubmitting: false });
@@ -112,7 +131,11 @@ Page({
         error: false,
         demoMode: false,
         authState: "logged",
-        loggedIn: true
+        loggedIn: true,
+        // 登录后先清掉演示数据，再拉取当前身份的真实统计
+        requests: [],
+        stats: { visitors: 0, viewed: 0, friends: 0 },
+        recentVisitors: []
       });
       this.loadStats();
     } catch (error) {
@@ -123,7 +146,16 @@ Page({
         wx.showToast({ title: error.message || "名片读取失败，请下拉重试", icon: "none" });
         return;
       }
-      this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
+      this.setData({
+        loading: false,
+        error: true,
+        demoMode: true,
+        authState: "failed",
+        loggedIn: false,
+        requests: demoRequests,
+        stats: demoStats,
+        recentVisitors: demoRecentVisitors
+      });
       wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
     }
   },
