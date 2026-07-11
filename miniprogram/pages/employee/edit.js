@@ -4,18 +4,19 @@ const { request } = require("../../utils/api");
 
 Page({
   data: {
+    // 表单初始为空：读取失败时绝不能让占位演示数据被“保存”成真实名片。
     form: {
-      display_name: "李明",
-      title: "销售总监",
-      department: "市场部",
-      mobile: "138 0013 8000",
-      phone: "0755-8888 0000",
-      email: "liming@zhiyun.tech",
-      wechat_id: "liming-zy",
-      address: "深圳市南山区科技园",
-      website: "www.zhiyun.tech"
+      display_name: "",
+      title: "",
+      department: "",
+      mobile: "",
+      phone: "",
+      email: "",
+      wechat_id: "",
+      address: "",
+      website: ""
     },
-    tags: ["企业数字化", "SaaS 解决方案", "制造业"],
+    tags: [],
     privacy: {
       show_mobile: false,
       show_email: true,
@@ -32,7 +33,7 @@ Page({
       await this.loadCard();
     } catch (error) {
       this.setData({ loading: false, error: true });
-      wx.showToast({ title: error.message || "登录失败，已展示演示资料", icon: "none" });
+      wx.showToast({ title: error.message || "登录失败，请稍后重试", icon: "none" });
     }
   },
 
@@ -57,7 +58,7 @@ Page({
       });
     } catch (error) {
       this.setData({ loading: false, error: true });
-      wx.showToast({ title: error.message || "读取失败，已展示演示资料", icon: "none" });
+      wx.showToast({ title: error.message || "名片读取失败，请稍后重试", icon: "none" });
     }
   },
 
@@ -75,6 +76,10 @@ Page({
 
   async saveCard() {
     if (this.data.submitting) {
+      return;
+    }
+    if (this.data.error) {
+      wx.showToast({ title: "名片资料未加载成功，请返回重进后再保存", icon: "none" });
       return;
     }
     this.setData({ submitting: true });

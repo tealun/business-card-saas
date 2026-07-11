@@ -64,8 +64,17 @@ Page({
       const card = await request(`/public/cards/${this.data.publicId}`, { auth: false });
       const disabled = card.status && card.status !== "active";
       const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
+      // 真实名片缺失的板块（企业资料/视频/荣誉）用空默认值兜底并隐藏，
+      // 绝不与演示数据合并——否则演示企业的资质会出现在真实名片上。
       this.setData({
-        card: Object.assign({}, demoPublicCard, card),
+        card: {
+          status: card.status || "active",
+          card: Object.assign({ display_name: "", title: "", company: "", avatar_url: "", fields: {} }, card.card || {}),
+          company_profile: card.company_profile || null,
+          videos: card.videos || [],
+          honors: card.honors || [],
+          template: card.template || null
+        },
         themeBrand: brand,
         isDisabled: disabled,
         uiState: disabled ? "disabled" : "ready"
@@ -186,7 +195,7 @@ Page({
 
   openMap() {
     this.recordAction("open_map");
-    const address = this.data.card.company_profile.address || this.data.card.card.fields.address;
+    const address = (this.data.card.company_profile || {}).address || (this.data.card.card.fields || {}).address;
     if (address) {
       wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
     }
@@ -215,7 +224,7 @@ Page({
 
   playVideo() {
     this.recordAction("play_company_video");
-    const video = this.data.card.videos[0];
+    const video = (this.data.card.videos || [])[0];
     if (video && video.video_url) {
       if (wx.previewMedia) {
         wx.previewMedia({

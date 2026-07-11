@@ -4,13 +4,14 @@ const { request } = require("../../utils/api");
 
 Page({
   data: {
-    card: { company: "智云科技" },
+    // 表单初始为空：读取失败时绝不能让占位演示数据被“保存”成真实名片。
+    card: { fields: {} },
     form: {
-      display_name: "李明",
-      title: "销售总监",
-      mobile: "138 0013 8000",
-      email: "liming@zhiyun.tech",
-      wechat_id: "liming-zy"
+      display_name: "",
+      title: "",
+      mobile: "",
+      email: "",
+      wechat_id: ""
     },
     sharePath: "",
     loading: true,
@@ -28,7 +29,7 @@ Page({
       await this.loadCard();
     } catch (error) {
       this.setData({ loading: false, error: true });
-      wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
+      wx.showToast({ title: error.message || "登录失败，请稍后重试", icon: "none" });
     }
   },
 
@@ -61,6 +62,10 @@ Page({
 
   async saveCard() {
     if (this.data.submitting) {
+      return;
+    }
+    if (this.data.error) {
+      wx.showToast({ title: "名片资料未加载成功，请稍后重试", icon: "none" });
       return;
     }
     this.setData({ submitting: true });
