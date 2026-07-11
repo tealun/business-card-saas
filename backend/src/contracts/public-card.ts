@@ -4,6 +4,11 @@ export const publicIdSchema = z.string().regex(/^pub_[A-Za-z0-9_-]{8,40}$/);
 export const shareIdSchema = z.string().regex(/^shr_[A-Za-z0-9_-]{8,64}$/);
 export const anonIdSchema = z.string().regex(/^anon_[A-Za-z0-9_.-]{16,120}$/);
 export const visitIdSchema = z.string().regex(/^vis_[A-Za-z0-9_-]{16,80}$/);
+const imageSourceSchema = z
+  .string()
+  .refine((value) => /^https?:\/\//.test(value) || value.startsWith("/") || /^data:image\/(png|jpe?g|webp);base64,/i.test(value), {
+    message: "image source must be an http(s) URL, absolute path, or data image"
+  });
 
 export const publicCardFieldSchema = z.object({
   mobile: z.string().nullable(),
@@ -20,7 +25,7 @@ export const publicCardResponseSchema = z.object({
     display_name: z.string(),
     title: z.string().nullable(),
     company: z.string().nullable(),
-    avatar_url: z.string().url().nullable(),
+    avatar_url: imageSourceSchema.nullable(),
     fields: publicCardFieldSchema
   }),
   template: z.object({

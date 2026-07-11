@@ -2,10 +2,12 @@ const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 
+const ALL_EDITABLE_FIELDS = ["avatar_url", "display_name", "title", "mobile", "phone", "email", "wechat_id", "address"];
+
 Page({
   data: {
-    // 表单初始为空：读取失败时绝不能让占位演示数据被“保存”成真实名片。
     form: {
+      avatar_url: "",
       display_name: "",
       title: "",
       department: "",
@@ -16,6 +18,8 @@ Page({
       address: "",
       website: ""
     },
+    editable: {},
+    identityLabel: "",
     tags: [],
     privacy: {
       show_mobile: false,
@@ -40,8 +44,10 @@ Page({
   async loadCard() {
     try {
       const card = await request("/employee/cards/current");
+      const editableFields = Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS;
       this.setData({
         form: {
+          avatar_url: card.avatar_url || "",
           display_name: card.display_name || "",
           title: card.title || "",
           department: card.department || "",
@@ -52,6 +58,10 @@ Page({
           address: card.fields.address || "",
           website: card.fields.website || ""
         },
+        editable: editableMap(editableFields),
+        identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
+          ? app.globalData.currentIdentity.typeLabel
+          : "当前名片",
         privacy: Object.assign({}, this.data.privacy, card.privacy || {}),
         loading: false,
         error: false
@@ -63,15 +73,83 @@ Page({
   },
 
   onInput(event) {
-    this.setData({ [`form.${event.currentTarget.dataset.key}`]: event.detail.value });
+    const key = event.currentTarget.dataset.key;
+    if (!this.canEdit(key)) {
+      this.lockedTip();
+      return;
+    }
+    this.setData({ [`form.${key}`]: event.detail.value });
   },
 
   onPrivacy(event) {
     this.setData({ [`privacy.${event.currentTarget.dataset.key}`]: event.detail.value });
   },
 
+  chooseAvatar(event) {
+    if (!this.canEdit("avatar_url")) {
+      this.lockedTip();
+      return;
+    }
+    const avatarUrl = event.detail && event.detail.avatarUrl;
+    if (avatarUrl) {
+      this.setAvatarFromPath(avatarUrl);
+    }
+  },
+
+  chooseAvatarFromAlbum() {
+    if (!this.canEdit("avatar_url")) {
+      this.lockedTip();
+      return;
+    }
+    if (typeof wx.chooseMedia !== "function") {
+      wx.showToast({ title: "当前微信版本暂不支持选择头像", icon: "none" });
+      return;
+    }
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["compressed"],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (file && file.tempFilePath) {
+          this.setAvatarFromPath(file.tempFilePath);
+        }
+      }
+    });
+  },
+
+  setAvatarFromPath(path) {
+    pathToDataUrl(path)
+      .then((avatarUrl) => {
+        this.setData({ "form.avatar_url": avatarUrl });
+      })
+      .catch(() => {
+        wx.showToast({ title: "头像读取失败，请重新选择", icon: "none" });
+      });
+  },
+
+  clearAvatar() {
+    if (!this.canEdit("avatar_url")) {
+      this.lockedTip();
+      return;
+    }
+    this.setData({ "form.avatar_url": "" });
+  },
+
   lockedTip() {
     wx.showToast({ title: "该字段由企业统一维护", icon: "none" });
+  },
+
+  onLockedFieldTap(event) {
+    const key = event.currentTarget.dataset.key;
+    if (!this.canEdit(key)) {
+      this.lockedTip();
+    }
+  },
+
+  canEdit(fieldKey) {
+    return this.data.editable[fieldKey] !== false;
   },
 
   async saveCard() {
@@ -85,25 +163,10 @@ Page({
     this.setData({ submitting: true });
     const form = this.data.form;
     try {
-      validateCardForm(form);
+      validateCardForm(form, this.data.editable);
       const card = await request("/employee/cards/current", {
         method: "PUT",
-        data: {
-          display_name: form.display_name,
-          title: form.title,
-          fields: {
-            mobile: form.mobile || null,
-            phone: form.phone || null,
-            email: form.email || null,
-            wechat_id: form.wechat_id || null,
-            address: form.address || null
-          },
-          privacy: {
-            show_mobile: this.data.privacy.show_mobile,
-            show_email: this.data.privacy.show_email,
-            show_wechat: this.data.privacy.show_wechat
-          }
-        }
+        data: buildPayload(form, this.data.privacy, this.data.editable)
       });
       app.globalData.currentCard = card;
       wx.showToast({ title: "已保存", icon: "success" });
@@ -116,16 +179,65 @@ Page({
   }
 });
 
-function validateCardForm(form) {
-  if (!String(form.display_name || "").trim()) {
+function editableMap(fields) {
+  const map = {};
+  ALL_EDITABLE_FIELDS.forEach((field) => {
+    map[field] = fields.includes(field);
+  });
+  return map;
+}
+
+function buildPayload(form, privacy, editable) {
+  const payload = {
+    fields: {},
+    privacy: {
+      show_mobile: privacy.show_mobile,
+      show_email: privacy.show_email,
+      show_wechat: privacy.show_wechat
+    }
+  };
+  if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
+  if (editable.display_name) payload.display_name = form.display_name;
+  if (editable.title) payload.title = form.title || null;
+  if (editable.mobile) payload.fields.mobile = form.mobile || null;
+  if (editable.phone) payload.fields.phone = form.phone || null;
+  if (editable.email) payload.fields.email = form.email || null;
+  if (editable.wechat_id) payload.fields.wechat_id = form.wechat_id || null;
+  if (editable.address) payload.fields.address = form.address || null;
+  return payload;
+}
+
+function validateCardForm(form, editable) {
+  if (editable.display_name && !String(form.display_name || "").trim()) {
     throw new Error("姓名不能为空");
   }
   const email = String(form.email || "").trim();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (editable.email && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error("邮箱格式不正确");
   }
-  const phoneFields = [form.mobile, form.phone].filter(Boolean);
+  const phoneFields = [editable.mobile ? form.mobile : "", editable.phone ? form.phone : ""].filter(Boolean);
   if (phoneFields.some((value) => !/^[0-9+\-\s()]{5,32}$/.test(String(value)))) {
     throw new Error("电话格式不正确");
   }
+}
+
+function pathToDataUrl(path) {
+  if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
+    return Promise.resolve(path);
+  }
+  return new Promise((resolve, reject) => {
+    const fs = wx.getFileSystemManager && wx.getFileSystemManager();
+    if (!fs || typeof fs.readFile !== "function") {
+      reject(new Error("file system unavailable"));
+      return;
+    }
+    fs.readFile({
+      filePath: path,
+      encoding: "base64",
+      success(result) {
+        resolve(`data:image/jpeg;base64,${result.data}`);
+      },
+      fail: reject
+    });
+  });
 }

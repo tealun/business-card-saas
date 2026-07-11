@@ -41,6 +41,92 @@ describe("EmployeeCardRepository", () => {
     ).resolves.toEqual({ visitor_count: 0, visit_count: 0, recent_visitors: [] });
   });
 
+  it("updates avatar for a fully editable personal card", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const card = await repository.updateCurrentCard(session, {
+      avatar_url: "data:image/jpeg;base64,ZmFrZQ=="
+    });
+
+    expect(card.avatar_url).toBe("data:image/jpeg;base64,ZmFrZQ==");
+    expect(card.editable_fields).toContain("avatar_url");
+  });
+
+  it("rejects enterprise updates for fields locked by tenant settings", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://test";
+    const fakeTx = {
+      query: async (text: string) => {
+        if (text.includes("member_identities.id AS member_id")) {
+          return {
+            rows: [
+              {
+                member_id: "member-001",
+                member_name: "Ada",
+                member_status: "active",
+                card_id: "card-001",
+                public_id: "pub_001",
+                display_name: "Ada",
+                title: "Sales",
+                avatar_url: null,
+                fields_encrypted: null,
+                privacy_json: null,
+                card_status: "active"
+              }
+            ]
+          };
+        }
+        if (text.includes("tenant_field_settings")) {
+          return {
+            rows: [
+              {
+                fields_json: [
+                  { field_key: "avatar_url", label: "头像", locked: true, employee_editable: false, default_visible: true },
+                  { field_key: "display_name", label: "姓名", locked: false, employee_editable: true, default_visible: true }
+                ]
+              }
+            ]
+          };
+        }
+        return { rows: [] };
+      }
+    };
+    const tenantTx = {
+      run: async (_tenantId: string, callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx)
+    };
+    try {
+      const repository = new EmployeeCardRepository(tenantTx as never);
+      await expect(
+        repository.updateCurrentCard(
+          {
+            accountId: "acct-001",
+            identityType: "wecom_member",
+            tenantId: "tenant-001",
+            memberIdentityId: "member-001",
+            openUserid: "ou-001"
+          },
+          { avatar_url: "https://example.com/avatar.jpg" }
+        )
+      ).rejects.toThrow("field not employee editable: avatar_url");
+    } finally {
+      if (originalDatabaseUrl) {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      } else {
+        delete process.env.DATABASE_URL;
+      }
+    }
+  });
+
   it("aggregates per-identity visit stats through the tenant transaction", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = "postgres://test";

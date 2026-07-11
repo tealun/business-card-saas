@@ -11,19 +11,42 @@
   <view class="card">
     <view class="row-between">
       <text class="card__title">基础信息</text>
-      <text class="badge badge--brand">员工可维护</text>
+      <text class="badge {{identityLabel === '企业名片' ? 'badge--success' : 'badge--brand'}}">{{identityLabel}}</text>
     </view>
-    <view class="edit-avatar-row">
-      <text class="field-row__label">头像</text>
-      <view class="edit-avatar">{{form.display_name ? form.display_name[0] : "名"}}</view>
+    <view class="edit-avatar-row {{editable.avatar_url ? '' : 'field-row--locked'}}">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.avatar_url}}" class="icon icon-lock icon--sm"></view>
+        <text>头像</text>
+      </view>
+      <view class="edit-avatar-actions">
+        <button
+          class="edit-avatar-btn"
+          open-type="chooseAvatar"
+          bindchooseavatar="chooseAvatar"
+          disabled="{{!editable.avatar_url}}"
+        >
+          <view class="edit-avatar">
+            <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" />
+            <text wx:else>{{form.display_name ? form.display_name[0] : "名"}}</text>
+          </view>
+        </button>
+        <view wx:if="{{editable.avatar_url}}" class="btn btn--sm btn--soft" bindtap="chooseAvatarFromAlbum">选择</view>
+        <view wx:if="{{form.avatar_url && editable.avatar_url}}" class="btn btn--sm btn--muted" bindtap="clearAvatar">清除</view>
+      </view>
     </view>
-    <view class="field-row">
-      <text class="field-row__label">姓名</text>
-      <input class="field-row__value" value="{{form.display_name}}" data-key="display_name" bindinput="onInput" placeholder="请输入姓名" />
+    <view class="field-row {{editable.display_name ? '' : 'field-row--locked'}}" data-key="display_name" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.display_name}}" class="icon icon-lock icon--sm"></view>
+        <text>姓名</text>
+      </view>
+      <input class="field-row__value {{editable.display_name ? '' : 'field-row__value--locked'}}" value="{{form.display_name}}" data-key="display_name" bindinput="onInput" disabled="{{!editable.display_name}}" placeholder="请输入姓名" />
     </view>
-    <view class="field-row">
-      <text class="field-row__label">职位</text>
-      <input class="field-row__value" value="{{form.title}}" data-key="title" bindinput="onInput" placeholder="请输入职位" />
+    <view class="field-row {{editable.title ? '' : 'field-row--locked'}}" data-key="title" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.title}}" class="icon icon-lock icon--sm"></view>
+        <text>职位</text>
+      </view>
+      <input class="field-row__value {{editable.title ? '' : 'field-row__value--locked'}}" value="{{form.title}}" data-key="title" bindinput="onInput" disabled="{{!editable.title}}" placeholder="请输入职位" />
     </view>
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>部门</text></view>
@@ -33,25 +56,40 @@
 
   <view class="card">
     <text class="card__title">联系方式</text>
-    <view class="field-row">
-      <text class="field-row__label">手机</text>
-      <input class="field-row__value" value="{{form.mobile}}" data-key="mobile" type="number" bindinput="onInput" placeholder="未填写" />
+    <view class="field-row {{editable.mobile ? '' : 'field-row--locked'}}" data-key="mobile" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.mobile}}" class="icon icon-lock icon--sm"></view>
+        <text>手机</text>
+      </view>
+      <input class="field-row__value {{editable.mobile ? '' : 'field-row__value--locked'}}" value="{{form.mobile}}" data-key="mobile" type="number" bindinput="onInput" disabled="{{!editable.mobile}}" placeholder="未填写" />
     </view>
-    <view class="field-row">
-      <text class="field-row__label">座机</text>
-      <input class="field-row__value" value="{{form.phone}}" data-key="phone" bindinput="onInput" placeholder="未填写" />
+    <view class="field-row {{editable.phone ? '' : 'field-row--locked'}}" data-key="phone" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.phone}}" class="icon icon-lock icon--sm"></view>
+        <text>座机</text>
+      </view>
+      <input class="field-row__value {{editable.phone ? '' : 'field-row__value--locked'}}" value="{{form.phone}}" data-key="phone" bindinput="onInput" disabled="{{!editable.phone}}" placeholder="未填写" />
     </view>
-    <view class="field-row">
-      <text class="field-row__label">邮箱</text>
-      <input class="field-row__value" value="{{form.email}}" data-key="email" bindinput="onInput" placeholder="未填写" />
+    <view class="field-row {{editable.email ? '' : 'field-row--locked'}}" data-key="email" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.email}}" class="icon icon-lock icon--sm"></view>
+        <text>邮箱</text>
+      </view>
+      <input class="field-row__value {{editable.email ? '' : 'field-row__value--locked'}}" value="{{form.email}}" data-key="email" bindinput="onInput" disabled="{{!editable.email}}" placeholder="未填写" />
     </view>
-    <view class="field-row">
-      <text class="field-row__label">微信号</text>
-      <input class="field-row__value" value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" placeholder="未填写" />
+    <view class="field-row {{editable.wechat_id ? '' : 'field-row--locked'}}" data-key="wechat_id" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.wechat_id}}" class="icon icon-lock icon--sm"></view>
+        <text>微信号</text>
+      </view>
+      <input class="field-row__value {{editable.wechat_id ? '' : 'field-row__value--locked'}}" value="{{form.wechat_id}}" data-key="wechat_id" bindinput="onInput" disabled="{{!editable.wechat_id}}" placeholder="未填写" />
     </view>
-    <view class="field-row" bindtap="lockedTip">
-      <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>公司地址</text></view>
-      <view class="field-row__value field-row__value--locked">{{form.address || "企业统一维护"}}</view>
+    <view class="field-row {{editable.address ? '' : 'field-row--locked'}}" data-key="address" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.address}}" class="icon icon-lock icon--sm"></view>
+        <text>公司地址</text>
+      </view>
+      <input class="field-row__value {{editable.address ? '' : 'field-row__value--locked'}}" value="{{form.address}}" data-key="address" bindinput="onInput" disabled="{{!editable.address}}" placeholder="企业统一维护" />
     </view>
     <view class="field-row" bindtap="lockedTip">
       <view class="field-row__label"><view class="icon icon-lock icon--sm"></view><text>官网</text></view>
@@ -83,11 +121,11 @@
     </view>
   </view>
 
-  <view class="edit-note">灰色带锁字段由企业统一维护；手机号等敏感字段默认不公开，保存后名片将立即更新。</view>
+  <view class="edit-note">个人名片默认可全量编辑；企业名片的灰色带锁字段由管理员统一维护，保存时不会提交这些字段。</view>
 </view>
 
 <view class="fixed-footer">
   <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="saveCard">
-    {{submitting ? '保存中…' : '保存并更新名片'}}
+    {{submitting ? '保存中...' : '保存并更新名片'}}
   </view>
 </view>

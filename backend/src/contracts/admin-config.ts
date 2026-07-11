@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export const adminFieldKeySchema = z.enum(["display_name", "title", "mobile", "phone", "email", "wechat_id", "address"]);
+export const adminFieldKeySchema = z.enum([
+  "avatar_url",
+  "display_name",
+  "title",
+  "mobile",
+  "phone",
+  "email",
+  "wechat_id",
+  "address"
+]);
 
 export const adminFieldRuleSchema = z.object({
   field_key: adminFieldKeySchema,

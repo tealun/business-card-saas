@@ -1,13 +1,19 @@
 import { z } from "zod";
 import { publicCardResponseSchema, publicIdSchema, shareIdSchema } from "./public-card.js";
 
+const imageSourceSchema = z
+  .string()
+  .refine((value) => /^https?:\/\//.test(value) || value.startsWith("/") || /^data:image\/(png|jpe?g|webp);base64,/i.test(value), {
+    message: "avatar_url must be an http(s) URL, absolute path, or data image"
+  });
+
 export const employeeCardResponseSchema = z.object({
   card_id: z.string(),
   public_id: publicIdSchema,
   display_name: z.string(),
   title: z.string().nullable(),
   company: z.string().nullable(),
-  avatar_url: z.string().url().nullable(),
+  avatar_url: imageSourceSchema.nullable(),
   fields: z.object({
     mobile: z.string().nullable(),
     phone: z.string().nullable().optional(),
@@ -20,7 +26,8 @@ export const employeeCardResponseSchema = z.object({
     show_mobile: z.boolean(),
     show_email: z.boolean(),
     show_wechat: z.boolean()
-  })
+  }),
+  editable_fields: z.array(z.string()).optional()
 });
 
 export const employeeShareResponseSchema = z.object({
@@ -31,6 +38,7 @@ export const employeeShareResponseSchema = z.object({
 });
 
 export const updateEmployeeCardRequestSchema = z.object({
+  avatar_url: imageSourceSchema.nullable().optional(),
   display_name: z.string().min(1).max(128).optional(),
   title: z.string().max(128).nullable().optional(),
   fields: z

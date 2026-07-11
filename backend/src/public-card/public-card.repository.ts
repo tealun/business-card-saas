@@ -35,6 +35,7 @@ interface PublicCardRow extends QueryResultRow {
   public_id: string;
   display_name: string | null;
   title: string | null;
+  avatar_url: string | null;
   fields_encrypted: string | null;
   privacy_json: unknown;
   card_status: PublicCardResponse["status"];
@@ -376,6 +377,7 @@ export class PublicCardRepository {
           cards.public_id,
           cards.display_name,
           cards.title,
+          cards.avatar_url,
           cards.fields_encrypted,
           cards.privacy_json,
           cards.status AS card_status,
@@ -502,7 +504,7 @@ export class PublicCardRepository {
         display_name: row.display_name ?? "Unnamed",
         title: row.title,
         company: row.company_name,
-        avatar_url: null,
+        avatar_url: row.avatar_url,
         fields: {
           mobile: privacy.show_mobile ? fields.mobile : null,
           phone: fields.phone,

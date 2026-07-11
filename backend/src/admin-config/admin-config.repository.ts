@@ -410,6 +410,7 @@ export class AdminConfigRepository {
 
 function defaultFieldRules(): AdminFieldRule[] {
   return [
+    { field_key: "avatar_url", label: "头像", locked: false, employee_editable: true, default_visible: true },
     { field_key: "display_name", label: "姓名", locked: false, employee_editable: true, default_visible: true },
     { field_key: "title", label: "职位", locked: false, employee_editable: true, default_visible: true },
     { field_key: "mobile", label: "手机", locked: false, employee_editable: true, default_visible: false },
