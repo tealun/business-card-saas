@@ -11,7 +11,24 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="admin-shell">
+    <div id="authGate" class="auth-gate hidden">
+      <div class="auth-card">
+        <img src="./assets/mark-color-144.png" alt="" />
+        <h1>智云名片 · 企业管理后台</h1>
+        <p class="auth-hint">请使用企业微信授权登录后台</p>
+        <label class="stacked">
+          <span>企业微信登录 Code</span>
+          <input id="gateLoginCode" autocomplete="off" placeholder="企微 OAuth 回调获取的 code" />
+        </label>
+        <label class="stacked">
+          <span>Owner Claim Token（仅首次认领企业时填写）</span>
+          <input id="gateClaimToken" autocomplete="off" placeholder="可留空" />
+        </label>
+        <button id="gateLogin">登录</button>
+        <p id="gateError" class="auth-error" role="alert"></p>
+      </div>
+    </div>
+    <main id="adminShell" class="admin-shell hidden">
       <aside class="sidebar" aria-label="后台导航">
         <div class="brand">
           <img src="./assets/mark-color-144.png" alt="" />
@@ -27,7 +44,7 @@
           <button class="nav-item" data-view-target="rules">字段与模板</button>
           <button class="nav-item" data-view-target="sync">同步</button>
           <button class="nav-item" data-view-target="database">数据库</button>
-          <button class="nav-item" data-view-target="setup">授权与联调</button>
+          <button class="nav-item" data-view-target="setup" data-dev-only>授权与联调</button>
         </nav>
       </aside>
 
@@ -37,10 +54,16 @@
             <p class="eyebrow">M1 Admin Console</p>
             <h1>企业配置工作台</h1>
           </div>
-          <label class="api-base">
-            <span>API Base</span>
-            <input id="apiBase" autocomplete="off" placeholder="https://api.example.com/api/v1" />
-          </label>
+          <div class="topbar-side">
+            <label class="api-base" data-dev-only>
+              <span>API Base</span>
+              <input id="apiBase" autocomplete="off" placeholder="https://api.example.com/api/v1" />
+            </label>
+            <div class="topbar-session">
+              <span id="topbarAdmin" class="pill">未登录</span>
+              <button id="logoutButton" class="secondary" type="button">退出登录</button>
+            </div>
+          </div>
         </header>
 
         <section class="status-strip" aria-live="polite">
@@ -432,7 +455,7 @@
           </article>
         </section>
 
-        <section class="view" data-view="setup">
+        <section class="view" data-view="setup" data-dev-only>
           <div class="view-head">
             <div>
               <h2>授权与联调</h2>

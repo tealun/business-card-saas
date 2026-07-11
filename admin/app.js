@@ -1,3 +1,19 @@
+// Dev mode unlocks the debug surfaces (API Base override, 授权与联调 panel).
+// Production visitors get the login gate and a fixed same-origin API base only.
+const DEV_MODE = (() => {
+  try {
+    if (new URLSearchParams(window.location.search).has("dev")) {
+      return true;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return (
+    window.location.protocol === "file:" ||
+    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  );
+})();
+
 const state = {
   token: "",
   adminToken: sessionStorage.getItem("bc_admin_token") || "",
@@ -58,6 +74,14 @@ const databaseMigrationFilesText = document.querySelector("#databaseMigrationFil
 const databasePendingCountText = document.querySelector("#databasePendingCount");
 const databaseMigrationRows = document.querySelector("#databaseMigrationRows");
 const databaseOutput = document.querySelector("#databaseOutput");
+const authGate = document.querySelector("#authGate");
+const adminShell = document.querySelector("#adminShell");
+const gateLoginCodeInput = document.querySelector("#gateLoginCode");
+const gateClaimTokenInput = document.querySelector("#gateClaimToken");
+const gateLoginButton = document.querySelector("#gateLogin");
+const gateError = document.querySelector("#gateError");
+const topbarAdmin = document.querySelector("#topbarAdmin");
+const logoutButton = document.querySelector("#logoutButton");
 
 apiBaseInput.value = defaultApiBase();
 adminTokenInput.value = state.adminToken;
@@ -77,6 +101,9 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
 });
 
 function apiBase() {
+  if (!DEV_MODE) {
+    return `${window.location.origin}/api/v1`;
+  }
   const value = apiBaseInput.value.trim().replace(/\/$/, "");
   if (!value) {
     throw new Error("请先配置 API Base");
@@ -145,14 +172,57 @@ async function fetchOnce(path, options, signal) {
     body = { message: `服务响应异常 (${response.status} ${response.statusText})` };
   }
   if (!response.ok) {
-    throw new Error(body?.message || `${response.status} ${response.statusText}`);
+    const error = new Error(body?.message || `${response.status} ${response.statusText}`);
+    error.status = response.status;
+    throw error;
   }
   return body && typeof body === "object" && "data" in body ? body.data : body;
 }
 
-function adminRequest(path, options = {}) {
-  state.adminToken = adminTokenInput.value.trim();
-  return request(path, { ...options, token: state.adminToken });
+async function adminRequest(path, options = {}) {
+  const inputToken = adminTokenInput.value.trim();
+  if (inputToken) {
+    state.adminToken = inputToken;
+  }
+  try {
+    return await request(path, { ...options, token: state.adminToken });
+  } catch (error) {
+    if (error && error.status === 401) {
+      expireAdminSession("登录已过期，请重新登录");
+    }
+    throw error;
+  }
+}
+
+function setAuthedUi(admin) {
+  topbarAdmin.textContent = admin ? `${admin.tenant_name} · ${admin.role}` : "未登录";
+}
+
+function showGate(message) {
+  authGate.classList.remove("hidden");
+  adminShell.classList.add("hidden");
+  gateError.textContent = message || "";
+}
+
+function showConsole() {
+  authGate.classList.add("hidden");
+  adminShell.classList.remove("hidden");
+}
+
+function expireAdminSession(message) {
+  state.adminToken = "";
+  sessionStorage.removeItem("bc_admin_token");
+  adminTokenInput.value = "";
+  adminStatus.textContent = "未连接";
+  setAuthedUi(null);
+  showGate(message);
+}
+
+function applyAdminIdentity(admin) {
+  adminStatus.textContent = `${admin.role} · ${admin.tenant_name}`;
+  setAuthedUi(admin);
+  state.adminMemberId = admin.member_identity_id || "";
+  adminMemberIdInput.value = state.adminMemberId;
 }
 
 function write(target, value) {
@@ -291,7 +361,7 @@ function renderDatabaseMigrations(result) {
   const rows = result.pending_migrations?.length
     ? result.pending_migrations
     : (result.migration_files || []).map((fileName) => ({
-        name: fileName.replace(/\.js$/, ""),
+        name: fileName.replace(/\.(js|sql)$/, ""),
         file_name: fileName,
         applied: true
       }));
@@ -663,9 +733,42 @@ document.querySelector("#adminQyLogin").addEventListener("click", async () => {
   state.adminToken = result.access_token;
   adminTokenInput.value = state.adminToken;
   sessionStorage.setItem("bc_admin_token", state.adminToken);
-  adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
-  state.adminMemberId = result.admin.member_identity_id || "";
-  adminMemberIdInput.value = state.adminMemberId;
+  applyAdminIdentity(result.admin);
+  showConsole();
+});
+
+gateLoginButton.addEventListener("click", async () => {
+  const code = gateLoginCodeInput.value.trim();
+  if (!code) {
+    gateError.textContent = "请输入企业微信登录 code";
+    return;
+  }
+  gateLoginButton.disabled = true;
+  gateError.textContent = "登录中...";
+  try {
+    const body = { code };
+    const claimToken = gateClaimTokenInput.value.trim();
+    if (claimToken) {
+      body.claim_token = claimToken;
+    }
+    const result = await request("/admin/auth/qy-login", { method: "POST", auth: false, body });
+    state.adminToken = result.access_token;
+    sessionStorage.setItem("bc_admin_token", state.adminToken);
+    adminTokenInput.value = state.adminToken;
+    applyAdminIdentity(result.admin);
+    gateError.textContent = "";
+    gateLoginCodeInput.value = "";
+    gateClaimTokenInput.value = "";
+    showConsole();
+  } catch (error) {
+    gateError.textContent = error instanceof Error ? error.message : String(error);
+  } finally {
+    gateLoginButton.disabled = false;
+  }
+});
+
+logoutButton.addEventListener("click", () => {
+  expireAdminSession("");
 });
 
 document.querySelector("#createWecomAuthorizationLink").addEventListener("click", async () => {
@@ -688,9 +791,7 @@ document.querySelector("#createWecomAuthorizationLink").addEventListener("click"
 
 document.querySelector("#loadAdminMe").addEventListener("click", async () => {
   const result = await run("loading admin session", adminOutput, async () => adminRequest("/admin/session/me"));
-  adminStatus.textContent = `${result.admin.role} · ${result.admin.tenant_name}`;
-  state.adminMemberId = result.admin.member_identity_id || "";
-  adminMemberIdInput.value = state.adminMemberId;
+  applyAdminIdentity(result.admin);
 });
 
 document.querySelector("#loadOverview").addEventListener("click", async () => {
@@ -888,4 +989,30 @@ templateRows.addEventListener("click", async (event) => {
   }
 });
 
-document.querySelector("#checkHealth").click();
+async function boot() {
+  if (DEV_MODE) {
+    document.body.classList.add("dev-mode");
+  }
+  if (!state.adminToken) {
+    // Dev keeps the old workflow: console opens directly so the 授权与联调 panel
+    // (demo login / token paste) stays reachable. Production always gates.
+    if (DEV_MODE) {
+      showConsole();
+    } else {
+      showGate("");
+    }
+  } else {
+    try {
+      const result = await request("/admin/session/me", { token: state.adminToken });
+      applyAdminIdentity(result.admin);
+      showConsole();
+    } catch (error) {
+      expireAdminSession(error && error.status === 401 ? "登录已过期，请重新登录" : "");
+    }
+  }
+  if (DEV_MODE) {
+    document.querySelector("#checkHealth").click();
+  }
+}
+
+void boot();
