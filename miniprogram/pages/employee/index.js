@@ -29,15 +29,11 @@ Page({
     switchingIdentity: false,
     currentIdentity: null,
     identities: [],
-    requests: [
-      { id: "req1", name: "周琳", title: "采购经理 · 华宇集团" }
-    ],
-    stats: { visitors: 328, viewed: 56, friends: 4 },
-    recentVisitors: [
-      { id: "v1", name: "李明浩", title: "产品总监 · 星河科技", meta: "访问 3 次", state: "exchanged", time: "10:24" },
-      { id: "v2", name: "王思远", title: "商务拓展 · 云图数据", meta: "访问 1 次", state: "pending", time: "昨天" },
-      { id: "v3", name: "陈可欣", title: "市场经理 · 万联传媒", meta: "访问 2 次", state: "none", time: "周一" }
-    ]
+    // 交换请求/访客统计的后端功能尚未上线：保持空数据 + 空态展示，
+    // 不再用演示人名占位（见 99_56 整改讨论）。
+    requests: [],
+    stats: { visitors: 0, viewed: 0, friends: 0 },
+    recentVisitors: []
   },
 
   onLoad() {
@@ -116,6 +112,13 @@ Page({
         loggedIn: true
       });
     } catch (error) {
+      // 读取失败不等于登录失效：token 还在时保持登录态，只提示错误，
+      // 避免把已登录用户误降级成“未登录 + 演示名片”。
+      if (app.globalData.token && app.globalData.currentIdentity) {
+        this.setData({ loading: false, error: true });
+        wx.showToast({ title: error.message || "名片读取失败，请下拉重试", icon: "none" });
+        return;
+      }
       this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
       wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
     }

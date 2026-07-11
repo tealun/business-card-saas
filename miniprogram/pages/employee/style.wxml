@@ -2,14 +2,14 @@
   <view class="biz-card style-preview">
     <view class="biz-card__head">
       <view class="biz-card__logo"></view>
-      <text class="biz-card__company">{{card.company || "智云科技"}}</text>
+      <text class="biz-card__company">{{card.company || "企业名片"}}</text>
     </view>
     <view class="biz-card__body">
       <view class="biz-card__info">
         <view class="biz-card__name">{{card.display_name || "姓名"}}</view>
         <view class="biz-card__role">{{card.title || "职位"}}</view>
         <view class="biz-card__contact">
-          <view>{{card.fields.mobile || "138 0013 8000"}}</view>
+          <view>{{card.fields.mobile || "联系方式未设置"}}</view>
         </view>
       </view>
       <view class="biz-card__avatar">{{card.display_name ? card.display_name[0] : "名"}}</view>

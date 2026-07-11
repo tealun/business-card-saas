@@ -5,12 +5,7 @@ Page({
   data: {
     primary: "#2b6cff",
     templateId: "tpl_horizontal_business",
-    card: {
-      display_name: "李明",
-      title: "销售总监",
-      company: "智云科技",
-      fields: { mobile: "138 0013 8000" }
-    },
+    card: { display_name: "", title: "", company: "", fields: {} },
     templates: [
       { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
       { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
@@ -36,7 +31,7 @@ Page({
       const card = await request("/employee/cards/current");
       this.setData({ card: Object.assign({ fields: {} }, card) });
     } catch (_error) {
-      wx.showToast({ title: "预览使用演示数据", icon: "none" });
+      wx.showToast({ title: "名片信息加载失败，预览可能不完整", icon: "none" });
     }
   },
 

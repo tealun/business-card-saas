@@ -11,7 +11,7 @@
   <view class="biz-card">
     <view class="biz-card__head">
       <view class="biz-card__logo"></view>
-      <text class="biz-card__company">{{card.company || "智云科技"}}</text>
+      <text class="biz-card__company">{{card.company || "企业名片"}}</text>
     </view>
     <view class="biz-card__body">
       <view class="biz-card__info">
