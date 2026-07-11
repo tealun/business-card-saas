@@ -506,3 +506,76 @@ h3 {
     border-bottom: 1px solid var(--divider);
   }
 }
+
+/* ---------- Auth gate & session (A-P1-3 / A-P2-1) ---------- */
+
+.hidden {
+  display: none !important;
+}
+
+body:not(.dev-mode) [data-dev-only] {
+  display: none !important;
+}
+
+.auth-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+  display: grid;
+  gap: 14px;
+  text-align: center;
+}
+
+.auth-card img {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.auth-card h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.auth-card label {
+  text-align: left;
+}
+
+.auth-error {
+  min-height: 18px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.topbar-side {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
