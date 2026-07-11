@@ -1,7 +1,17 @@
 const app = getApp();
 const { request } = require("../../utils/api");
 
+const demoServiceItems = [
+  { title: "数字名片", desc: "员工对外名片展示" },
+  { title: "客户留资", desc: "访客行为追踪" },
+  { title: "企业形象", desc: "统一品牌展示" },
+  { title: "销售获客", desc: "分享链路转化" },
+  { title: "内容展示", desc: "图文介绍产品" },
+  { title: "数据分析", desc: "访问效果统计" }
+];
+
 const demoPublicCard = {
+  public_id: "pub_demo0001",
   status: "active",
   card: {
     display_name: "李明",
@@ -10,24 +20,26 @@ const demoPublicCard = {
     avatar_url: "",
     fields: {
       mobile: "138 0013 8000",
-      phone: "0755-8888 0000",
+      phone: "",
       email: "liming@zhiyun.tech",
       wechat_id: "liming-zy",
       address: "深圳市南山区科技园"
     }
   },
+  template: {
+    color_scheme: { primary: "#2b6cff" },
+    layout: {}
+  },
   company_profile: {
-    name: "智云科技（深圳）有限公司",
+    name: "智云科技",
     address: "深圳市南山区科技园",
     intro_blocks: [
-      { text: "智云科技成立于 2016 年，专注为制造业与商贸企业提供数字化经营工具，服务企业客户 3,000+ 家。核心产品覆盖数字名片、客户管理与营销转化。" }
+      { type: "paragraph", text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理与客户转化追踪。" },
+      { type: "image", image_url: "", caption: "业务介绍图片" }
     ]
   },
-  videos: [{ title: "智云科技企业宣传片", video_url: "", cover_url: "" }],
-  honors: [
-    { honor_id: "h1", title: "国家高新技术企业", body: "2023-2025 连续认定", images: [] },
-    { honor_id: "h2", title: "等保三级认证", body: "数据安全合规", images: [] }
-  ]
+  videos: [],
+  honors: []
 };
 
 Page({
@@ -39,6 +51,11 @@ Page({
     visitId: "",
     themeBrand: "#2b6cff",
     isDisabled: false,
+    isOwnCard: false,
+    viewCount: 269,
+    likeCount: 136,
+    serviceItems: demoServiceItems,
+    introBlocks: demoPublicCard.company_profile.intro_blocks,
     card: demoPublicCard
   },
 
@@ -47,7 +64,7 @@ Page({
     const shareId = query.share || "";
     this.setData({ publicId, shareId });
     if (!publicId) {
-      this.setData({ uiState: "ready", card: demoPublicCard });
+      this.applyPublicCard(demoPublicCard, true);
       wx.showToast({ title: "当前展示演示名片", icon: "none" });
       return;
     }
@@ -62,27 +79,36 @@ Page({
   async loadPublicCard() {
     try {
       const card = await request(`/public/cards/${this.data.publicId}`, { auth: false });
-      const disabled = card.status && card.status !== "active";
-      const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
-      // 真实名片缺失的板块（企业资料/视频/荣誉）用空默认值兜底并隐藏，
-      // 绝不与演示数据合并——否则演示企业的资质会出现在真实名片上。
-      this.setData({
-        card: {
-          status: card.status || "active",
-          card: Object.assign({ display_name: "", title: "", company: "", avatar_url: "", fields: {} }, card.card || {}),
-          company_profile: card.company_profile || null,
-          videos: card.videos || [],
-          honors: card.honors || [],
-          template: card.template || null
-        },
-        themeBrand: brand,
-        isDisabled: disabled,
-        uiState: disabled ? "disabled" : "ready"
-      });
+      this.applyPublicCard(card, false);
     } catch (error) {
       this.setData({ uiState: "error" });
       wx.showToast({ title: error.message || "名片加载失败", icon: "none" });
     }
+  },
+
+  applyPublicCard(rawCard, isDemo) {
+    const card = normalizePublicCard(rawCard);
+    const disabled = card.status && card.status !== "active";
+    const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
+    this.setData({
+      card,
+      themeBrand: brand,
+      isDisabled: disabled,
+      isOwnCard: this.isOwnPublicCard(card),
+      serviceItems: resolveServiceItems(card, isDemo),
+      introBlocks: resolveIntroBlocks(card),
+      viewCount: isDemo ? 269 : 0,
+      likeCount: isDemo ? 136 : 0,
+      uiState: disabled ? "disabled" : "ready"
+    });
+  },
+
+  isOwnPublicCard(card) {
+    const currentIdentity = app.globalData.currentIdentity || {};
+    return Boolean(
+      (this.data.publicId && currentIdentity.public_id === this.data.publicId) ||
+      (card && (card.is_owner || card.is_own))
+    );
   },
 
   reload() {
@@ -101,11 +127,10 @@ Page({
     }
   },
 
-  goCompany() {
-    wx.switchTab({ url: "/pages/company-card/index", fail() {} });
-  },
-
   async createVisit() {
+    if (!this.data.publicId) {
+      return;
+    }
     try {
       const data = { anon_id: app.globalData.anonId || undefined };
       if (this.data.shareId) {
@@ -139,13 +164,12 @@ Page({
       this.setData({ nextShareId: derived.share_id });
     } catch (error) {
       console.error("derive share failed", error);
-      wx.showToast({ title: "裂变关系未上报", icon: "none" });
       this.setData({ nextShareId: this.data.shareId });
     }
   },
 
   async recordAction(actionType) {
-    if (!app.globalData.visitToken) {
+    if (!app.globalData.visitToken || !this.data.publicId) {
       return;
     }
     try {
@@ -156,7 +180,6 @@ Page({
       });
     } catch (error) {
       console.error(`record action ${actionType} failed`, error);
-      wx.showToast({ title: "行为记录未上报", icon: "none" });
     }
   },
 
@@ -186,30 +209,39 @@ Page({
     });
   },
 
+  collectCard() {
+    this.recordAction("view_paper_card");
+    wx.showToast({ title: "已收下名片", icon: "success" });
+  },
+
   copyEmail() {
     const email = this.data.card.card.fields && this.data.card.card.fields.email;
-    if (!email) return;
+    if (!email) {
+      wx.showToast({ title: "暂无邮箱", icon: "none" });
+      return;
+    }
     this.recordAction("copy_email");
     wx.setClipboardData({ data: email });
   },
 
   openMap() {
-    this.recordAction("open_map");
-    const address = (this.data.card.company_profile || {}).address || (this.data.card.card.fields || {}).address;
-    if (address) {
-      wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
+    const fields = this.data.card.card.fields || {};
+    const address = (this.data.card.company_profile || {}).address || fields.address;
+    if (!address) {
+      wx.showToast({ title: "暂无地址", icon: "none" });
+      return;
     }
+    this.recordAction("open_map");
+    wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
   },
 
   copyWechat() {
     const wechat = this.data.card.card.fields && this.data.card.card.fields.wechat_id;
-    if (!wechat) return;
+    if (!wechat) {
+      wx.showToast({ title: "暂无微信", icon: "none" });
+      return;
+    }
     wx.setClipboardData({ data: wechat, success() { wx.showToast({ title: "微信号已复制", icon: "none" }); } });
-  },
-
-  addWecom() {
-    this.recordAction("add_wecom");
-    wx.showToast({ title: "正在跳转企业微信", icon: "none" });
   },
 
   viewPaperCard() {
@@ -217,29 +249,8 @@ Page({
     wx.showToast({ title: "纸质名片信息已记录", icon: "none" });
   },
 
-  expandIntro() {
-    this.recordAction("expand_company_intro");
-    wx.showToast({ title: "已展开公司介绍", icon: "none" });
-  },
-
-  playVideo() {
-    this.recordAction("play_company_video");
-    const video = (this.data.card.videos || [])[0];
-    if (video && video.video_url) {
-      if (wx.previewMedia) {
-        wx.previewMedia({
-          sources: [{ url: video.video_url, type: "video", poster: video.cover_url || undefined }],
-          fail() { wx.setClipboardData({ data: video.video_url }); }
-        });
-      } else {
-        wx.setClipboardData({ data: video.video_url });
-      }
-    }
-  },
-
-  previewHonor(event) {
+  previewIntroImage(event) {
     const url = event.currentTarget.dataset.url;
-    this.recordAction("view_honor_image");
     if (url) {
       wx.previewImage({ urls: [url], current: url });
     }
@@ -250,8 +261,59 @@ Page({
     this.recordAction("view_site");
     const shareParam = shareId ? `&share=${shareId}` : "";
     return {
-      title: `${this.data.card.card.display_name || "企业名片"}`,
+      title: `${this.data.card.card.display_name || "名片"}的名片`,
       path: `/pages/public/card?card=${this.data.publicId}${shareParam}`
     };
   }
 });
+
+function normalizePublicCard(card) {
+  return {
+    public_id: card.public_id || "",
+    status: card.status || "active",
+    card: Object.assign(
+      { display_name: "", title: "", company: "", avatar_url: "", fields: {} },
+      card.card || {}
+    ),
+    template: card.template || { color_scheme: {}, layout: {} },
+    company_profile: card.company_profile || { name: "", intro_blocks: [], address: "" },
+    videos: card.videos || [],
+    honors: card.honors || [],
+    is_owner: card.is_owner,
+    is_own: card.is_own
+  };
+}
+
+function resolveServiceItems(card, isDemo) {
+  const layout = (card.template && card.template.layout) || {};
+  const profile = card.company_profile || {};
+  const source =
+    layout.service_items ||
+    layout.services ||
+    profile.service_items ||
+    profile.services ||
+    [];
+  const items = Array.isArray(source)
+    ? source
+        .map((item) => ({
+          title: String(item.title || item.name || "").trim(),
+          desc: String(item.desc || item.description || "").trim()
+        }))
+        .filter((item) => item.title)
+        .slice(0, 6)
+    : [];
+  return items.length ? items : isDemo ? demoServiceItems : [];
+}
+
+function resolveIntroBlocks(card) {
+  const blocks = ((card.company_profile || {}).intro_blocks || []).map((item) => {
+    const type = item.type || (item.image_url ? "image" : "paragraph");
+    return {
+      type,
+      text: item.text || item.content || "",
+      image_url: item.image_url || item.url || "",
+      caption: item.caption || ""
+    };
+  });
+  return blocks.filter((item) => item.text || item.image_url);
+}

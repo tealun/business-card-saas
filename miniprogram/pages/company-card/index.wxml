@@ -1,77 +1,61 @@
 <view class="company-page">
-  <view class="company-hero">
-    <view class="company-logo">{{company.name[0]}}</view>
-    <view class="company-name">{{company.fullName}}</view>
-    <view class="company-badges">
-      <text class="badge badge--success" wx:if="{{company.certified}}">官方认证</text>
-      <text class="badge badge--brand">企业数字名片</text>
-    </view>
-    <view class="company-stats">
-      <view class="company-stat" wx:for="{{company.stats}}" wx:key="label">
-        <view class="company-stat__num">{{item.num}}</view>
-        <view class="company-stat__label">{{item.label}}</view>
-      </view>
-    </view>
-  </view>
-
   <view class="page company-body">
     <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
-      当前企业资料与成员列表为演示样例，登录后会显示你所在企业的信息。
-    </view>
-    <view class="status-bar status-bar--warning" wx:elif="{{isPersonal}}">
-      当前为个人名片身份，暂无企业资料。切换到企业身份后可查看企业信息。
-    </view>
-    <view class="status-bar status-bar--warning" wx:elif="{{!company.intro}}">
-      企业资料由管理员在后台维护，完善后会在此展示。
+      当前为未登录体验，展示的是名片样式示例。登录后会显示你当前身份的真实名片。
     </view>
 
-    <view class="card" wx:if="{{company.intro || company.quals.length}}">
-      <text class="card__title">企业简介</text>
-      <view class="company-intro" wx:if="{{company.intro}}">{{company.intro}}</view>
-      <view class="qual-row" wx:if="{{company.quals.length}}">
-        <text class="chip" wx:for="{{company.quals}}" wx:key="*this">{{item}}</text>
+    <block wx:if="{{loading}}">
+      <view class="card skeleton-card">
+        <view class="skeleton skeleton-line skeleton-line--short"></view>
+        <view class="skeleton skeleton-line skeleton-line--name"></view>
+        <view class="skeleton skeleton-line"></view>
+        <view class="skeleton skeleton-line skeleton-line--short"></view>
       </view>
-    </view>
+    </block>
 
-    <view class="card" wx:if="{{company.address || company.phone || company.website}}">
-      <text class="card__title">联系与官网</text>
-      <view class="field-row" wx:if="{{company.address}}" bindtap="copyAddress">
-        <view class="field-row__label"><view class="icon icon-location icon--sm"></view><text>地址</text></view>
-        <view class="field-row__value">{{company.address}}</view>
-      </view>
-      <view class="field-row" wx:if="{{company.phone}}" bindtap="callCompany">
-        <view class="field-row__label"><view class="icon icon-phone icon--sm"></view><text>电话</text></view>
-        <view class="field-row__value">{{company.phone}}</view>
-      </view>
-      <view class="field-row" wx:if="{{company.website}}" bindtap="copyWebsite">
-        <view class="field-row__label"><view class="icon icon-paper icon--sm"></view><text>官网</text></view>
-        <view class="field-row__value">{{company.website}}</view>
-      </view>
-    </view>
-
-    <view class="card team-card">
-      <view class="row-between">
-        <text class="card__title">团队成员</text>
-        <text class="card__more" wx:if="{{departments.length}}">按部门展示</text>
-      </view>
-      <view class="f13 t-secondary" wx:if="{{!departments.length}}">成员目录即将上线。</view>
-      <block wx:for="{{departments}}" wx:key="name">
-        <view class="dept-title">{{item.name}}</view>
-        <view class="member-row" wx:for="{{item.members}}" wx:for-item="member" wx:key="id">
-          <view class="member-avatar">{{member.name[0]}}</view>
-          <view class="member-main">
-            <view class="member-name">{{member.name}} <text wx:if="{{member.self}}" class="badge badge--brand">本人</text></view>
-            <view class="member-title">{{member.title}}</view>
-          </view>
-          <view class="btn btn--sm btn--ghost">名片</view>
+    <block wx:else>
+      <view class="biz-card company-preview-card">
+        <view class="biz-card__head">
+          <view class="biz-card__logo"></view>
+          <text class="biz-card__company">{{card.company || "企业名片"}}</text>
         </view>
-      </block>
-    </view>
+        <view class="biz-card__body">
+          <view class="biz-card__info">
+            <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
+            <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
+            <view class="biz-card__contact">
+              <view>{{card.fields.mobile || card.fields.phone || "联系方式未公开"}}</view>
+              <view>{{card.fields.email || "邮箱未公开"}}</view>
+            </view>
+          </view>
+          <view class="biz-card__avatar">
+            <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+            <text wx:else>{{card.display_name ? card.display_name[0] : "名"}}</text>
+          </view>
+        </view>
+        <view class="biz-card__status">
+          <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
+          <text wx:elif="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
+          <text wx:else class="badge badge--muted">未启用</text>
+        </view>
+      </view>
+
+      <view class="status-card" wx:if="{{loggedIn && isPersonal}}">
+        <view class="status-card__title">当前账号暂无企业名片身份</view>
+        <view class="status-card__desc">
+          企业名片由企业微信管理员授权安装应用后生成。完成授权后，员工重新登录即可看到企业名片身份。
+        </view>
+        <view class="btn btn--primary btn--block" bindtap="openGuide">查看企业名片开通说明</view>
+      </view>
+
+      <view class="status-card" wx:elif="{{loggedIn}}">
+        <view class="status-card__title">这是你的企业身份名片预览</view>
+        <view class="status-card__desc">
+          该页面用于查看企业身份名片最终展示效果。访客从公开链接访问他人的企业名片时，才会出现加入名片夹入口。
+        </view>
+      </view>
+    </block>
   </view>
 
-  <login-bar wx:if="{{!loggedIn}}" text="立即登录，查看我的企业" bind:success="onLoginSuccess" />
-  <view class="company-footer" wx:if="{{loggedIn}}">
-    <view class="btn btn--ghost company-footer__btn" bindtap="copyWebsite">进入官网</view>
-    <view class="btn btn--primary company-footer__btn" bindtap="followCompany">关注企业</view>
-  </view>
+  <login-bar wx:if="{{!loggedIn}}" text="立即登录，查看我的企业名片" bind:success="onLoginSuccess" />
 </view>

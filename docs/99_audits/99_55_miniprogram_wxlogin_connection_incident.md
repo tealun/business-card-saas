@@ -125,7 +125,7 @@ errMsg: "request:fail"
 | 后端 | NestJS + Fastify，监听 `127.0.0.1:3030`，`npm run start:prod`（该脚本每次会 `npm install && npm run build && node --env-file=.env dist/main.js`） |
 | 反代 | nginx，站点配置 `/www/server/panel/vhost/nginx/node_wecom_card.conf`，`proxy_pass http://127.0.0.1:3030` |
 | 域名 | `wecomcard.yuanyin.design`，**已 ICP 备案** |
-| 小程序 | AppID `wx9927ec4d4239bb6f`，`apiBase = https://wecomcard.yuanyin.design/api/v1` |
+| 小程序 | AppID `<MINIPROGRAM_APPID>`，`apiBase = https://wecomcard.yuanyin.design/api/v1` |
 | **对照项目** | **moread**（`moread.yuanyin.design` → `127.0.0.1:3001`，**同一台服务器、同一个 nginx**）——**小程序连接完全正常** |
 
 对照项目 moread 是本次排查的关键：它证明服务器、nginx、网络、备案、微信客户端全都没问题，问题被隔离到 **wecom 这个站点独有的因素**。
@@ -139,7 +139,7 @@ errMsg: "request:fail"
 | 3 | 防火墙 | 本机 iptables INPUT 有 `--dport 80/443 -j ACCEPT`；云安全组已放行 80/443 |
 | 4 | 未备案 SNI 阻断 | 域名已备案；ping.pe 全球（含成都/上海/腾讯/阿里/电信/移动/联通）0% 丢包，IP 可达 |
 | 5 | 证书链不完整 / TLS 版本 | 本机 `openssl s_client 127.0.0.1:443`：证书链完整、`Verify return code: 0 (ok)`、TLS1.3 与 TLS1.2（`ECDHE-RSA-CHACHA20-POLY1305`）均正常 |
-| 6 | request 合法域名 | 后台已配 `https://wecomcard.yuanyin.design`，与 apiBase 完全一致；AppID 匹配（`wx9927ec4d4239bb6f`） |
+| 6 | request 合法域名 | 后台已配 `https://wecomcard.yuanyin.design`，与 apiBase 完全一致；AppID 匹配（`<MINIPROGRAM_APPID>`） |
 | 7 | 微信端校验 | 开发者工具"不校验合法域名/TLS/证书"**已勾选**，仍失败 |
 | 8 | 本机代理/VPN（Windows） | 关掉后仍失败；且**真机 4G（不同设备/网络/IP）行为完全一致**，排除本机代理 |
 | 9 | 微信网络本身坏了 | 同一开发者工具里 `wx.request('https://www.baidu.com')` → **`BAIDU OK 200`**，微信能做 HTTPS |

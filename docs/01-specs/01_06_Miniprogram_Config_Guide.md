@@ -33,7 +33,7 @@ wx.getExtConfigSync().apiBase
 - [`../../miniprogram/config.example.js`](../../miniprogram/config.example.js)：提交到公开仓库的模板说明，运行时不会读取。
 - `miniprogram/config.js`：本地真实配置，运行时只读这个文件；已加入 `.gitignore`，不要提交。
 
-先复制示例文件：
+先复制本地运行配置示例文件：
 
 ```powershell
 Copy-Item miniprogram\config.example.js miniprogram\config.js
@@ -61,6 +61,22 @@ module.exports = {
 };
 ```
 
+真实小程序 AppID 不写入 `project.config.json`，而是放在本机私有配置里。新开发者先复制示例文件：
+
+```powershell
+Copy-Item miniprogram\project.private.config.example.json miniprogram\project.private.config.json
+```
+
+然后把 `appid` 改成自己的真实小程序 AppID：
+
+```json
+{
+  "appid": "<MINIPROGRAM_APPID>"
+}
+```
+
+`miniprogram/project.private.config.json` 已加入 `.gitignore`，只在本机生效，不提交到仓库。
+
 后端统一 API 前缀是：
 
 ```text
@@ -84,15 +100,15 @@ https://api.example.com/api/v1
 1. 打开微信开发者工具。
 2. 选择「导入项目」。
 3. 项目目录选择仓库内 `miniprogram/`。
-4. AppID 使用真实小程序 AppID；当前 `project.config.json` 已写入：
+4. AppID 使用真实小程序 AppID；仓库内 `project.config.json` 只保留占位值：
 
 ```json
 {
-  "appid": "wx9927ec4d4239bb6f"
+  "appid": "touristappid"
 }
 ```
 
-本地工具生成的 `project.private.config.json` 属于个人开发者工具配置，通常不作为团队事实源。
+本机真实 AppID 写在 `miniprogram/project.private.config.json`。如果文件不存在，复制 `miniprogram/project.private.config.example.json` 后填写；这个文件属于个人开发者工具配置，不作为团队事实源。
 
 ### 2.2 开发版后端地址
 
