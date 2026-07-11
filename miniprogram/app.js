@@ -21,6 +21,15 @@ App({
     visitToken: "",
     anonId: "",
     demoAuthEnabled: Boolean(config.demoAuthEnabled)
+  },
+
+  onLaunch() {
+    try {
+      const { restoreSession } = require("./utils/auth");
+      restoreSession(this.globalData);
+    } catch (_error) {
+      // 恢复失败时保持空会话，不影响后续登录流程。
+    }
   }
 });
 

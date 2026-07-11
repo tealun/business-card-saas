@@ -1,4 +1,4 @@
-<view class="page wallet-page {{!loggedIn ? 'page--with-login' : ''}}">
+<view class="page wallet-page {{!loggedIn ? 'page--with-login' : ''}} tabbar-safe">
   <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
     当前访客与交换记录为演示样例，登录后会展示你的真实名片数据。
   </view>
@@ -51,14 +51,5 @@
     </view>
   </block>
 
-  <view class="login-fixed" wx:if="{{!loggedIn}}">
-    <button
-      class="btn btn--block login-fixed__btn login-fixed__btn--orange"
-      bindtap="triggerLogin"
-      disabled="{{loginSubmitting}}"
-      loading="{{loginSubmitting}}"
-    >
-      {{loginSubmitting ? "登录中..." : "立即登录，查看我的访客"}}
-    </button>
-  </view>
+  <login-bar wx:if="{{!loggedIn}}" text="立即登录，查看我的访客" bind:success="onLoginSuccess" />
 </view>

@@ -1,4 +1,4 @@
-<view class="page {{!loggedIn ? 'page--with-login' : ''}}" style="--brand: {{themeBrand}};">
+<view class="page {{!loggedIn ? 'page--with-login' : ''}} tabbar-safe" style="--brand: {{themeBrand}};">
   <view class="page__content">
     <view class="status-bar status-bar--warning" wx:if="{{authState === 'guest'}}">
       当前为未登录体验，演示数据仅用于预览流程，登录后会同步你的真实名片。
@@ -149,16 +149,12 @@
     </block>
   </view>
 
-  <view class="login-fixed" wx:if="{{!loggedIn}}">
-    <button
-      class="btn btn--block login-fixed__btn login-fixed__btn--orange"
-      bindtap="triggerLogin"
-      disabled="{{loginSubmitting}}"
-      loading="{{loginSubmitting}}"
-    >
-      {{loginSubmitting ? "登录中..." : "立即登录，同步我的名片"}}
-    </button>
-  </view>
+  <login-bar
+    wx:if="{{!loggedIn}}"
+    text="立即登录，同步我的名片"
+    bind:success="onLoginSuccess"
+    bind:fail="onLoginFail"
+  />
 
   <view class="sheet-mask {{sheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeSheet"></view>
   <view class="sheet {{sheetVisible ? 'sheet--show' : ''}}">

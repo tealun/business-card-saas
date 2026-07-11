@@ -1,8 +1,18 @@
-const app = getApp();
 const { request, qyLoginCode, wxLoginCode, isWeComRuntime } = require("./api");
+const SESSION_STORAGE_KEY = "wecomcard.session.v1";
+
+function getGlobalData() {
+  try {
+    const app = typeof getApp === "function" ? getApp() : null;
+    return app && app.globalData ? app.globalData : {};
+  } catch (_error) {
+    return {};
+  }
+}
 
 async function ensureSession(options = {}) {
-  if (!options.force && app.globalData.token && app.globalData.currentIdentity) {
+  const globalData = getGlobalData();
+  if (!options.force && globalData.token && globalData.currentIdentity) {
     return currentSession();
   }
 
@@ -33,10 +43,11 @@ async function switchIdentity(memberIdentityId) {
 }
 
 function currentSession() {
+  const globalData = getGlobalData();
   return {
-    token: app.globalData.token,
-    currentIdentity: app.globalData.currentIdentity,
-    identities: app.globalData.identities || []
+    token: globalData.token,
+    currentIdentity: globalData.currentIdentity,
+    identities: globalData.identities || []
   };
 }
 
@@ -59,13 +70,46 @@ async function loginWithWxCode() {
 }
 
 function applySession(session) {
+  const globalData = getGlobalData();
   const currentIdentity = decorateIdentity(session.current_identity);
-  app.globalData.token = session.access_token;
-  app.globalData.currentIdentity = currentIdentity;
-  app.globalData.identities = (session.identities || []).map((identity) =>
+  globalData.token = session.access_token;
+  globalData.currentIdentity = currentIdentity;
+  globalData.identities = (session.identities || []).map((identity) =>
     decorateIdentity(identity, currentIdentity && currentIdentity.member_identity_id)
   );
+  persistSession();
   return currentSession();
+}
+
+function persistSession() {
+  if (typeof wx === "undefined" || typeof wx.setStorageSync !== "function") {
+    return;
+  }
+  wx.setStorageSync(SESSION_STORAGE_KEY, currentSession());
+}
+
+function restoreSession(targetGlobalData) {
+  if (typeof wx === "undefined" || typeof wx.getStorageSync !== "function") {
+    return null;
+  }
+  const saved = wx.getStorageSync(SESSION_STORAGE_KEY);
+  if (!saved || typeof saved !== "object") {
+    return null;
+  }
+  if (!saved.token || !saved.currentIdentity) {
+    return null;
+  }
+
+  // onLaunch 阶段 getApp() 可能尚未就绪，允许外部直接传入 globalData 保证内存恢复生效。
+  const globalData = targetGlobalData || getGlobalData();
+  globalData.token = saved.token;
+  globalData.currentIdentity = saved.currentIdentity;
+  globalData.identities = Array.isArray(saved.identities) ? saved.identities : [];
+  return {
+    token: globalData.token,
+    currentIdentity: globalData.currentIdentity,
+    identities: globalData.identities
+  };
 }
 
 function decorateIdentity(identity, currentMemberIdentityId) {
@@ -85,5 +129,6 @@ function decorateIdentity(identity, currentMemberIdentityId) {
 
 module.exports = {
   ensureSession,
-  switchIdentity
+  switchIdentity,
+  restoreSession
 };

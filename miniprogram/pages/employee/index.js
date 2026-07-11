@@ -1,5 +1,5 @@
 const app = getApp();
-const { ensureSession, switchIdentity } = require("../../utils/auth");
+const { switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { mapRecentVisitors } = require("../../utils/format");
 
@@ -31,7 +31,6 @@ Page({
     demoMode: true,
     authState: "guest",
     loggedIn: false,
-    loginSubmitting: false,
     card: demoCard,
     themeBrand: "#2b6cff",
     sheetVisible: false,
@@ -51,6 +50,9 @@ Page({
   },
 
   async onShow() {
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 });
+    }
     if (this.data.loggedIn && app.globalData.token) {
       await this.loadPreview();
       return;
@@ -83,31 +85,23 @@ Page({
     await this.loadPreview();
   },
 
-  async triggerLogin() {
-    if (this.data.loginSubmitting) {
-      return;
-    }
-    this.setData({ loginSubmitting: true, loading: true });
-    try {
-      const session = await ensureSession({ force: true });
-      this.syncIdentityState(session);
-      this.setData({ authState: "logged", loggedIn: true });
-      await this.loadPreview();
-    } catch (error) {
-      this.setData({
-        loading: false,
-        error: true,
-        demoMode: true,
-        authState: "failed",
-        loggedIn: false,
-        requests: demoRequests,
-        stats: demoStats,
-        recentVisitors: demoRecentVisitors
-      });
-      wx.showToast({ title: error.message || "登录失败，已展示演示名片", icon: "none" });
-    } finally {
-      this.setData({ loginSubmitting: false });
-    }
+  async onLoginSuccess(event) {
+    this.syncIdentityState(event.detail);
+    this.setData({ authState: "logged", loggedIn: true, loading: true });
+    await this.loadPreview();
+  },
+
+  onLoginFail() {
+    this.setData({
+      loading: false,
+      error: true,
+      demoMode: true,
+      authState: "failed",
+      loggedIn: false,
+      requests: demoRequests,
+      stats: demoStats,
+      recentVisitors: demoRecentVisitors
+    });
   },
 
   syncIdentityState(session) {

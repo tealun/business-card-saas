@@ -1,6 +1,5 @@
 const app = getApp();
 const { request } = require("../../utils/api");
-const { ensureSession } = require("../../utils/auth");
 const { mapRecentVisitors } = require("../../utils/format");
 
 // 未登录演示数据：配合横幅展示访客/交换能力；登录后替换为真实统计。
@@ -32,7 +31,6 @@ Page({
     // 「我看过/好友名片」后端功能未上线，登录后计数为 0。
     demoMode: true,
     loggedIn: false,
-    loginSubmitting: false,
     activeTab: "visitors",
     tabs: demoTabs,
     keyword: "",
@@ -40,35 +38,39 @@ Page({
   },
 
   onShow() {
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 1 });
+    }
     this.loadStats();
   },
 
-  async triggerLogin() {
-    if (this.data.loginSubmitting) {
-      return;
-    }
-    this.setData({ loginSubmitting: true });
-    try {
-      await ensureSession({ force: true });
-      await this.loadStats();
-    } catch (error) {
-      wx.showToast({ title: (error && error.message) || "登录失败", icon: "none" });
-    } finally {
-      this.setData({ loginSubmitting: false });
-    }
+  async onLoginSuccess() {
+    await this.loadStats();
   },
 
   async loadStats() {
-    if (!app.globalData.token || !app.globalData.currentIdentity) {
+    const hasSession = Boolean(app.globalData.token && app.globalData.currentIdentity);
+    if (!hasSession) {
       this.setData({ demoMode: true, loggedIn: false, tabs: demoTabs, groups: demoGroups });
       return;
     }
+
+    // 先按会话切到已登录态，避免统计接口偶发失败时误显示“未登录”。
+    this.setData({
+      demoMode: false,
+      loggedIn: true,
+      tabs: [
+        { key: "visitors", label: "我的访客", count: 0 },
+        { key: "viewed", label: "我看过的", count: 0 },
+        { key: "friends", label: "好友名片", count: 0 }
+      ],
+      groups: []
+    });
+
     try {
       const stats = await request("/employee/cards/current/stats");
       const items = mapRecentVisitors(stats.recent_visitors);
       this.setData({
-        demoMode: false,
-        loggedIn: true,
         tabs: [
           { key: "visitors", label: "我的访客", count: stats.visitor_count },
           { key: "viewed", label: "我看过的", count: 0 },
@@ -77,7 +79,7 @@ Page({
         groups: items.length ? [{ title: "最近访客", items }] : []
       });
     } catch (_error) {
-      // 读取失败保持现状，不打扰
+      // 统计读取失败保持已登录空态，不误降级成未登录。
     }
   },
 

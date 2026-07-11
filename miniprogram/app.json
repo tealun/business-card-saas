@@ -8,6 +8,9 @@
     "pages/company-card/index",
     "pages/employee/card"
   ],
+  "usingComponents": {
+    "login-bar": "/components/login-bar/index"
+  },
   "window": {
     "navigationBarTitleText": "智云名片",
     "navigationBarBackgroundColor": "#ffffff",
@@ -15,6 +18,7 @@
     "backgroundColor": "#f4f6f8"
   },
   "tabBar": {
+    "custom": true,
     "color": "#9aa1ac",
     "selectedColor": "#2b6cff",
     "backgroundColor": "#ffffff",

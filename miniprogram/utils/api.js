@@ -1,11 +1,21 @@
-const app = getApp();
+const SESSION_STORAGE_KEY = "wecomcard.session.v1";
+
+function getAppInstance() {
+  try {
+    return typeof getApp === "function" ? getApp() : null;
+  } catch (_error) {
+    return null;
+  }
+}
 
 function apiBase() {
-  if (app.globalData.configError) {
-    throw new Error(`本地配置加载失败：${app.globalData.configError}`);
+  const app = getAppInstance();
+  const globalData = app && app.globalData ? app.globalData : {};
+  if (globalData.configError) {
+    throw new Error(`本地配置加载失败：${globalData.configError}`);
   }
   const extConfig = typeof wx.getExtConfigSync === "function" ? wx.getExtConfigSync() : {};
-  const base = String(extConfig.apiBase || app.globalData.apiBase || "").trim().replace(/\/$/, "");
+  const base = String(extConfig.apiBase || globalData.apiBase || "").trim().replace(/\/$/, "");
   if (!base) {
     throw new Error("API Base 未配置");
   }
@@ -25,12 +35,14 @@ function request(path, options = {}) {
   const timeout = options.timeout || 15000;
 
   const attempt = () => new Promise((resolve, reject) => {
+    const app = getAppInstance();
+    const globalData = app && app.globalData ? app.globalData : {};
     const headers = {
       "content-type": "application/json",
       ...(options.header || {})
     };
-    if (options.auth !== false && app.globalData.token) {
-      headers.authorization = `Bearer ${app.globalData.token}`;
+    if (options.auth !== false && globalData.token) {
+      headers.authorization = `Bearer ${globalData.token}`;
     }
 
     wx.request({
@@ -43,6 +55,9 @@ function request(path, options = {}) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
           resolve(response.data && typeof response.data === "object" && "data" in response.data ? response.data.data : response.data);
           return;
+        }
+        if (response.statusCode === 401) {
+          clearSessionState();
         }
         reject(new Error(response.data?.message || `HTTP ${response.statusCode}`));
       },
@@ -60,6 +75,20 @@ function request(path, options = {}) {
   });
 
   return run();
+}
+
+function clearSessionState() {
+  const app = getAppInstance();
+  if (app && app.globalData) {
+    app.globalData.token = "";
+    app.globalData.currentIdentity = null;
+    app.globalData.identities = [];
+    app.globalData.currentCard = null;
+    app.globalData.shareId = "";
+  }
+  if (typeof wx !== "undefined" && typeof wx.removeStorageSync === "function") {
+    wx.removeStorageSync(SESSION_STORAGE_KEY);
+  }
 }
 
 function qyLoginCode() {
@@ -139,7 +168,9 @@ function isWeComRuntime() {
 }
 
 function maybeDemoCode(type = "qy") {
-  if (app.globalData.demoAuthEnabled) {
+  const app = getAppInstance();
+  const globalData = app && app.globalData ? app.globalData : {};
+  if (globalData.demoAuthEnabled) {
     return type === "wx" ? "demo-wx-code" : "demo-qy-code";
   }
   return "";

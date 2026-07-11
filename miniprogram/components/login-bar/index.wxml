@@ -1,0 +1,10 @@
+<view class="login-bar">
+  <button
+    class="login-bar__btn"
+    bindtap="triggerLogin"
+    disabled="{{submitting}}"
+    loading="{{submitting}}"
+  >
+    {{submitting ? "登录中..." : text}}
+  </button>
+</view>
