@@ -1,4 +1,5 @@
 const app = getApp();
+const { ensureSession } = require("../../utils/auth");
 
 // 未登录时的演示样例（页面顶部有“演示样例”横幅说明）。
 // 登录后展示当前身份的真实租户名 + 待完善空态，绝不把演示企业当真数据。
@@ -36,9 +37,25 @@ Page({
   data: {
     demoMode: true,
     loggedIn: false,
+    loginSubmitting: false,
     isPersonal: false,
     company: demoCompany,
     departments: demoDepartments
+  },
+
+  async triggerLogin() {
+    if (this.data.loginSubmitting) {
+      return;
+    }
+    this.setData({ loginSubmitting: true });
+    try {
+      await ensureSession({ force: true });
+      this.onShow();
+    } catch (error) {
+      wx.showToast({ title: (error && error.message) || "登录失败", icon: "none" });
+    } finally {
+      this.setData({ loginSubmitting: false });
+    }
   },
 
   onShow() {
