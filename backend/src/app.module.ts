@@ -17,10 +17,12 @@ import { ApiExceptionFilter } from "./common/api-exception.filter.js";
 import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
 import { WecomModule } from "./wecom/wecom.module.js";
 import { ConfigModule } from "./config/config.module.js";
+import { StorageModule } from "./storage/storage.module.js";
 
 @Module({
   imports: [
     ConfigModule,
+    StorageModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "error" : "debug"),

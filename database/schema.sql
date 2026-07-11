@@ -112,6 +112,7 @@ CREATE TABLE "cards" (
     "slug" VARCHAR(64) NOT NULL,
     "display_name" VARCHAR(128),
     "title" VARCHAR(128),
+    "avatar_url" TEXT,
     "email_encrypted" TEXT,
     "phone_encrypted" TEXT,
     "fields_encrypted" TEXT,

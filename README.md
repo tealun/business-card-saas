@@ -79,6 +79,9 @@ $env:WECOM_DATA_CALLBACK_AES_KEY="<43-char aes key>"
 $env:WECOM_AUTH_LAUNCH_TOKEN="<random-launch-token>"
 $env:WECOM_INSTALL_REDIRECT_URI="https://api.example.com/api/v1/wecom/authorization-complete"
 $env:CORS_ORIGINS="https://admin.example.com"
+$env:STORAGE_DRIVER="local"
+$env:STORAGE_LOCAL_ROOT="/data/business-card-saas/uploads"
+$env:STORAGE_PUBLIC_BASE_URL="https://api.example.com/api/v1/storage"
 npm run build
 npm start
 ```

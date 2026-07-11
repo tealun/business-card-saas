@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import path from "node:path";
 import { z } from "zod";
 
 function base64Key(name: string) {
@@ -74,6 +75,22 @@ const appConfigSchema = z
     WECHAT_MINIPROGRAM_SECRET: z.string().min(1).optional().or(z.literal("")),
     WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
+    STORAGE_DRIVER: z.enum(["local", "aliyun_oss", "s3"]).default("local"),
+    STORAGE_LOCAL_ROOT: z.string().min(1).optional().or(z.literal("")),
+    STORAGE_PUBLIC_BASE_URL: z.string().min(1).optional().or(z.literal("")),
+    STORAGE_MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+    ALIYUN_OSS_BUCKET: z.string().min(1).optional().or(z.literal("")),
+    ALIYUN_OSS_REGION: z.string().min(1).optional().or(z.literal("")),
+    ALIYUN_OSS_ENDPOINT: z.string().min(1).optional().or(z.literal("")),
+    ALIYUN_OSS_ACCESS_KEY_ID: z.string().min(1).optional().or(z.literal("")),
+    ALIYUN_OSS_ACCESS_KEY_SECRET: z.string().min(1).optional().or(z.literal("")),
+    S3_BUCKET: z.string().min(1).optional().or(z.literal("")),
+    S3_REGION: z.string().min(1).optional().or(z.literal("")),
+    S3_ENDPOINT: z.string().min(1).optional().or(z.literal("")),
+    S3_ACCESS_KEY_ID: z.string().min(1).optional().or(z.literal("")),
+    S3_SECRET_ACCESS_KEY: z.string().min(1).optional().or(z.literal("")),
+    S3_FORCE_PATH_STYLE: booleanFlag(false),
+
     // Bearer token required to scrape GET /api/v1/metrics. Unset => endpoint disabled (A54-P1-1).
     METRICS_TOKEN: z.string().min(1).optional().or(z.literal("")),
 
@@ -106,6 +123,34 @@ const appConfigSchema = z
         message: "DEMO_AUTH_ENABLED must be disabled in production",
         path: ["DEMO_AUTH_ENABLED"]
       });
+    }
+    if (data.STORAGE_DRIVER === "aliyun_oss") {
+      for (const key of [
+        "ALIYUN_OSS_BUCKET",
+        "ALIYUN_OSS_REGION",
+        "ALIYUN_OSS_ENDPOINT",
+        "ALIYUN_OSS_ACCESS_KEY_ID",
+        "ALIYUN_OSS_ACCESS_KEY_SECRET"
+      ] as const) {
+        if (!data[key]?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${key} is required when STORAGE_DRIVER=aliyun_oss`,
+            path: [key]
+          });
+        }
+      }
+    }
+    if (data.STORAGE_DRIVER === "s3") {
+      for (const key of ["S3_BUCKET", "S3_REGION", "S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const) {
+        if (!data[key]?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${key} is required when STORAGE_DRIVER=s3`,
+            path: [key]
+          });
+        }
+      }
     }
   });
 
@@ -202,5 +247,55 @@ export class AppConfig {
 
   get metricsToken(): string {
     return this.values.METRICS_TOKEN ?? "";
+  }
+
+  get storageDriver(): "local" | "aliyun_oss" | "s3" {
+    return this.values.STORAGE_DRIVER;
+  }
+
+  get storageLocalRoot(): string {
+    return path.resolve(process.cwd(), this.values.STORAGE_LOCAL_ROOT?.trim() || "storage/uploads");
+  }
+
+  get storagePublicBaseUrl(): string {
+    return (this.values.STORAGE_PUBLIC_BASE_URL?.trim() || `http://localhost:${this.port}/api/v1/storage`).replace(/\/$/, "");
+  }
+
+  get storageMaxUploadBytes(): number {
+    return this.values.STORAGE_MAX_UPLOAD_BYTES;
+  }
+
+  get aliyunOssConfig(): {
+    bucket: string;
+    region: string;
+    endpoint: string;
+    accessKeyId: string;
+    accessKeySecret: string;
+  } {
+    return {
+      bucket: this.values.ALIYUN_OSS_BUCKET ?? "",
+      region: this.values.ALIYUN_OSS_REGION ?? "",
+      endpoint: this.values.ALIYUN_OSS_ENDPOINT ?? "",
+      accessKeyId: this.values.ALIYUN_OSS_ACCESS_KEY_ID ?? "",
+      accessKeySecret: this.values.ALIYUN_OSS_ACCESS_KEY_SECRET ?? ""
+    };
+  }
+
+  get s3Config(): {
+    bucket: string;
+    region: string;
+    endpoint: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    forcePathStyle: boolean;
+  } {
+    return {
+      bucket: this.values.S3_BUCKET ?? "",
+      region: this.values.S3_REGION ?? "",
+      endpoint: this.values.S3_ENDPOINT ?? "",
+      accessKeyId: this.values.S3_ACCESS_KEY_ID ?? "",
+      secretAccessKey: this.values.S3_SECRET_ACCESS_KEY ?? "",
+      forcePathStyle: this.values.S3_FORCE_PATH_STYLE
+    };
   }
 }

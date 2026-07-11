@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import type {
   EmployeeCardPreviewResponse,
@@ -13,9 +13,19 @@ import { defaultEmployeeCardSlug, defaultEmployeePublicId } from "../common/defa
 import { demoEmployeeCard } from "../fixtures/demo-cards.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
+import { StorageService } from "../storage/storage.service.js";
 
 type CardFields = EmployeeCardResponse["fields"];
 type CardPrivacy = EmployeeCardResponse["privacy"];
+type EditableFieldKey =
+  | "avatar_url"
+  | "display_name"
+  | "title"
+  | "mobile"
+  | "phone"
+  | "email"
+  | "wechat_id"
+  | "address";
 
 interface EmployeeCardRow extends QueryResultRow {
   member_id: string | number | bigint;
@@ -25,6 +35,7 @@ interface EmployeeCardRow extends QueryResultRow {
   public_id: string | null;
   display_name: string | null;
   title: string | null;
+  avatar_url: string | null;
   fields_encrypted: string | null;
   privacy_json: unknown;
   card_status: "active" | "disabled" | null;
@@ -58,14 +69,18 @@ export class EmployeeCardRepository {
 
   constructor(
     @Optional() private readonly tenantTx?: TenantTx,
-    @Optional() private readonly cipher?: CardFieldCipherService
+    @Optional() private readonly cipher?: CardFieldCipherService,
+    @Optional() private readonly storage?: StorageService
   ) {}
 
   async getCurrentCard(session: EmployeeSession): Promise<EmployeeCardResponse> {
     if (this.hasDatabase()) {
-      return this.tenantTx!.run(session.tenantId, async (tx) => this.cloneCard(await this.ensureCurrentCardInDb(tx, session)));
+      return this.tenantTx!.run(session.tenantId, async (tx) => {
+        const card = await this.ensureCurrentCardInDb(tx, session);
+        return this.cloneCard({ ...card, editable_fields: await this.editableFields(tx, session) });
+      });
     }
-    return this.cloneCard(this.ensureCurrentCardInMemory(session));
+    return this.cloneCard({ ...this.ensureCurrentCardInMemory(session), editable_fields: defaultEditableFields() });
   }
 
   // Per-identity visit stats: card_visits rows are already scoped to the
@@ -126,7 +141,9 @@ export class EmployeeCardRepository {
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
         const current = await this.ensureCurrentCardInDb(tx, session);
-        const next = mergeCard(current, request);
+        const allowedFields = await this.editableFields(tx, session);
+        assertCanUpdate(request, allowedFields);
+        const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields);
         const encryptedFields = this.encryptJson(next.fields);
         await tx.query(
           `
@@ -143,9 +160,10 @@ export class EmployeeCardRepository {
             UPDATE cards
             SET display_name = $3,
                 title = $4,
-                fields_encrypted = $5,
-                privacy_json = $6::jsonb,
-                status = $7,
+                avatar_url = $5,
+                fields_encrypted = $6,
+                privacy_json = $7::jsonb,
+                status = $8,
                 updated_at = now()
             WHERE tenant_id = $1 AND id = $2
           `,
@@ -154,6 +172,7 @@ export class EmployeeCardRepository {
             next.card_id,
             next.display_name,
             next.title,
+            next.avatar_url,
             encryptedFields,
             JSON.stringify(next.privacy),
             next.status
@@ -171,7 +190,9 @@ export class EmployeeCardRepository {
 
     const key = this.cardKey(session);
     const current = this.ensureCurrentCardInMemory(session);
-    const next = mergeCard(current, request);
+    const allowedFields = defaultEditableFields();
+    assertCanUpdate(request, allowedFields);
+    const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields);
     this.cards.set(key, next);
     return this.cloneCard(next);
   }
@@ -341,12 +362,13 @@ export class EmployeeCardRepository {
           cards.public_id,
           cards.display_name,
           cards.title,
+          cards.avatar_url,
           cards.fields_encrypted,
           cards.privacy_json,
           cards.status AS card_status
         FROM member_identities
         LEFT JOIN LATERAL (
-          SELECT id, public_id, display_name, title, fields_encrypted, privacy_json, status
+          SELECT id, public_id, display_name, title, avatar_url, fields_encrypted, privacy_json, status
           FROM cards
           WHERE cards.tenant_id = member_identities.tenant_id
             AND cards.member_identity_id = member_identities.id
@@ -371,7 +393,7 @@ export class EmployeeCardRepository {
       display_name: row.display_name ?? row.member_name,
       title: row.title,
       company: session.tenantName ?? `Tenant ${session.tenantId}`,
-      avatar_url: null,
+      avatar_url: row.avatar_url,
       fields: this.decryptJson(row.fields_encrypted) ?? defaultFields(),
       status: normalizeStatus(row.card_status ?? row.member_status),
       privacy: parsePrivacy(row.privacy_json)
@@ -550,7 +572,8 @@ export class EmployeeCardRepository {
     return {
       ...card,
       fields: { ...card.fields },
-      privacy: { ...card.privacy }
+      privacy: { ...card.privacy },
+      editable_fields: card.editable_fields ? [...card.editable_fields] : undefined
     };
   }
 
@@ -602,33 +625,74 @@ export class EmployeeCardRepository {
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }
+
+  private async editableFields(tx: TenantTransactionClient, session: EmployeeSession): Promise<EditableFieldKey[]> {
+    if (session.identityType === "personal") {
+      return defaultEditableFields();
+    }
+    const result = await tx.query<{ fields_json: unknown }>(
+      `
+        SELECT fields_json
+        FROM tenant_field_settings
+        WHERE tenant_id = $1
+      `,
+      [session.tenantId]
+    );
+    return parseEditableFields(result.rows[0]?.fields_json);
+  }
+
+  private async materializeStorageFields(
+    session: EmployeeSession,
+    request: UpdateEmployeeCardRequest
+  ): Promise<UpdateEmployeeCardRequest> {
+    if (!request.avatar_url || !request.avatar_url.startsWith("data:image/")) {
+      return request;
+    }
+    if (!this.storage) {
+      return request;
+    }
+    const stored = await this.storage.storeImageDataUrl({
+      tenantId: session.tenantId,
+      category: "avatars",
+      dataUrl: request.avatar_url
+    });
+    return { ...request, avatar_url: stored.publicUrl };
+  }
 }
 
-function mergeCard(current: EmployeeCardResponse, request: UpdateEmployeeCardRequest): EmployeeCardResponse {
+function mergeCard(
+  current: EmployeeCardResponse,
+  request: UpdateEmployeeCardRequest,
+  allowedFields: readonly EditableFieldKey[]
+): EmployeeCardResponse {
   const next: EmployeeCardResponse = {
     ...current,
     fields: { ...current.fields },
-    privacy: { ...current.privacy }
+    privacy: { ...current.privacy },
+    editable_fields: [...allowedFields]
   };
-  if (request.display_name !== undefined) {
+  if (allowedFields.includes("avatar_url") && request.avatar_url !== undefined) {
+    next.avatar_url = request.avatar_url;
+  }
+  if (allowedFields.includes("display_name") && request.display_name !== undefined) {
     next.display_name = request.display_name;
   }
-  if (request.title !== undefined) {
+  if (allowedFields.includes("title") && request.title !== undefined) {
     next.title = request.title;
   }
-  if (request.fields?.mobile !== undefined) {
+  if (allowedFields.includes("mobile") && request.fields?.mobile !== undefined) {
     next.fields.mobile = request.fields.mobile;
   }
-  if (request.fields?.phone !== undefined) {
+  if (allowedFields.includes("phone") && request.fields?.phone !== undefined) {
     next.fields.phone = request.fields.phone;
   }
-  if (request.fields?.email !== undefined) {
+  if (allowedFields.includes("email") && request.fields?.email !== undefined) {
     next.fields.email = request.fields.email;
   }
-  if (request.fields?.wechat_id !== undefined) {
+  if (allowedFields.includes("wechat_id") && request.fields?.wechat_id !== undefined) {
     next.fields.wechat_id = request.fields.wechat_id;
   }
-  if (request.fields?.address !== undefined) {
+  if (allowedFields.includes("address") && request.fields?.address !== undefined) {
     next.fields.address = request.fields.address;
   }
   if (request.privacy?.show_mobile !== undefined) {
@@ -684,6 +748,58 @@ function defaultPrivacy(): CardPrivacy {
   };
 }
 
+function defaultEditableFields(): EditableFieldKey[] {
+  return ["avatar_url", "display_name", "title", "mobile", "phone", "email", "wechat_id", "address"];
+}
+
+function parseEditableFields(value: unknown): EditableFieldKey[] {
+  const rules = parseJsonValue(value);
+  if (!Array.isArray(rules)) {
+    return defaultEditableFields();
+  }
+  const editable = rules
+    .filter((rule): rule is { field_key: EditableFieldKey; locked?: boolean; employee_editable?: boolean } =>
+      isRecord(rule) && isEditableFieldKey(rule.field_key)
+    )
+    .filter((rule) => rule.locked !== true && rule.employee_editable !== false)
+    .map((rule) => rule.field_key);
+  return editable.length ? editable : [];
+}
+
+function assertCanUpdate(request: UpdateEmployeeCardRequest, allowedFields: readonly EditableFieldKey[]): void {
+  const requested = requestedEditableFields(request);
+  const denied = requested.filter((field) => !allowedFields.includes(field));
+  if (denied.length) {
+    throw new ForbiddenException(`field not employee editable: ${denied.join(", ")}`);
+  }
+}
+
+function requestedEditableFields(request: UpdateEmployeeCardRequest): EditableFieldKey[] {
+  const fields = new Set<EditableFieldKey>();
+  if (request.avatar_url !== undefined) fields.add("avatar_url");
+  if (request.display_name !== undefined) fields.add("display_name");
+  if (request.title !== undefined) fields.add("title");
+  if (request.fields?.mobile !== undefined) fields.add("mobile");
+  if (request.fields?.phone !== undefined) fields.add("phone");
+  if (request.fields?.email !== undefined) fields.add("email");
+  if (request.fields?.wechat_id !== undefined) fields.add("wechat_id");
+  if (request.fields?.address !== undefined) fields.add("address");
+  return [...fields];
+}
+
+function isEditableFieldKey(value: unknown): value is EditableFieldKey {
+  return (
+    value === "avatar_url" ||
+    value === "display_name" ||
+    value === "title" ||
+    value === "mobile" ||
+    value === "phone" ||
+    value === "email" ||
+    value === "wechat_id" ||
+    value === "address"
+  );
+}
+
 function parsePrivacy(value: unknown): CardPrivacy {
   const record = isRecord(value) ? value : {};
   return {
@@ -695,6 +811,17 @@ function parsePrivacy(value: unknown): CardPrivacy {
 
 function parseObject(value: unknown): Record<string, unknown> {
   return isRecord(value) ? { ...value } : {};
+}
+
+function parseJsonValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

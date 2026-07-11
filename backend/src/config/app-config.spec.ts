@@ -69,4 +69,26 @@ describe("AppConfig", () => {
     process.env.CARD_FIELD_ENCRYPTION_KEY_BASE64 = "not-valid-base64!!!";
     expect(() => new AppConfig()).toThrow("CARD_FIELD_ENCRYPTION_KEY_BASE64");
   });
+
+  it("defaults to local storage under the backend runtime directory", () => {
+    delete process.env.STORAGE_DRIVER;
+    delete process.env.STORAGE_LOCAL_ROOT;
+    delete process.env.STORAGE_PUBLIC_BASE_URL;
+    const config = new AppConfig();
+    expect(config.storageDriver).toBe("local");
+    expect(config.storageLocalRoot).toContain("storage");
+    expect(config.storagePublicBaseUrl).toBe(`http://localhost:${config.port}/api/v1/storage`);
+  });
+
+  it("requires Alibaba Cloud OSS connection settings when aliyun_oss storage is selected", () => {
+    process.env.STORAGE_DRIVER = "aliyun_oss";
+    delete process.env.ALIYUN_OSS_BUCKET;
+    expect(() => new AppConfig()).toThrow("ALIYUN_OSS_BUCKET is required when STORAGE_DRIVER=aliyun_oss");
+  });
+
+  it("requires S3-compatible connection settings when s3 storage is selected", () => {
+    process.env.STORAGE_DRIVER = "s3";
+    delete process.env.S3_BUCKET;
+    expect(() => new AppConfig()).toThrow("S3_BUCKET is required when STORAGE_DRIVER=s3");
+  });
 });
