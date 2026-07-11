@@ -128,6 +128,7 @@ jobs:
           set -euo pipefail
 
           excludes=(
+            --exclude='config.js'
             --exclude='.env'
             --exclude='.env.local'
             --exclude='.env.*.local'
