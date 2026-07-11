@@ -75,9 +75,24 @@ const appConfigSchema = z
     WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
     // Bearer token required to scrape GET /api/v1/metrics. Unset => endpoint disabled (A54-P1-1).
-    METRICS_TOKEN: z.string().min(1).optional().or(z.literal(""))
+    METRICS_TOKEN: z.string().min(1).optional().or(z.literal("")),
+
+    // Initial super admin for the admin console. Only used to create the
+    // account when the username does not exist yet; changing the password in
+    // the console makes these values inert.
+    ADMIN_BOOTSTRAP_USERNAME: z.string().min(1).max(64).optional().or(z.literal("")),
+    ADMIN_BOOTSTRAP_PASSWORD: z.string().min(8).max(128).optional().or(z.literal(""))
   })
   .superRefine((data, ctx) => {
+    const bootstrapUsername = data.ADMIN_BOOTSTRAP_USERNAME?.trim();
+    const bootstrapPassword = data.ADMIN_BOOTSTRAP_PASSWORD;
+    if (Boolean(bootstrapUsername) !== Boolean(bootstrapPassword)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ADMIN_BOOTSTRAP_USERNAME and ADMIN_BOOTSTRAP_PASSWORD must be set together",
+        path: ["ADMIN_BOOTSTRAP_USERNAME"]
+      });
+    }
     if (data.NODE_ENV === "production" && !data.DATABASE_URL) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -159,6 +174,14 @@ export class AppConfig {
 
   get databaseDir(): string {
     return this.values.DATABASE_DIR ?? "";
+  }
+
+  get adminBootstrapUsername(): string {
+    return this.values.ADMIN_BOOTSTRAP_USERNAME ?? "";
+  }
+
+  get adminBootstrapPassword(): string {
+    return this.values.ADMIN_BOOTSTRAP_PASSWORD ?? "";
   }
 
   get demoAuthEnabled(): boolean {

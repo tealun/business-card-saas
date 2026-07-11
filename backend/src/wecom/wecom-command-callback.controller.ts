@@ -4,7 +4,7 @@ import type { FastifyReply } from "fastify";
 import { WecomCommandCallbackService } from "./wecom-command-callback.service.js";
 
 @Controller("wecom/callbacks/command")
-@Throttle({ callback: { ttl: 60_000, limit: 30 } })
+@Throttle({ default: { ttl: 60_000, limit: 30 } })
 export class WecomCommandCallbackController {
   constructor(private readonly callbacks: WecomCommandCallbackService) {}
 

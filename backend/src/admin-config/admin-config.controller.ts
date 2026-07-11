@@ -21,7 +21,7 @@ export class AdminConfigController {
   }
 
   @Put("settings/fields")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   updateFieldSettings(@Req() request: AdminRequest, @Body() body: unknown) {
     return this.config.updateFieldSettings(
       requireAdminSession(request),
@@ -35,7 +35,7 @@ export class AdminConfigController {
   }
 
   @Put("company-profile")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   updateCompanyProfile(@Req() request: AdminRequest, @Body() body: unknown) {
     return this.config.updateCompanyProfile(
       requireAdminSession(request),
@@ -49,13 +49,13 @@ export class AdminConfigController {
   }
 
   @Post("templates")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   createTemplate(@Req() request: AdminRequest, @Body() body: unknown) {
     return this.config.createTemplate(requireAdminSession(request), createAdminTemplateRequestSchema.parse(body));
   }
 
   @Put("templates/:templateId")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   updateTemplate(@Req() request: AdminRequest, @Param("templateId") templateId: string, @Body() body: unknown) {
     return this.config.updateTemplate(
       requireAdminSession(request),
@@ -65,7 +65,7 @@ export class AdminConfigController {
   }
 
   @Put("templates/:templateId/default")
-  @Throttle({ adminMutation: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   setDefaultTemplate(@Req() request: AdminRequest, @Param("templateId") templateId: string) {
     return this.config.setDefaultTemplate(requireAdminSession(request), templateId);
   }

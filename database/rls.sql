@@ -88,6 +88,9 @@ CREATE POLICY account_preferences_account_ctx ON account_preferences
 -- public_card_directory intentionally has no tenant RLS. Public service role may only read this table
 -- and then must enter TenantTx before reading tenant business tables.
 
+-- platform_admins is a platform operations table (super-admin password login happens before any
+-- tenant context exists). It intentionally does not use tenant RLS.
+
 -- callback_events is a platform operations table. It intentionally does not use tenant RLS because
 -- callbacks can arrive before a tenant is known and retry/admin event queries are platform-scoped.
 ALTER TABLE callback_events DISABLE ROW LEVEL SECURITY;

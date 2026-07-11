@@ -135,3 +135,18 @@ node --env-file=.env scripts/admin-bootstrap.cjs setup \
 1. 后端 `.env` 配置 `DATABASE_DIR=database` 并重启后端（缺失时页面显示 `DATABASE_DIR is not configured`）。
 2. 存量库已用 `--mark`（或 `database/scripts/migrate.cjs mark`）收编基线，否则待执行列表会包含基线迁移，执行时会因表已存在而失败。
 3. 执行迁移要求 owner 角色令牌；检测只需 admin。
+
+## Super Admin Password Login（推荐路径，2026-07-11 起）
+
+后台首选登录方式是账号密码。初始化只需在后端 `.env` 配置：
+
+```bash
+ADMIN_BOOTSTRAP_USERNAME=admin
+ADMIN_BOOTSTRAP_PASSWORD=<至少8位初始密码>
+```
+
+后端启动时若该账号不存在则自动创建（存入 `platform_admins`，scrypt 加盐哈希）；账号已存在时永不覆盖。登录后台后用右上角「修改密码」改掉初始密码，之后 `.env` 里这两行即可删除。
+
+前置条件：`platform_admins` 表由 `migrate_v1_4.sql` 创建——存量库需先完成一次迁移（见下），之后重启后端触发初始化。
+
+上文的 admin-bootstrap CLI 与企微 code / 访问令牌登录保留为备用路径。

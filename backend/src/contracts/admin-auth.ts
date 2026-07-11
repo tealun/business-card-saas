@@ -26,7 +26,23 @@ export const adminSessionMeResponseSchema = z.object({
   admin: adminIdentitySchema
 });
 
+export const adminPasswordLoginRequestSchema = z.object({
+  username: z.string().min(1).max(64),
+  password: z.string().min(1).max(128)
+});
+
+export const adminChangePasswordRequestSchema = z.object({
+  old_password: z.string().min(1).max(128),
+  new_password: z.string().min(8).max(128)
+});
+
+export const adminChangePasswordResponseSchema = z.object({
+  changed: z.literal(true)
+});
+
 export type AdminRole = z.infer<typeof adminRoleSchema>;
+export type AdminPasswordLoginRequest = z.infer<typeof adminPasswordLoginRequestSchema>;
+export type AdminChangePasswordRequest = z.infer<typeof adminChangePasswordRequestSchema>;
 export type AdminAuthCodeRequest = z.infer<typeof adminAuthCodeRequestSchema>;
 export type AdminIdentity = z.infer<typeof adminIdentitySchema>;
 export type AdminLoginResponse = z.infer<typeof adminLoginResponseSchema>;

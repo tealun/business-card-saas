@@ -9,26 +9,26 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("qy-login")
-  @Throttle({ login: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   qyLogin(@Body() body: unknown) {
     return this.auth.qyLogin(authCodeRequestSchema.parse(body));
   }
 
   @Post("wx-login")
-  @Throttle({ login: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   wxLogin(@Body() body: unknown) {
     return this.auth.wxLogin(authCodeRequestSchema.parse(body));
   }
 
   @Get("identities")
-  @Throttle({ identity: { ttl: 60_000, limit: 30 } })
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @UseGuards(EmployeeAuthGuard)
   identities(@Req() request: EmployeeRequest) {
     return this.auth.listIdentities(this.requireSession(request));
   }
 
   @Post("switch-identity")
-  @Throttle({ identity: { ttl: 60_000, limit: 20 } })
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @UseGuards(EmployeeAuthGuard)
   switchIdentity(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.auth.switchIdentity(this.requireSession(request), switchIdentityRequestSchema.parse(body));

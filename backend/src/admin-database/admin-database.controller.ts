@@ -15,7 +15,7 @@ export class AdminDatabaseController {
   }
 
   @Post("migrations/run")
-  @Throttle({ adminMutation: { ttl: 300_000, limit: 3 } })
+  @Throttle({ default: { ttl: 300_000, limit: 3 } })
   runMigrations(@Req() request: AdminRequest) {
     return this.databaseOps.runPendingMigrations(requireAdminSession(request));
   }
