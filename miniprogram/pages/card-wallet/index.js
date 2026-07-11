@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require("../../utils/api");
+const { ensureSession } = require("../../utils/auth");
 const { mapRecentVisitors } = require("../../utils/format");
 
 // 未登录演示数据：配合横幅展示访客/交换能力；登录后替换为真实统计。
@@ -30,6 +31,8 @@ Page({
     // 初始为未登录演示态；onShow 按登录态切换。
     // 「我看过/好友名片」后端功能未上线，登录后计数为 0。
     demoMode: true,
+    loggedIn: false,
+    loginSubmitting: false,
     activeTab: "visitors",
     tabs: demoTabs,
     keyword: "",
@@ -40,9 +43,24 @@ Page({
     this.loadStats();
   },
 
+  async triggerLogin() {
+    if (this.data.loginSubmitting) {
+      return;
+    }
+    this.setData({ loginSubmitting: true });
+    try {
+      await ensureSession({ force: true });
+      await this.loadStats();
+    } catch (error) {
+      wx.showToast({ title: (error && error.message) || "登录失败", icon: "none" });
+    } finally {
+      this.setData({ loginSubmitting: false });
+    }
+  },
+
   async loadStats() {
     if (!app.globalData.token || !app.globalData.currentIdentity) {
-      this.setData({ demoMode: true, tabs: demoTabs, groups: demoGroups });
+      this.setData({ demoMode: true, loggedIn: false, tabs: demoTabs, groups: demoGroups });
       return;
     }
     try {
@@ -50,6 +68,7 @@ Page({
       const items = mapRecentVisitors(stats.recent_visitors);
       this.setData({
         demoMode: false,
+        loggedIn: true,
         tabs: [
           { key: "visitors", label: "我的访客", count: stats.visitor_count },
           { key: "viewed", label: "我看过的", count: 0 },

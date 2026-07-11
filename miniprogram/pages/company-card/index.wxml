@@ -69,7 +69,17 @@
     </view>
   </view>
 
-  <view class="company-footer">
+  <view class="company-footer" wx:if="{{!loggedIn}}">
+    <button
+      class="btn btn--block login-fixed__btn login-fixed__btn--orange company-footer__btn"
+      bindtap="triggerLogin"
+      disabled="{{loginSubmitting}}"
+      loading="{{loginSubmitting}}"
+    >
+      {{loginSubmitting ? "登录中..." : "立即登录，查看我的企业"}}
+    </button>
+  </view>
+  <view class="company-footer" wx:else>
     <view class="btn btn--ghost company-footer__btn" bindtap="copyWebsite">进入官网</view>
     <view class="btn btn--primary company-footer__btn" bindtap="followCompany">关注企业</view>
   </view>
