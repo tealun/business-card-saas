@@ -1,11 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import {
   employeeCardResponseSchema,
+  employeeCardStatsResponseSchema,
   employeeShareResponseSchema,
   updateEmployeeCardStyleRequestSchema,
   updateEmployeeCardRequestSchema,
   type EmployeeCardPreviewResponse,
   type EmployeeCardResponse,
+  type EmployeeCardStatsResponse,
   type EmployeeShareResponse,
   type UpdateEmployeeCardStyleRequest,
   type UpdateEmployeeCardRequest
@@ -43,6 +45,10 @@ export class EmployeeCardService {
 
   async getPreview(session: EmployeeSession): Promise<EmployeeCardPreviewResponse> {
     return this.publishPreview(await this.repository.getPreview(session));
+  }
+
+  async getCurrentCardStats(session: EmployeeSession): Promise<EmployeeCardStatsResponse> {
+    return employeeCardStatsResponseSchema.parse(await this.repository.getCurrentCardStats(session));
   }
 
   async updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): Promise<EmployeeCardPreviewResponse> {

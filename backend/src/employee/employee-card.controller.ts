@@ -23,6 +23,11 @@ export class EmployeeCardController {
     return this.cards.getPreview(this.requireSession(request));
   }
 
+  @Get("current/stats")
+  async getStats(@Req() request: EmployeeRequest) {
+    return this.cards.getCurrentCardStats(this.requireSession(request));
+  }
+
   @Put("current/style")
   async updateStyle(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.cards.updateStyle(this.requireSession(request), updateEmployeeCardStyleRequestSchema.parse(body));

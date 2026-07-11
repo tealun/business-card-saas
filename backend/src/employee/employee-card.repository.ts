@@ -3,6 +3,7 @@ import type { QueryResultRow } from "pg";
 import type {
   EmployeeCardPreviewResponse,
   EmployeeCardResponse,
+  EmployeeCardStatsResponse,
   UpdateEmployeeCardRequest,
   UpdateEmployeeCardStyleRequest
 } from "../contracts/employee-card.js";
@@ -65,6 +66,60 @@ export class EmployeeCardRepository {
       return this.tenantTx!.run(session.tenantId, async (tx) => this.cloneCard(await this.ensureCurrentCardInDb(tx, session)));
     }
     return this.cloneCard(this.ensureCurrentCardInMemory(session));
+  }
+
+  // Per-identity visit stats: card_visits rows are already scoped to the
+  // current identity's tenant + member, so personal and each enterprise card
+  // naturally keep separate numbers.
+  async getCurrentCardStats(session: EmployeeSession): Promise<EmployeeCardStatsResponse> {
+    if (!this.hasDatabase()) {
+      return { visitor_count: 0, visit_count: 0, recent_visitors: [] };
+    }
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const totals = await tx.query<{ visit_count: string; visitor_count: string }>(
+        `
+          SELECT
+            count(*)::text AS visit_count,
+            count(DISTINCT COALESCE(visitor_account_id::text, anon_id, id::text))::text AS visitor_count
+          FROM card_visits
+          WHERE tenant_id = $1 AND member_identity_id = $2
+        `,
+        [session.tenantId, session.memberIdentityId]
+      );
+      const recent = await tx.query<{
+        visitor_key: string;
+        has_account: boolean;
+        visit_count: string;
+        channel: string | null;
+        last_visit_at: Date | string;
+      }>(
+        `
+          SELECT
+            COALESCE(visitor_account_id::text, anon_id, id::text) AS visitor_key,
+            bool_or(visitor_account_id IS NOT NULL) AS has_account,
+            count(*)::text AS visit_count,
+            (array_agg(channel ORDER BY created_at DESC))[1] AS channel,
+            max(created_at) AS last_visit_at
+          FROM card_visits
+          WHERE tenant_id = $1 AND member_identity_id = $2
+          GROUP BY COALESCE(visitor_account_id::text, anon_id, id::text)
+          ORDER BY max(created_at) DESC
+          LIMIT 10
+        `,
+        [session.tenantId, session.memberIdentityId]
+      );
+      return {
+        visitor_count: Number(totals.rows[0]?.visitor_count ?? 0),
+        visit_count: Number(totals.rows[0]?.visit_count ?? 0),
+        recent_visitors: recent.rows.map((row) => ({
+          visitor_key: row.visitor_key,
+          visitor_label: row.has_account ? "微信访客" : "匿名访客",
+          visit_count: Number(row.visit_count),
+          channel: row.channel ?? null,
+          last_visit_at: new Date(row.last_visit_at).toISOString()
+        }))
+      };
+    });
   }
 
   async updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): Promise<EmployeeCardResponse> {
