@@ -2672,11 +2672,12 @@ https://card.example.com/c/{public_id}
 
 **数据库迁移运行约定（实现基线）**
 
-- Database migrations use `node-pg-migrate`; migration files live in `database/migrations/`; commands live in `database/package.json`.
-- `0000000000000_baseline.js` 只用于首次初始化，读取 `database/schema.sql` 与 `database/rls.sql`；后续变更必须新增编号迁移，不直接改 baseline 表达历史变更。
+- 迁移为纯 SQL 文件，位于 `database/migrations/`，由 `database/scripts/migrate.cjs` 执行（`npm run migrate`），记账表为 `pgmigrations`。
+- 命名约束：`migrate_v<major>_<minor>.sql`（如 `migrate_v1_3.sql`），按 `(major, minor)` 数字序执行；目录内不允许其他文件。
+- `migrate_v1_1.sql` 是全量建库基线（schema.sql + rls.sql 冻结快照），只用于空库初始化；存量库用 `node scripts/migrate.cjs mark migrate_v1_1 ...` 标记为已应用，见 `database/README.md`。
+- 后续变更必须新增下一个编号的迁移文件（手工创建），尽量幂等（`IF NOT EXISTS`）；不回改历史迁移文件。
 - 本地/CI 验证顺序：`cd database && npm run migrate` → `cd database && npm run rls:validate` → `npm test`。
-- 生产执行前先完成数据库备份并确认回滚方案；baseline migration 不提供 down 回滚，失败恢复走备份/PITR。
-- 新建迁移用 `cd database && npm run migrate:create <name>`，PR 中需同时说明 schema 变更、回填步骤和 RLS 影响。
+- 生产执行前先完成数据库备份并确认回滚方案；迁移不提供 down 回滚，失败恢复走备份/PITR。
 
 ### 31.3 备份与灾备
 

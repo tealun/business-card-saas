@@ -21,12 +21,29 @@ npm run check
 npm run rls:validate
 ```
 
-Create a new migration here, not under `backend/`:
+## Migrations
+
+Migrations are plain SQL files in `migrations/`, executed by `scripts/migrate.cjs` (no framework):
+
+- File name must match `migrate_v<major>_<minor>.sql`, for example `migrate_v1_3.sql`. Any other file in `migrations/` fails the runner.
+- Order is numeric by `(major, minor)`, so `migrate_v1_2` runs before `migrate_v1_10`.
+- A file is executed as a whole inside one transaction. There are no down migrations; write forward-only, idempotent SQL (`IF NOT EXISTS` / `IF EXISTS`) whenever possible.
+- Start each file with a comment block stating its purpose.
+- Applied migrations are recorded in the `pgmigrations` table (`id`, `name`, `run_on`; the name is the file name without `.sql`).
+
+Create a new migration by hand: add `migrations/migrate_vX_Y.sql` with the next free version number.
+
+### Adopting an existing database (baseline marking)
+
+`migrate_v1_1.sql` is the full-schema baseline. On a database that already has the schema (for example production, or a database previously migrated with node-pg-migrate under the old `<timestamp>_<name>.js` naming), mark historical migrations as applied instead of executing them:
 
 ```bash
 cd database
-npm run migrate:create <name>
+DATABASE_URL=... node scripts/migrate.cjs mark migrate_v1_1 migrate_v1_2
+DATABASE_URL=... npm run migrate   # applies the rest, e.g. migrate_v1_3
 ```
+
+Old node-pg-migrate rows in `pgmigrations` are ignored with a warning; they can be left in place.
 
 ## `npm run verify`
 
