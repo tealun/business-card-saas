@@ -1,5 +1,5 @@
 {
-  "description": "business-card-saas M1 miniprogram",
+  "description": "business-card-saas M1 小程序；共享文件使用 touristappid，占位真实 AppID 写入被忽略的 project.private.config.json",
   "setting": {
     "urlCheck": false,
     "es6": true,
@@ -26,7 +26,7 @@
     }
   },
   "compileType": "miniprogram",
-  "appid": "wx9927ec4d4239bb6f",
+  "appid": "touristappid",
   "projectname": "business-card-saas",
   "miniprogramRoot": "./",
   "simulatorPluginLibVersion": {},
