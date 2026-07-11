@@ -44,7 +44,7 @@
 | A-P1-2 | Confirmed | High | Open | 管理令牌不可撤销、无刷新 | admin-session-token.service.ts | 自包含 HMAC 令牌，无版本号/黑名单：管理员离职或降权后旧 token 仍有效至多 8h；无 refresh，8h 一到强制重登 | 短期：session 里加 `token_version`，落库到 tenant_admins，verify 时比对（一次 DB 读，可缓存）；中期：短 TTL(1h) + refresh token |
 | A-P1-3 | Confirmed | High | Fixed (68a0a06) | 前端无登录墙、无 401 处理、无登出 | admin/app.js（grep 无 logout/401 处理） | 未登录也渲染全部控制台；token 过期后每个按钮各自报错；无登出入口。这是「感觉没鉴权」的直接来源 | 已修：登录门（boot 时校验 /admin/session/me）、adminRequest 统一拦 401 清会话回登录页、顶栏登出按钮与身份徽标 |
 | A-P1-4 | Confirmed | High | Open | 界面是联调控制台，不是产品后台 | admin/index.html:435-499 | 「授权与联调」面板把 demo 登录、claim token 输入、visit/derive share 调试入口直接暴露给企业管理员；主反馈是 JSON `<pre>`；顶栏常驻 API Base 输入框 | 见「整改路线」两档方案 |
-| A-P1-5 | Confirmed | Medium | Open | 首个 owner 引导无生产入口 | owner-bootstrap.service.ts:17（grep 无调用方） | `bootstrapOwner`/`createClaimToken` 没有任何 HTTP 端点或 CLI 脚本调用；新租户开通首个 owner 只能手写 SQL，无运行手册 | 加平台级 CLI 脚本（如 `backend/scripts/bootstrap-owner.cjs`，读 DATABASE_URL，产出 claim token），写入部署文档；不要做成 HTTP 端点 |
+| A-P1-5 | Confirmed | Medium | Fixed | 首个 owner 引导无生产入口 | owner-bootstrap.service.ts:17（grep 无调用方） | `bootstrapOwner`/`createClaimToken` 没有任何 HTTP 端点或 CLI 脚本调用；新租户开通首个 owner 只能手写 SQL，无运行手册 | 已修：`backend/scripts/admin-bootstrap.cjs`（list/setup，建租户+owner+基线收编+签发令牌，令牌与 AdminSessionTokenService 交叉验证通过）；运行手册见 88_02；登录门新增「使用访问令牌登录」 |
 
 ### P2 — 建议改进
 

@@ -771,6 +771,41 @@ logoutButton.addEventListener("click", () => {
   expireAdminSession("");
 });
 
+const gateTokenToggle = document.querySelector("#gateTokenToggle");
+const gateTokenBox = document.querySelector("#gateTokenBox");
+const gateTokenInput = document.querySelector("#gateTokenInput");
+const gateTokenLoginButton = document.querySelector("#gateTokenLogin");
+
+gateTokenToggle.addEventListener("click", () => {
+  gateTokenBox.classList.toggle("hidden");
+});
+
+gateTokenLoginButton.addEventListener("click", async () => {
+  const token = gateTokenInput.value.trim();
+  if (!token) {
+    gateError.textContent = "请粘贴访问令牌";
+    return;
+  }
+  gateTokenLoginButton.disabled = true;
+  gateError.textContent = "校验令牌...";
+  try {
+    const result = await request("/admin/session/me", { token });
+    state.adminToken = token;
+    sessionStorage.setItem("bc_admin_token", token);
+    adminTokenInput.value = token;
+    applyAdminIdentity(result.admin);
+    gateError.textContent = "";
+    gateTokenInput.value = "";
+    showConsole();
+  } catch (error) {
+    gateError.textContent = error && error.status === 401
+      ? "令牌无效或已过期"
+      : error instanceof Error ? error.message : String(error);
+  } finally {
+    gateTokenLoginButton.disabled = false;
+  }
+});
+
 document.querySelector("#createWecomAuthorizationLink").addEventListener("click", async () => {
   const redirectUri = wecomRedirectUriInput.value.trim();
   const body = {};
