@@ -1,0 +1,21 @@
+Component({
+  data: {
+    selected: 0,
+    list: [
+      { pagePath: "/pages/employee/index", text: "首页", icon: "home" },
+      { pagePath: "/pages/card-wallet/index", text: "名片夹", icon: "wallet" },
+      { pagePath: "/pages/company-card/index", text: "企业名片", icon: "company" }
+    ]
+  },
+
+  methods: {
+    switchTab(event) {
+      const path = event.currentTarget.dataset.path;
+      const index = event.currentTarget.dataset.index;
+      if (index === this.data.selected) {
+        return;
+      }
+      wx.switchTab({ url: path });
+    }
+  }
+});

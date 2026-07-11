@@ -276,24 +276,9 @@ button::after { border: none; }
   100% { background-position: -100% 0; }
 }
 
-/* 登录引导按钮（全 tab 页共享） */
+/* 固定底部登录条占位（组件 login-bar 悬浮时的内容下边距） */
 .page--with-login { padding-bottom: calc(28rpx + env(safe-area-inset-bottom)); }
 
-.login-fixed {
-  position: fixed;
-  left: 24rpx;
-  right: 24rpx;
-  bottom: 0;
-  z-index: 40;
-}
-
-.login-fixed__btn {
-  height: 92rpx;
-  background: linear-gradient(180deg, #f59e0b 0%, #ea580c 100%);
-  color: #fff;
-  box-shadow: 0 12rpx 28rpx rgba(245, 158, 11, 0.32);
-}
-
-.login-fixed__btn::after {
-  border: none;
-}
+/* 自定义 tabBar 悬浮占位：tab 页需为底部导航预留高度，避免内容被遮挡 */
+.tabbar-safe { padding-bottom: calc(100rpx + 24rpx + env(safe-area-inset-bottom)); }
+.page--with-login.tabbar-safe { padding-bottom: calc(100rpx + 120rpx + env(safe-area-inset-bottom)); }

@@ -1,7 +1,7 @@
 .company-page {
   min-height: 100vh;
   background: var(--bg-page);
-  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(100rpx + 120rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -91,14 +91,14 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(100rpx + env(safe-area-inset-bottom));
   display: flex;
   gap: 20rpx;
-  padding: 20rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 32rpx;
   background: #fff;
   border-top: 1rpx solid var(--divider);
   box-sizing: border-box;
-  z-index: 20;
+  z-index: 99;
 }
 
 .company-footer__btn { flex: 1; }
