@@ -58,6 +58,21 @@ export const updateEmployeeCardStyleRequestSchema = z.object({
   layout: z.record(z.string(), z.unknown()).optional()
 });
 
+export const employeeCardStatsResponseSchema = z.object({
+  visitor_count: z.number().int().nonnegative(),
+  visit_count: z.number().int().nonnegative(),
+  recent_visitors: z.array(
+    z.object({
+      visitor_key: z.string(),
+      visitor_label: z.string(),
+      visit_count: z.number().int().positive(),
+      channel: z.string().nullable(),
+      last_visit_at: z.string()
+    })
+  )
+});
+
+export type EmployeeCardStatsResponse = z.infer<typeof employeeCardStatsResponseSchema>;
 export type EmployeeCardResponse = z.infer<typeof employeeCardResponseSchema>;
 export type EmployeeShareResponse = z.infer<typeof employeeShareResponseSchema>;
 export type UpdateEmployeeCardRequest = z.infer<typeof updateEmployeeCardRequestSchema>;

@@ -1,6 +1,7 @@
 const app = getApp();
 const { ensureSession, switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
+const { mapRecentVisitors } = require("../../utils/format");
 
 const demoCard = {
   display_name: "李明",
@@ -58,7 +59,9 @@ Page({
         authState: "guest",
         loggedIn: false,
         currentIdentity: null,
-        identities: []
+        identities: [],
+        stats: { visitors: 0, viewed: 0, friends: 0 },
+        recentVisitors: []
       });
       return;
     }
@@ -111,6 +114,7 @@ Page({
         authState: "logged",
         loggedIn: true
       });
+      this.loadStats();
     } catch (error) {
       // 读取失败不等于登录失效：token 还在时保持登录态，只提示错误，
       // 避免把已登录用户误降级成“未登录 + 演示名片”。
@@ -121,6 +125,20 @@ Page({
       }
       this.setData({ loading: false, error: true, demoMode: true, authState: "failed", loggedIn: false });
       wx.showToast({ title: error.message || "读取失败，已展示演示名片", icon: "none" });
+    }
+  },
+
+  // 真实的按身份访客统计（个人/各企业名片各自独立）；
+  // 「我看过/好友名片」后端功能未上线，保持 0。
+  async loadStats() {
+    try {
+      const stats = await request("/employee/cards/current/stats");
+      this.setData({
+        stats: { visitors: stats.visitor_count, viewed: 0, friends: 0 },
+        recentVisitors: mapRecentVisitors(stats.recent_visitors)
+      });
+    } catch (_error) {
+      // 统计失败不打扰主流程，保持当前数值
     }
   },
 
