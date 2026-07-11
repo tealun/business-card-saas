@@ -16,7 +16,16 @@ import {
 import { DatabaseService } from "../database/database.service.js";
 
 const execFileAsync = promisify(execFile);
-const migrationFilePattern = /^\d+_.+\.js$/;
+const migrationFilePattern = /^migrate_v(\d+)_(\d+)\.sql$/;
+
+function compareMigrationFileNames(left: string, right: string): number {
+  const leftMatch = migrationFilePattern.exec(left);
+  const rightMatch = migrationFilePattern.exec(right);
+  if (!leftMatch || !rightMatch) {
+    return left.localeCompare(right);
+  }
+  return Number(leftMatch[1]) - Number(rightMatch[1]) || Number(leftMatch[2]) - Number(rightMatch[2]);
+}
 
 interface MigrationTableRow {
   name: string;
@@ -119,17 +128,17 @@ export class AdminDatabaseService {
     if (migrationsOk.ok) {
       migrationFiles = (await fs.readdir(migrationsDir))
         .filter((fileName) => migrationFilePattern.test(fileName))
-        .sort((left, right) => left.localeCompare(right));
+        .sort(compareMigrationFileNames);
     }
 
     const table = await this.readAppliedMigrations();
     errors.push(...table.errors);
-    const appliedSet = new Set(table.applied.flatMap((name) => [name, `${name}.js`]));
+    const appliedSet = new Set(table.applied.flatMap((name) => [name, `${name}.sql`]));
     const pendingMigrations: DatabaseMigrationItem[] = migrationFiles
       .map((fileName) => ({
-        name: fileName.replace(/\.js$/, ""),
+        name: fileName.replace(/\.sql$/, ""),
         file_name: fileName,
-        applied: appliedSet.has(fileName) || appliedSet.has(fileName.replace(/\.js$/, ""))
+        applied: appliedSet.has(fileName) || appliedSet.has(fileName.replace(/\.sql$/, ""))
       }))
       .filter((migration) => !migration.applied);
 
@@ -157,7 +166,7 @@ export class AdminDatabaseService {
     try {
       const raw = await fs.readFile(packageJsonPath, "utf8");
       const parsed = JSON.parse(raw) as { scripts?: Record<string, string> };
-      if (parsed.scripts?.migrate !== "node-pg-migrate up --migrations-dir migrations") {
+      if (parsed.scripts?.migrate !== "node scripts/migrate.cjs") {
         return { ok: false, errors: ["database package.json must expose the canonical migrate script"] };
       }
       return { ok: true, errors: [] };

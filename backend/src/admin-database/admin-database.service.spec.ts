@@ -37,12 +37,12 @@ describe("AdminDatabaseService", () => {
       JSON.stringify({
         name: "business-card-database",
         scripts: {
-          migrate: "node-pg-migrate up --migrations-dir migrations"
+          migrate: "node scripts/migrate.cjs"
         }
       })
     );
-    await fs.writeFile(path.join(tempRoot, "migrations", "0000000000000_baseline.js"), "exports.up = () => {};\n");
-    await fs.writeFile(path.join(tempRoot, "migrations", "1783520000000_personal_identities.js"), "exports.up = () => {};\n");
+    await fs.writeFile(path.join(tempRoot, "migrations", "migrate_v1_1.sql"), "SELECT 1;\n");
+    await fs.writeFile(path.join(tempRoot, "migrations", "migrate_v1_2.sql"), "SELECT 1;\n");
     return tempRoot;
   }
 
@@ -82,18 +82,18 @@ describe("AdminDatabaseService", () => {
     const databaseDir = await createDatabaseDir();
     const { service } = createService({
       databaseDir,
-      applied: ["0000000000000_baseline"]
+      applied: ["migrate_v1_1"]
     });
 
     await expect(service.getMigrationStatus(adminSession)).resolves.toMatchObject({
       configured: true,
-      migration_files: ["0000000000000_baseline.js", "1783520000000_personal_identities.js"],
-      applied_migrations: ["0000000000000_baseline"],
+      migration_files: ["migrate_v1_1.sql", "migrate_v1_2.sql"],
+      applied_migrations: ["migrate_v1_1"],
       pending_count: 1,
       pending_migrations: [
         {
-          name: "1783520000000_personal_identities",
-          file_name: "1783520000000_personal_identities.js",
+          name: "migrate_v1_2",
+          file_name: "migrate_v1_2.sql",
           applied: false
         }
       ],
@@ -101,11 +101,21 @@ describe("AdminDatabaseService", () => {
     });
   });
 
+  it("orders migration files numerically, not lexicographically", async () => {
+    const databaseDir = await createDatabaseDir();
+    await fs.writeFile(path.join(databaseDir, "migrations", "migrate_v1_10.sql"), "SELECT 1;\n");
+
+    const { service } = createService({ databaseDir, applied: [] });
+    await expect(service.getMigrationStatus(adminSession)).resolves.toMatchObject({
+      migration_files: ["migrate_v1_1.sql", "migrate_v1_2.sql", "migrate_v1_10.sql"]
+    });
+  });
+
   it("does not run migrations when nothing is pending", async () => {
     const databaseDir = await createDatabaseDir();
     const { service } = createService({
       databaseDir,
-      applied: ["0000000000000_baseline.js", "1783520000000_personal_identities.js"]
+      applied: ["migrate_v1_1.sql", "migrate_v1_2.sql"]
     });
 
     await expect(service.runPendingMigrations(ownerSession)).resolves.toMatchObject({
