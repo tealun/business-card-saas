@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require("../../utils/api");
 const { mapRecentVisitors } = require("../../utils/format");
+const { setPageTheme } = require("../../utils/theme");
 
 // 未登录演示数据：配合横幅展示访客/交换能力；登录后替换为真实统计。
 const demoTabs = [
@@ -31,6 +32,7 @@ Page({
     // 「我看过/好友名片」后端功能未上线，登录后计数为 0。
     demoMode: true,
     loggedIn: false,
+    themeStyle: "",
     activeTab: "visitors",
     tabs: demoTabs,
     keyword: "",
@@ -38,8 +40,10 @@ Page({
   },
 
   onShow() {
+    setPageTheme(this);
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ selected: 1 });
+      this.getTabBar().applyTheme();
     }
     this.loadStats();
   },

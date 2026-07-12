@@ -107,15 +107,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 700;
+  background: #eef0f3;
   flex: none;
+  overflow: hidden;
 }
 
-.wallet-item__avatar--exchanged { background: var(--success); }
-.wallet-item__avatar--pending { background: var(--warning); }
-.wallet-item__avatar--none { background: var(--text-tertiary); }
+.wallet-item__avatar--exchanged,
+.wallet-item__avatar--pending,
+.wallet-item__avatar--none { background: #eef0f3; }
 .wallet-item__main { flex: 1; min-width: 0; }
 .wallet-item__name { font-size: 30rpx; font-weight: 500; }
 .wallet-item__sub { margin-top: 6rpx; font-size: 24rpx; color: var(--text-secondary); }

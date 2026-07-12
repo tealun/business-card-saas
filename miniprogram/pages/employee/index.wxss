@@ -128,14 +128,12 @@
   width: 88rpx;
   height: 88rpx;
   border-radius: 50%;
-  background: var(--brand-tint);
-  color: var(--brand);
+  background: #eef0f3;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32rpx;
-  font-weight: 700;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .request-item__info { flex: 1; min-width: 0; }
@@ -158,15 +156,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #fff;
+  background: #eef0f3;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.visitor-item__avatar--exchanged { background: var(--success); }
-.visitor-item__avatar--pending { background: var(--warning); }
-.visitor-item__avatar--none { background: var(--text-tertiary); }
+.visitor-item__avatar--exchanged,
+.visitor-item__avatar--pending,
+.visitor-item__avatar--none { background: #eef0f3; }
 .visitor-item__info { flex: 1; min-width: 0; }
 .visitor-item__right { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
 .visitor-item__time { font-size: 22rpx; color: var(--text-tertiary); }
@@ -178,7 +175,7 @@
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s ease;
-  z-index: 50;
+  z-index: 180;
 }
 
 .sheet-mask--show { opacity: 1; visibility: visible; }
@@ -188,35 +185,74 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 24rpx 32rpx calc(28rpx + env(safe-area-inset-bottom));
   background: var(--bg-surface);
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
-  transform: translateY(100%);
+  transform: translateY(120%);
   transition: transform 0.25s ease-out;
-  z-index: 60;
+  z-index: 190;
 }
 
 .sheet--show { transform: translateY(0); }
-.sheet__grab { width: 72rpx; height: 8rpx; margin: 0 auto 24rpx; border-radius: 4rpx; background: var(--divider); }
-.sheet__head { margin-bottom: 24rpx; }
+.sheet__grab { width: 72rpx; height: 8rpx; margin: 0 auto 26rpx; border-radius: 4rpx; background: var(--divider); }
+.sheet__head { margin-bottom: 26rpx; }
+.sheet__head .card__title { font-size: 40rpx; font-weight: 500; }
 
 .sheet__thumb {
   display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  padding: 24rpx;
-  border-radius: var(--r-card);
+  align-items: center;
+  gap: 18rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
   background: var(--bg-page);
   margin-bottom: 24rpx;
 }
 
-.sheet__thumb-title { font-size: 30rpx; font-weight: 500; }
-.sheet__thumb-sub { font-size: 24rpx; color: var(--text-secondary); }
+.share-current-card__icon {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.share-current-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-current-card__tag {
+  flex: none;
+  font-size: 24rpx;
+  color: var(--brand);
+}
+
+.sheet__thumb-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet__thumb-sub {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .sheet__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+  gap: 22rpx;
+  margin-bottom: 22rpx;
 }
 
 .sheet__cell {
@@ -232,32 +268,75 @@
   border: 2rpx solid var(--divider);
 }
 
-.sheet__cell--primary { background: var(--brand-tint); border-color: transparent; }
+.sheet__grid--share .sheet__cell--primary {
+  height: 188rpx;
+  align-items: flex-start;
+  padding: 32rpx;
+  box-sizing: border-box;
+  background: var(--brand-tint);
+  border-color: transparent;
+  font-size: 0;
+}
+
+.sheet__grid--share .sheet__cell--primary .icon {
+  width: 54rpx;
+  height: 54rpx;
+}
+
+.sheet__cell-title {
+  margin-top: 10rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.sheet__cell-desc {
+  margin-top: -6rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.sheet__cell--secondary {
+  height: 88rpx;
+  flex-direction: row;
+  gap: 16rpx;
+  border-radius: 20rpx;
+  background: var(--bg-surface);
+}
 
 .poster-preview {
   display: flex;
-  gap: 20rpx;
+  gap: 28rpx;
   align-items: center;
-  margin-top: 24rpx;
-  padding: 20rpx;
-  border-radius: var(--r-card);
+  margin-top: 8rpx;
+  padding: 28rpx;
+  border-radius: 20rpx;
   background: var(--bg-page);
 }
 
 .poster-card {
-  width: 132rpx;
-  height: 192rpx;
-  padding: 18rpx;
+  width: 160rpx;
+  height: 240rpx;
+  padding: 20rpx;
   border-radius: 18rpx;
-  color: #fff;
-  background: linear-gradient(160deg, var(--brand-deep), var(--brand));
+  color: var(--text-primary);
+  background: #fff;
   box-sizing: border-box;
+  box-shadow: 0 10rpx 26rpx rgba(26, 29, 31, 0.08);
 }
 
-.poster-card__top { font-size: 18rpx; opacity: 0.85; }
-.poster-card__name { margin-top: 22rpx; font-size: 32rpx; font-weight: 700; }
-.poster-card__qr { width: 52rpx; height: 52rpx; margin-top: 30rpx; border-radius: 8rpx; background: #fff; }
-.poster-preview__copy { flex: 1; line-height: 1.6; }
+.poster-card__top {
+  width: 100%;
+  height: 72rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(135deg, var(--brand-deep), var(--brand));
+}
+
+.poster-card__name { margin-top: 20rpx; font-size: 22rpx; font-weight: 700; }
+.poster-card__qr { width: 42rpx; height: 42rpx; margin-top: 56rpx; margin-left: auto; border-radius: 4rpx; background: var(--text-primary); }
+.poster-preview__copy { flex: 1; line-height: 1.55; }
+.poster-preview__title { font-size: 30rpx; font-weight: 500; color: var(--text-primary); }
+.poster-preview__btn { width: 220rpx; height: 72rpx; margin-top: 20rpx; padding: 0; }
 
 .sheet__tip {
   margin-top: 24rpx;
@@ -292,14 +371,12 @@
   width: 76rpx;
   height: 76rpx;
   border-radius: 50%;
-  background: var(--brand);
-  color: #fff;
+  background: #eef0f3;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
-  font-weight: 700;
   flex: none;
+  overflow: hidden;
 }
 
 .identity-option__body {

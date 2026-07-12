@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require("../../utils/api");
+const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 
 const demoServiceItems = [
   { title: "数字名片", desc: "员工对外名片展示" },
@@ -27,7 +28,7 @@ const demoPublicCard = {
     }
   },
   template: {
-    color_scheme: { primary: "#2b6cff" },
+    color_scheme: { primary: DEFAULT_BRAND },
     layout: {}
   },
   company_profile: {
@@ -41,6 +42,20 @@ const demoPublicCard = {
   videos: [],
   honors: []
 };
+const TEMPLATE_BACKGROUNDS = {
+  tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
+  tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
+  tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
+  tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
+  tpl_campaign: ""
+};
+const PRESET_BACKGROUNDS = {
+  "light-wave": "/assets/card-backgrounds/bg-light-wave.webp",
+  "light-geometry": "/assets/card-backgrounds/bg-light-geometry.webp",
+  "light-cubes": "/assets/card-backgrounds/bg-light-cubes.webp",
+  "blue-dot": "/assets/card-backgrounds/bg-blue-dot.webp",
+  "dark-dot": "/assets/card-backgrounds/bg-dark-dot.webp"
+};
 
 Page({
   data: {
@@ -49,13 +64,16 @@ Page({
     shareId: "",
     nextShareId: "",
     visitId: "",
-    themeBrand: "#2b6cff",
+    themeBrand: DEFAULT_BRAND,
+    themeStyle: themeStyle(buildTheme(DEFAULT_BRAND)),
     isDisabled: false,
     isOwnCard: false,
     viewCount: 269,
     likeCount: 136,
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
+    cardBackgroundStyle: "",
+    cardTemplateClass: "biz-card--horizontal",
     card: demoPublicCard
   },
 
@@ -89,10 +107,20 @@ Page({
   applyPublicCard(rawCard, isDemo) {
     const card = normalizePublicCard(rawCard);
     const disabled = card.status && card.status !== "active";
-    const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || "#2b6cff";
+    const layout = (card.template && card.template.layout) || {};
+    const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || DEFAULT_BRAND;
+    const theme = buildTheme(brand);
     this.setData({
       card,
-      themeBrand: brand,
+      ...theme,
+      themeStyle: themeStyle(theme),
+      cardTemplateClass: cardTemplateClass(card.template && card.template.template_id),
+      cardBackgroundStyle: cardBackgroundStyle(
+        card.template && card.template.background_url,
+        layout.background_opacity,
+        card.template && card.template.template_id,
+        layout.background_preset_id
+      ),
       isDisabled: disabled,
       isOwnCard: this.isOwnPublicCard(card),
       serviceItems: resolveServiceItems(card, isDemo),
@@ -266,6 +294,45 @@ Page({
     };
   }
 });
+
+function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
+  const normalizedTemplateId = normalizeTemplateId(templateId);
+  const backgroundUrl = url || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizedTemplateId] || "";
+  if (!backgroundUrl) {
+    return "";
+  }
+  const alpha = 1 - normalizeOpacity(opacity) / 100;
+  const overlay = normalizedTemplateId === "tpl_brand_image" || normalizedTemplateId === "tpl_dark"
+    ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
+    : `rgba(255,255,255,${alpha.toFixed(2)})`;
+  return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
+}
+
+function cardTemplateClass(templateId) {
+  const map = {
+    tpl_horizontal_business: "biz-card--horizontal",
+    tpl_minimal: "biz-card--minimal",
+    tpl_brand_image: "biz-card--brand-image",
+    tpl_dark: "biz-card--dark",
+    tpl_campaign: "biz-card--campaign"
+  };
+  return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function normalizeTemplateId(templateId) {
+  if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  return templateId || "tpl_horizontal_business";
+}
+
+function normalizeOpacity(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 100;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
 
 function normalizePublicCard(card) {
   return {

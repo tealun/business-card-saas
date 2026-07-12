@@ -15,11 +15,13 @@ export const employeeCardResponseSchema = z.object({
   company: z.string().nullable(),
   avatar_url: imageSourceSchema.nullable(),
   fields: z.object({
+    department: z.string().nullable().optional(),
     mobile: z.string().nullable(),
     phone: z.string().nullable().optional(),
     email: z.string().email().nullable(),
     wechat_id: z.string().nullable(),
-    address: z.string().nullable().optional()
+    address: z.string().nullable().optional(),
+    website: z.string().url().nullable().optional()
   }),
   status: z.enum(["active", "disabled"]),
   privacy: z.object({
@@ -43,11 +45,13 @@ export const updateEmployeeCardRequestSchema = z.object({
   title: z.string().max(128).nullable().optional(),
   fields: z
     .object({
+      department: z.string().max(128).nullable().optional(),
       mobile: z.string().max(32).nullable().optional(),
       phone: z.string().max(32).nullable().optional(),
       email: z.string().email().nullable().optional(),
       wechat_id: z.string().max(128).nullable().optional(),
-      address: z.string().max(255).nullable().optional()
+      address: z.string().max(255).nullable().optional(),
+      website: z.string().url().nullable().optional()
     })
     .optional(),
   privacy: z
@@ -61,7 +65,7 @@ export const updateEmployeeCardRequestSchema = z.object({
 
 export const updateEmployeeCardStyleRequestSchema = z.object({
   template_id: z.string().min(1).max(64).optional(),
-  background_url: z.string().url().nullable().optional(),
+  background_url: imageSourceSchema.nullable().optional(),
   color_scheme: z.record(z.string(), z.unknown()).optional(),
   layout: z.record(z.string(), z.unknown()).optional()
 });

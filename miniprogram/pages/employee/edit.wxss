@@ -74,16 +74,12 @@
   margin-top: 24rpx;
 }
 
-.edit-tags__add {
-  display: inline-flex;
-  align-items: center;
-  gap: 6rpx;
-  height: 48rpx;
-  padding: 0 18rpx;
-  border: 2rpx dashed #c9ced6;
-  border-radius: var(--r-chip);
-  color: var(--text-secondary);
+.edit-section-help {
+  display: block;
+  margin-top: 14rpx;
+  color: var(--text-tertiary);
   font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .edit-note {

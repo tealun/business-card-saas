@@ -20,10 +20,21 @@ App({
     shareId: "",
     visitToken: "",
     anonId: "",
+    themeBrand: "",
+    themeBrandDeep: "",
+    themeBrandTint: "",
+    themeBrandSoft: "",
+    themeShadowBtn: "",
     demoAuthEnabled: Boolean(config.demoAuthEnabled)
   },
 
   onLaunch() {
+    try {
+      const { restoreTheme } = require("./utils/theme");
+      restoreTheme(this.globalData);
+    } catch (_error) {
+      // 主题恢复失败时使用全局 WXSS 默认值。
+    }
     try {
       const { restoreSession } = require("./utils/auth");
       restoreSession(this.globalData);

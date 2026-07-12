@@ -25,7 +25,7 @@
   border: none;
 }
 
-.login-bar__btn[disabled] {
+.login-bar__btn--disabled {
   color: #ffffff;
   opacity: 0.7;
 }

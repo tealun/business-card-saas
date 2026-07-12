@@ -7,8 +7,10 @@ import { registerXmlBodyParser } from "./common/xml-body-parser.js";
 import helmet from "@fastify/helmet";
 import { AppConfig } from "./config/app-config.js";
 
+const JSON_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
+
 async function bootstrap() {
-  const adapter = new FastifyAdapter();
+  const adapter = new FastifyAdapter({ bodyLimit: JSON_BODY_LIMIT_BYTES });
   registerXmlBodyParser(adapter);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { bufferLogs: true });
   app.useLogger(app.get(Logger));

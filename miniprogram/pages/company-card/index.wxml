@@ -1,9 +1,9 @@
-<view class="company-page">
+<view class="company-page" style="{{themeStyle}}">
+  <view class="company-nav-title">企业名片</view>
   <view class="page company-body">
     <view class="status-bar status-bar--warning" wx:if="{{demoMode}}">
       当前为未登录体验，展示的是名片样式示例。登录后会显示你当前身份的真实名片。
     </view>
-
     <block wx:if="{{loading}}">
       <view class="card skeleton-card">
         <view class="skeleton skeleton-line skeleton-line--short"></view>
@@ -14,9 +14,12 @@
     </block>
 
     <block wx:else>
-      <view class="biz-card company-preview-card">
+      <view class="biz-card company-preview-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}">
         <view class="biz-card__head">
-          <view class="biz-card__logo"></view>
+          <view class="biz-card__logo">
+            <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+            <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+          </view>
           <text class="biz-card__company">{{card.company || "企业名片"}}</text>
         </view>
         <view class="biz-card__body">
@@ -30,7 +33,7 @@
           </view>
           <view class="biz-card__avatar">
             <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
-            <text wx:else>{{card.display_name ? card.display_name[0] : "名"}}</text>
+            <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
         <view class="biz-card__status">
@@ -40,15 +43,37 @@
         </view>
       </view>
 
-      <view class="status-card" wx:if="{{loggedIn && isPersonal}}">
-        <view class="status-card__title">当前账号暂无企业名片身份</view>
-        <view class="status-card__desc">
-          企业名片由企业微信管理员授权安装应用后生成。完成授权后，员工重新登录即可看到企业名片身份。
+      <view class="status-card personal-data-card" wx:if="{{loggedIn && isPersonal}}">
+        <view class="row-between">
+          <view>
+            <view class="status-card__title">个人名片互动数据</view>
+            <view class="status-card__desc personal-data-card__desc">分享个人名片后，这里会展示访问与互动概况。</view>
+          </view>
+          <text class="badge badge--brand">个人名片</text>
         </view>
-        <view class="btn btn--primary btn--block" bindtap="openGuide">查看企业名片开通说明</view>
+        <view class="company-stat-row">
+          <view class="company-stat-row__item">
+            <view class="company-stat-row__num">{{stats.visitors}}</view>
+            <view class="company-stat-row__label">访客</view>
+          </view>
+          <view class="company-stat-row__item">
+            <view class="company-stat-row__num">{{stats.viewed}}</view>
+            <view class="company-stat-row__label">访问次数</view>
+          </view>
+          <view class="company-stat-row__item">
+            <view class="company-stat-row__num">{{stats.friends}}</view>
+            <view class="company-stat-row__label">互动</view>
+          </view>
+        </view>
+        <view class="status-card__desc">当前账号暂无企业名片身份；企业微信管理员授权后，可在这里切换查看企业名片。</view>
+        <view class="company-action-row">
+          <view class="btn btn--primary company-action-row__item" bindtap="openGuide">升级企业版</view>
+          <view class="btn btn--soft company-action-row__item" bindtap="openVisitorPage">{{openingVisitorPage ? '打开中…' : '查看展示页'}}</view>
+        </view>
       </view>
 
       <view class="status-card" wx:elif="{{loggedIn}}">
+        <view class="btn btn--soft btn--block company-visitor-btn" bindtap="openVisitorPage">{{openingVisitorPage ? '打开中…' : '查看展示页'}}</view>
         <view class="status-card__title">这是你的企业身份名片预览</view>
         <view class="status-card__desc">
           该页面用于查看企业身份名片最终展示效果。访客从公开链接访问他人的企业名片时，才会出现加入名片夹入口。

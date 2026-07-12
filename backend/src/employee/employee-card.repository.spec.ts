@@ -1,4 +1,6 @@
 import { EmployeeCardRepository } from "./employee-card.repository.js";
+import { publicCardResponseSchema } from "../contracts/public-card.js";
+import type { EmployeeCardResponse } from "../contracts/employee-card.js";
 
 describe("EmployeeCardRepository", () => {
   it("aligns card status with the current employee session", async () => {
@@ -60,6 +62,168 @@ describe("EmployeeCardRepository", () => {
 
     expect(card.avatar_url).toBe("data:image/jpeg;base64,ZmFrZQ==");
     expect(card.editable_fields).toContain("avatar_url");
+  });
+
+  it("updates personal-only organization fields without tenant field locks", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const card = await repository.updateCurrentCard(session, {
+      fields: {
+        department: "Freelance Studio",
+        website: "https://ada.example.com"
+      }
+    });
+
+    expect(card.fields.department).toBe("Freelance Studio");
+    expect(card.fields.website).toBe("https://ada.example.com");
+    expect(card.editable_fields).toEqual(
+      expect.arrayContaining(["department", "website", "avatar_url", "address"])
+    );
+  });
+
+  it("does not publish invalid legacy contact URLs or emails", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-legacy",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_legacy01"
+    };
+    const legacyCard: EmployeeCardResponse = {
+      card_id: "member-legacy",
+      public_id: "pub_legacy01",
+      display_name: "Ada",
+      title: null,
+      company: "Personal",
+      avatar_url: null,
+      fields: {
+        department: null,
+        mobile: null,
+        phone: null,
+        email: "not-an-email",
+        wechat_id: null,
+        address: null,
+        website: ""
+      },
+      status: "active",
+      privacy: {
+        show_mobile: false,
+        show_email: true,
+        show_wechat: false
+      }
+    };
+
+    (repository as unknown as { cards: Map<string, EmployeeCardResponse> }).cards.set("tenant-001:member-legacy", legacyCard);
+
+    const preview = await repository.getPreview(session);
+
+    expect(() => publicCardResponseSchema.parse(preview)).not.toThrow();
+    expect(preview.card.fields.email).toBeNull();
+    expect(preview.company_profile.website_url).toBeNull();
+  });
+
+  it("materializes avatar data URLs through configured storage before saving", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn(async () => ({
+        storageKey: "tenant/tenant-001/avatars/avatar.png",
+        publicUrl: "http://localhost:3000/api/v1/storage/tenant/tenant-001/avatars/avatar.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const card = await repository.updateCurrentCard(session, {
+      avatar_url: "data:image/png;base64,aGVsbG8="
+    });
+
+    expect(storage.storeImageDataUrl).toHaveBeenCalledWith({
+      tenantId: "tenant-001",
+      category: "avatars",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    });
+    expect(card.avatar_url).toBe("http://localhost:3000/api/v1/storage/tenant/tenant-001/avatars/avatar.png");
+  });
+
+  it("materializes custom card background data URLs through configured storage before saving style", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn(async () => ({
+        storageKey: "tenant/tenant-001/card-backgrounds/background.png",
+        publicUrl: "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/background.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const preview = await repository.updateStyle(session, {
+      background_url: "data:image/png;base64,aGVsbG8=",
+      color_scheme: { primary: "#8d7ec7" }
+    });
+
+    expect(storage.storeImageDataUrl).toHaveBeenCalledWith({
+      tenantId: "tenant-001",
+      category: "card-backgrounds",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    });
+    expect(preview.template.background_url).toBe(
+      "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/background.png"
+    );
+  });
+
+  it("keeps bundled preset card background paths without storage upload", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn()
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const preview = await repository.updateStyle(session, {
+      background_url: "/assets/card-backgrounds/bg-light-wave.webp",
+      color_scheme: { primary: "#5a70c8" }
+    });
+
+    expect(storage.storeImageDataUrl).not.toHaveBeenCalled();
+    expect(preview.template.background_url).toBe("/assets/card-backgrounds/bg-light-wave.webp");
   });
 
   it("rejects enterprise updates for fields locked by tenant settings", async () => {

@@ -1,6 +1,6 @@
 <view class="login-bar">
   <button
-    class="login-bar__btn"
+    class="login-bar__btn {{submitting ? 'login-bar__btn--disabled' : ''}}"
     bindtap="triggerLogin"
     disabled="{{submitting}}"
     loading="{{submitting}}"

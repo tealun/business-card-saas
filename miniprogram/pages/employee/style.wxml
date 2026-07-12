@@ -1,7 +1,10 @@
-<view class="page page--with-footer style-page" style="--brand: {{primary}};">
-  <view class="biz-card style-preview">
+<view class="page page--with-footer style-page" style="{{themeStyle}}">
+  <view class="biz-card style-preview {{templateClass}}" style="{{backgroundPreviewStyle}}">
     <view class="biz-card__head">
-      <view class="biz-card__logo"></view>
+      <view class="biz-card__logo">
+        <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+        <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+      </view>
       <text class="biz-card__company">{{card.company || "企业名片"}}</text>
     </view>
     <view class="biz-card__body">
@@ -12,7 +15,7 @@
           <view>{{card.fields.mobile || "联系方式未设置"}}</view>
         </view>
       </view>
-      <view class="biz-card__avatar">{{card.display_name ? card.display_name[0] : "名"}}</view>
+      <view class="biz-card__avatar"><view class="avatar-placeholder"></view></view>
     </view>
     <text class="badge badge--brand style-preview__tag">实时预览</text>
   </view>
@@ -53,22 +56,89 @@
         data-color="{{item}}"
         bindtap="selectColor"
       ></view>
+      <view
+        class="color-dot color-dot--custom {{customColorExpanded ? 'color-dot--active' : ''}}"
+        bindtap="selectCustomColor"
+      >
+        <text>自</text>
+      </view>
     </view>
+    <view class="custom-color-row {{customColorExpanded ? '' : 'custom-color-row--hidden'}}">
+      <text class="custom-color-row__label">自定义</text>
+      <input
+        class="custom-color-row__input"
+        value="{{customHex}}"
+        maxlength="7"
+        bindinput="onCustomHexInput"
+        placeholder="#5A70C8"
+      />
+    </view>
+    <view class="custom-color-row__error" wx:if="{{customHexError}}">{{customHexError}}</view>
   </view>
 
   <view class="card qrcode-row">
     <view>
       <view class="card__title">名片码样式</view>
-      <view class="f12 t-secondary qrcode-row__sub">统一使用品牌色角标与居中 logo</view>
+      <view class="f12 t-secondary qrcode-row__sub">当前固定使用品牌色角标与居中 logo，暂不开放手动编辑。</view>
     </view>
     <view class="qrcode-row__right">
-      <text class="f14 t-secondary">默认</text>
-      <view class="icon icon-arrow icon--sm"></view>
+      <text class="badge badge--muted">默认</text>
     </view>
+  </view>
+
+  <view class="card background-card">
+    <view class="row-between">
+      <view>
+        <view class="card__title">名片背景图</view>
+        <view class="f12 t-secondary background-card__sub">可使用默认背景，也可上传自定义图。请结合当前版式选择留白位置；JPG、PNG、WebP，≤2MB，比例 1.5:1 到 2:1。</view>
+      </view>
+      <view class="btn btn--sm btn--soft" bindtap="onChooseBackgroundImage">{{backgroundUrl ? "更换" : "上传"}}</view>
+    </view>
+    <scroll-view scroll-x class="background-preset-scroll" enable-flex>
+      <view
+        class="background-preset {{backgroundPresetId === item.id ? 'background-preset--active' : ''}}"
+        wx:for="{{backgroundPresets}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onSelectPresetBackground"
+      >
+        <image class="background-preset__image" src="{{item.url}}" mode="aspectFill" />
+        <text class="background-preset__name">{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <view class="background-preview {{backgroundUrl ? 'background-preview--filled' : ''}}" bindtap="onChooseBackgroundImage">
+      <image wx:if="{{backgroundUrl}}" class="background-preview__image" src="{{backgroundUrl}}" mode="aspectFill" />
+      <view wx:else class="background-preview__empty">
+        <view class="icon icon-image"></view>
+        <text>选择背景图</text>
+      </view>
+    </view>
+    <view class="background-opacity-row" wx:if="{{backgroundUrl}}">
+      <view class="row-between">
+        <text class="background-opacity-row__label">背景图透明度</text>
+        <text class="background-opacity-row__value">{{backgroundOpacity}}%</text>
+      </view>
+      <slider
+        class="background-opacity-row__slider"
+        min="0"
+        max="100"
+        step="5"
+        value="{{backgroundOpacity}}"
+        activeColor="{{themeBrand}}"
+        backgroundColor="#e5e7eb"
+        block-size="20"
+        bindchanging="onBackgroundOpacityChange"
+        bindchange="onBackgroundOpacityChange"
+      />
+    </view>
+    <view class="background-card__actions" wx:if="{{backgroundUrl}}">
+      <view class="btn btn--sm btn--muted" bindtap="onClearBackgroundImage">清除背景图</view>
+    </view>
+    <view class="custom-color-row__error" wx:if="{{backgroundError}}">{{backgroundError}}</view>
   </view>
 </view>
 
-<view class="fixed-footer">
+<view class="fixed-footer" style="{{themeStyle}}">
   <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="applyStyle">
     {{submitting ? '应用中…' : '应用此样式'}}
   </view>

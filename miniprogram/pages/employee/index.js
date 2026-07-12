@@ -2,6 +2,7 @@ const app = getApp();
 const { switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { mapRecentVisitors } = require("../../utils/format");
+const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 
 const demoCard = {
   display_name: "李明",
@@ -24,6 +25,21 @@ const demoRecentVisitors = [
   { id: "v3", name: "陈可欣", title: "市场经理 · 万联传媒", meta: "访问 2 次", state: "none", time: "周一" }
 ];
 
+const TEMPLATE_BACKGROUNDS = {
+  tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
+  tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
+  tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
+  tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
+  tpl_campaign: ""
+};
+const PRESET_BACKGROUNDS = {
+  "light-wave": "/assets/card-backgrounds/bg-light-wave.webp",
+  "light-geometry": "/assets/card-backgrounds/bg-light-geometry.webp",
+  "light-cubes": "/assets/card-backgrounds/bg-light-cubes.webp",
+  "blue-dot": "/assets/card-backgrounds/bg-blue-dot.webp",
+  "dark-dot": "/assets/card-backgrounds/bg-dark-dot.webp"
+};
+
 Page({
   data: {
     loading: true,
@@ -32,7 +48,10 @@ Page({
     authState: "guest",
     loggedIn: false,
     card: demoCard,
-    themeBrand: "#2b6cff",
+    cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
+    cardTemplateClass: "biz-card--horizontal",
+    themeBrand: DEFAULT_BRAND,
+    themeStyle: "",
     sheetVisible: false,
     identitySheetVisible: false,
     submitting: false,
@@ -46,12 +65,14 @@ Page({
   },
 
   onLoad() {
+    setPageTheme(this);
     this.bootstrap();
   },
 
   async onShow() {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
+      this.getTabBar().applyTheme();
     }
     if (this.data.loggedIn && app.globalData.token) {
       await this.loadPreview();
@@ -71,6 +92,9 @@ Page({
         loggedIn: false,
         currentIdentity: null,
         identities: [],
+        card: demoCard,
+        cardTemplateClass: "biz-card--horizontal",
+        cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
         requests: demoRequests,
         stats: demoStats,
         recentVisitors: demoRecentVisitors
@@ -98,6 +122,9 @@ Page({
       demoMode: true,
       authState: "failed",
       loggedIn: false,
+      card: demoCard,
+      cardTemplateClass: "biz-card--horizontal",
+      cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
       requests: demoRequests,
       stats: demoStats,
       recentVisitors: demoRecentVisitors
@@ -117,10 +144,21 @@ Page({
     try {
       const preview = await request("/employee/cards/current/preview");
       app.globalData.currentCard = preview.card;
-      const brand = (preview.template && preview.template.color_scheme && preview.template.color_scheme.primary) || "#2b6cff";
+      const layout = (preview.template && preview.template.layout) || {};
+      const brand = (preview.template && preview.template.color_scheme && preview.template.color_scheme.primary) || DEFAULT_BRAND;
+      setPageTheme(this, brand);
+      if (typeof this.getTabBar === "function" && this.getTabBar()) {
+        this.getTabBar().applyTheme();
+      }
       this.setData({
         card: Object.assign({ status: preview.status, fields: {} }, preview.card),
-        themeBrand: brand,
+        cardTemplateClass: cardTemplateClass(preview.template && preview.template.template_id),
+        cardBackgroundStyle: cardBackgroundStyle(
+          preview.template && preview.template.background_url,
+          layout.background_opacity,
+          preview.template && preview.template.template_id,
+          layout.background_preset_id
+        ),
         loading: false,
         error: false,
         demoMode: false,
@@ -251,7 +289,7 @@ Page({
     }
     this.setData({ submitting: true });
     try {
-      const share = await request("/employee/cards/current/share", { method: "POST" });
+      const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       app.globalData.shareId = share.share_id;
       this.setData({ sheetVisible: false });
       wx.navigateTo({
@@ -273,7 +311,7 @@ Page({
     }
     this.setData({ submitting: true });
     try {
-      const share = await request("/employee/cards/current/share", { method: "POST" });
+      const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       wx.setClipboardData({ data: share.path || `pages/public/card?card=${share.public_id}` });
     } catch (error) {
       wx.showToast({ title: error.message || "复制失败", icon: "none" });
@@ -306,3 +344,42 @@ Page({
     return false;
   }
 });
+
+function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
+  const normalizedTemplateId = normalizeTemplateId(templateId);
+  const backgroundUrl = url || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizedTemplateId] || "";
+  if (!backgroundUrl) {
+    return "";
+  }
+  const alpha = 1 - normalizeOpacity(opacity) / 100;
+  const overlay = normalizedTemplateId === "tpl_brand_image" || normalizedTemplateId === "tpl_dark"
+    ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
+    : `rgba(255,255,255,${alpha.toFixed(2)})`;
+  return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
+}
+
+function cardTemplateClass(templateId) {
+  const map = {
+    tpl_horizontal_business: "biz-card--horizontal",
+    tpl_minimal: "biz-card--minimal",
+    tpl_brand_image: "biz-card--brand-image",
+    tpl_dark: "biz-card--dark",
+    tpl_campaign: "biz-card--campaign"
+  };
+  return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function normalizeTemplateId(templateId) {
+  if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  return templateId || "tpl_horizontal_business";
+}
+
+function normalizeOpacity(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 100;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
+}

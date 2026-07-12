@@ -31,7 +31,7 @@ export const publicCardResponseSchema = z.object({
   template: z.object({
     template_id: z.string(),
     logo_url: z.string().url().nullable(),
-    background_url: z.string().url().nullable(),
+    background_url: imageSourceSchema.nullable(),
     color_scheme: z.record(z.string(), z.unknown()),
     layout: z.record(z.string(), z.unknown())
   }),

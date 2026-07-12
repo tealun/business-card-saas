@@ -1,8 +1,20 @@
 const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
+const { setPageTheme } = require("../../utils/theme");
 
-const ALL_EDITABLE_FIELDS = ["avatar_url", "display_name", "title", "mobile", "phone", "email", "wechat_id", "address"];
+const ALL_EDITABLE_FIELDS = [
+  "avatar_url",
+  "display_name",
+  "title",
+  "department",
+  "mobile",
+  "phone",
+  "email",
+  "wechat_id",
+  "address",
+  "website"
+];
 
 Page({
   data: {
@@ -19,6 +31,8 @@ Page({
       website: ""
     },
     editable: {},
+    themeBrand: "",
+    themeStyle: "",
     identityLabel: "",
     tags: [],
     privacy: {
@@ -33,6 +47,7 @@ Page({
 
   async onLoad() {
     try {
+      setPageTheme(this);
       await ensureSession();
       await this.loadCard();
     } catch (error) {
@@ -44,19 +59,22 @@ Page({
   async loadCard() {
     try {
       const card = await request("/employee/cards/current");
-      const editableFields = Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS;
+      const editableFields = isPersonalIdentity()
+        ? ALL_EDITABLE_FIELDS
+        : (Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS);
+      const fields = card.fields || {};
       this.setData({
         form: {
           avatar_url: card.avatar_url || "",
-          display_name: card.display_name || "",
+          display_name: normalizeDisplayName(card.display_name),
           title: card.title || "",
-          department: card.department || "",
-          mobile: card.fields.mobile || "",
-          phone: card.fields.phone || "",
-          email: card.fields.email || "",
-          wechat_id: card.fields.wechat_id || "",
-          address: card.fields.address || "",
-          website: card.fields.website || ""
+          department: fields.department || card.department || "",
+          mobile: fields.mobile || "",
+          phone: fields.phone || "",
+          email: fields.email || "",
+          wechat_id: fields.wechat_id || "",
+          address: fields.address || "",
+          website: fields.website || ""
         },
         editable: editableMap(editableFields),
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
@@ -187,6 +205,18 @@ function editableMap(fields) {
   return map;
 }
 
+function isPersonalIdentity() {
+  const identity = app.globalData.currentIdentity || {};
+  return identity.identity_type === "personal" || identity.typeLabel === "个人名片";
+}
+
+function normalizeDisplayName(displayName) {
+  if (isPersonalIdentity() && displayName === "我的名片") {
+    return "";
+  }
+  return displayName || "";
+}
+
 function buildPayload(form, privacy, editable) {
   const payload = {
     fields: {},
@@ -199,11 +229,13 @@ function buildPayload(form, privacy, editable) {
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
   if (editable.display_name) payload.display_name = form.display_name;
   if (editable.title) payload.title = form.title || null;
+  if (editable.department) payload.fields.department = form.department || null;
   if (editable.mobile) payload.fields.mobile = form.mobile || null;
   if (editable.phone) payload.fields.phone = form.phone || null;
   if (editable.email) payload.fields.email = form.email || null;
   if (editable.wechat_id) payload.fields.wechat_id = form.wechat_id || null;
   if (editable.address) payload.fields.address = form.address || null;
+  if (editable.website) payload.fields.website = form.website || null;
   return payload;
 }
 
@@ -218,6 +250,10 @@ function validateCardForm(form, editable) {
   const phoneFields = [editable.mobile ? form.mobile : "", editable.phone ? form.phone : ""].filter(Boolean);
   if (phoneFields.some((value) => !/^[0-9+\-\s()]{5,32}$/.test(String(value)))) {
     throw new Error("电话格式不正确");
+  }
+  const website = String(form.website || "").trim();
+  if (editable.website && website && !/^https?:\/\/[^\s]+$/i.test(website)) {
+    throw new Error("官网地址需以 http:// 或 https:// 开头");
   }
 }
 
