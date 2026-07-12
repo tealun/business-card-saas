@@ -11,6 +11,7 @@ describe("DatabaseSchemaGuard", () => {
     await new DatabaseSchemaGuard(database).onModuleInit();
 
     expect(database.query).toHaveBeenCalledWith(expect.stringContaining('ADD COLUMN IF NOT EXISTS "avatar_url" TEXT'));
+    expect(database.query).toHaveBeenCalledWith(expect.stringContaining('ALTER COLUMN "anon_id" TYPE VARCHAR(128)'));
   });
 
   it("skips schema checks when no database is configured", async () => {
