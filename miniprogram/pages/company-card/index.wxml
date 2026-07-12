@@ -58,7 +58,7 @@
           </view>
           <view class="company-stat-row__item">
             <view class="company-stat-row__num">{{stats.viewed}}</view>
-            <view class="company-stat-row__label">访问次数</view>
+            <view class="company-stat-row__label">展示次数</view>
           </view>
           <view class="company-stat-row__item">
             <view class="company-stat-row__num">{{stats.friends}}</view>

@@ -18,6 +18,13 @@ export const publicCardFieldSchema = z.object({
   address: z.string().nullable()
 });
 
+export const publicCardStatsSchema = z.object({
+  visitor_count: z.number().int().nonnegative(),
+  visit_count: z.number().int().nonnegative(),
+  like_count: z.number().int().nonnegative(),
+  liked_by_current_visitor: z.boolean().optional()
+});
+
 export const publicCardResponseSchema = z.object({
   public_id: publicIdSchema,
   status: z.enum(["active", "disabled", "expired", "employee_left", "tenant_cancelled"]),
@@ -62,7 +69,8 @@ export const publicCardResponseSchema = z.object({
         })
       )
     })
-  )
+  ),
+  stats: publicCardStatsSchema
 });
 
 export const visitRequestSchema = z.object({
@@ -75,7 +83,8 @@ export const visitResponseSchema = z.object({
   visit_id: visitIdSchema,
   visit_token: z.string().min(32),
   anon_id: anonIdSchema,
-  expires_in: z.number().int().positive()
+  expires_in: z.number().int().positive(),
+  stats: publicCardStatsSchema
 });
 
 export const actionRequestSchema = z.object({
@@ -90,13 +99,16 @@ export const actionRequestSchema = z.object({
     "play_company_video",
     "view_honor_image",
     "expand_company_intro",
-    "view_paper_card"
+    "view_paper_card",
+    "like_card",
+    "exchange_card"
   ])
 });
 
 export const actionResponseSchema = z.object({
   accepted: z.literal(true),
-  idempotent: z.boolean()
+  idempotent: z.boolean(),
+  stats: publicCardStatsSchema.optional()
 });
 
 export const deriveShareRequestSchema = z.object({

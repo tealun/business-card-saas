@@ -114,6 +114,44 @@ describe("PublicCardController", () => {
     expect(dataOf<{ anon_id: string }>(forged.body).anon_id).not.toBe("anon_forgedforgedforged.deadbeef");
   });
 
+  it("counts visits separately from visitors and deduplicates likes per anon visitor", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: {}
+    });
+    const firstVisit = dataOf<{ anon_id: string; visit_token: string; stats: { visitor_count: number; visit_count: number } }>(first.body);
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      payload: { anon_id: firstVisit.anon_id }
+    });
+    const secondVisit = dataOf<{ visit_token: string; stats: { visitor_count: number; visit_count: number } }>(second.body);
+
+    expect(secondVisit.stats.visitor_count).toBe(firstVisit.stats.visitor_count);
+    expect(secondVisit.stats.visit_count).toBe(firstVisit.stats.visit_count + 1);
+
+    const firstLike = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/actions",
+      headers: { authorization: `Bearer ${firstVisit.visit_token}` },
+      payload: { action_type: "like_card" }
+    });
+    expect(firstLike.statusCode).toBe(201);
+    expect(dataOf<{ idempotent: boolean; stats: { like_count: number } }>(firstLike.body).idempotent).toBe(false);
+
+    const secondLike = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/actions",
+      headers: { authorization: `Bearer ${secondVisit.visit_token}` },
+      payload: { action_type: "like_card" }
+    });
+    const secondLikeBody = dataOf<{ idempotent: boolean; stats: { like_count: number } }>(secondLike.body);
+    expect(secondLikeBody.idempotent).toBe(true);
+    expect(secondLikeBody.stats.like_count).toBe(dataOf<{ stats: { like_count: number } }>(firstLike.body).stats.like_count);
+  });
+
   it("rejects action reports without a visit_token", async () => {
     const response = await app.inject({
       method: "POST",

@@ -42,12 +42,14 @@ export class PublicCardService {
       shareId: visit.shareId,
       nonce: randomToken("nonce", 12)
     });
+    const stats = await this.repository.getStats(publicId, visit.anonId);
 
     return visitResponseSchema.parse({
       visit_id: visit.visitId,
       visit_token: visitToken,
       anon_id: visit.anonId,
-      expires_in: this.visitTokens.expiresIn
+      expires_in: this.visitTokens.expiresIn,
+      stats
     });
   }
 
@@ -60,9 +62,11 @@ export class PublicCardService {
       throw new UnauthorizedException("visit not found");
     }
     const result = await this.repository.recordAction(publicId, payload.visitId, request.action_type);
+    const stats = request.action_type === "like_card" ? await this.repository.getStats(publicId) : undefined;
     return actionResponseSchema.parse({
       accepted: true,
-      idempotent: result.idempotent
+      idempotent: result.idempotent,
+      stats
     });
   }
 
