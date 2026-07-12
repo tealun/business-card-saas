@@ -613,6 +613,8 @@ export class PublicCardRepository {
           phone: fields.phone,
           email: privacy.show_email ? fields.email : null,
           wechat_id: privacy.show_wechat ? fields.wechat_id : null,
+          wechat_qrcode_url: fields.wechat_qrcode_url ?? null,
+          wecom_qrcode_url: fields.wecom_qrcode_url ?? null,
           address: fields.address
         }
       },
@@ -769,6 +771,8 @@ export class PublicCardRepository {
         phone: null,
         email: null,
         wechat_id: null,
+        wechat_qrcode_url: null,
+        wecom_qrcode_url: null,
         address: null
       };
     }
@@ -779,6 +783,8 @@ export class PublicCardRepository {
         phone: typeof parsed.phone === "string" ? parsed.phone : null,
         email: typeof parsed.email === "string" ? parsed.email : null,
         wechat_id: typeof parsed.wechat_id === "string" ? parsed.wechat_id : null,
+        wechat_qrcode_url: typeof parsed.wechat_qrcode_url === "string" ? parsed.wechat_qrcode_url : null,
+        wecom_qrcode_url: typeof parsed.wecom_qrcode_url === "string" ? parsed.wecom_qrcode_url : null,
         address: typeof parsed.address === "string" ? parsed.address : null
       };
     } catch {
@@ -787,6 +793,8 @@ export class PublicCardRepository {
         phone: null,
         email: null,
         wechat_id: null,
+        wechat_qrcode_url: null,
+        wecom_qrcode_url: null,
         address: null
       };
     }

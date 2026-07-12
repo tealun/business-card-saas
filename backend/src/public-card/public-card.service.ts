@@ -101,7 +101,7 @@ export class PublicCardService {
 
   private resolveAnonId(request: VisitRequest, session: EmployeeSession | undefined): string {
     if (session) {
-      return this.anonIds.issueStable("acct", session.accountId || session.openUserid || session.memberIdentityId);
+      return this.anonIds.issueStable("member", session.memberIdentityId || session.accountId || session.openUserid);
     }
     const verifiedAnonId = this.anonIds.verify(request.anon_id);
     if (verifiedAnonId) {

@@ -314,6 +314,10 @@
   background: var(--bg-page);
 }
 
+.poster-preview--stack {
+  align-items: flex-start;
+}
+
 .poster-card {
   width: 160rpx;
   height: 240rpx;
@@ -334,6 +338,38 @@
 
 .poster-card__name { margin-top: 20rpx; font-size: 22rpx; font-weight: 700; }
 .poster-card__qr { width: 42rpx; height: 42rpx; margin-top: 56rpx; margin-left: auto; border-radius: 4rpx; background: var(--text-primary); }
+.poster-card--large {
+  width: 220rpx;
+  height: 330rpx;
+  flex: none;
+}
+.poster-card--large .poster-card__qr {
+  width: 68rpx;
+  height: 68rpx;
+  margin-top: 96rpx;
+}
+.qr-preview {
+  width: 220rpx;
+  height: 220rpx;
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 26rpx rgba(26, 29, 31, 0.08);
+  box-sizing: border-box;
+  flex: none;
+}
+.qr-preview image,
+.qr-preview__placeholder {
+  width: 100%;
+  height: 100%;
+}
+.qr-preview__placeholder {
+  border-radius: 12rpx;
+  background:
+    linear-gradient(90deg, var(--text-primary) 10rpx, transparent 10rpx) 0 0 / 36rpx 36rpx,
+    linear-gradient(var(--text-primary) 10rpx, transparent 10rpx) 0 0 / 36rpx 36rpx,
+    #f7f8fa;
+}
 .poster-preview__copy { flex: 1; line-height: 1.55; }
 .poster-preview__title { font-size: 30rpx; font-weight: 500; color: var(--text-primary); }
 .poster-preview__btn { width: 220rpx; height: 72rpx; margin-top: 20rpx; padding: 0; }

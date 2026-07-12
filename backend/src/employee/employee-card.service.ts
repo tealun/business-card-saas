@@ -2,15 +2,19 @@ import { Injectable } from "@nestjs/common";
 import {
   employeeCardResponseSchema,
   employeeCardStatsResponseSchema,
+  employeeWechatQrCodeResponseSchema,
   employeeShareResponseSchema,
   updateEmployeeCardStyleRequestSchema,
   updateEmployeeCardRequestSchema,
+  updateWechatQrCodeRequestSchema,
   type EmployeeCardPreviewResponse,
   type EmployeeCardResponse,
   type EmployeeCardStatsResponse,
+  type EmployeeWechatQrCodeResponse,
   type EmployeeShareResponse,
   type UpdateEmployeeCardStyleRequest,
-  type UpdateEmployeeCardRequest
+  type UpdateEmployeeCardRequest,
+  type UpdateWechatQrCodeRequest
 } from "../contracts/employee-card.js";
 import { publicCardResponseSchema } from "../contracts/public-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
@@ -54,6 +58,17 @@ export class EmployeeCardService {
   async updateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): Promise<EmployeeCardPreviewResponse> {
     const parsed = updateEmployeeCardStyleRequestSchema.parse(request);
     return this.publishPreview(await this.repository.updateStyle(session, parsed));
+  }
+
+  async getWechatQrCode(session: EmployeeSession): Promise<EmployeeWechatQrCodeResponse> {
+    return employeeWechatQrCodeResponseSchema.parse(await this.repository.getWechatQrCode(session));
+  }
+
+  async updateWechatQrCode(session: EmployeeSession, request: UpdateWechatQrCodeRequest): Promise<EmployeeWechatQrCodeResponse> {
+    const parsed = updateWechatQrCodeRequestSchema.parse(request);
+    const result = employeeWechatQrCodeResponseSchema.parse(await this.repository.updateWechatQrCode(session, parsed.qrcode_url));
+    await this.publishPreview(await this.repository.getPreview(session));
+    return result;
   }
 
   async createShare(session: EmployeeSession): Promise<EmployeeShareResponse> {

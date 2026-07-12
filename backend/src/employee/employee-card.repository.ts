@@ -4,6 +4,7 @@ import type {
   EmployeeCardPreviewResponse,
   EmployeeCardResponse,
   EmployeeCardStatsResponse,
+  EmployeeWechatQrCodeResponse,
   UpdateEmployeeCardRequest,
   UpdateEmployeeCardStyleRequest
 } from "../contracts/employee-card.js";
@@ -26,6 +27,8 @@ type EditableFieldKey =
   | "phone"
   | "email"
   | "wechat_id"
+  | "wechat_qrcode_url"
+  | "wecom_qrcode_url"
   | "address"
   | "website";
 
@@ -109,14 +112,16 @@ export class EmployeeCardRepository {
         visitor_key: string;
         has_account: boolean;
         visit_count: string;
+        trust_level: string | null;
         channel: string | null;
         last_visit_at: Date | string;
       }>(
         `
           SELECT
             COALESCE(visitor_account_id::text, anon_id, id::text) AS visitor_key,
-            bool_or(visitor_account_id IS NOT NULL) AS has_account,
+            bool_or(visitor_account_id IS NOT NULL OR trust_level = 'authenticated_user') AS has_account,
             count(*)::text AS visit_count,
+            (array_agg(trust_level ORDER BY created_at DESC))[1] AS trust_level,
             (array_agg(channel ORDER BY created_at DESC))[1] AS channel,
             max(created_at) AS last_visit_at
           FROM card_visits
@@ -259,6 +264,66 @@ export class EmployeeCardRepository {
     return {
       publicId: card.public_id,
       shareId: randomToken("shr", 18)
+    };
+  }
+
+  async getWechatQrCode(session: EmployeeSession): Promise<EmployeeWechatQrCodeResponse> {
+    const card = await this.getCurrentCard(session);
+    const qrUrl = this.wechatQrCodeUrl(session, card);
+    if (qrUrl) {
+      return {
+        qr_url: qrUrl,
+        source: session.identityType === "personal" ? "personal_upload" : "enterprise_cache",
+        cached: true
+      };
+    }
+    return {
+      qr_url: null,
+      source: "not_configured",
+      cached: false
+    };
+  }
+
+  async updateWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<EmployeeWechatQrCodeResponse> {
+    const materializedUrl = await this.materializeWechatQrCode(session, qrcodeUrl);
+    const card = await this.getCurrentCard(session);
+    const fields: CardFields = {
+      ...card.fields,
+      ...(session.identityType === "personal"
+        ? { wechat_qrcode_url: materializedUrl, wecom_qrcode_url: card.fields.wecom_qrcode_url ?? null }
+        : { wecom_qrcode_url: materializedUrl, wechat_qrcode_url: card.fields.wechat_qrcode_url ?? null })
+    };
+
+    if (this.hasDatabase()) {
+      await this.tenantTx!.run(session.tenantId, async (tx) => {
+        await tx.query(
+          `
+            UPDATE cards
+            SET fields_encrypted = $3,
+                updated_at = now()
+            WHERE tenant_id = $1
+              AND id = $2
+          `,
+          [session.tenantId, card.card_id, this.encryptJson(fields)]
+        );
+      });
+    } else {
+      const key = this.cardKey(session);
+      this.cards.set(key, {
+        ...card,
+        fields,
+        editable_fields: card.editable_fields ? [...card.editable_fields] : undefined
+      });
+    }
+
+    return {
+      qr_url: materializedUrl,
+      source: materializedUrl
+        ? session.identityType === "personal"
+          ? "personal_upload"
+          : "enterprise_cache"
+        : "not_configured",
+      cached: Boolean(materializedUrl)
     };
   }
 
@@ -610,6 +675,8 @@ export class EmployeeCardRepository {
           phone: card.fields.phone ?? null,
           email,
           wechat_id: card.privacy.show_wechat ? card.fields.wechat_id : null,
+          wechat_qrcode_url: card.fields.wechat_qrcode_url ?? null,
+          wecom_qrcode_url: card.fields.wecom_qrcode_url ?? null,
           address: card.fields.address ?? null
         }
       },
@@ -671,18 +738,56 @@ export class EmployeeCardRepository {
     session: EmployeeSession,
     request: UpdateEmployeeCardRequest
   ): Promise<UpdateEmployeeCardRequest> {
-    if (!request.avatar_url || !request.avatar_url.startsWith("data:image/")) {
-      return request;
+    let next = request;
+    if (request.avatar_url?.startsWith("data:image/") && this.storage) {
+      const stored = await this.storage.storeImageDataUrl({
+        tenantId: session.tenantId,
+        category: "avatars",
+        dataUrl: request.avatar_url
+      });
+      next = { ...next, avatar_url: stored.publicUrl };
+    }
+    if (request.fields?.wechat_qrcode_url?.startsWith("data:image/")) {
+      next = {
+        ...next,
+        fields: {
+          ...next.fields,
+          wechat_qrcode_url: await this.materializeWechatQrCode(session, request.fields.wechat_qrcode_url)
+        }
+      };
+    }
+    if (request.fields?.wecom_qrcode_url?.startsWith("data:image/")) {
+      next = {
+        ...next,
+        fields: {
+          ...next.fields,
+          wecom_qrcode_url: await this.materializeWechatQrCode(session, request.fields.wecom_qrcode_url)
+        }
+      };
+    }
+    return next;
+  }
+
+  private async materializeWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<string | null> {
+    if (!qrcodeUrl || !qrcodeUrl.startsWith("data:image/")) {
+      return qrcodeUrl;
     }
     if (!this.storage) {
-      return request;
+      return qrcodeUrl;
     }
     const stored = await this.storage.storeImageDataUrl({
       tenantId: session.tenantId,
-      category: "avatars",
-      dataUrl: request.avatar_url
+      category: "wechat-qrcodes",
+      dataUrl: qrcodeUrl
     });
-    return { ...request, avatar_url: stored.publicUrl };
+    return stored.publicUrl;
+  }
+
+  private wechatQrCodeUrl(session: EmployeeSession, card: EmployeeCardResponse): string | null {
+    if (session.identityType === "personal") {
+      return card.fields.wechat_qrcode_url ?? null;
+    }
+    return card.fields.wecom_qrcode_url ?? card.fields.wechat_qrcode_url ?? null;
   }
 
   private async materializeStyleStorageFields(
@@ -748,6 +853,12 @@ function mergeCard(
   if (allowedFields.includes("wechat_id") && request.fields?.wechat_id !== undefined) {
     next.fields.wechat_id = request.fields.wechat_id;
   }
+  if (allowedFields.includes("wechat_qrcode_url") && request.fields?.wechat_qrcode_url !== undefined) {
+    next.fields.wechat_qrcode_url = request.fields.wechat_qrcode_url;
+  }
+  if (allowedFields.includes("wecom_qrcode_url") && request.fields?.wecom_qrcode_url !== undefined) {
+    next.fields.wecom_qrcode_url = request.fields.wecom_qrcode_url;
+  }
   if (allowedFields.includes("address") && request.fields?.address !== undefined) {
     next.fields.address = request.fields.address;
   }
@@ -803,6 +914,8 @@ function defaultFields(): CardFields {
     phone: null,
     email: null,
     wechat_id: null,
+    wechat_qrcode_url: null,
+    wecom_qrcode_url: null,
     address: null,
     website: null
   };
@@ -816,6 +929,8 @@ function normalizeFields(value: unknown): CardFields {
     phone: typeof record.phone === "string" ? record.phone : null,
     email: typeof record.email === "string" ? record.email : null,
     wechat_id: typeof record.wechat_id === "string" ? record.wechat_id : null,
+    wechat_qrcode_url: typeof record.wechat_qrcode_url === "string" ? record.wechat_qrcode_url : null,
+    wecom_qrcode_url: typeof record.wecom_qrcode_url === "string" ? record.wecom_qrcode_url : null,
     address: typeof record.address === "string" ? record.address : null,
     website: typeof record.website === "string" ? record.website : null
   };
@@ -830,7 +945,7 @@ function defaultPrivacy(): CardPrivacy {
 }
 
 function defaultEditableFields(): EditableFieldKey[] {
-  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "address", "website"];
+  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
 }
 
 function parseEditableFields(value: unknown): EditableFieldKey[] {
@@ -865,6 +980,8 @@ function requestedEditableFields(request: UpdateEmployeeCardRequest): EditableFi
   if (request.fields?.phone !== undefined) fields.add("phone");
   if (request.fields?.email !== undefined) fields.add("email");
   if (request.fields?.wechat_id !== undefined) fields.add("wechat_id");
+  if (request.fields?.wechat_qrcode_url !== undefined) fields.add("wechat_qrcode_url");
+  if (request.fields?.wecom_qrcode_url !== undefined) fields.add("wecom_qrcode_url");
   if (request.fields?.address !== undefined) fields.add("address");
   if (request.fields?.website !== undefined) fields.add("website");
   return [...fields];
@@ -880,6 +997,8 @@ function isEditableFieldKey(value: unknown): value is EditableFieldKey {
     value === "phone" ||
     value === "email" ||
     value === "wechat_id" ||
+    value === "wechat_qrcode_url" ||
+    value === "wecom_qrcode_url" ||
     value === "address" ||
     value === "website"
   );

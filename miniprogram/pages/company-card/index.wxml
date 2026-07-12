@@ -29,10 +29,10 @@
           <view class="biz-card__info">
             <view class="biz-card__company-full" wx:if="{{card.company}}">{{card.company}}</view>
             <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
-            <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
+            <view class="biz-card__role" wx:if="{{card.title}}">{{card.title}}</view>
             <view class="biz-card__contact">
-              <view>{{card.fields.mobile || card.fields.phone || "联系方式未公开"}}</view>
-              <view>{{card.fields.email || "邮箱未公开"}}</view>
+              <view wx:if="{{card.fields.mobile || card.fields.phone}}">{{card.fields.mobile || card.fields.phone}}</view>
+              <view wx:if="{{card.fields.email}}">{{card.fields.email}}</view>
             </view>
           </view>
           <view class="biz-card__avatar">
@@ -40,10 +40,12 @@
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
-        <view class="biz-card__status">
-          <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
-          <text wx:elif="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
+        <view class="biz-card__status" wx:if="{{card.status !== 'active'}}">
+          <text wx:if="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
           <text wx:else class="badge badge--muted">未启用</text>
+        </view>
+        <view class="biz-card__type-corner">
+          <view class="icon {{currentIdentity && currentIdentity.identity_type === 'personal' ? 'icon-person' : 'icon-building'}}"></view>
         </view>
       </view>
 

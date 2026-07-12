@@ -22,17 +22,20 @@
     <view class="biz-card__body">
       <view class="biz-card__info">
         <view class="biz-card__company-full" wx:if="{{card.company}}">{{card.company}}</view>
-        <view class="biz-card__name">{{form.display_name || "企业名片"}}</view>
-        <view class="biz-card__role">{{form.title || "职位未设置"}}</view>
+        <view class="biz-card__name">{{form.display_name || "我的名片"}}</view>
+        <view class="biz-card__role" wx:if="{{form.title}}">{{form.title}}</view>
         <view class="biz-card__contact">
-          <view>{{form.mobile || "联系方式未公开"}}</view>
-          <view>{{form.email || "邮箱未公开"}}</view>
+          <view wx:if="{{form.mobile}}">{{form.mobile}}</view>
+          <view wx:if="{{form.email}}">{{form.email}}</view>
         </view>
       </view>
       <view class="biz-card__avatar">
         <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
         <view wx:else class="avatar-placeholder"></view>
       </view>
+    </view>
+    <view class="biz-card__type-corner">
+      <view class="icon {{card.company ? 'icon-building' : 'icon-person'}}"></view>
     </view>
   </view>
 
