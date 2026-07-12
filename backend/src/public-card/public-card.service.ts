@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import {
   actionResponseSchema,
   type ActionRequest,
@@ -15,23 +16,67 @@ import { PublicCardRepository } from "./public-card.repository.js";
 import { VisitTokenService } from "./visit-token.service.js";
 import { AnonIdService } from "./anon-id.service.js";
 import { randomToken } from "../common/id.js";
+import { SessionTokenService } from "../session/session-token.service.js";
+import type { EmployeeSession } from "../session/employee-session.js";
+
+interface VisitContext {
+  token?: string;
+  ipAddress?: string;
+}
 
 @Injectable()
 export class PublicCardService {
   constructor(
     private readonly repository: PublicCardRepository,
     private readonly visitTokens: VisitTokenService,
-    private readonly anonIds: AnonIdService
+    private readonly anonIds: AnonIdService,
+    private readonly sessionTokens: SessionTokenService
   ) {}
 
   async getPublicCard(publicId: string): Promise<PublicCardResponse> {
     return this.repository.findPublicCard(publicId);
   }
 
-  async createVisit(publicId: string, request: VisitRequest): Promise<VisitResponse> {
-    // Trust an inbound anon_id only when its server signature verifies; otherwise issue a fresh one.
-    const anonId = this.anonIds.verify(request.anon_id) ?? this.anonIds.issue();
-    const visitInput: { publicId: string; shareId?: string; anonId: string } = { publicId, anonId };
+  async createVisit(publicId: string, request: VisitRequest, context: VisitContext = {}): Promise<VisitResponse> {
+    const session = this.optionalSession(context.token);
+    const ipHash = hashIp(context.ipAddress);
+    const anonId = this.resolveAnonId(request, session, ipHash);
+    if (session?.publicId === publicId) {
+      const stats = await this.repository.getStats(publicId, anonId);
+      const visitId = randomToken("vis", 18);
+      const visitToken = this.visitTokens.sign({
+        visitId,
+        publicId,
+        shareId: request.share ?? null,
+        nonce: randomToken("nonce", 12)
+      });
+      return visitResponseSchema.parse({
+        visit_id: visitId,
+        visit_token: visitToken,
+        anon_id: anonId,
+        expires_in: this.visitTokens.expiresIn,
+        stats
+      });
+    }
+
+    const visitInput: {
+      publicId: string;
+      shareId?: string;
+      anonId: string;
+      userAgent?: string;
+      ipHash?: string;
+      trustLevel?: string;
+    } = {
+      publicId,
+      anonId,
+      trustLevel: session ? "authenticated_user" : request.fingerprint ? "anonymous_fingerprint" : "anonymous_client"
+    };
+    if (request.user_agent) {
+      visitInput.userAgent = request.user_agent;
+    }
+    if (ipHash) {
+      visitInput.ipHash = ipHash;
+    }
     if (request.share) {
       visitInput.shareId = request.share;
     }
@@ -51,6 +96,32 @@ export class PublicCardService {
       expires_in: this.visitTokens.expiresIn,
       stats
     });
+  }
+
+  private resolveAnonId(request: VisitRequest, session: EmployeeSession | undefined, ipHash: string | undefined): string {
+    if (session) {
+      return this.anonIds.issueStable("acct", session.accountId || session.openUserid || session.memberIdentityId);
+    }
+    const verifiedAnonId = this.anonIds.verify(request.anon_id);
+    if (verifiedAnonId) {
+      return verifiedAnonId;
+    }
+    const fingerprint = request.fingerprint?.trim();
+    if (fingerprint && ipHash) {
+      return this.anonIds.issueStable("fp", `${ipHash}:${fingerprint}`);
+    }
+    return this.anonIds.issue();
+  }
+
+  private optionalSession(token: string | undefined): EmployeeSession | undefined {
+    if (!token) {
+      return undefined;
+    }
+    try {
+      return this.sessionTokens.verify(token);
+    } catch {
+      return undefined;
+    }
   }
 
   async recordAction(publicId: string, token: string, request: ActionRequest): Promise<ActionResponse> {
@@ -89,4 +160,12 @@ export class PublicCardService {
       capped: share.capped
     });
   }
+}
+
+function hashIp(ipAddress: string | undefined): string | undefined {
+  const normalized = ipAddress?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  return createHash("sha256").update(`v1.ip.${normalized}`).digest("hex");
 }

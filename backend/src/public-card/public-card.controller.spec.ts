@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
+import { SessionTokenService } from "../session/session-token.service.js";
 
 interface ActionBody {
   idempotent: boolean;
@@ -150,6 +151,55 @@ describe("PublicCardController", () => {
     const secondLikeBody = dataOf<{ idempotent: boolean; stats: { like_count: number } }>(secondLike.body);
     expect(secondLikeBody.idempotent).toBe(true);
     expect(secondLikeBody.stats.like_count).toBe(dataOf<{ stats: { like_count: number } }>(firstLike.body).stats.like_count);
+  });
+
+  it("deduplicates anonymous visitors by fingerprint when anon storage is missing", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      headers: { "x-forwarded-for": "203.0.113.10" },
+      payload: { fingerprint: "ios|iphone15|390x844" }
+    });
+    const firstVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(first.body);
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      headers: { "x-forwarded-for": "203.0.113.10" },
+      payload: { fingerprint: "ios|iphone15|390x844" }
+    });
+    const secondVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(second.body);
+
+    expect(secondVisit.stats.visitor_count).toBe(firstVisit.stats.visitor_count);
+    expect(secondVisit.stats.visit_count).toBe(firstVisit.stats.visit_count + 1);
+  });
+
+  it("does not count owner preview visits", async () => {
+    const tokens = app.get(SessionTokenService);
+    const ownerToken = tokens.sign({
+      accountId: "acct-owner",
+      tenantId: "tenant-owner",
+      memberIdentityId: "member-owner",
+      openUserid: "ou-owner",
+      publicId: "pub_demo0001"
+    });
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: {}
+    });
+    const firstVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(first.body);
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_demo0001/visit",
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: {}
+    });
+    const secondVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(second.body);
+
+    expect(secondVisit.stats).toEqual(firstVisit.stats);
   });
 
   it("rejects action reports without a visit_token", async () => {

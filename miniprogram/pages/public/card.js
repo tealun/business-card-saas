@@ -2,6 +2,8 @@ const app = getApp();
 const { request } = require("../../utils/api");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 
+const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
+
 const demoServiceItems = [
   { title: "数字名片", desc: "员工对外名片展示" },
   { title: "客户留资", desc: "访客行为追踪" },
@@ -167,18 +169,30 @@ Page({
     if (!this.data.publicId) {
       return;
     }
+    if (this.data.isOwnCard) {
+      app.globalData.visitToken = "";
+      this.setData({ visitId: "" });
+      return;
+    }
     try {
-      const data = { anon_id: app.globalData.anonId || undefined };
+      const data = {
+        anon_id: app.globalData.anonId || readStoredAnonId() || undefined,
+        fingerprint: visitorFingerprint() || undefined
+      };
       if (this.data.shareId) {
         data.share = this.data.shareId;
       }
-      const visit = await request(`/public/cards/${this.data.publicId}/visit`, {
+      const options = {
         method: "POST",
-        auth: false,
         data
-      });
+      };
+      if (!this.data.loggedIn) {
+        options.auth = false;
+      }
+      const visit = await request(`/public/cards/${this.data.publicId}/visit`, options);
       app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
+      storeAnonId(visit.anon_id);
       this.setData({ visitId: visit.visit_id });
       if (visit.stats) {
         this.applyStats(visit.stats);
@@ -214,6 +228,9 @@ Page({
   },
 
   async recordAction(actionType) {
+    if (this.data.isOwnCard) {
+      return;
+    }
     if (!app.globalData.visitToken || !this.data.publicId) {
       return;
     }
@@ -261,6 +278,9 @@ Page({
   },
 
   async likeCard() {
+    if (this.data.isOwnCard) {
+      return;
+    }
     if (this.data.likedByMe) {
       return;
     }
@@ -289,6 +309,10 @@ Page({
 
   makeMyCard() {
     wx.switchTab({ url: "/pages/employee/index" });
+  },
+
+  editMyCard() {
+    wx.navigateTo({ url: "/pages/employee/edit" });
   },
 
   exchangeCard() {
@@ -463,4 +487,44 @@ function resolveIntroBlocks(card) {
     };
   });
   return blocks.filter((item) => item.text || item.image_url);
+}
+
+function readStoredAnonId() {
+  try {
+    return wx.getStorageSync(VISITOR_ANON_STORAGE_KEY) || "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+function storeAnonId(anonId) {
+  if (!anonId) {
+    return;
+  }
+  try {
+    wx.setStorageSync(VISITOR_ANON_STORAGE_KEY, anonId);
+  } catch (_error) {}
+}
+
+function visitorFingerprint() {
+  try {
+    const info = wx.getSystemInfoSync ? wx.getSystemInfoSync() : {};
+    return [
+      info.brand,
+      info.model,
+      info.platform,
+      info.system,
+      info.language,
+      info.version,
+      info.SDKVersion,
+      info.screenWidth,
+      info.screenHeight,
+      info.pixelRatio
+    ]
+      .filter((item) => item !== undefined && item !== null && item !== "")
+      .join("|")
+      .slice(0, 256);
+  } catch (_error) {
+    return "";
+  }
 }
