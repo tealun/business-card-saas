@@ -5,10 +5,11 @@ import { PublicCardService } from "./public-card.service.js";
 import { VisitTokenService } from "./visit-token.service.js";
 import { AnonIdService } from "./anon-id.service.js";
 import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
+import { SessionTokenService } from "../session/session-token.service.js";
 
 @Module({
   controllers: [PublicCardController],
-  providers: [PublicCardRepository, PublicCardService, VisitTokenService, AnonIdService, CardFieldCipherService],
+  providers: [PublicCardRepository, PublicCardService, VisitTokenService, AnonIdService, CardFieldCipherService, SessionTokenService],
   exports: [PublicCardRepository]
 })
 export class PublicCardModule {}

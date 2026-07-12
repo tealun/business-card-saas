@@ -76,6 +76,7 @@ export const publicCardResponseSchema = z.object({
 export const visitRequestSchema = z.object({
   share: shareIdSchema.optional(),
   anon_id: anonIdSchema.optional(),
+  fingerprint: z.string().max(256).optional(),
   user_agent: z.string().max(512).optional()
 });
 

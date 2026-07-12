@@ -12,6 +12,17 @@ export class AnonIdService {
     return `${value}.${this.signature(value)}`;
   }
 
+  issueStable(namespace: string, stableKey: string): string {
+    const safeNamespace = namespace.replace(/[^a-z0-9]/gi, "").slice(0, 12) || "v";
+    const digest = createHmac("sha256", readSecret("VISIT_TOKEN_SECRET"))
+      .update(`v1.anon.stable.${safeNamespace}.${stableKey}`)
+      .digest("base64url")
+      .replace(/[^A-Za-z0-9_-]/g, "")
+      .slice(0, 32);
+    const value = `anon_${safeNamespace}_${digest}`;
+    return `${value}.${this.signature(value)}`;
+  }
+
   // Returns the candidate only when it carries a valid signature; otherwise null,
   // so callers fall back to issuing a fresh anon_id instead of trusting input.
   verify(candidate: string | undefined): string | null {

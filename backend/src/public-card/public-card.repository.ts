@@ -137,7 +137,14 @@ export class PublicCardRepository {
     this.publicCards.set(card.public_id, this.clonePublicCard(card));
   }
 
-  async createVisit(input: { publicId: string; shareId?: string; anonId: string }): Promise<CardVisitRecord> {
+  async createVisit(input: {
+    publicId: string;
+    shareId?: string;
+    anonId: string;
+    userAgent?: string;
+    ipHash?: string;
+    trustLevel?: string;
+  }): Promise<CardVisitRecord> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(input.publicId);
       const visitId = randomToken("vis", 18);
@@ -152,14 +159,26 @@ export class PublicCardRepository {
               share_id,
               visit_id,
               anon_id,
+              trust_level,
+              user_agent,
+              ip_hash,
               created_at
             )
-            SELECT tenant_id, id, member_identity_id, $3, $4, $5, now()
+            SELECT tenant_id, id, member_identity_id, $3, $4, $5, $6, $7, $8, now()
             FROM cards
             WHERE tenant_id = $1 AND id = $2
             RETURNING visit_id, share_id, anon_id, created_at
           `,
-          [directory.tenantId, directory.cardId, shareId, visitId, input.anonId]
+          [
+            directory.tenantId,
+            directory.cardId,
+            shareId,
+            visitId,
+            input.anonId,
+            input.trustLevel ?? "anonymous_client",
+            input.userAgent ?? null,
+            input.ipHash ?? null
+          ]
         )
       );
       const row = result.rows[0];
@@ -469,7 +488,7 @@ export class PublicCardRepository {
               WHERE card_actions.tenant_id = $1
                 AND card_actions.card_id = $2
                 AND card_actions.action_type = 'like_card'
-                AND COALESCE(action_visits.anon_id, action_visits.visitor_account_id::text, action_visits.id::text) = $3
+                AND COALESCE(action_visits.visitor_account_id::text, action_visits.anon_id, action_visits.id::text) = $3
             ) AS liked
           `,
           [directory.tenantId, directory.cardId, anonId]
@@ -678,8 +697,8 @@ export class PublicCardRepository {
             WHERE existing_action.tenant_id = $1
               AND existing_action.card_id = $2
               AND existing_action.action_type = $4
-              AND COALESCE(existing_visit.anon_id, existing_visit.visitor_account_id::text, existing_visit.id::text) =
-                  COALESCE(current_visit.anon_id, current_visit.visitor_account_id::text, current_visit.id::text)
+              AND COALESCE(existing_visit.visitor_account_id::text, existing_visit.anon_id, existing_visit.id::text) =
+                  COALESCE(current_visit.visitor_account_id::text, current_visit.anon_id, current_visit.id::text)
           )
         ON CONFLICT (visit_id, action_type) DO NOTHING
       `,

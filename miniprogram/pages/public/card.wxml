@@ -68,9 +68,11 @@
       </view>
 
       <view class="card public-cta-card" wx:if="{{!isDisabled}}">
-        <view class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
-        <view wx:if="{{loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
-        <view wx:else class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
+        <button wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item public-cta-card__button" open-type="share">发名片</button>
+        <view wx:if="{{isOwnCard}}" class="btn btn--soft public-cta-card__item" bindtap="editMyCard">修改信息</view>
+        <view wx:if="{{!isOwnCard}}" class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
+        <view wx:if="{{!isOwnCard && loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
+        <view wx:if="{{!isOwnCard && !loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
       </view>
 
       <view class="card action-grid">

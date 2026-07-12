@@ -17,12 +17,28 @@ export class PublicCardController {
   }
 
   @Post(":publicId/visit")
-  async createVisit(@Param("publicId") publicId: string, @Body() body: unknown, @Headers("user-agent") userAgent?: string) {
+  async createVisit(
+    @Param("publicId") publicId: string,
+    @Body() body: unknown,
+    @Headers("user-agent") userAgent?: string,
+    @Headers("authorization") auth?: string,
+    @Headers("x-forwarded-for") forwardedFor?: string,
+    @Headers("x-real-ip") realIp?: string
+  ) {
     const request = visitRequestSchema.parse({
       ...(typeof body === "object" && body !== null ? body : {}),
       user_agent: userAgent
     });
-    return this.publicCards.createVisit(publicIdSchema.parse(publicId), request);
+    const context: { token?: string; ipAddress?: string } = {};
+    const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
+    const ipAddress = firstForwardedIp(forwardedFor) ?? realIp;
+    if (token) {
+      context.token = token;
+    }
+    if (ipAddress) {
+      context.ipAddress = ipAddress;
+    }
+    return this.publicCards.createVisit(publicIdSchema.parse(publicId), request, context);
   }
 
   @Post(":publicId/actions")
@@ -44,4 +60,11 @@ export class PublicCardController {
     const request = deriveShareRequestSchema.parse(body);
     return this.publicCards.deriveShare(publicIdSchema.parse(publicId), token, request);
   }
+}
+
+function firstForwardedIp(value: string | undefined): string | undefined {
+  return value
+    ?.split(",")
+    .map((item) => item.trim())
+    .find(Boolean);
 }
