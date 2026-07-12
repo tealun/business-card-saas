@@ -156,10 +156,13 @@ async function request(path, options = {}) {
 }
 
 async function fetchOnce(path, options, signal) {
+  const hasBody = Object.prototype.hasOwnProperty.call(options, "body");
   const headers = {
-    "content-type": "application/json",
     ...(options.headers || {})
   };
+  if (hasBody && !headers["content-type"]) {
+    headers["content-type"] = "application/json";
+  }
   const token = options.token === undefined ? state.token : options.token;
   if (options.auth !== false && token) {
     headers.authorization = `Bearer ${token}`;
@@ -168,7 +171,7 @@ async function fetchOnce(path, options, signal) {
     ...options,
     headers,
     signal,
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: hasBody ? JSON.stringify(options.body) : undefined
   });
   const text = await response.text();
   let body = null;
