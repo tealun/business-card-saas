@@ -107,9 +107,6 @@ export class PublicCardService {
       return verifiedAnonId;
     }
     const fingerprint = request.fingerprint?.trim();
-    if (fingerprint && ipHash) {
-      return this.anonIds.issueStable("fp", `${ipHash}:${fingerprint}`);
-    }
     return this.anonIds.issue();
   }
 

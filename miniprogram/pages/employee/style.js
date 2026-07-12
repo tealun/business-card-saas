@@ -33,6 +33,7 @@ const stylePage = {
     themeStyle: "",
     templateId: "tpl_horizontal_business",
     templateClass: "biz-card--horizontal",
+    logoUrl: "",
     card: { display_name: "", title: "", company: "", fields: {} },
     templates: [
       { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
@@ -95,6 +96,7 @@ const stylePage = {
         backgroundError: "",
         templateId,
         templateClass: templateClass(templateId),
+        logoUrl: template.logo_url || "",
         card: Object.assign({ fields: {}, status: preview.status }, preview.card)
       });
     } catch (_error) {
@@ -171,6 +173,7 @@ const stylePage = {
         method: "PUT",
         data: {
           template_id: this.data.templateId,
+          logo_url: this.data.logoUrl || null,
           color_scheme: {
             primary: this.data.primary,
             surface: "#ffffff"

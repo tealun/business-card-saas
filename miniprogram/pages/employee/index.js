@@ -8,6 +8,7 @@ const demoCard = {
   display_name: "李明",
   title: "销售总监 · 市场部",
   company: "智云科技",
+  company_short_name: "智云科技",
   fields: {
     mobile: "138 0013 8000",
     email: "liming@zhiyun.tech"
@@ -48,6 +49,8 @@ Page({
     authState: "guest",
     loggedIn: false,
     card: demoCard,
+    cardLogoUrl: "/assets/logo/color-nobg.png",
+    showCardHead: true,
     cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
     cardTemplateClass: "biz-card--horizontal",
     themeBrand: DEFAULT_BRAND,
@@ -170,6 +173,8 @@ Page({
       }
       this.setData({
         card: Object.assign({ status: preview.status, fields: {} }, preview.card),
+        cardLogoUrl: (preview.template && preview.template.logo_url) || "",
+        showCardHead: Boolean((preview.template && preview.template.logo_url) || (preview.card && preview.card.company_short_name)),
         cardTemplateClass: cardTemplateClass(preview.template && preview.template.template_id),
         cardBackgroundStyle: cardBackgroundStyle(
           preview.template && preview.template.background_url,
@@ -374,10 +379,12 @@ Page({
 });
 
 function fallbackCardFromIdentity(identity) {
+  const isPersonal = identity && identity.identity_type === "personal";
   return {
     display_name: identity && identity.display_name ? identity.display_name : "我的名片",
     title: "职位未设置",
-    company: identity && identity.tenant_name ? identity.tenant_name : (identity && identity.identity_type === "personal" ? "微信个人身份" : "企业名片"),
+    company: isPersonal ? "" : (identity && identity.tenant_name ? identity.tenant_name : "企业名片"),
+    company_short_name: isPersonal ? "" : ((identity && (identity.tenant_short_name || identity.short_name)) || ""),
     avatar_url: "",
     fields: {},
     status: "active"

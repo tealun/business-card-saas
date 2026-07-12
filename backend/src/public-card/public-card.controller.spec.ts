@@ -153,7 +153,7 @@ describe("PublicCardController", () => {
     expect(secondLikeBody.stats.like_count).toBe(dataOf<{ stats: { like_count: number } }>(firstLike.body).stats.like_count);
   });
 
-  it("deduplicates anonymous visitors by fingerprint when anon storage is missing", async () => {
+  it("treats anonymous visitors without a current anon_id as new visitors", async () => {
     const first = await app.inject({
       method: "POST",
       url: "/api/v1/public/cards/pub_demo0001/visit",
@@ -170,7 +170,7 @@ describe("PublicCardController", () => {
     });
     const secondVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(second.body);
 
-    expect(secondVisit.stats.visitor_count).toBe(firstVisit.stats.visitor_count);
+    expect(secondVisit.stats.visitor_count).toBe(firstVisit.stats.visitor_count + 1);
     expect(secondVisit.stats.visit_count).toBe(firstVisit.stats.visit_count + 1);
   });
 

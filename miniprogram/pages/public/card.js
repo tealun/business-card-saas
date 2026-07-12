@@ -3,6 +3,7 @@ const { request } = require("../../utils/api");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
+const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
 
 const demoServiceItems = [
   { title: "数字名片", desc: "员工对外名片展示" },
@@ -78,6 +79,10 @@ Page({
     likedByMe: false,
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
+    cardLogoUrl: "",
+    cardCompanyName: "",
+    cardCompanyShortName: "",
+    showCardHead: false,
     cardBackgroundStyle: "",
     cardTemplateClass: "biz-card--horizontal",
     card: demoPublicCard
@@ -116,11 +121,16 @@ Page({
     const layout = (card.template && card.template.layout) || {};
     const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || DEFAULT_BRAND;
     const theme = buildTheme(brand);
+    const cardMeta = publicCardMeta(card);
     this.setData({
       card,
       ...theme,
       themeStyle: themeStyle(theme),
-      navTitle: publicNavTitle(card),
+      navTitle: publicNavTitle(card, cardMeta),
+      cardLogoUrl: cardMeta.logoUrl,
+      cardCompanyName: cardMeta.companyName,
+      cardCompanyShortName: cardMeta.companyShortName,
+      showCardHead: Boolean(cardMeta.logoUrl || cardMeta.companyShortName),
       cardTemplateClass: cardTemplateClass(card.template && card.template.template_id),
       cardBackgroundStyle: cardBackgroundStyle(
         card.template && card.template.background_url,
@@ -165,6 +175,10 @@ Page({
     }
   },
 
+  goHome() {
+    wx.switchTab({ url: "/pages/employee/index", fail() {} });
+  },
+
   async createVisit() {
     if (!this.data.publicId) {
       return;
@@ -176,7 +190,7 @@ Page({
     }
     try {
       const data = {
-        anon_id: app.globalData.anonId || readStoredAnonId() || undefined,
+        anon_id: currentAnonId() || undefined,
         fingerprint: visitorFingerprint() || undefined
       };
       if (this.data.shareId) {
@@ -429,7 +443,7 @@ function normalizePublicCard(card) {
     public_id: card.public_id || "",
     status: card.status || "active",
     card: Object.assign(
-      { display_name: "", title: "", company: "", avatar_url: "", fields: {} },
+      { display_name: "", title: "", company: "", company_short_name: "", avatar_url: "", fields: {} },
       card.card || {}
     ),
     template: card.template || { color_scheme: {}, layout: {} },
@@ -442,17 +456,37 @@ function normalizePublicCard(card) {
   };
 }
 
-function publicNavTitle(card) {
+function publicNavTitle(card, meta = publicCardMeta(card)) {
   const name = ((card.card && card.card.display_name) || "").trim();
-  const company = ((card.card && card.card.company) || (card.company_profile && card.company_profile.name) || "").trim();
-  if (!company || isPersonalCompanyName(company)) {
+  const company = meta.companyName;
+  if (!company) {
     return name || "名片";
   }
   return name ? `${name} | ${company}` : company;
 }
 
+function publicCardMeta(card) {
+  const rawCompany = ((card.card && card.card.company) || (card.company_profile && card.company_profile.name) || "").trim();
+  const rawShortName = ((card.card && card.card.company_short_name) || (card.company_profile && card.company_profile.short_name) || "").trim();
+  const personal = isPersonalCompanyName(rawCompany) || isCurrentPersonalCard(card);
+  const companyName = personal ? "" : rawCompany;
+  const companyShortName = personal ? "" : rawShortName;
+  const logoUrl = ((card.template && card.template.logo_url) || "").trim();
+  return { companyName, companyShortName, logoUrl };
+}
+
+function isCurrentPersonalCard(card) {
+  const currentIdentity = app.globalData.currentIdentity || {};
+  return Boolean(
+    currentIdentity.identity_type === "personal" &&
+    card &&
+    card.public_id &&
+    currentIdentity.public_id === card.public_id
+  );
+}
+
 function isPersonalCompanyName(company) {
-  return company === "微信个人身份" || company === "个人名片";
+  return company === "微信个人身份" || company === "个人名片" || company === "Demo Tenant";
 }
 
 function resolveServiceItems(card, isDemo) {
@@ -491,10 +525,30 @@ function resolveIntroBlocks(card) {
 
 function readStoredAnonId() {
   try {
-    return wx.getStorageSync(VISITOR_ANON_STORAGE_KEY) || "";
+    const stored = wx.getStorageSync(VISITOR_ANON_STORAGE_KEY);
+    if (!stored || typeof stored !== "object") {
+      wx.removeStorageSync(VISITOR_ANON_STORAGE_KEY);
+      return "";
+    }
+    if (!stored.value || !stored.expires_at || stored.expires_at <= Date.now()) {
+      wx.removeStorageSync(VISITOR_ANON_STORAGE_KEY);
+      app.globalData.anonId = "";
+      return "";
+    }
+    return stored.value;
   } catch (_error) {
     return "";
   }
+}
+
+function currentAnonId() {
+  const stored = readStoredAnonId();
+  if (stored) {
+    app.globalData.anonId = stored;
+    return stored;
+  }
+  app.globalData.anonId = "";
+  return "";
 }
 
 function storeAnonId(anonId) {
@@ -502,7 +556,10 @@ function storeAnonId(anonId) {
     return;
   }
   try {
-    wx.setStorageSync(VISITOR_ANON_STORAGE_KEY, anonId);
+    wx.setStorageSync(VISITOR_ANON_STORAGE_KEY, {
+      value: anonId,
+      expires_at: Date.now() + VISITOR_ANON_TTL_MS
+    });
   } catch (_error) {}
 }
 

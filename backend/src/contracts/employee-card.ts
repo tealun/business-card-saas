@@ -13,6 +13,7 @@ export const employeeCardResponseSchema = z.object({
   display_name: z.string(),
   title: z.string().nullable(),
   company: z.string().nullable(),
+  company_short_name: z.string().nullable().optional(),
   avatar_url: imageSourceSchema.nullable(),
   fields: z.object({
     department: z.string().nullable().optional(),
@@ -65,6 +66,7 @@ export const updateEmployeeCardRequestSchema = z.object({
 
 export const updateEmployeeCardStyleRequestSchema = z.object({
   template_id: z.string().min(1).max(64).optional(),
+  logo_url: imageSourceSchema.nullable().optional(),
   background_url: imageSourceSchema.nullable().optional(),
   color_scheme: z.record(z.string(), z.unknown()).optional(),
   layout: z.record(z.string(), z.unknown()).optional()

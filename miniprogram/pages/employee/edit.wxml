@@ -34,6 +34,21 @@
         <view wx:if="{{form.avatar_url && editable.avatar_url}}" class="btn btn--sm btn--muted" bindtap="clearAvatar">清除</view>
       </view>
     </view>
+    <view class="edit-logo-row {{editable.logo_url ? '' : 'field-row--locked'}}" data-key="logo_url" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.logo_url}}" class="icon icon-lock icon--sm"></view>
+        <text>名片LOGO</text>
+      </view>
+      <view class="edit-logo-actions">
+        <view class="edit-logo">
+          <image wx:if="{{form.logo_url}}" src="{{form.logo_url}}" mode="aspectFit" class="edit-logo__img" />
+          <view wx:else class="edit-logo__empty">未设置</view>
+        </view>
+        <view wx:if="{{editable.logo_url}}" class="btn btn--sm btn--soft" bindtap="chooseLogoFromAlbum">选择</view>
+        <view wx:if="{{form.logo_url && editable.logo_url}}" class="btn btn--sm btn--muted" bindtap="clearLogo">清除</view>
+        <text wx:if="{{!editable.logo_url}}" class="field-row__value field-row__value--locked">企业统一维护</text>
+      </view>
+    </view>
     <view class="field-row {{editable.display_name ? '' : 'field-row--locked'}}" data-key="display_name" bindtap="onLockedFieldTap">
       <view class="field-row__label">
         <view wx:if="{{!editable.display_name}}" class="icon icon-lock icon--sm"></view>

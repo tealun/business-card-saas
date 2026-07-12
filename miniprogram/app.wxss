@@ -204,6 +204,7 @@ button::after { border: none; }
 .icon-arrow { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa1ac' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E"); }
 .icon-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1d1f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 6-6 6 6 6'/%3E%3C/svg%3E"); }
 .icon-reload { background-color: var(--brand); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E"); }
+.icon-home { background-color: var(--brand); -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E"); }
 
 .field-row {
   display: flex;
@@ -251,6 +252,7 @@ button::after { border: none; }
 .biz-card__company { font-size: 24rpx; color: var(--text-secondary); }
 .biz-card__body { display: flex; justify-content: space-between; gap: 20rpx; margin-top: 28rpx; }
 .biz-card__info { min-width: 0; flex: 1; }
+.biz-card__company-full { margin-bottom: 14rpx; color: var(--text-primary); font-size: 28rpx; line-height: 1.35; font-weight: 700; }
 .biz-card__name { font-size: 44rpx; font-weight: 700; line-height: 1.2; }
 .biz-card__role { margin-top: 8rpx; font-size: 28rpx; color: var(--text-secondary); }
 .biz-card__avatar {
@@ -322,6 +324,7 @@ button::after { border: none; }
 .biz-card--brand-image .biz-card__logo-img--white { display: block; }
 
 .biz-card--brand-image .biz-card__company,
+.biz-card--brand-image .biz-card__company-full,
 .biz-card--brand-image .biz-card__name,
 .biz-card--brand-image .biz-card__role,
 .biz-card--brand-image .biz-card__contact {
@@ -361,6 +364,7 @@ button::after { border: none; }
 .biz-card--dark .biz-card__logo-img--white { display: block; }
 
 .biz-card--dark .biz-card__company,
+.biz-card--dark .biz-card__company-full,
 .biz-card--dark .biz-card__name {
   color: rgba(255,255,255,.94);
 }
@@ -410,6 +414,10 @@ button::after { border: none; }
   color: #fff;
   font-size: 28rpx;
   font-weight: 500;
+}
+
+.biz-card--campaign .biz-card__company-full {
+  display: none;
 }
 
 .biz-card--campaign .biz-card__body {

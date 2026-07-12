@@ -41,6 +41,8 @@ interface EmployeeCardRow extends QueryResultRow {
   fields_encrypted: string | null;
   privacy_json: unknown;
   card_status: "active" | "disabled" | null;
+  company_name: string | null;
+  company_short_name: string | null;
 }
 
 interface StyleRow extends QueryResultRow {
@@ -368,7 +370,9 @@ export class EmployeeCardRepository {
           cards.avatar_url,
           cards.fields_encrypted,
           cards.privacy_json,
-          cards.status AS card_status
+          cards.status AS card_status,
+          company_profiles.display_name AS company_name,
+          company_profiles.short_name AS company_short_name
         FROM member_identities
         LEFT JOIN LATERAL (
           SELECT id, public_id, display_name, title, avatar_url, fields_encrypted, privacy_json, status
@@ -380,6 +384,10 @@ export class EmployeeCardRepository {
           ORDER BY cards.id ASC
           LIMIT 1
         ) cards ON true
+        LEFT JOIN company_profiles
+          ON company_profiles.tenant_id = member_identities.tenant_id
+          AND company_profiles.deleted_at IS NULL
+          AND company_profiles.visible = true
         WHERE member_identities.tenant_id = $1 AND member_identities.id = $2
         LIMIT 1
       `,
@@ -395,7 +403,8 @@ export class EmployeeCardRepository {
       public_id: row.public_id ?? session.publicId ?? defaultEmployeePublicId({ tenantId: session.tenantId, memberIdentityId }),
       display_name: row.display_name ?? row.member_name,
       title: row.title,
-      company: session.tenantName ?? `Tenant ${session.tenantId}`,
+      company: session.identityType === "personal" ? null : row.company_name ?? session.tenantName ?? `Tenant ${session.tenantId}`,
+      company_short_name: session.identityType === "personal" ? null : row.company_short_name,
       avatar_url: row.avatar_url,
       fields: this.decryptJson(row.fields_encrypted) ?? defaultFields(),
       status: normalizeStatus(row.card_status ?? row.member_status),
@@ -426,9 +435,11 @@ export class EmployeeCardRepository {
     }
     const layout = parseObject(row.layout_json);
     const templateId = typeof layout.__template_id === "string" ? layout.__template_id : undefined;
-    const { __template_id: _templateId, ...publicLayout } = layout;
+    const logoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : undefined;
+    const { __template_id: _templateId, __logo_url: _logoUrl, ...publicLayout } = layout;
     return {
       template_id: templateId,
+      logo_url: logoUrl,
       background_url: row.background_url,
       color_scheme: parseObject(row.color_scheme_json),
       layout: publicLayout
@@ -443,7 +454,8 @@ export class EmployeeCardRepository {
   ): Promise<void> {
     const layout = {
       ...(style.layout ?? {}),
-      ...(style.template_id ? { __template_id: style.template_id } : {})
+      ...(style.template_id ? { __template_id: style.template_id } : {}),
+      ...(style.logo_url !== undefined ? { __logo_url: style.logo_url } : {})
     };
     const values = [
       tenantId,
@@ -561,7 +573,8 @@ export class EmployeeCardRepository {
       public_id: session.publicId ?? defaultEmployeePublicId(session),
       display_name: session.displayName ?? session.openUserid,
       title: null,
-      company: session.tenantName ?? `Tenant ${session.tenantId}`,
+      company: session.identityType === "personal" ? null : session.tenantName ?? `Tenant ${session.tenantId}`,
+      company_short_name: null,
       avatar_url: null,
       fields: defaultFields(),
       status: session.status ?? "active",
@@ -590,6 +603,7 @@ export class EmployeeCardRepository {
         display_name: card.display_name,
         title: card.title,
         company: card.company,
+        company_short_name: card.company_short_name ?? null,
         avatar_url: card.avatar_url,
         fields: {
           mobile: card.privacy.show_mobile ? card.fields.mobile : null,
@@ -601,7 +615,7 @@ export class EmployeeCardRepository {
       },
       template: {
         template_id: style.template_id ?? "tpl_demo_business",
-        logo_url: null,
+        logo_url: style.logo_url ?? null,
         background_url: style.background_url ?? null,
         color_scheme: style.color_scheme ?? {
           primary: "#1677ff",
@@ -612,7 +626,8 @@ export class EmployeeCardRepository {
         }
       },
       company_profile: {
-        name: card.company ?? "Demo Tenant",
+        name: card.company ?? "",
+        short_name: card.company_short_name ?? null,
         intro_blocks: [
           {
             type: "paragraph",
@@ -674,18 +689,27 @@ export class EmployeeCardRepository {
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest
   ): Promise<UpdateEmployeeCardStyleRequest> {
-    if (!request.background_url || !request.background_url.startsWith("data:image/")) {
-      return request;
-    }
     if (!this.storage) {
       return request;
+    }
+    let next = request;
+    if (request.logo_url && request.logo_url.startsWith("data:image/")) {
+      const stored = await this.storage.storeImageDataUrl({
+        tenantId: session.tenantId,
+        category: "logos",
+        dataUrl: request.logo_url
+      });
+      next = { ...next, logo_url: stored.publicUrl };
+    }
+    if (!request.background_url || !request.background_url.startsWith("data:image/")) {
+      return next;
     }
     const stored = await this.storage.storeImageDataUrl({
       tenantId: session.tenantId,
       category: "card-backgrounds",
       dataUrl: request.background_url
     });
-    return { ...request, background_url: stored.publicUrl };
+    return { ...next, background_url: stored.publicUrl };
   }
 }
 

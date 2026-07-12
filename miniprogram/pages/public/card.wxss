@@ -2,7 +2,7 @@
   position: relative;
   min-height: 100vh;
   background: var(--bg-page);
-  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(176rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -40,6 +40,25 @@
   white-space: nowrap;
 }
 
+.public-nav-home {
+  position: absolute;
+  left: 28rpx;
+  top: calc(env(safe-area-inset-top) + 98rpx);
+  width: 72rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 8rpx 20rpx rgba(16, 24, 40, 0.12);
+}
+
+.public-nav-home .icon-home {
+  background-color: var(--brand);
+}
+
 .public-body {
   position: relative;
   z-index: 1;
@@ -49,6 +68,14 @@
 .public-name-card {
   margin-bottom: 20rpx;
   box-shadow: 0 22rpx 54rpx rgba(26, 29, 31, 0.16);
+}
+
+.public-name-card.biz-card--no-head .biz-card__body {
+  margin-top: 0;
+}
+
+.public-name-card.biz-card--minimal.biz-card--no-head .biz-card__body {
+  margin-top: 0;
 }
 
 .avatar-img {
@@ -144,9 +171,17 @@
 }
 
 .public-cta-card {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
   display: flex;
   gap: 18rpx;
-  padding: 24rpx;
+  margin: 0;
+  padding: 22rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  border-radius: 0;
+  box-shadow: 0 -8rpx 28rpx rgba(16, 24, 40, 0.08);
 }
 
 .public-cta-card__item {
