@@ -15,6 +15,8 @@ export const publicCardFieldSchema = z.object({
   phone: z.string().nullable(),
   email: z.string().email().nullable(),
   wechat_id: z.string().nullable(),
+  wechat_qrcode_url: imageSourceSchema.nullable().optional(),
+  wecom_qrcode_url: imageSourceSchema.nullable().optional(),
   address: z.string().nullable()
 });
 
@@ -22,7 +24,8 @@ export const publicCardStatsSchema = z.object({
   visitor_count: z.number().int().nonnegative(),
   visit_count: z.number().int().nonnegative(),
   like_count: z.number().int().nonnegative(),
-  liked_by_current_visitor: z.boolean().optional()
+  liked_by_current_visitor: z.boolean().optional(),
+  recent_visitor_avatars: z.array(z.string()).optional()
 });
 
 export const publicCardResponseSchema = z.object({
@@ -96,6 +99,7 @@ export const actionRequestSchema = z.object({
     "call_phone",
     "copy_phone",
     "copy_email",
+    "copy_wechat",
     "view_site",
     "add_wecom",
     "open_map",

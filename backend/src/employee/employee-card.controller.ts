@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Put, Req, UseGuards } from "@nestjs/common";
-import { updateEmployeeCardRequestSchema, updateEmployeeCardStyleRequestSchema } from "../contracts/employee-card.js";
+import { updateEmployeeCardRequestSchema, updateEmployeeCardStyleRequestSchema, updateWechatQrCodeRequestSchema } from "../contracts/employee-card.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { EmployeeCardService } from "./employee-card.service.js";
 
@@ -31,6 +31,16 @@ export class EmployeeCardController {
   @Put("current/style")
   async updateStyle(@Req() request: EmployeeRequest, @Body() body: unknown) {
     return this.cards.updateStyle(this.requireSession(request), updateEmployeeCardStyleRequestSchema.parse(body));
+  }
+
+  @Get("current/wechat-qrcode")
+  async getWechatQrCode(@Req() request: EmployeeRequest) {
+    return this.cards.getWechatQrCode(this.requireSession(request));
+  }
+
+  @Put("current/wechat-qrcode")
+  async updateWechatQrCode(@Req() request: EmployeeRequest, @Body() body: unknown) {
+    return this.cards.updateWechatQrCode(this.requireSession(request), updateWechatQrCodeRequestSchema.parse(body));
   }
 
   @Post("current/share")

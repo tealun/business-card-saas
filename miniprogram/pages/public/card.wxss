@@ -303,6 +303,80 @@
   font-size: 22rpx;
 }
 
+.sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 29, 31, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease;
+  z-index: 180;
+}
+
+.sheet-mask--show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24rpx 32rpx calc(28rpx + env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+  transform: translateY(120%);
+  transition: transform 0.25s ease-out;
+  z-index: 190;
+  box-sizing: border-box;
+}
+
+.sheet--show {
+  transform: translateY(0);
+}
+
+.sheet__grab {
+  width: 72rpx;
+  height: 8rpx;
+  margin: 0 auto 26rpx;
+  border-radius: 4rpx;
+  background: var(--divider);
+}
+
+.sheet__head {
+  margin-bottom: 26rpx;
+}
+
+.wechat-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22rpx;
+  padding: 28rpx;
+}
+
+.wechat-qr image,
+.wechat-qr__placeholder {
+  width: 360rpx;
+  height: 360rpx;
+}
+
+.wechat-qr__placeholder {
+  border-radius: 20rpx;
+  background:
+    linear-gradient(90deg, var(--text-primary) 12rpx, transparent 12rpx) 0 0 / 44rpx 44rpx,
+    linear-gradient(var(--text-primary) 12rpx, transparent 12rpx) 0 0 / 44rpx 44rpx,
+    #f7f8fa;
+}
+
+.wechat-qr__tip {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
 .receive-panel {
   position: fixed;
   left: 24rpx;

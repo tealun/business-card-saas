@@ -6,6 +6,7 @@
     <view class="status-bar status-bar--danger" wx:elif="{{authState === 'failed'}}">
       登录失败，当前展示演示数据。请点击底部登录按钮重试。
     </view>
+
     <view class="identity-strip" wx:if="{{currentIdentity}}">
       <view class="identity-strip__main">
         <text class="badge {{currentIdentity.badgeClass}}">{{currentIdentity.typeLabel}}</text>
@@ -42,10 +43,10 @@
           <view class="biz-card__info">
             <view class="biz-card__company-full" wx:if="{{card.company}}">{{card.company}}</view>
             <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
-            <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
+            <view class="biz-card__role" wx:if="{{card.title}}">{{card.title}}</view>
             <view class="biz-card__contact">
-              <view>{{card.fields.mobile || card.fields.phone || "联系方式未公开"}}</view>
-              <view>{{card.fields.email || "邮箱未公开"}}</view>
+              <view wx:if="{{card.fields.mobile || card.fields.phone}}">{{card.fields.mobile || card.fields.phone}}</view>
+              <view wx:if="{{card.fields.email}}">{{card.fields.email}}</view>
             </view>
           </view>
           <view class="biz-card__avatar">
@@ -53,10 +54,12 @@
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
-        <view class="biz-card__status">
-          <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
-          <text wx:elif="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
+        <view class="biz-card__status" wx:if="{{card.status !== 'active'}}">
+          <text wx:if="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
           <text wx:else class="badge badge--muted">未启用</text>
+        </view>
+        <view class="biz-card__type-corner">
+          <view class="icon {{currentIdentity && currentIdentity.identity_type === 'personal' ? 'icon-person' : 'icon-building'}}"></view>
         </view>
       </view>
 
@@ -83,19 +86,19 @@
       </view>
 
       <view class="card tool-grid">
-        <view class="tool-grid__item" bindtap="openSheet">
-          <view class="icon icon-image"></view>
-          <text>名片图片</text>
+        <view class="tool-grid__item" bindtap="choosePaperCardImage">
+          <view class="icon icon-paper"></view>
+          <text>纸质名片</text>
         </view>
-        <view class="tool-grid__item" bindtap="goStyle">
-          <view class="icon icon-text"></view>
-          <text>文字转名片</text>
+        <view class="tool-grid__item" bindtap="openWechatQr">
+          <view class="icon icon-wechat"></view>
+          <text>设置微信号</text>
         </view>
-        <view class="tool-grid__item" bindtap="goWallet">
-          <view class="icon icon-rank"></view>
-          <text>名片榜单</text>
+        <view class="tool-grid__item" bindtap="showPoster">
+          <view class="icon icon-poster"></view>
+          <text>名片海报</text>
         </view>
-        <view class="tool-grid__item" bindtap="createShare">
+        <view class="tool-grid__item" bindtap="showCardCode">
           <view class="icon icon-qrcode"></view>
           <text>名片码</text>
         </view>
@@ -140,7 +143,10 @@
         <view class="divider"></view>
         <view class="f13 t-secondary" wx:if="{{!recentVisitors.length}}">暂无访客记录，发出名片后这里会展示访问动态。</view>
         <view class="visitor-item" wx:for="{{recentVisitors}}" wx:key="id">
-          <view class="visitor-item__avatar visitor-item__avatar--{{item.state}}"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-item__avatar visitor-item__avatar--{{item.state}}">
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+            <view wx:else class="avatar-placeholder"></view>
+          </view>
           <view class="visitor-item__info">
             <view class="f14 medium">{{item.name}}</view>
             <view class="f12 t-secondary">{{item.title}}</view>
@@ -175,47 +181,64 @@
         <view class="icon icon-wecom icon--sm"></view>
       </view>
       <view class="share-current-card__info">
-      <view class="sheet__thumb-title">{{card.display_name || "我的名片"}}</view>
-      <view class="sheet__thumb-sub">{{card.title || "职位未设置"}} · {{card.company || "企业名片"}}</view>
+        <view class="sheet__thumb-title">{{card.display_name || "我的名片"}}</view>
+        <view class="sheet__thumb-sub">
+          <text wx:if="{{card.title}}">{{card.title}}</text>
+          <text wx:if="{{card.title && card.company}}"> · </text>
+          <text wx:if="{{card.company}}">{{card.company}}</text>
+        </view>
       </view>
       <view class="share-current-card__tag">当前名片</view>
     </view>
     <view class="sheet__grid sheet__grid--share">
       <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
         <view class="icon icon-forward"></view>
-        <view class="sheet__cell-title">转发给好友 / 群</view>
+        <view class="sheet__cell-title">转发给好友/群</view>
         <view class="sheet__cell-desc">微信内直接送达</view>
         <text>转发给好友/群</text>
       </view>
-      <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
-        <view class="icon icon-image"></view>
-        <view class="sheet__cell-title">生成名片海报</view>
-        <view class="sheet__cell-desc">含小程序码，可存相册</view>
-        <text>生成名片海报</text>
+      <view class="sheet__cell sheet__cell--primary" bindtap="showPoster">
+        <view class="icon icon-poster"></view>
+        <view class="sheet__cell-title">名片海报</view>
+        <view class="sheet__cell-desc">含公开页小程序码</view>
+        <text>名片海报</text>
       </view>
-      <view class="sheet__cell sheet__cell--secondary" bindtap="createShare">
+      <view class="sheet__cell sheet__cell--secondary" bindtap="showCardCode">
         <view class="icon icon-qrcode"></view>
-        <text>名片小程序码</text>
+        <text>名片码</text>
       </view>
-      <view class="sheet__cell sheet__cell--secondary" bindtap="copyLink">
+      <view class="sheet__cell sheet__cell--secondary" bindtap="choosePaperCardImage">
         <view class="icon icon-paper"></view>
-        <text>复制链接</text>
+        <text>纸质名片</text>
       </view>
     </view>
-    <view class="poster-preview">
-      <view class="poster-card">
-        <view class="poster-card__top">{{card.company || "企业名片"}}</view>
+    <view class="sheet__tip">分享内容仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
+  </view>
+
+  <view class="sheet-mask {{previewSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closePreviewSheet"></view>
+  <view class="sheet {{previewSheetVisible ? 'sheet--show' : ''}}">
+    <view class="sheet__grab"></view>
+    <view class="row-between sheet__head">
+      <text class="card__title">{{previewTitle}}</text>
+      <view class="icon icon-close icon--sm" catchtap="closePreviewSheet"></view>
+    </view>
+    <view class="poster-preview poster-preview--stack">
+      <view class="poster-card poster-card--large" wx:if="{{previewMode === 'poster'}}">
+        <view class="poster-card__top">{{card.company || "名片"}}</view>
         <view class="poster-card__name">{{card.display_name || "我的名片"}}</view>
         <view class="poster-card__qr"></view>
       </view>
+      <view class="qr-preview" wx:else>
+        <image wx:if="{{previewQrUrl}}" src="{{previewQrUrl}}" mode="aspectFit" />
+        <view wx:else class="qr-preview__placeholder"></view>
+      </view>
       <view class="poster-preview__copy">
-        <view class="poster-preview__title">海报预览</view>
-        <view class="medium">名片海报已按企业品牌生成</view>
-        <view class="f12 t-secondary">可保存到相册，也可直接转发给客户。</view>
-        <view class="btn btn--primary poster-preview__btn" bindtap="createShare">保存到相册</view>
+        <view class="poster-preview__title">{{previewTitle}}</view>
+        <view class="f12 t-secondary" wx:if="{{previewMode === 'wechat'}}">长按识别加微信</view>
+        <view class="f12 t-secondary" wx:else>扫描直达当前名片访客展示页</view>
+        <view class="share-note__path" wx:if="{{previewPath}}">{{previewPath}}</view>
       </view>
     </view>
-    <view class="sheet__tip">分享链接仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
   </view>
 
   <view class="sheet-mask {{identitySheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeIdentitySheet"></view>
@@ -244,6 +267,6 @@
         <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
       </view>
     </view>
-    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份…" : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
+    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
   </view>
 </view>

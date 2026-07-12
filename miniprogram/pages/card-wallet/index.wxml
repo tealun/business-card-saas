@@ -16,7 +16,7 @@
     </view>
   </view>
 
-  <view class="search-row">
+  <view class="search-row" wx:if="{{activeTab !== 'offline'}}">
     <view class="search-box">
       <view class="icon icon-search icon--sm"></view>
       <input value="{{keyword}}" bindinput="onSearch" placeholder="搜索姓名/公司/职位" />
@@ -24,18 +24,39 @@
     <view class="filter-btn"><view class="icon icon-filter icon--sm"></view></view>
   </view>
 
+  <view class="offline-tools" wx:if="{{activeTab === 'offline'}}">
+    <view class="offline-tool" bindtap="captureOfflineCard">
+      <view class="icon icon-camera"></view>
+      <view>
+        <view class="offline-tool__title">拍照识别并保存</view>
+        <view class="offline-tool__desc">识别纸质名片，保存为电子名片</view>
+      </view>
+    </view>
+    <view class="offline-tool" bindtap="bindOfflineImage">
+      <view class="icon icon-paper"></view>
+      <view>
+        <view class="offline-tool__title">绑定纸质图片</view>
+        <view class="offline-tool__desc">为电子名片保留原始拍摄图片</view>
+      </view>
+    </view>
+  </view>
+
   <view class="empty-card" wx:if="{{!groups.length}}">
-    <view class="state-full__mark"><view class="icon icon-contact icon--lg"></view></view>
-    <view class="f18 bold">还没有访客记录</view>
-    <view class="f14 t-secondary">发出第一张名片后，这里会沉淀访问与交换状态。</view>
-    <view class="btn btn--primary btn--sm" bindtap="goSendCard">去发名片</view>
+    <view class="state-full__mark"><view class="icon {{activeTab === 'offline' ? 'icon-paper' : 'icon-contact'}} icon--lg"></view></view>
+    <view class="f18 bold">{{activeTab === 'offline' ? '还没有线下名片' : '还没有名片记录'}}</view>
+    <view class="f14 t-secondary">{{activeTab === 'offline' ? '拍照识别纸质名片后，会在这里形成电子名片。' : '发出第一张名片后，这里会沉淀访问与交换状态。'}}</view>
+    <view class="btn btn--primary btn--sm" wx:if="{{activeTab === 'offline'}}" bindtap="captureOfflineCard">拍照识别</view>
+    <view class="btn btn--primary btn--sm" wx:else bindtap="goSendCard">去发名片</view>
   </view>
 
   <block wx:for="{{groups}}" wx:key="title">
     <view class="group-title">{{item.title}}</view>
     <view class="card wallet-list">
       <view class="wallet-item" wx:for="{{item.items}}" wx:for-item="card" wx:key="id">
-        <view class="wallet-item__avatar wallet-item__avatar--{{card.state}}"><view class="avatar-placeholder"></view></view>
+        <view class="wallet-item__avatar wallet-item__avatar--{{card.state}}">
+          <image wx:if="{{card.avatarUrl}}" src="{{card.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+          <view wx:else class="avatar-placeholder"></view>
+        </view>
         <view class="wallet-item__main">
           <view class="wallet-item__name">{{card.name}}</view>
           <view class="wallet-item__sub">{{card.title}}</view>
@@ -44,7 +65,7 @@
         <view class="wallet-item__side">
           <text class="badge badge--success" wx:if="{{card.state === 'exchanged'}}">已交换</text>
           <text class="badge badge--warning" wx:elif="{{card.state === 'pending'}}">待通过</text>
-          <view class="btn btn--sm btn--ghost" wx:else data-id="{{card.id}}" bindtap="exchange">交换</view>
+          <view class="btn btn--sm btn--ghost" wx:elif="{{card.canExchange !== false && !card.isAnonymous}}" data-id="{{card.id}}" bindtap="exchange">交换</view>
           <text class="wallet-item__time">{{card.time}}</text>
         </view>
       </view>

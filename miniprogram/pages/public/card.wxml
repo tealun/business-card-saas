@@ -50,18 +50,17 @@
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
-        <view class="biz-card__status">
-          <text wx:if="{{card.status === 'active'}}" class="badge badge--success">正常展示中</text>
-          <text wx:else class="badge badge--warning">当前不可用</text>
+        <view class="biz-card__status" wx:if="{{card.status !== 'active'}}">
+          <text class="badge badge--warning">当前不可用</text>
         </view>
       </view>
 
       <view class="card interact-card">
         <view class="visitor-avatars">
-          <view class="visitor-avatar visitor-avatar--img"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar" wx:for="{{visitorAvatarSlots}}" wx:key="index">
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+            <view wx:else class="avatar-placeholder"></view>
+          </view>
         </view>
         <view class="interact-card__views">{{viewCount}} 人看过</view>
         <view class="interact-card__like {{likedByMe ? 'interact-card__like--active' : ''}}" bindtap="likeCard">
@@ -117,4 +116,18 @@
       <view class="powered">由 智云名片 提供技术支持</view>
     </view>
   </block>
+
+  <view class="sheet-mask {{wechatSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeWechatSheet"></view>
+  <view class="sheet {{wechatSheetVisible ? 'sheet--show' : ''}}">
+    <view class="sheet__grab"></view>
+    <view class="row-between sheet__head">
+      <text class="card__title">加微信</text>
+      <view class="icon icon-close icon--sm" catchtap="closeWechatSheet"></view>
+    </view>
+    <view class="wechat-qr">
+      <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="aspectFit" />
+      <view wx:else class="wechat-qr__placeholder"></view>
+      <view class="wechat-qr__tip">长按识别加微信</view>
+    </view>
+  </view>
 </view>

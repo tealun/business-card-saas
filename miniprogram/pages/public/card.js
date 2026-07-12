@@ -77,6 +77,9 @@ Page({
     visitCount: 269,
     likeCount: 136,
     likedByMe: false,
+    visitorAvatarSlots: [{ avatarUrl: "" }],
+    wechatSheetVisible: false,
+    wechatQrUrl: "",
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
     cardLogoUrl: "",
@@ -342,7 +345,8 @@ Page({
       viewCount: Number(stats.visitor_count || 0),
       visitCount: Number(stats.visit_count || 0),
       likeCount: Number(stats.like_count || 0),
-      likedByMe: Boolean(stats.liked_by_current_visitor)
+      likedByMe: Boolean(stats.liked_by_current_visitor),
+      visitorAvatarSlots: visitorAvatarSlots(stats)
     });
   },
 
@@ -368,12 +372,12 @@ Page({
   },
 
   copyWechat() {
-    const wechat = this.data.card.card.fields && this.data.card.card.fields.wechat_id;
-    if (!wechat) {
-      wx.showToast({ title: "暂无微信", icon: "none" });
-      return;
-    }
-    wx.setClipboardData({ data: wechat, success() { wx.showToast({ title: "微信号已复制", icon: "none" }); } });
+    this.recordAction("copy_wechat");
+    this.setData({ wechatSheetVisible: true, wechatQrUrl: publicWechatQrUrl(this.data.card) });
+  },
+
+  closeWechatSheet() {
+    this.setData({ wechatSheetVisible: false });
   },
 
   viewPaperCard() {
@@ -454,6 +458,24 @@ function normalizePublicCard(card) {
     is_owner: card.is_owner,
     is_own: card.is_own
   };
+}
+
+function visitorAvatarSlots(stats) {
+  const count = Math.max(0, Number((stats && stats.visitor_count) || 0));
+  const slotCount = count >= 4 ? 4 : Math.max(1, count);
+  const avatars = Array.isArray(stats && stats.recent_visitor_avatars) ? stats.recent_visitor_avatars : [];
+  return Array.from({ length: slotCount }).map((_, index) => ({ avatarUrl: avatars[index] || "" }));
+}
+
+function publicWechatQrUrl(card) {
+  const fields = (card && card.card && card.card.fields) || {};
+  const layout = (card && card.template && card.template.layout) || {};
+  const profile = (card && card.company_profile) || {};
+  const hasCompany = Boolean((card && card.card && card.card.company) || profile.name);
+  if (hasCompany) {
+    return fields.wecom_qrcode_url || fields.wechat_qrcode_url || layout.wecom_qrcode_url || layout.wechat_qrcode_url || profile.wecom_qrcode_url || profile.wechat_qrcode_url || "";
+  }
+  return fields.wechat_qrcode_url || fields.wecom_qrcode_url || layout.wechat_qrcode_url || layout.wecom_qrcode_url || profile.wechat_qrcode_url || profile.wecom_qrcode_url || "";
 }
 
 function publicNavTitle(card, meta = publicCardMeta(card)) {

@@ -143,7 +143,7 @@ Page({
     const isPersonal = identity && identity.identity_type === "personal";
     return {
       display_name: identity && identity.display_name ? identity.display_name : "我的名片",
-      title: "职位未设置",
+      title: null,
       company: isPersonal ? "" : (identity && identity.tenant_name ? identity.tenant_name : "企业名片"),
       company_short_name: isPersonal ? "" : ((identity && (identity.tenant_short_name || identity.short_name)) || ""),
       avatar_url: "",

@@ -21,6 +21,8 @@ export const employeeCardResponseSchema = z.object({
     phone: z.string().nullable().optional(),
     email: z.string().email().nullable(),
     wechat_id: z.string().nullable(),
+    wechat_qrcode_url: imageSourceSchema.nullable().optional(),
+    wecom_qrcode_url: imageSourceSchema.nullable().optional(),
     address: z.string().nullable().optional(),
     website: z.string().url().nullable().optional()
   }),
@@ -51,6 +53,8 @@ export const updateEmployeeCardRequestSchema = z.object({
       phone: z.string().max(32).nullable().optional(),
       email: z.string().email().nullable().optional(),
       wechat_id: z.string().max(128).nullable().optional(),
+      wechat_qrcode_url: imageSourceSchema.nullable().optional(),
+      wecom_qrcode_url: imageSourceSchema.nullable().optional(),
       address: z.string().max(255).nullable().optional(),
       website: z.string().url().nullable().optional()
     })
@@ -72,6 +76,16 @@ export const updateEmployeeCardStyleRequestSchema = z.object({
   layout: z.record(z.string(), z.unknown()).optional()
 });
 
+export const updateWechatQrCodeRequestSchema = z.object({
+  qrcode_url: imageSourceSchema.nullable()
+});
+
+export const employeeWechatQrCodeResponseSchema = z.object({
+  qr_url: imageSourceSchema.nullable(),
+  source: z.enum(["personal_upload", "enterprise_cache", "not_configured"]),
+  cached: z.boolean()
+});
+
 export const employeeCardStatsResponseSchema = z.object({
   visitor_count: z.number().int().nonnegative(),
   visit_count: z.number().int().nonnegative(),
@@ -80,6 +94,7 @@ export const employeeCardStatsResponseSchema = z.object({
       visitor_key: z.string(),
       visitor_label: z.string(),
       visit_count: z.number().int().positive(),
+      trust_level: z.string().nullable().optional(),
       channel: z.string().nullable(),
       last_visit_at: z.string()
     })
@@ -92,3 +107,5 @@ export type EmployeeShareResponse = z.infer<typeof employeeShareResponseSchema>;
 export type UpdateEmployeeCardRequest = z.infer<typeof updateEmployeeCardRequestSchema>;
 export type UpdateEmployeeCardStyleRequest = z.infer<typeof updateEmployeeCardStyleRequestSchema>;
 export type EmployeeCardPreviewResponse = z.infer<typeof publicCardResponseSchema>;
+export type UpdateWechatQrCodeRequest = z.infer<typeof updateWechatQrCodeRequestSchema>;
+export type EmployeeWechatQrCodeResponse = z.infer<typeof employeeWechatQrCodeResponseSchema>;
