@@ -599,16 +599,20 @@ export class PublicCardRepository {
     const templateId = typeof layout.__template_id === "string" ? layout.__template_id : "tpl_demo_business";
     const layoutLogoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : null;
     const { __template_id: _templateId, __logo_url: _logoUrl, ...publicLayout } = layout;
+    const companyName = fields.company ?? row.company_name;
+    const companyShortName = fields.company_short_name ?? row.company_short_name;
     return {
       public_id: row.public_id,
       status: row.card_status,
       card: {
         display_name: row.display_name ?? "Unnamed",
         title: row.title,
-        company: row.company_name,
-        company_short_name: row.company_short_name,
+        company: companyName,
+        company_short_name: companyShortName,
         avatar_url: row.avatar_url,
         fields: {
+          company: companyName,
+          company_short_name: companyShortName,
           mobile: privacy.show_mobile ? fields.mobile : null,
           phone: fields.phone,
           email: privacy.show_email ? fields.email : null,
@@ -628,8 +632,8 @@ export class PublicCardRepository {
         layout: Object.keys(publicLayout).length ? publicLayout : { variant: "horizontal-business" }
       },
       company_profile: {
-        name: row.company_name ?? "",
-        short_name: row.company_short_name,
+        name: companyName ?? "",
+        short_name: companyShortName,
         intro_blocks: parseIntroBlocks(row.intro_json),
         website_url: row.website_url,
         address: row.address ?? fields.address
@@ -767,6 +771,8 @@ export class PublicCardRepository {
   private decryptFields(value: string | null): PublicCardResponse["card"]["fields"] {
     if (!value || !this.cipher) {
       return {
+        company: null,
+        company_short_name: null,
         mobile: null,
         phone: null,
         email: null,
@@ -779,6 +785,8 @@ export class PublicCardRepository {
     try {
       const parsed = JSON.parse(this.cipher.decrypt(value)) as Record<string, unknown>;
       return {
+        company: typeof parsed.company === "string" ? parsed.company : null,
+        company_short_name: typeof parsed.company_short_name === "string" ? parsed.company_short_name : null,
         mobile: typeof parsed.mobile === "string" ? parsed.mobile : null,
         phone: typeof parsed.phone === "string" ? parsed.phone : null,
         email: typeof parsed.email === "string" ? parsed.email : null,
@@ -789,6 +797,8 @@ export class PublicCardRepository {
       };
     } catch {
       return {
+        company: null,
+        company_short_name: null,
         mobile: null,
         phone: null,
         email: null,

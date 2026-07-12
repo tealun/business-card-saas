@@ -216,7 +216,7 @@
   </view>
 
   <view class="sheet-mask {{previewSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closePreviewSheet"></view>
-  <view class="sheet {{previewSheetVisible ? 'sheet--show' : ''}}">
+  <view class="sheet preview-sheet {{previewFullscreen ? 'preview-sheet--fullscreen' : ''}} {{previewSheetVisible ? 'sheet--show' : ''}}">
     <view class="sheet__grab"></view>
     <view class="row-between sheet__head">
       <text class="card__title">{{previewTitle}}</text>

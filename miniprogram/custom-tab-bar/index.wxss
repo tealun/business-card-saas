@@ -10,6 +10,13 @@
   background: #ffffff;
   border-top: 1rpx solid #edeff2;
   box-sizing: content-box;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.tab-bar--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(120%);
 }
 
 .tab-bar__item {

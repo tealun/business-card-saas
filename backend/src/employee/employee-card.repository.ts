@@ -22,6 +22,8 @@ type EditableFieldKey =
   | "avatar_url"
   | "display_name"
   | "title"
+  | "company"
+  | "company_short_name"
   | "department"
   | "mobile"
   | "phone"
@@ -463,15 +465,16 @@ export class EmployeeCardRepository {
 
   private toCard(session: EmployeeSession, row: EmployeeCardRow): EmployeeCardResponse {
     const memberIdentityId = String(row.member_id);
+    const fields = this.decryptJson(row.fields_encrypted) ?? defaultFields();
     return {
       card_id: row.card_id ? String(row.card_id) : memberIdentityId,
       public_id: row.public_id ?? session.publicId ?? defaultEmployeePublicId({ tenantId: session.tenantId, memberIdentityId }),
       display_name: row.display_name ?? row.member_name,
       title: row.title,
-      company: session.identityType === "personal" ? null : row.company_name ?? session.tenantName ?? `Tenant ${session.tenantId}`,
-      company_short_name: session.identityType === "personal" ? null : row.company_short_name,
+      company: fields.company ?? (session.identityType === "personal" ? null : row.company_name ?? session.tenantName ?? `Tenant ${session.tenantId}`),
+      company_short_name: fields.company_short_name ?? (session.identityType === "personal" ? null : row.company_short_name),
       avatar_url: row.avatar_url,
-      fields: this.decryptJson(row.fields_encrypted) ?? defaultFields(),
+      fields,
       status: normalizeStatus(row.card_status ?? row.member_status),
       privacy: parsePrivacy(row.privacy_json)
     };
@@ -671,6 +674,8 @@ export class EmployeeCardRepository {
         company_short_name: card.company_short_name ?? null,
         avatar_url: card.avatar_url,
         fields: {
+          company: card.company ?? null,
+          company_short_name: card.company_short_name ?? null,
           mobile: card.privacy.show_mobile ? card.fields.mobile : null,
           phone: card.fields.phone ?? null,
           email,
@@ -838,6 +843,14 @@ function mergeCard(
   if (allowedFields.includes("title") && request.title !== undefined) {
     next.title = request.title;
   }
+  if (allowedFields.includes("company") && request.fields?.company !== undefined) {
+    next.fields.company = request.fields.company;
+    next.company = request.fields.company;
+  }
+  if (allowedFields.includes("company_short_name") && request.fields?.company_short_name !== undefined) {
+    next.fields.company_short_name = request.fields.company_short_name;
+    next.company_short_name = request.fields.company_short_name;
+  }
   if (allowedFields.includes("department") && request.fields?.department !== undefined) {
     next.fields.department = request.fields.department;
   }
@@ -909,6 +922,8 @@ function mergeStyle(
 
 function defaultFields(): CardFields {
   return {
+    company: null,
+    company_short_name: null,
     department: null,
     mobile: null,
     phone: null,
@@ -924,6 +939,8 @@ function defaultFields(): CardFields {
 function normalizeFields(value: unknown): CardFields {
   const record = isRecord(value) ? value : {};
   return {
+    company: typeof record.company === "string" ? record.company : null,
+    company_short_name: typeof record.company_short_name === "string" ? record.company_short_name : null,
     department: typeof record.department === "string" ? record.department : null,
     mobile: typeof record.mobile === "string" ? record.mobile : null,
     phone: typeof record.phone === "string" ? record.phone : null,
@@ -945,7 +962,7 @@ function defaultPrivacy(): CardPrivacy {
 }
 
 function defaultEditableFields(): EditableFieldKey[] {
-  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
+  return ["avatar_url", "display_name", "title", "company", "company_short_name", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
 }
 
 function parseEditableFields(value: unknown): EditableFieldKey[] {
@@ -975,6 +992,8 @@ function requestedEditableFields(request: UpdateEmployeeCardRequest): EditableFi
   if (request.avatar_url !== undefined) fields.add("avatar_url");
   if (request.display_name !== undefined) fields.add("display_name");
   if (request.title !== undefined) fields.add("title");
+  if (request.fields?.company !== undefined) fields.add("company");
+  if (request.fields?.company_short_name !== undefined) fields.add("company_short_name");
   if (request.fields?.department !== undefined) fields.add("department");
   if (request.fields?.mobile !== undefined) fields.add("mobile");
   if (request.fields?.phone !== undefined) fields.add("phone");
@@ -992,6 +1011,8 @@ function isEditableFieldKey(value: unknown): value is EditableFieldKey {
     value === "avatar_url" ||
     value === "display_name" ||
     value === "title" ||
+    value === "company" ||
+    value === "company_short_name" ||
     value === "department" ||
     value === "mobile" ||
     value === "phone" ||

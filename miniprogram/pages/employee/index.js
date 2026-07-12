@@ -62,6 +62,7 @@ Page({
     previewTitle: "",
     previewPath: "",
     previewQrUrl: "",
+    previewFullscreen: false,
     personalWechatQr: "",
     submitting: false,
     switchingIdentity: false,
@@ -82,6 +83,7 @@ Page({
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
       this.getTabBar().applyTheme();
+      this.setTabBarHidden(this.data.sheetVisible || this.data.previewSheetVisible || this.data.identitySheetVisible);
     }
     if (this.data.loggedIn && app.globalData.token) {
       await this.loadPreview();
@@ -256,10 +258,12 @@ Page({
       return;
     }
     this.setData({ identitySheetVisible: true });
+    this.setTabBarHidden(true);
   },
 
   closeIdentitySheet() {
     this.setData({ identitySheetVisible: false });
+    this.setTabBarHidden(false);
   },
 
   async chooseIdentity(event) {
@@ -280,6 +284,7 @@ Page({
       this.syncIdentityState(session);
       await this.loadPreview();
       this.setData({ identitySheetVisible: false });
+      this.setTabBarHidden(false);
       wx.showToast({ title: "已切换名片", icon: "success" });
     } catch (error) {
       wx.showToast({ title: error.message || "切换失败", icon: "none" });
@@ -315,14 +320,17 @@ Page({
       return;
     }
     this.setData({ sheetVisible: true });
+    this.setTabBarHidden(true);
   },
 
   closeSheet() {
     this.setData({ sheetVisible: false });
+    this.setTabBarHidden(false);
   },
 
   closePreviewSheet() {
-    this.setData({ previewSheetVisible: false, previewMode: "", previewTitle: "", previewPath: "", previewQrUrl: "" });
+    this.setData({ previewSheetVisible: false, previewMode: "", previewTitle: "", previewPath: "", previewQrUrl: "", previewFullscreen: false });
+    this.setTabBarHidden(false);
   },
 
   choosePaperCardImage() {
@@ -441,8 +449,10 @@ Page({
       previewMode: mode,
       previewTitle: title,
       previewPath: path || "",
-      previewQrUrl: qrUrl || ""
+      previewQrUrl: qrUrl || "",
+      previewFullscreen: mode === "poster" || mode === "code"
     });
+    this.setTabBarHidden(true);
   },
 
   async createShare() {
@@ -457,6 +467,7 @@ Page({
       const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       app.globalData.shareId = share.share_id;
       this.setData({ sheetVisible: false });
+      this.setTabBarHidden(false);
       wx.navigateTo({
         url: `/pages/public/card?card=${share.public_id}&share=${share.share_id}`
       });
@@ -507,6 +518,12 @@ Page({
     }
     wx.showToast({ title: message || "请先登录", icon: "none" });
     return false;
+  },
+
+  setTabBarHidden(hidden) {
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ hidden: Boolean(hidden) });
+    }
   }
 });
 

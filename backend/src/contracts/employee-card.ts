@@ -16,6 +16,8 @@ export const employeeCardResponseSchema = z.object({
   company_short_name: z.string().nullable().optional(),
   avatar_url: imageSourceSchema.nullable(),
   fields: z.object({
+    company: z.string().nullable().optional(),
+    company_short_name: z.string().nullable().optional(),
     department: z.string().nullable().optional(),
     mobile: z.string().nullable(),
     phone: z.string().nullable().optional(),
@@ -48,6 +50,8 @@ export const updateEmployeeCardRequestSchema = z.object({
   title: z.string().max(128).nullable().optional(),
   fields: z
     .object({
+      company: z.string().max(128).nullable().optional(),
+      company_short_name: z.string().max(64).nullable().optional(),
       department: z.string().max(128).nullable().optional(),
       mobile: z.string().max(32).nullable().optional(),
       phone: z.string().max(32).nullable().optional(),

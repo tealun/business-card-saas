@@ -8,6 +8,8 @@ const ALL_EDITABLE_FIELDS = [
   "logo_url",
   "display_name",
   "title",
+  "company",
+  "company_short_name",
   "department",
   "mobile",
   "phone",
@@ -24,6 +26,8 @@ Page({
       logo_url: "",
       display_name: "",
       title: "",
+      company: "",
+      company_short_name: "",
       department: "",
       mobile: "",
       phone: "",
@@ -73,6 +77,8 @@ Page({
           logo_url: template.logo_url || "",
           display_name: normalizeDisplayName(card.display_name),
           title: card.title || "",
+          company: card.company || fields.company || "",
+          company_short_name: card.company_short_name || fields.company_short_name || "",
           department: fields.department || card.department || "",
           mobile: fields.mobile || "",
           phone: fields.phone || "",
@@ -281,6 +287,8 @@ function buildPayload(form, privacy, editable) {
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
   if (editable.display_name) payload.display_name = form.display_name;
   if (editable.title) payload.title = form.title || null;
+  if (editable.company) payload.fields.company = form.company || null;
+  if (editable.company_short_name) payload.fields.company_short_name = form.company_short_name || null;
   if (editable.department) payload.fields.department = form.department || null;
   if (editable.mobile) payload.fields.mobile = form.mobile || null;
   if (editable.phone) payload.fields.phone = form.phone || null;
