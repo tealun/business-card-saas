@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
+import { readSecret } from "../common/secrets.js";
 import {
   actionResponseSchema,
   type ActionRequest,
@@ -40,7 +41,7 @@ export class PublicCardService {
   async createVisit(publicId: string, request: VisitRequest, context: VisitContext = {}): Promise<VisitResponse> {
     const session = this.optionalSession(context.token);
     const ipHash = hashIp(context.ipAddress);
-    const anonId = this.resolveAnonId(request, session, ipHash);
+    const anonId = this.resolveAnonId(request, session);
     if (session?.publicId === publicId) {
       const stats = await this.repository.getStats(publicId, anonId);
       const visitId = randomToken("vis", 18);
@@ -69,7 +70,7 @@ export class PublicCardService {
     } = {
       publicId,
       anonId,
-      trustLevel: session ? "authenticated_user" : request.fingerprint ? "anonymous_fingerprint" : "anonymous_client"
+      trustLevel: session ? "authenticated_user" : "anonymous_client"
     };
     if (request.user_agent) {
       visitInput.userAgent = request.user_agent;
@@ -98,7 +99,7 @@ export class PublicCardService {
     });
   }
 
-  private resolveAnonId(request: VisitRequest, session: EmployeeSession | undefined, ipHash: string | undefined): string {
+  private resolveAnonId(request: VisitRequest, session: EmployeeSession | undefined): string {
     if (session) {
       return this.anonIds.issueStable("acct", session.accountId || session.openUserid || session.memberIdentityId);
     }
@@ -106,7 +107,6 @@ export class PublicCardService {
     if (verifiedAnonId) {
       return verifiedAnonId;
     }
-    const fingerprint = request.fingerprint?.trim();
     return this.anonIds.issue();
   }
 
@@ -164,5 +164,7 @@ function hashIp(ipAddress: string | undefined): string | undefined {
   if (!normalized) {
     return undefined;
   }
-  return createHash("sha256").update(`v1.ip.${normalized}`).digest("hex");
+  // Keyed HMAC (not a bare hash): IPv4 space is small enough that an unsalted
+  // digest is effectively reversible, and ip_hash is personal data under PIPL.
+  return createHmac("sha256", readSecret("VISIT_TOKEN_SECRET")).update(`v1.ip.${normalized}`).digest("hex");
 }

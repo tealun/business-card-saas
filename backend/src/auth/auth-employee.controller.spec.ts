@@ -169,9 +169,9 @@ describe("Auth and employee card flow", () => {
       headers: { authorization: `Bearer ${login.access_token}` }
     });
     expect(cardResponse.statusCode).toBe(200);
-    const card = dataOf<{ public_id: string; company: string; display_name: string }>(cardResponse.body);
+    const card = dataOf<{ public_id: string; company: string | null; display_name: string }>(cardResponse.body);
     expect(card.public_id).toBe(login.current_identity.public_id);
-    expect(card.company).toBe("个人名片");
+    expect(card.company).toBeNull();
     expect(card.display_name).toBe("我的名片");
   });
 

@@ -7,10 +7,27 @@ import { registerXmlBodyParser } from "./common/xml-body-parser.js";
 import helmet from "@fastify/helmet";
 import { AppConfig } from "./config/app-config.js";
 
-const JSON_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
+// Public endpoints only need small JSON bodies; image uploads (base64 data URLs,
+// capped separately by STORAGE_MAX_UPLOAD_BYTES ~5MB => ~6.7MB base64) get a
+// larger, route-scoped limit so anonymous routes cannot be used for large-body abuse.
+const DEFAULT_BODY_LIMIT_BYTES = 1 * 1024 * 1024;
+const UPLOAD_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
+const UPLOAD_ROUTE_MATCHERS = [
+  /\/employee\/cards\/current(\/style)?$/,
+  /\/admin\/company-profile$/,
+  /\/admin\/templates(\/[^/]+)?$/,
+  /\/admin\/members\/[^/]+\/card$/
+];
 
 async function bootstrap() {
-  const adapter = new FastifyAdapter({ bodyLimit: JSON_BODY_LIMIT_BYTES });
+  const adapter = new FastifyAdapter({ bodyLimit: DEFAULT_BODY_LIMIT_BYTES, trustProxy: "loopback" });
+  adapter.getInstance().addHook("onRoute", (routeOptions) => {
+    const methods = Array.isArray(routeOptions.method) ? routeOptions.method : [routeOptions.method];
+    const isWrite = methods.some((method) => method === "POST" || method === "PUT");
+    if (isWrite && UPLOAD_ROUTE_MATCHERS.some((matcher) => matcher.test(routeOptions.url))) {
+      routeOptions.bodyLimit = UPLOAD_BODY_LIMIT_BYTES;
+    }
+  });
   registerXmlBodyParser(adapter);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { bufferLogs: true });
   app.useLogger(app.get(Logger));
