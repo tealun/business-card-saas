@@ -42,6 +42,10 @@ export class DatabaseService implements OnModuleDestroy {
     return this.getPool().query<T>(text, values);
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.pool);
+  }
+
   async transaction<T>(callback: (tx: DatabaseTransaction) => Promise<T>): Promise<T> {
     const client = await this.getPool().connect();
     try {

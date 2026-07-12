@@ -105,13 +105,31 @@ Page({
       currentIdentity: app.globalData.currentIdentity,
       identities: app.globalData.identities || []
     });
-    this.setData({ authState: "logged", loggedIn: true });
+    this.setData({
+      authState: "logged",
+      loggedIn: true,
+      demoMode: false,
+      loading: true,
+      card: fallbackCardFromIdentity(app.globalData.currentIdentity),
+      requests: [],
+      stats: { visitors: 0, viewed: 0, friends: 0 },
+      recentVisitors: []
+    });
     await this.loadPreview();
   },
 
   async onLoginSuccess(event) {
     this.syncIdentityState(event.detail);
-    this.setData({ authState: "logged", loggedIn: true, loading: true });
+    this.setData({
+      authState: "logged",
+      loggedIn: true,
+      demoMode: false,
+      loading: true,
+      card: fallbackCardFromIdentity(event.detail && event.detail.currentIdentity),
+      requests: [],
+      stats: { visitors: 0, viewed: 0, friends: 0 },
+      recentVisitors: []
+    });
     await this.loadPreview();
   },
 
@@ -174,7 +192,17 @@ Page({
       // 读取失败不等于登录失效：token 还在时保持登录态，只提示错误，
       // 避免把已登录用户误降级成“未登录 + 演示名片”。
       if (app.globalData.token && app.globalData.currentIdentity) {
-        this.setData({ loading: false, error: true });
+        this.setData({
+          loading: false,
+          error: true,
+          demoMode: false,
+          authState: "logged",
+          loggedIn: true,
+          card: fallbackCardFromIdentity(app.globalData.currentIdentity),
+          requests: [],
+          stats: { visitors: 0, viewed: 0, friends: 0 },
+          recentVisitors: []
+        });
         wx.showToast({ title: error.message || "名片读取失败，请下拉重试", icon: "none" });
         return;
       }
@@ -344,6 +372,17 @@ Page({
     return false;
   }
 });
+
+function fallbackCardFromIdentity(identity) {
+  return {
+    display_name: identity && identity.display_name ? identity.display_name : "我的名片",
+    title: "职位未设置",
+    company: identity && identity.tenant_name ? identity.tenant_name : (identity && identity.identity_type === "personal" ? "微信个人身份" : "企业名片"),
+    avatar_url: "",
+    fields: {},
+    status: "active"
+  };
+}
 
 function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
   const normalizedTemplateId = normalizeTemplateId(templateId);
