@@ -23,6 +23,13 @@ export interface CardShareRecord {
   createdAt: Date;
 }
 
+export interface PublicCardStats {
+  visitor_count: number;
+  visit_count: number;
+  like_count: number;
+  liked_by_current_visitor?: boolean;
+}
+
 interface DirectoryRow extends QueryResultRow {
   tenant_id: string | number | bigint;
   card_id: string | number | bigint;
@@ -113,6 +120,14 @@ export class PublicCardRepository {
       throw new NotFoundException("card not found or disabled");
     }
     return this.clonePublicCard(card);
+  }
+
+  async getStats(publicId: string, anonId?: string): Promise<PublicCardStats> {
+    if (this.hasDatabase()) {
+      const directory = await this.resolveDirectory(publicId);
+      return this.tenantTx!.run(directory.tenantId, (tx) => this.readStats(tx, directory, anonId));
+    }
+    return this.readStatsInMemory(publicId, anonId);
   }
 
   async upsertPublicCard(card: PublicCardResponse): Promise<void> {
@@ -246,31 +261,21 @@ export class PublicCardRepository {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
       const result = await this.tenantTx!.run(directory.tenantId, (tx) =>
-        tx.query(
-          `
-            INSERT INTO card_actions (
-              tenant_id,
-              card_id,
-              member_identity_id,
-              action_type,
-              share_id,
-              visit_id,
-              created_at
-            )
-            SELECT tenant_id, card_id, member_identity_id, $4, share_id, visit_id, now()
-            FROM card_visits
-            WHERE tenant_id = $1
-              AND card_id = $2
-              AND visit_id = $3
-            ON CONFLICT (visit_id, action_type) DO NOTHING
-          `,
-          [directory.tenantId, directory.cardId, visitId, actionType]
-        )
+        actionType === "like_card"
+          ? this.recordUniqueVisitorAction(tx, directory, visitId, actionType)
+          : this.recordVisitAction(tx, directory, visitId, actionType)
       );
       return { idempotent: result.rowCount === 0 };
     }
 
     const key = `${visitId}:${actionType}`;
+    if (actionType === "like_card") {
+      const visit = this.visits.get(visitId);
+      const likeKey = `${publicId}:${actionType}:${visit?.anonId || visitId}`;
+      const idempotent = this.actions.has(likeKey);
+      this.actions.add(likeKey);
+      return { idempotent };
+    }
     const idempotent = this.actions.has(key);
     this.actions.add(key);
     return { idempotent };
@@ -414,8 +419,80 @@ export class PublicCardRepository {
     if (!row || row.card_status !== "active") {
       throw new NotFoundException("card not found or disabled");
     }
-    const [videos, honors] = await Promise.all([this.readVideos(tx, directory.tenantId), this.readHonors(tx, directory.tenantId)]);
-    return this.toPublicCard(row, videos, honors);
+    const [videos, honors, stats] = await Promise.all([
+      this.readVideos(tx, directory.tenantId),
+      this.readHonors(tx, directory.tenantId),
+      this.readStats(tx, directory)
+    ]);
+    return this.toPublicCard(row, videos, honors, stats);
+  }
+
+  private async readStats(
+    tx: TenantTransactionClient,
+    directory: { tenantId: string; cardId: string },
+    anonId?: string
+  ): Promise<PublicCardStats> {
+    const totals = await tx.query<{ visit_count: string; visitor_count: string }>(
+      `
+        SELECT
+          count(*)::text AS visit_count,
+          count(DISTINCT COALESCE(visitor_account_id::text, anon_id, id::text))::text AS visitor_count
+        FROM card_visits
+        WHERE tenant_id = $1 AND card_id = $2
+      `,
+      [directory.tenantId, directory.cardId]
+    );
+    const likes = await tx.query<{ like_count: string }>(
+      `
+        SELECT count(DISTINCT COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text))::text AS like_count
+        FROM card_actions
+        JOIN card_visits
+          ON card_visits.tenant_id = card_actions.tenant_id
+          AND card_visits.card_id = card_actions.card_id
+          AND card_visits.visit_id = card_actions.visit_id
+        WHERE card_actions.tenant_id = $1
+          AND card_actions.card_id = $2
+          AND card_actions.action_type = 'like_card'
+      `,
+      [directory.tenantId, directory.cardId]
+    );
+    const liked = anonId
+      ? await tx.query<{ liked: boolean }>(
+          `
+            SELECT EXISTS (
+              SELECT 1
+              FROM card_actions
+              JOIN card_visits action_visits
+                ON action_visits.tenant_id = card_actions.tenant_id
+                AND action_visits.card_id = card_actions.card_id
+                AND action_visits.visit_id = card_actions.visit_id
+              WHERE card_actions.tenant_id = $1
+                AND card_actions.card_id = $2
+                AND card_actions.action_type = 'like_card'
+                AND COALESCE(action_visits.anon_id, action_visits.visitor_account_id::text, action_visits.id::text) = $3
+            ) AS liked
+          `,
+          [directory.tenantId, directory.cardId, anonId]
+        )
+      : null;
+    return {
+      visitor_count: Number(totals.rows[0]?.visitor_count ?? 0),
+      visit_count: Number(totals.rows[0]?.visit_count ?? 0),
+      like_count: Number(likes.rows[0]?.like_count ?? 0),
+      liked_by_current_visitor: Boolean(liked?.rows[0]?.liked)
+    };
+  }
+
+  private readStatsInMemory(publicId: string, anonId?: string): PublicCardStats {
+    const visits = [...this.visits.values()].filter((visit) => visit.publicId === publicId);
+    const visitors = new Set(visits.map((visit) => visit.anonId || visit.visitId));
+    const likeKeys = [...this.actions].filter((key) => key.startsWith(`${publicId}:like_card:`));
+    return {
+      visitor_count: visitors.size,
+      visit_count: visits.length,
+      like_count: likeKeys.length,
+      liked_by_current_visitor: anonId ? this.actions.has(`${publicId}:like_card:${anonId}`) : false
+    };
   }
 
   private async readVideos(tx: TenantTransactionClient, tenantId: string): Promise<PublicCardResponse["videos"]> {
@@ -490,7 +567,8 @@ export class PublicCardRepository {
   private toPublicCard(
     row: PublicCardRow,
     videos: PublicCardResponse["videos"],
-    honors: PublicCardResponse["honors"]
+    honors: PublicCardResponse["honors"],
+    stats: PublicCardStats
   ): PublicCardResponse {
     const fields = this.decryptFields(row.fields_encrypted);
     const privacy = parsePrivacy(row.privacy_json);
@@ -529,8 +607,84 @@ export class PublicCardRepository {
         address: row.address ?? fields.address
       },
       videos,
-      honors
+      honors,
+      stats
     };
+  }
+
+  private recordVisitAction(
+    tx: TenantTransactionClient,
+    directory: { tenantId: string; cardId: string },
+    visitId: string,
+    actionType: string
+  ) {
+    return tx.query(
+      `
+        INSERT INTO card_actions (
+          tenant_id,
+          card_id,
+          member_identity_id,
+          action_type,
+          share_id,
+          visit_id,
+          created_at
+        )
+        SELECT tenant_id, card_id, member_identity_id, $4, share_id, visit_id, now()
+        FROM card_visits
+        WHERE tenant_id = $1
+          AND card_id = $2
+          AND visit_id = $3
+        ON CONFLICT (visit_id, action_type) DO NOTHING
+      `,
+      [directory.tenantId, directory.cardId, visitId, actionType]
+    );
+  }
+
+  private recordUniqueVisitorAction(
+    tx: TenantTransactionClient,
+    directory: { tenantId: string; cardId: string },
+    visitId: string,
+    actionType: string
+  ) {
+    return tx.query(
+      `
+        INSERT INTO card_actions (
+          tenant_id,
+          card_id,
+          member_identity_id,
+          action_type,
+          share_id,
+          visit_id,
+          created_at
+        )
+        SELECT current_visit.tenant_id,
+               current_visit.card_id,
+               current_visit.member_identity_id,
+               $4,
+               current_visit.share_id,
+               current_visit.visit_id,
+               now()
+        FROM card_visits current_visit
+        WHERE current_visit.tenant_id = $1
+          AND current_visit.card_id = $2
+          AND current_visit.visit_id = $3
+          AND NOT EXISTS (
+            SELECT 1
+            FROM card_actions existing_action
+            JOIN card_visits existing_visit
+              ON existing_visit.tenant_id = existing_action.tenant_id
+              AND existing_visit.card_id = existing_action.card_id
+              AND existing_visit.visit_id = existing_action.visit_id
+            WHERE existing_action.tenant_id = $1
+              AND existing_action.card_id = $2
+              AND existing_action.action_type = $4
+              AND COALESCE(existing_visit.anon_id, existing_visit.visitor_account_id::text, existing_visit.id::text) =
+                  COALESCE(current_visit.anon_id, current_visit.visitor_account_id::text, current_visit.id::text)
+          )
+        ON CONFLICT (visit_id, action_type) DO NOTHING
+      `,
+      [directory.tenantId, directory.cardId, visitId, actionType]
+    );
   }
 
   private async resolveShareIdInDb(
@@ -632,7 +786,8 @@ export class PublicCardRepository {
       honors: card.honors.map((honor) => ({
         ...honor,
         images: honor.images.map((image) => ({ ...image }))
-      }))
+      })),
+      stats: { ...card.stats }
     };
   }
 

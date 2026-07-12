@@ -89,5 +89,11 @@ export const demoPublicCard: PublicCardResponse = {
         }
       ]
     }
-  ]
+  ],
+  stats: {
+    visitor_count: 0,
+    visit_count: 0,
+    like_count: 0,
+    liked_by_current_visitor: false
+  }
 };

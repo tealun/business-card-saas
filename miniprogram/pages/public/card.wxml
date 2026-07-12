@@ -1,10 +1,7 @@
 <view class="public-page {{isOwnCard ? 'public-page--own' : ''}}" style="{{themeStyle}}">
+  <view class="public-nav-title">企业名片</view>
+
   <block wx:if="{{uiState === 'loading'}}">
-    <view class="public-nav">
-      <view class="icon icon-back" bindtap="goBack"></view>
-      <text class="public-nav__title">名片</text>
-      <view class="public-nav__right"></view>
-    </view>
     <view class="public-body">
       <view class="card skeleton-card">
         <view class="skeleton skeleton-line skeleton-line--short"></view>
@@ -24,15 +21,6 @@
   </block>
 
   <block wx:else>
-    <view class="public-nav">
-      <view class="public-nav__back" bindtap="goBack">
-        <view class="icon icon-back"></view>
-        <text>首页</text>
-      </view>
-      <text class="public-nav__title">{{card.card.display_name || "名片"}}</text>
-      <view class="public-nav__right"></view>
-    </view>
-
     <view class="public-body">
       <view class="disabled-bar" wx:if="{{isDisabled}}">该名片已停用，内容仅供历史识别。</view>
 
@@ -66,14 +54,24 @@
       </view>
 
       <view class="card interact-card">
-        <view class="visitor-avatars">
-          <view class="visitor-avatar visitor-avatar--img"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
-          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+        <view class="interact-card__metric">
+          <view class="interact-card__num">{{viewCount}}</view>
+          <view class="interact-card__label">访客</view>
         </view>
-        <view class="interact-card__views">{{viewCount}} 人看过</view>
-        <view class="interact-card__like">靠谱 {{likeCount}}</view>
+        <view class="interact-card__metric">
+          <view class="interact-card__num">{{visitCount}}</view>
+          <view class="interact-card__label">展示次数</view>
+        </view>
+        <view class="interact-card__like {{likedByMe ? 'interact-card__like--active' : ''}}" bindtap="likeCard">
+          <view class="icon icon-like icon--sm"></view>
+          <text>靠谱 {{likeCount}}</text>
+        </view>
+      </view>
+
+      <view class="card public-cta-card" wx:if="{{!isOwnCard}}">
+        <view class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
+        <view wx:if="{{loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
+        <view wx:else class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
       </view>
 
       <view class="card action-grid">
@@ -114,21 +112,5 @@
 
       <view class="powered">由 智云名片 提供技术支持</view>
     </view>
-
-    <view class="receive-panel" wx:if="{{!isOwnCard}}">
-      <view class="receive-panel__copy">
-        <view class="receive-panel__hello">您好，我是{{card.card.display_name || "名片主人"}}</view>
-        <view class="receive-panel__sub">这是我的名片，请收下！</view>
-      </view>
-      <view class="receive-panel__actions">
-        <view class="receive-panel__secondary" bindtap="saveContact">
-          <view class="icon icon-contact icon--sm"></view>
-          <text>存入通讯录</text>
-        </view>
-        <view class="btn btn--primary receive-panel__primary" bindtap="collectCard">收下名片</view>
-      </view>
-    </view>
-
-    <view class="agreement" wx:if="{{!isOwnCard}}">同意《用户协议》、《隐私政策》和《隐私保护指引》</view>
   </block>
 </view>

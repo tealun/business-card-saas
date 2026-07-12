@@ -68,8 +68,11 @@ Page({
     themeStyle: themeStyle(buildTheme(DEFAULT_BRAND)),
     isDisabled: false,
     isOwnCard: false,
+    loggedIn: false,
     viewCount: 269,
+    visitCount: 269,
     likeCount: 136,
+    likedByMe: false,
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
     cardBackgroundStyle: "",
@@ -80,7 +83,7 @@ Page({
   async onLoad(query) {
     const publicId = query.card || query.public_id || "";
     const shareId = query.share || "";
-    this.setData({ publicId, shareId });
+    this.setData({ publicId, shareId, loggedIn: Boolean(app.globalData.token) });
     if (!publicId) {
       this.applyPublicCard(demoPublicCard, true);
       wx.showToast({ title: "当前展示演示名片", icon: "none" });
@@ -126,9 +129,12 @@ Page({
       serviceItems: resolveServiceItems(card, isDemo),
       introBlocks: resolveIntroBlocks(card),
       viewCount: isDemo ? 269 : 0,
+      visitCount: isDemo ? 269 : 0,
       likeCount: isDemo ? 136 : 0,
+      likedByMe: false,
       uiState: disabled ? "disabled" : "ready"
     });
+    this.applyStats(card.stats);
   },
 
   isOwnPublicCard(card) {
@@ -172,6 +178,7 @@ Page({
       app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
       this.setData({ visitId: visit.visit_id });
+      this.applyStats(visit.stats);
       await this.prepareDerivedShare();
     } catch (error) {
       console.error("create visit failed", error);
@@ -186,6 +193,7 @@ Page({
     try {
       const derived = await request(`/public/cards/${this.data.publicId}/shares/derive`, {
         method: "POST",
+        auth: false,
         header: { authorization: `Bearer ${app.globalData.visitToken}` },
         data: { parent_share_id: this.data.shareId }
       });
@@ -203,6 +211,7 @@ Page({
     try {
       await request(`/public/cards/${this.data.publicId}/actions`, {
         method: "POST",
+        auth: false,
         header: { authorization: `Bearer ${app.globalData.visitToken}` },
         data: { action_type: actionType }
       });
@@ -240,6 +249,54 @@ Page({
   collectCard() {
     this.recordAction("view_paper_card");
     wx.showToast({ title: "已收下名片", icon: "success" });
+  },
+
+  async likeCard() {
+    if (this.data.likedByMe) {
+      return;
+    }
+    if (!app.globalData.visitToken) {
+      wx.showToast({ title: "访问记录准备中", icon: "none" });
+      return;
+    }
+    try {
+      const result = await request(`/public/cards/${this.data.publicId}/actions`, {
+        method: "POST",
+        auth: false,
+        header: { authorization: `Bearer ${app.globalData.visitToken}` },
+        data: { action_type: "like_card" }
+      });
+      this.setData({
+        likedByMe: true,
+        likeCount: result.stats && typeof result.stats.like_count === "number"
+          ? result.stats.like_count
+          : this.data.likeCount + (result.idempotent ? 0 : 1)
+      });
+    } catch (error) {
+      console.error("like card failed", error);
+      wx.showToast({ title: "操作失败，请稍后重试", icon: "none" });
+    }
+  },
+
+  makeMyCard() {
+    wx.switchTab({ url: "/pages/employee/index" });
+  },
+
+  exchangeCard() {
+    this.recordAction("exchange_card");
+    wx.showToast({ title: "交换名片请求已发起", icon: "success" });
+  },
+
+  applyStats(stats) {
+    if (!stats) {
+      return;
+    }
+    this.setData({
+      viewCount: Number(stats.visitor_count || 0),
+      visitCount: Number(stats.visit_count || 0),
+      likeCount: Number(stats.like_count || 0),
+      likedByMe: Boolean(stats.liked_by_current_visitor)
+    });
   },
 
   copyEmail() {
@@ -346,6 +403,7 @@ function normalizePublicCard(card) {
     company_profile: card.company_profile || { name: "", intro_blocks: [], address: "" },
     videos: card.videos || [],
     honors: card.honors || [],
+    stats: card.stats || { visitor_count: 0, visit_count: 0, like_count: 0, liked_by_current_visitor: false },
     is_owner: card.is_owner,
     is_own: card.is_own
   };
