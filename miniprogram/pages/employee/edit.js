@@ -5,6 +5,7 @@ const { setPageTheme } = require("../../utils/theme");
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
+  "logo_url",
   "display_name",
   "title",
   "department",
@@ -20,6 +21,7 @@ Page({
   data: {
     form: {
       avatar_url: "",
+      logo_url: "",
       display_name: "",
       title: "",
       department: "",
@@ -59,13 +61,16 @@ Page({
   async loadCard() {
     try {
       const card = await request("/employee/cards/current");
+      const preview = await request("/employee/cards/current/preview").catch(() => null);
       const editableFields = isPersonalIdentity()
         ? ALL_EDITABLE_FIELDS
         : (Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS);
       const fields = card.fields || {};
+      const template = preview && preview.template ? preview.template : {};
       this.setData({
         form: {
           avatar_url: card.avatar_url || "",
+          logo_url: template.logo_url || "",
           display_name: normalizeDisplayName(card.display_name),
           title: card.title || "",
           department: fields.department || card.department || "",
@@ -155,6 +160,47 @@ Page({
     this.setData({ "form.avatar_url": "" });
   },
 
+  chooseLogoFromAlbum() {
+    if (!this.canEdit("logo_url")) {
+      this.lockedTip();
+      return;
+    }
+    if (typeof wx.chooseMedia !== "function") {
+      wx.showToast({ title: "当前微信版本暂不支持选择LOGO", icon: "none" });
+      return;
+    }
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      sizeType: ["compressed"],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (file && file.tempFilePath) {
+          this.setLogoFromPath(file.tempFilePath);
+        }
+      }
+    });
+  },
+
+  setLogoFromPath(path) {
+    pathToDataUrl(path)
+      .then((logoUrl) => {
+        this.setData({ "form.logo_url": logoUrl });
+      })
+      .catch(() => {
+        wx.showToast({ title: "LOGO读取失败，请重新选择", icon: "none" });
+      });
+  },
+
+  clearLogo() {
+    if (!this.canEdit("logo_url")) {
+      this.lockedTip();
+      return;
+    }
+    this.setData({ "form.logo_url": "" });
+  },
+
   lockedTip() {
     wx.showToast({ title: "该字段由企业统一维护", icon: "none" });
   },
@@ -186,6 +232,12 @@ Page({
         method: "PUT",
         data: buildPayload(form, this.data.privacy, this.data.editable)
       });
+      if (this.data.editable.logo_url) {
+        await request("/employee/cards/current/style", {
+          method: "PUT",
+          data: { logo_url: form.logo_url || null }
+        });
+      }
       app.globalData.currentCard = card;
       wx.showToast({ title: "已保存", icon: "success" });
       setTimeout(() => wx.navigateBack(), 600);

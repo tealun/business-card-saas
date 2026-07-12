@@ -28,15 +28,19 @@
 
     <block wx:else>
       <view class="biz-card home-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}" bindtap="goEdit">
-        <view class="biz-card__head">
-          <view class="biz-card__logo">
-            <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
-            <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+        <view class="biz-card__head" wx:if="{{showCardHead}}">
+          <view class="biz-card__logo" wx:if="{{cardLogoUrl || card.company_short_name}}">
+            <image wx:if="{{cardLogoUrl}}" class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" />
+            <block wx:else>
+              <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+              <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+            </block>
           </view>
-          <text class="biz-card__company">{{card.company || "企业名片"}}</text>
+          <text class="biz-card__company" wx:if="{{card.company_short_name}}">{{card.company_short_name}}</text>
         </view>
         <view class="biz-card__body">
           <view class="biz-card__info">
+            <view class="biz-card__company-full" wx:if="{{card.company}}">{{card.company}}</view>
             <view class="biz-card__name">{{card.display_name || "我的名片"}}</view>
             <view class="biz-card__role">{{card.title || "职位未设置"}}</view>
             <view class="biz-card__contact">

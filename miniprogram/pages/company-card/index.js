@@ -6,6 +6,7 @@ const demoCard = {
   display_name: "李明",
   title: "销售总监 · 市场部",
   company: "智云科技",
+  company_short_name: "智云科技",
   avatar_url: "",
   fields: {
     mobile: "138 0013 8000",
@@ -43,6 +44,8 @@ Page({
       friends: 0
     },
     card: demoCard,
+    cardLogoUrl: "/assets/logo/color-nobg.png",
+    showCardHead: true,
     publicId: "",
     cardTemplateClass: "biz-card--horizontal",
     cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
@@ -117,6 +120,8 @@ Page({
       app.globalData.currentCard = card;
       this.setData({
         card,
+        cardLogoUrl: (preview.template && preview.template.logo_url) || "",
+        showCardHead: Boolean((preview.template && preview.template.logo_url) || card.company_short_name),
         publicId: preview.public_id || card.public_id || "",
         cardTemplateClass: cardTemplateClass(preview.template && preview.template.template_id),
         cardBackgroundStyle: cardBackgroundStyle(
@@ -129,16 +134,18 @@ Page({
       });
     } catch (error) {
       const fallbackCard = this.cardFromIdentity(currentIdentity);
-      this.setData({ card: fallbackCard, loading: false });
+      this.setData({ card: fallbackCard, cardLogoUrl: "", showCardHead: Boolean(fallbackCard.company_short_name), loading: false });
       wx.showToast({ title: error.message || "名片读取失败", icon: "none" });
     }
   },
 
   cardFromIdentity(identity) {
+    const isPersonal = identity && identity.identity_type === "personal";
     return {
       display_name: identity && identity.display_name ? identity.display_name : "我的名片",
       title: "职位未设置",
-      company: identity && identity.tenant_name ? identity.tenant_name : "企业名片",
+      company: isPersonal ? "" : (identity && identity.tenant_name ? identity.tenant_name : "企业名片"),
+      company_short_name: isPersonal ? "" : ((identity && (identity.tenant_short_name || identity.short_name)) || ""),
       avatar_url: "",
       fields: {},
       status: "active"

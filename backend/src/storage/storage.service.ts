@@ -5,7 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { AppConfig } from "../config/app-config.js";
 
-type StorageCategory = "avatars" | "card-backgrounds" | "company-images" | "videos" | "honors" | "templates";
+type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "company-images" | "videos" | "honors" | "templates";
 
 interface StoredObject {
   publicUrl: string;

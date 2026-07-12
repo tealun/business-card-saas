@@ -47,6 +47,8 @@ interface PublicCardRow extends QueryResultRow {
   privacy_json: unknown;
   card_status: PublicCardResponse["status"];
   company_name: string | null;
+  company_short_name: string | null;
+  company_logo_url: string | null;
   website_url: string | null;
   address: string | null;
   intro_json: unknown;
@@ -406,6 +408,8 @@ export class PublicCardRepository {
           cards.privacy_json,
           cards.status AS card_status,
           company_profiles.display_name AS company_name,
+          company_profiles.short_name AS company_short_name,
+          company_profiles.logo_url AS company_logo_url,
           company_profiles.website_url,
           company_profiles.address,
           company_profiles.intro_json,
@@ -593,7 +597,8 @@ export class PublicCardRepository {
     const privacy = parsePrivacy(row.privacy_json);
     const layout = parseObject(row.layout_json);
     const templateId = typeof layout.__template_id === "string" ? layout.__template_id : "tpl_demo_business";
-    const { __template_id: _templateId, ...publicLayout } = layout;
+    const layoutLogoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : null;
+    const { __template_id: _templateId, __logo_url: _logoUrl, ...publicLayout } = layout;
     return {
       public_id: row.public_id,
       status: row.card_status,
@@ -601,6 +606,7 @@ export class PublicCardRepository {
         display_name: row.display_name ?? "Unnamed",
         title: row.title,
         company: row.company_name,
+        company_short_name: row.company_short_name,
         avatar_url: row.avatar_url,
         fields: {
           mobile: privacy.show_mobile ? fields.mobile : null,
@@ -612,7 +618,7 @@ export class PublicCardRepository {
       },
       template: {
         template_id: templateId,
-        logo_url: null,
+        logo_url: layoutLogoUrl ?? row.company_logo_url,
         background_url: row.background_url,
         color_scheme: Object.keys(parseObject(row.color_scheme_json)).length
           ? parseObject(row.color_scheme_json)
@@ -620,7 +626,8 @@ export class PublicCardRepository {
         layout: Object.keys(publicLayout).length ? publicLayout : { variant: "horizontal-business" }
       },
       company_profile: {
-        name: row.company_name ?? "Demo Tenant",
+        name: row.company_name ?? "",
+        short_name: row.company_short_name,
         intro_blocks: parseIntroBlocks(row.intro_json),
         website_url: row.website_url,
         address: row.address ?? fields.address

@@ -1,4 +1,7 @@
 <view class="public-page {{isOwnCard ? 'public-page--own' : ''}}" style="{{themeStyle}}">
+  <view class="public-nav-home" bindtap="goHome">
+    <view class="icon icon-home icon--sm"></view>
+  </view>
   <view class="public-nav-title">{{navTitle || "名片"}}</view>
 
   <block wx:if="{{uiState === 'loading'}}">
@@ -24,18 +27,18 @@
     <view class="public-body">
       <view class="disabled-bar" wx:if="{{isDisabled}}">该名片已停用，内容仅供历史识别。</view>
 
-      <view class="biz-card public-name-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}">
-        <view class="biz-card__head">
-          <view class="biz-card__logo">
-            <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
-            <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+      <view class="biz-card public-name-card {{cardTemplateClass}} {{showCardHead ? '' : 'biz-card--no-head'}}" style="{{cardBackgroundStyle}}">
+        <view class="biz-card__head" wx:if="{{showCardHead}}">
+          <view class="biz-card__logo" wx:if="{{cardLogoUrl}}">
+            <image class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" />
           </view>
-          <text class="biz-card__company">{{card.card.company || card.company_profile.name || "企业名片"}}</text>
+          <text class="biz-card__company" wx:if="{{cardCompanyShortName}}">{{cardCompanyShortName}}</text>
         </view>
         <view class="biz-card__body">
           <view class="biz-card__info">
+            <view class="biz-card__company-full" wx:if="{{cardCompanyName}}">{{cardCompanyName}}</view>
             <view class="biz-card__name">{{card.card.display_name || "名片"}}</view>
-            <view class="biz-card__role">{{card.card.title || "职位未设置"}}</view>
+            <view class="biz-card__role" wx:if="{{card.card.title}}">{{card.card.title}}</view>
             <view class="biz-card__contact">
               <view wx:if="{{card.card.fields.mobile || card.card.fields.phone}}">{{card.card.fields.mobile || card.card.fields.phone}}</view>
               <view wx:if="{{card.card.fields.email}}">{{card.card.fields.email}}</view>

@@ -32,18 +32,20 @@ export const publicCardResponseSchema = z.object({
     display_name: z.string(),
     title: z.string().nullable(),
     company: z.string().nullable(),
+    company_short_name: z.string().nullable().optional(),
     avatar_url: imageSourceSchema.nullable(),
     fields: publicCardFieldSchema
   }),
   template: z.object({
     template_id: z.string(),
-    logo_url: z.string().url().nullable(),
+    logo_url: imageSourceSchema.nullable(),
     background_url: imageSourceSchema.nullable(),
     color_scheme: z.record(z.string(), z.unknown()),
     layout: z.record(z.string(), z.unknown())
   }),
   company_profile: z.object({
     name: z.string(),
+    short_name: z.string().nullable().optional(),
     intro_blocks: z.array(z.record(z.string(), z.unknown())),
     website_url: z.string().url().nullable(),
     address: z.string().nullable()

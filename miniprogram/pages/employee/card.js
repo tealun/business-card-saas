@@ -29,6 +29,7 @@ Page({
       wechat_id: ""
     },
     themeStyle: "",
+    logoUrl: "",
     cardBackgroundStyle: "",
     cardTemplateClass: "biz-card--horizontal",
     sharePath: "",
@@ -64,6 +65,7 @@ Page({
       app.globalData.currentCard = card;
       this.setData({
         card,
+        logoUrl: template.logo_url || "",
         cardTemplateClass: cardTemplateClass(template.template_id),
         cardBackgroundStyle: cardBackgroundStyle(
           template.background_url,
