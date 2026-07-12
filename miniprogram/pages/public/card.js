@@ -66,6 +66,7 @@ Page({
     visitId: "",
     themeBrand: DEFAULT_BRAND,
     themeStyle: themeStyle(buildTheme(DEFAULT_BRAND)),
+    navTitle: "",
     isDisabled: false,
     isOwnCard: false,
     loggedIn: false,
@@ -117,6 +118,7 @@ Page({
       card,
       ...theme,
       themeStyle: themeStyle(theme),
+      navTitle: publicNavTitle(card),
       cardTemplateClass: cardTemplateClass(card.template && card.template.template_id),
       cardBackgroundStyle: cardBackgroundStyle(
         card.template && card.template.background_url,
@@ -178,7 +180,14 @@ Page({
       app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
       this.setData({ visitId: visit.visit_id });
-      this.applyStats(visit.stats);
+      if (visit.stats) {
+        this.applyStats(visit.stats);
+      } else {
+        this.setData({
+          viewCount: Math.max(1, this.data.viewCount),
+          visitCount: Math.max(1, this.data.visitCount + 1)
+        });
+      }
       await this.prepareDerivedShare();
     } catch (error) {
       console.error("create visit failed", error);
@@ -407,6 +416,19 @@ function normalizePublicCard(card) {
     is_owner: card.is_owner,
     is_own: card.is_own
   };
+}
+
+function publicNavTitle(card) {
+  const name = ((card.card && card.card.display_name) || "").trim();
+  const company = ((card.card && card.card.company) || (card.company_profile && card.company_profile.name) || "").trim();
+  if (!company || isPersonalCompanyName(company)) {
+    return name || "名片";
+  }
+  return name ? `${name} | ${company}` : company;
+}
+
+function isPersonalCompanyName(company) {
+  return company === "微信个人身份" || company === "个人名片";
 }
 
 function resolveServiceItems(card, isDemo) {

@@ -35,6 +35,9 @@
   color: #ffffff;
   z-index: 2;
   pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .public-body {
@@ -65,36 +68,58 @@
 .interact-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  padding: 24rpx 28rpx;
+  gap: 18rpx;
+  padding: 22rpx 28rpx;
 }
 
-.interact-card__metric {
+.visitor-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.visitor-avatar {
+  width: 48rpx;
+  height: 48rpx;
+  margin-left: -10rpx;
+  border: 4rpx solid #fff;
+  border-radius: 50%;
+  background: #eef0f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.visitor-avatar:first-child {
+  margin-left: 0;
+}
+
+.visitor-avatar--img {
+  background: #eef0f3;
+}
+
+.interact-card__views {
   flex: 1;
-  min-width: 0;
-  text-align: center;
+  color: var(--text-secondary);
+  font-size: 26rpx;
 }
 
-.interact-card__num {
-  color: var(--brand);
-  font-size: 38rpx;
-  font-weight: 700;
-  line-height: 1.15;
+.interact-card__views::after {
+  content: "";
+  display: none;
 }
 
 .interact-card__label {
-  margin-top: 6rpx;
   color: var(--text-secondary);
   font-size: 24rpx;
 }
 
 .interact-card__like {
-  min-width: 176rpx;
-  height: 64rpx;
+  min-width: 152rpx;
+  height: 56rpx;
   padding: 0 22rpx;
   border: 2rpx solid var(--divider);
-  border-radius: 32rpx;
+  border-radius: 28rpx;
   display: flex;
   align-items: center;
   justify-content: center;

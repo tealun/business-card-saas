@@ -1,5 +1,5 @@
 <view class="public-page {{isOwnCard ? 'public-page--own' : ''}}" style="{{themeStyle}}">
-  <view class="public-nav-title">企业名片</view>
+  <view class="public-nav-title">{{navTitle || "名片"}}</view>
 
   <block wx:if="{{uiState === 'loading'}}">
     <view class="public-body">
@@ -54,21 +54,20 @@
       </view>
 
       <view class="card interact-card">
-        <view class="interact-card__metric">
-          <view class="interact-card__num">{{viewCount}}</view>
-          <view class="interact-card__label">访客</view>
+        <view class="visitor-avatars">
+          <view class="visitor-avatar visitor-avatar--img"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
         </view>
-        <view class="interact-card__metric">
-          <view class="interact-card__num">{{visitCount}}</view>
-          <view class="interact-card__label">展示次数</view>
-        </view>
+        <view class="interact-card__views">{{viewCount}} 人看过</view>
         <view class="interact-card__like {{likedByMe ? 'interact-card__like--active' : ''}}" bindtap="likeCard">
           <view class="icon icon-like icon--sm"></view>
           <text>靠谱 {{likeCount}}</text>
         </view>
       </view>
 
-      <view class="card public-cta-card" wx:if="{{!isOwnCard}}">
+      <view class="card public-cta-card" wx:if="{{!isDisabled}}">
         <view class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
         <view wx:if="{{loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
         <view wx:else class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
