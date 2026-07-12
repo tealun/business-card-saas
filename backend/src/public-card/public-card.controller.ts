@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Ip, Param, Post, UnauthorizedException } from "@nestjs/common";
 import {
   actionRequestSchema,
   deriveShareRequestSchema,
@@ -22,8 +22,7 @@ export class PublicCardController {
     @Body() body: unknown,
     @Headers("user-agent") userAgent?: string,
     @Headers("authorization") auth?: string,
-    @Headers("x-forwarded-for") forwardedFor?: string,
-    @Headers("x-real-ip") realIp?: string
+    @Ip() ipAddress?: string
   ) {
     const request = visitRequestSchema.parse({
       ...(typeof body === "object" && body !== null ? body : {}),
@@ -31,7 +30,6 @@ export class PublicCardController {
     });
     const context: { token?: string; ipAddress?: string } = {};
     const token = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
-    const ipAddress = firstForwardedIp(forwardedFor) ?? realIp;
     if (token) {
       context.token = token;
     }
@@ -60,11 +58,4 @@ export class PublicCardController {
     const request = deriveShareRequestSchema.parse(body);
     return this.publicCards.deriveShare(publicIdSchema.parse(publicId), token, request);
   }
-}
-
-function firstForwardedIp(value: string | undefined): string | undefined {
-  return value
-    ?.split(",")
-    .map((item) => item.trim())
-    .find(Boolean);
 }
