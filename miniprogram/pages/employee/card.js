@@ -1,6 +1,21 @@
 const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
+const { setPageTheme } = require("../../utils/theme");
+const TEMPLATE_BACKGROUNDS = {
+  tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
+  tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
+  tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
+  tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
+  tpl_campaign: ""
+};
+const PRESET_BACKGROUNDS = {
+  "light-wave": "/assets/card-backgrounds/bg-light-wave.webp",
+  "light-geometry": "/assets/card-backgrounds/bg-light-geometry.webp",
+  "light-cubes": "/assets/card-backgrounds/bg-light-cubes.webp",
+  "blue-dot": "/assets/card-backgrounds/bg-blue-dot.webp",
+  "dark-dot": "/assets/card-backgrounds/bg-dark-dot.webp"
+};
 
 Page({
   data: {
@@ -13,6 +28,9 @@ Page({
       email: "",
       wechat_id: ""
     },
+    themeStyle: "",
+    cardBackgroundStyle: "",
+    cardTemplateClass: "biz-card--horizontal",
     sharePath: "",
     loading: true,
     error: false,
@@ -20,6 +38,7 @@ Page({
   },
 
   onLoad() {
+    setPageTheme(this);
     this.login();
   },
 
@@ -35,10 +54,23 @@ Page({
 
   async loadCard() {
     try {
-      const card = await request("/employee/cards/current");
+      const preview = await request("/employee/cards/current/preview");
+      const card = Object.assign({ fields: {} }, preview.card || {});
+      const template = preview.template || {};
+      const brand = template.color_scheme && template.color_scheme.primary;
+      if (brand) {
+        setPageTheme(this, brand);
+      }
       app.globalData.currentCard = card;
       this.setData({
         card,
+        cardTemplateClass: cardTemplateClass(template.template_id),
+        cardBackgroundStyle: cardBackgroundStyle(
+          template.background_url,
+          template.layout && template.layout.background_opacity,
+          template.template_id,
+          template.layout && template.layout.background_preset_id
+        ),
         form: {
           display_name: card.display_name,
           title: card.title || "",
@@ -86,6 +118,7 @@ Page({
       });
       app.globalData.currentCard = card;
       this.setData({ card });
+      await this.loadCard();
       wx.showToast({ title: "已保存", icon: "success" });
     } catch (error) {
       wx.showToast({ title: error.message || "保存失败", icon: "none" });
@@ -100,7 +133,7 @@ Page({
     }
     this.setData({ submitting: true });
     try {
-      const share = await request("/employee/cards/current/share", { method: "POST" });
+      const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       app.globalData.shareId = share.share_id;
       this.setData({ sharePath: share.path });
       wx.navigateTo({
@@ -126,4 +159,43 @@ function validateCardForm(form) {
   if (phone && !/^[0-9+\-\s()]{5,32}$/.test(phone)) {
     throw new Error("手机号格式不正确");
   }
+}
+
+function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
+  const normalizedTemplateId = normalizeTemplateId(templateId);
+  const backgroundUrl = url || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizedTemplateId] || "";
+  if (!backgroundUrl) {
+    return "";
+  }
+  const alpha = 1 - normalizeOpacity(opacity) / 100;
+  const overlay = normalizedTemplateId === "tpl_brand_image" || normalizedTemplateId === "tpl_dark"
+    ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
+    : `rgba(255,255,255,${alpha.toFixed(2)})`;
+  return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
+}
+
+function cardTemplateClass(templateId) {
+  const map = {
+    tpl_horizontal_business: "biz-card--horizontal",
+    tpl_minimal: "biz-card--minimal",
+    tpl_brand_image: "biz-card--brand-image",
+    tpl_dark: "biz-card--dark",
+    tpl_campaign: "biz-card--campaign"
+  };
+  return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function normalizeTemplateId(templateId) {
+  if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  return templateId || "tpl_horizontal_business";
+}
+
+function normalizeOpacity(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return 100;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
 }

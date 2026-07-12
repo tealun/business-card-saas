@@ -21,11 +21,13 @@ type EditableFieldKey =
   | "avatar_url"
   | "display_name"
   | "title"
+  | "department"
   | "mobile"
   | "phone"
   | "email"
   | "wechat_id"
-  | "address";
+  | "address"
+  | "website";
 
 interface EmployeeCardRow extends QueryResultRow {
   member_id: string | number | bigint;
@@ -270,11 +272,12 @@ export class EmployeeCardRepository {
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest
   ): Promise<EmployeeCardPreviewResponse> {
+    const materializedRequest = await this.materializeStyleStorageFields(session, request);
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
         const card = await this.ensureCurrentCardInDb(tx, session);
         const current = await this.readStyle(tx, session.tenantId, card.card_id);
-        const next = mergeStyle(current, request);
+        const next = mergeStyle(current, materializedRequest);
         await this.upsertStyle(tx, session.tenantId, card.card_id, next);
         return this.toPreview(card, next);
       });
@@ -283,7 +286,7 @@ export class EmployeeCardRepository {
     const key = this.cardKey(session);
     const card = this.ensureCurrentCardInMemory(session);
     const current = this.styles.get(key) ?? {};
-    const next = mergeStyle(current, request);
+    const next = mergeStyle(current, materializedRequest);
     this.styles.set(key, next);
     return this.toPreview(card, next);
   }
@@ -578,6 +581,8 @@ export class EmployeeCardRepository {
   }
 
   private toPreview(card: EmployeeCardResponse, style: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
+    const email = card.privacy.show_email ? normalizePublicEmail(card.fields.email) : null;
+    const websiteUrl = normalizePublicUrl(card.fields.website);
     return {
       public_id: card.public_id,
       status: card.status,
@@ -589,7 +594,7 @@ export class EmployeeCardRepository {
         fields: {
           mobile: card.privacy.show_mobile ? card.fields.mobile : null,
           phone: card.fields.phone ?? null,
-          email: card.privacy.show_email ? card.fields.email : null,
+          email,
           wechat_id: card.privacy.show_wechat ? card.fields.wechat_id : null,
           address: card.fields.address ?? null
         }
@@ -614,7 +619,7 @@ export class EmployeeCardRepository {
             text: "Published company introduction is managed in the admin console."
           }
         ],
-        website_url: "https://example.com",
+        website_url: websiteUrl,
         address: card.fields.address ?? null
       },
       videos: [],
@@ -658,6 +663,24 @@ export class EmployeeCardRepository {
     });
     return { ...request, avatar_url: stored.publicUrl };
   }
+
+  private async materializeStyleStorageFields(
+    session: EmployeeSession,
+    request: UpdateEmployeeCardStyleRequest
+  ): Promise<UpdateEmployeeCardStyleRequest> {
+    if (!request.background_url || !request.background_url.startsWith("data:image/")) {
+      return request;
+    }
+    if (!this.storage) {
+      return request;
+    }
+    const stored = await this.storage.storeImageDataUrl({
+      tenantId: session.tenantId,
+      category: "card-backgrounds",
+      dataUrl: request.background_url
+    });
+    return { ...request, background_url: stored.publicUrl };
+  }
 }
 
 function mergeCard(
@@ -680,6 +703,9 @@ function mergeCard(
   if (allowedFields.includes("title") && request.title !== undefined) {
     next.title = request.title;
   }
+  if (allowedFields.includes("department") && request.fields?.department !== undefined) {
+    next.fields.department = request.fields.department;
+  }
   if (allowedFields.includes("mobile") && request.fields?.mobile !== undefined) {
     next.fields.mobile = request.fields.mobile;
   }
@@ -695,6 +721,9 @@ function mergeCard(
   if (allowedFields.includes("address") && request.fields?.address !== undefined) {
     next.fields.address = request.fields.address;
   }
+  if (allowedFields.includes("website") && request.fields?.website !== undefined) {
+    next.fields.website = request.fields.website;
+  }
   if (request.privacy?.show_mobile !== undefined) {
     next.privacy.show_mobile = request.privacy.show_mobile;
   }
@@ -705,6 +734,24 @@ function mergeCard(
     next.privacy.show_wechat = request.privacy.show_wechat;
   }
   return next;
+}
+
+function normalizePublicUrl(value: string | null | undefined): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePublicEmail(value: string | null | undefined): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
 }
 
 function mergeStyle(
@@ -721,22 +768,26 @@ function mergeStyle(
 
 function defaultFields(): CardFields {
   return {
+    department: null,
     mobile: null,
     phone: null,
     email: null,
     wechat_id: null,
-    address: null
+    address: null,
+    website: null
   };
 }
 
 function normalizeFields(value: unknown): CardFields {
   const record = isRecord(value) ? value : {};
   return {
+    department: typeof record.department === "string" ? record.department : null,
     mobile: typeof record.mobile === "string" ? record.mobile : null,
     phone: typeof record.phone === "string" ? record.phone : null,
     email: typeof record.email === "string" ? record.email : null,
     wechat_id: typeof record.wechat_id === "string" ? record.wechat_id : null,
-    address: typeof record.address === "string" ? record.address : null
+    address: typeof record.address === "string" ? record.address : null,
+    website: typeof record.website === "string" ? record.website : null
   };
 }
 
@@ -749,7 +800,7 @@ function defaultPrivacy(): CardPrivacy {
 }
 
 function defaultEditableFields(): EditableFieldKey[] {
-  return ["avatar_url", "display_name", "title", "mobile", "phone", "email", "wechat_id", "address"];
+  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "address", "website"];
 }
 
 function parseEditableFields(value: unknown): EditableFieldKey[] {
@@ -779,11 +830,13 @@ function requestedEditableFields(request: UpdateEmployeeCardRequest): EditableFi
   if (request.avatar_url !== undefined) fields.add("avatar_url");
   if (request.display_name !== undefined) fields.add("display_name");
   if (request.title !== undefined) fields.add("title");
+  if (request.fields?.department !== undefined) fields.add("department");
   if (request.fields?.mobile !== undefined) fields.add("mobile");
   if (request.fields?.phone !== undefined) fields.add("phone");
   if (request.fields?.email !== undefined) fields.add("email");
   if (request.fields?.wechat_id !== undefined) fields.add("wechat_id");
   if (request.fields?.address !== undefined) fields.add("address");
+  if (request.fields?.website !== undefined) fields.add("website");
   return [...fields];
 }
 
@@ -792,11 +845,13 @@ function isEditableFieldKey(value: unknown): value is EditableFieldKey {
     value === "avatar_url" ||
     value === "display_name" ||
     value === "title" ||
+    value === "department" ||
     value === "mobile" ||
     value === "phone" ||
     value === "email" ||
     value === "wechat_id" ||
-    value === "address"
+    value === "address" ||
+    value === "website"
   );
 }
 

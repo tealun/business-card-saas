@@ -1,4 +1,4 @@
-<view class="page page--with-footer card-page">
+<view class="page page--with-footer card-page" style="{{themeStyle}}">
   <view class="status-bar status-bar--warning" wx:if="{{error}}">
     当前为演示名片，登录后会同步真实资料。
   </view>
@@ -8,9 +8,12 @@
     <view class="skeleton skeleton-line"></view>
     <view class="skeleton skeleton-line skeleton-line--short"></view>
   </view>
-  <view class="biz-card">
+  <view class="biz-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}">
     <view class="biz-card__head">
-      <view class="biz-card__logo"></view>
+      <view class="biz-card__logo">
+        <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+        <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+      </view>
       <text class="biz-card__company">{{card.company || "企业名片"}}</text>
     </view>
     <view class="biz-card__body">
@@ -22,7 +25,10 @@
           <view>{{form.email || "邮箱未公开"}}</view>
         </view>
       </view>
-      <view class="biz-card__avatar">{{form.display_name ? form.display_name[0] : "名"}}</view>
+      <view class="biz-card__avatar">
+        <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+        <view wx:else class="avatar-placeholder"></view>
+      </view>
     </view>
   </view>
 
@@ -68,7 +74,7 @@
   </view>
 </view>
 
-<view class="fixed-footer">
+<view class="fixed-footer" style="{{themeStyle}}">
   <view class="btn btn--ghost card-footer__item {{submitting ? 'btn--disabled' : ''}}" bindtap="saveCard">
     {{submitting ? '保存中…' : '保存'}}
   </view>

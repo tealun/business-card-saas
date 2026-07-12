@@ -1,4 +1,4 @@
-<view class="public-page {{isOwnCard ? 'public-page--own' : ''}}" style="--brand: {{themeBrand}};">
+<view class="public-page {{isOwnCard ? 'public-page--own' : ''}}" style="{{themeStyle}}">
   <block wx:if="{{uiState === 'loading'}}">
     <view class="public-nav">
       <view class="icon icon-back" bindtap="goBack"></view>
@@ -36,9 +36,12 @@
     <view class="public-body">
       <view class="disabled-bar" wx:if="{{isDisabled}}">该名片已停用，内容仅供历史识别。</view>
 
-      <view class="biz-card public-name-card">
+      <view class="biz-card public-name-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}">
         <view class="biz-card__head">
-          <view class="biz-card__logo"></view>
+          <view class="biz-card__logo">
+            <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+            <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+          </view>
           <text class="biz-card__company">{{card.card.company || card.company_profile.name || "企业名片"}}</text>
         </view>
         <view class="biz-card__body">
@@ -53,7 +56,7 @@
           </view>
           <view class="biz-card__avatar">
             <image wx:if="{{card.card.avatar_url}}" src="{{card.card.avatar_url}}" mode="aspectFill" class="avatar-img" />
-            <text wx:else>{{card.card.display_name ? card.card.display_name[0] : "名"}}</text>
+            <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
         <view class="biz-card__status">
@@ -64,10 +67,10 @@
 
       <view class="card interact-card">
         <view class="visitor-avatars">
-          <view class="visitor-avatar visitor-avatar--img">访</view>
-          <view class="visitor-avatar">客</view>
-          <view class="visitor-avatar">户</view>
-          <view class="visitor-avatar">友</view>
+          <view class="visitor-avatar visitor-avatar--img"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
+          <view class="visitor-avatar"><view class="avatar-placeholder"></view></view>
         </view>
         <view class="interact-card__views">{{viewCount}} 人看过</view>
         <view class="interact-card__like">靠谱 {{likeCount}}</view>

@@ -24,7 +24,7 @@
 }
 
 .tab-bar__item--active {
-  color: #2b6cff;
+  color: var(--brand);
 }
 
 .tab-bar__icon {
@@ -40,7 +40,7 @@
 }
 
 .tab-bar__item--active .tab-bar__icon {
-  background-color: #2b6cff;
+  background-color: var(--brand);
 }
 
 .tab-bar__icon--home {
