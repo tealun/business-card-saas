@@ -1,6 +1,7 @@
 Component({
   data: {
     selected: 0,
+    hidden: false,
     themeStyle: "",
     list: [
       { pagePath: "/pages/employee/index", text: "首页", icon: "home" },

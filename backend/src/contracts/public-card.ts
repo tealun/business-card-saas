@@ -11,6 +11,8 @@ const imageSourceSchema = z
   });
 
 export const publicCardFieldSchema = z.object({
+  company: z.string().nullable().optional(),
+  company_short_name: z.string().nullable().optional(),
   mobile: z.string().nullable(),
   phone: z.string().nullable(),
   email: z.string().email().nullable(),

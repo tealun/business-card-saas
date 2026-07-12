@@ -63,6 +63,20 @@
       </view>
       <input class="field-row__value {{editable.title ? '' : 'field-row__value--locked'}}" value="{{form.title}}" data-key="title" bindinput="onInput" disabled="{{!editable.title}}" placeholder="请输入职位" />
     </view>
+    <view class="field-row {{editable.company ? '' : 'field-row--locked'}}" data-key="company" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.company}}" class="icon icon-lock icon--sm"></view>
+        <text>公司全称</text>
+      </view>
+      <input class="field-row__value {{editable.company ? '' : 'field-row__value--locked'}}" value="{{form.company}}" data-key="company" bindinput="onInput" disabled="{{!editable.company}}" placeholder="{{editable.company ? '请输入公司全称' : '企业统一维护'}}" />
+    </view>
+    <view class="field-row {{editable.company_short_name ? '' : 'field-row--locked'}}" data-key="company_short_name" bindtap="onLockedFieldTap">
+      <view class="field-row__label">
+        <view wx:if="{{!editable.company_short_name}}" class="icon icon-lock icon--sm"></view>
+        <text>公司简称</text>
+      </view>
+      <input class="field-row__value {{editable.company_short_name ? '' : 'field-row__value--locked'}}" value="{{form.company_short_name}}" data-key="company_short_name" bindinput="onInput" disabled="{{!editable.company_short_name}}" placeholder="{{editable.company_short_name ? '请输入公司简称' : '企业统一维护'}}" />
+    </view>
     <view class="field-row {{editable.department ? '' : 'field-row--locked'}}" data-key="department" bindtap="onLockedFieldTap">
       <view class="field-row__label">
         <view wx:if="{{!editable.department}}" class="icon icon-lock icon--sm"></view>
