@@ -161,7 +161,7 @@ CREATE TABLE "card_visits" (
     "visitor_account_id" BIGINT,
     "share_id" VARCHAR(64),
     "visit_id" VARCHAR(64),
-    "anon_id" VARCHAR(64),
+    "anon_id" VARCHAR(128),
     "trust_level" VARCHAR(32) NOT NULL DEFAULT 'anonymous_client',
     "channel" VARCHAR(64),
     "user_agent" TEXT,

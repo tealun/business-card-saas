@@ -12,6 +12,7 @@ export class DatabaseSchemaGuard implements OnModuleInit {
       return;
     }
     await this.ensureEmployeeCardColumns();
+    await this.ensurePublicVisitColumns();
   }
 
   private async ensureEmployeeCardColumns(): Promise<void> {
@@ -20,5 +21,13 @@ export class DatabaseSchemaGuard implements OnModuleInit {
         ADD COLUMN IF NOT EXISTS "avatar_url" TEXT
     `);
     this.logger.log("database schema guard checked employee card columns");
+  }
+
+  private async ensurePublicVisitColumns(): Promise<void> {
+    await this.database.query(`
+      ALTER TABLE IF EXISTS "card_visits"
+        ALTER COLUMN "anon_id" TYPE VARCHAR(128)
+    `);
+    this.logger.log("database schema guard checked public visit columns");
   }
 }
