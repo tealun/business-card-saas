@@ -1,10 +1,37 @@
 <view class="login-bar">
   <button
-    class="login-bar__btn {{submitting ? 'login-bar__btn--disabled' : ''}}"
-    bindtap="triggerLogin"
+    class="login-bar__btn"
+    bindtap="openDialog"
     disabled="{{submitting}}"
-    loading="{{submitting}}"
   >
-    {{submitting ? "登录中..." : text}}
+    <text>{{text}}</text>
+    <text class="login-bar__arrow">→</text>
   </button>
+</view>
+
+<view wx:if="{{dialogVisible}}" class="login-dialog__mask" catchtap="closeDialog"></view>
+<view wx:if="{{dialogVisible}}" class="login-dialog" catchtap="stopPropagation">
+  <view class="login-dialog__handle"></view>
+  <view class="login-dialog__heading">
+    <view class="login-dialog__mark"><view class="login-dialog__mark-core"></view></view>
+    <view class="login-dialog__heading-copy">
+      <view class="login-dialog__eyebrow">智云名片 · 安全登录</view>
+      <view class="login-dialog__title">开启你的数字名片</view>
+    </view>
+    <view class="login-dialog__close" catchtap="closeDialog">×</view>
+  </view>
+  <view class="login-dialog__intro">登录后可同步企业身份、管理个人名片，并查看真实访问数据。</view>
+  <view class="login-dialog__agreement" catchtap="toggleAgreement">
+    <view class="login-dialog__checkbox {{agreementChecked ? 'login-dialog__checkbox--checked' : ''}}"><text wx:if="{{agreementChecked}}">✓</text></view>
+    <view class="login-dialog__agreement-copy">
+      我已阅读并同意
+      <text class="login-dialog__link" data-type="agreement" catchtap="openLegal">《用户协议》</text>
+      和
+      <text class="login-dialog__link" data-type="privacy" catchtap="openLegal">《隐私政策》</text>
+    </view>
+  </view>
+  <button class="login-dialog__submit {{submitting ? 'login-dialog__submit--loading' : ''}}" bindtap="confirmLogin" disabled="{{submitting}}" loading="{{submitting}}">
+    {{submitting ? "正在安全登录" : "同意并登录"}}
+  </button>
+  <view class="login-dialog__footnote">仅用于身份识别和提供名片服务，不会自动公开你的联系方式</view>
 </view>

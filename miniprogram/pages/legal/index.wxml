@@ -1,0 +1,15 @@
+<view class="legal-page">
+  <view class="legal-hero">
+    <view class="legal-hero__label">{{document.label}}</view>
+    <view class="legal-hero__title">{{document.title}}</view>
+    <view class="legal-hero__meta">{{document.date}} · [运营主体名称]</view>
+  </view>
+  <view class="legal-paper">
+    <view class="legal-intro">{{document.intro}}</view>
+    <view class="legal-section" wx:for="{{document.sections}}" wx:key="title">
+      <view class="legal-section__title">{{item.title}}</view>
+      <view class="legal-section__paragraph" wx:for="{{item.paragraphs}}" wx:for-item="paragraph" wx:key="*this">{{paragraph}}</view>
+    </view>
+  </view>
+  <view class="legal-footer">智云名片 · 让每一次连接更清晰</view>
+</view>

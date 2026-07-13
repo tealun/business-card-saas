@@ -164,7 +164,7 @@
 
   <login-bar
     wx:if="{{!loggedIn}}"
-    text="立即登录，同步我的名片"
+    text="开始使用"
     bind:success="onLoginSuccess"
     bind:fail="onLoginFail"
   />

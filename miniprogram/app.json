@@ -6,11 +6,10 @@
     "pages/public/card",
     "pages/card-wallet/index",
     "pages/company-card/index",
-    "pages/employee/card"
+    "pages/employee/card",
+    "pages/legal/index"
   ],
-  "usingComponents": {
-    "login-bar": "/components/login-bar/index"
-  },
+  "lazyCodeLoading": "requiredComponents",
   "window": {
     "navigationBarTitleText": "智云名片",
     "navigationBarBackgroundColor": "#ffffff",

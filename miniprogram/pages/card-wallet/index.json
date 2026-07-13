@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "名片夹"
+  "navigationBarTitleText": "名片夹",
+  "usingComponents": {
+    "login-bar": "/components/login-bar/index"
+  }
 }

@@ -88,5 +88,5 @@
     </block>
   </view>
 
-  <login-bar wx:if="{{!loggedIn}}" text="立即登录，查看我的企业名片" bind:success="onLoginSuccess" />
+  <login-bar wx:if="{{!loggedIn}}" text="开始使用" bind:success="onLoginSuccess" />
 </view>
