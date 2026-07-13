@@ -19,12 +19,12 @@ function formatVisitTime(iso) {
 }
 
 function mapRecentVisitors(recentVisitors, options = {}) {
-  const cardName = options.cardName || "名片";
+  const cardName = options.cardLabel || options.cardName || "名片";
   const mapped = [];
 
   (recentVisitors || []).forEach((item, index) => {
     const isAnonymous = isAnonymousVisitor(item);
-    const visitedCardName = item.card_name || cardName;
+    const visitedCardName = item.card_label || cardName;
     const visitCount = Number(item.visit_count || 0);
     const peopleCount = Number(item.visitor_count || 1);
 
@@ -53,4 +53,21 @@ function isAnonymousVisitor(item) {
   return !item || item.is_anonymous === true || item.trust_level === "anonymous_client" || label.includes("匿名");
 }
 
-module.exports = { formatVisitTime, mapRecentVisitors };
+function buildVisitedCardLabel(card = {}, identity = {}) {
+  const isPersonal = identity.identity_type === "personal";
+  if (isPersonal) {
+    return "[个人名片]";
+  }
+  const company = [
+    card.company_short_name,
+    identity.tenant_short_name,
+    identity.short_name,
+    card.company,
+    identity.tenant_name
+  ]
+    .map((value) => String(value || "").trim())
+    .find(Boolean);
+  return company ? `[${company}]名片` : "[企业名片]";
+}
+
+module.exports = { buildVisitedCardLabel, formatVisitTime, mapRecentVisitors };

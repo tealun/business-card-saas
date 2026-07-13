@@ -1,7 +1,7 @@
 const app = getApp();
 const { switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
-const { mapRecentVisitors } = require("../../utils/format");
+const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 
@@ -244,7 +244,7 @@ Page({
       this.setData({
         stats: { visitors: stats.visitor_count, viewed: 0, friends: 0 },
         recentVisitors: mapRecentVisitors(stats.recent_visitors, {
-          cardName: (this.data.card && this.data.card.display_name) || "名片"
+          cardLabel: buildVisitedCardLabel(this.data.card, this.data.currentIdentity)
         })
       });
     } catch (_error) {

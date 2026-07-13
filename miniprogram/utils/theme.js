@@ -44,6 +44,7 @@ function buildTheme(brand) {
   if (primary === DEFAULT_BRAND) {
     return {
       themeBrand: primary,
+      themeBrandRgb: "90, 112, 200",
       themeBrandDeep: "#485aa0",
       themeBrandTint: "#f0f2fa",
       themeBrandSoft: "#9ca9de",
@@ -52,6 +53,7 @@ function buildTheme(brand) {
   }
   return {
     themeBrand: primary,
+    themeBrandRgb: hexToRgbText(primary),
     themeBrandDeep: mix(primary, "#000000", 0.2),
     themeBrandTint: mix(primary, "#ffffff", 0.92),
     themeBrandSoft: mix(primary, "#ffffff", 0.4),
@@ -101,6 +103,7 @@ function themeStyle(theme) {
   const value = theme || currentTheme();
   return [
     `--brand: ${value.themeBrand}`,
+    `--brand-rgb: ${value.themeBrandRgb}`,
     `--brand-deep: ${value.themeBrandDeep}`,
     `--brand-tint: ${value.themeBrandTint}`,
     `--brand-soft: ${value.themeBrandSoft}`,

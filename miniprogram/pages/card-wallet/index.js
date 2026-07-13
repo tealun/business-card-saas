@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require("../../utils/api");
-const { mapRecentVisitors } = require("../../utils/format");
+const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { setPageTheme } = require("../../utils/theme");
 
 const demoTabs = [
@@ -90,8 +90,8 @@ Page({
 
     try {
       const stats = await request("/employee/cards/current/stats");
-      const cardName = (app.globalData.currentCard && app.globalData.currentCard.display_name) || "名片";
-      const visitors = mapRecentVisitors(stats.recent_visitors, { cardName });
+      const cardLabel = buildVisitedCardLabel(app.globalData.currentCard, app.globalData.currentIdentity);
+      const visitors = mapRecentVisitors(stats.recent_visitors, { cardLabel });
       const tabGroups = {
         visitors: visitors.length ? [{ title: "最近访客", items: visitors }] : [],
         viewed: [],

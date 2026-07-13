@@ -1,5 +1,6 @@
 page {
   --brand: #5a70c8;
+  --brand-rgb: 90, 112, 200;
   --brand-deep: #485aa0;
   --brand-tint: #f0f2fa;
   --brand-soft: #9ca9de;
@@ -282,7 +283,7 @@ button::after { border: none; }
   width: 0;
   height: 0;
   border-left: 104rpx solid transparent;
-  border-bottom: 104rpx solid rgba(90, 112, 200, 0.46);
+  border-bottom: 104rpx solid rgba(var(--brand-rgb), 0.46);
   z-index: 2;
   pointer-events: none;
 }
