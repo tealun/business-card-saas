@@ -427,11 +427,11 @@ export class WecomContactSyncRepository {
         )
         VALUES ($1, $2, $3, $4, now(), now(), now())
         ON CONFLICT (public_id) DO UPDATE SET
-          tenant_id = EXCLUDED.tenant_id,
-          card_id = EXCLUDED.card_id,
           status = EXCLUDED.status,
           card_updated_at = now(),
           updated_at = now()
+        WHERE public_card_directory.tenant_id = EXCLUDED.tenant_id
+          AND public_card_directory.card_id = EXCLUDED.card_id
       `,
       [input.publicId, input.tenantId, input.cardId, input.status]
     );

@@ -302,7 +302,34 @@ describe("EmployeeCardRepository", () => {
         if (text.includes("GROUP BY")) {
           return {
             rows: [
-              { visitor_key: "anon-1", has_account: false, visit_count: "3", channel: "share", last_visit_at: lastVisit }
+              {
+                visitor_key: "anonymous",
+                visitor_label: null,
+                visitor_avatar_url: null,
+                visitor_count: "2",
+                visit_count: "3",
+                is_anonymous: true,
+                card_id: "card-001",
+                public_id: "pub_owner001",
+                card_name: "Owner Name",
+                trust_level: "anonymous_client",
+                channel: "share",
+                last_visit_at: lastVisit
+              },
+              {
+                visitor_key: "visitor-001",
+                visitor_label: "微信用户",
+                visitor_avatar_url: "https://example.com/avatar.png",
+                visitor_count: "1",
+                visit_count: "2",
+                is_anonymous: false,
+                card_id: "card-001",
+                public_id: "pub_owner001",
+                card_name: "Owner Name",
+                trust_level: "authenticated_user",
+                channel: null,
+                last_visit_at: lastVisit
+              }
             ]
           };
         }
@@ -328,10 +355,31 @@ describe("EmployeeCardRepository", () => {
         visit_count: 5,
         recent_visitors: [
           {
-            visitor_key: "anon-1",
+            visitor_key: "anonymous",
             visitor_label: "匿名访客",
+            visitor_count: 2,
             visit_count: 3,
+            is_anonymous: true,
+            card_id: "card-001",
+            public_id: "pub_owner001",
+            card_name: "Owner Name",
+            visitor_avatar_url: null,
+            trust_level: "anonymous_client",
             channel: "share",
+            last_visit_at: lastVisit.toISOString()
+          },
+          {
+            visitor_key: "visitor-001",
+            visitor_label: "微信用户",
+            visitor_count: 1,
+            visit_count: 2,
+            is_anonymous: false,
+            card_id: "card-001",
+            public_id: "pub_owner001",
+            card_name: "Owner Name",
+            visitor_avatar_url: "https://example.com/avatar.png",
+            trust_level: "authenticated_user",
+            channel: null,
             last_visit_at: lastVisit.toISOString()
           }
         ]

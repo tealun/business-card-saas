@@ -18,6 +18,15 @@ function errorCode(status: number): number {
   if (status === HttpStatus.CONFLICT) {
     return 30009;
   }
+  if (status === HttpStatus.UNPROCESSABLE_ENTITY) {
+    return 20022;
+  }
+  if (status === HttpStatus.TOO_MANY_REQUESTS) {
+    return 40029;
+  }
+  if (status === HttpStatus.SERVICE_UNAVAILABLE) {
+    return 50003;
+  }
   return 50001;
 }
 
