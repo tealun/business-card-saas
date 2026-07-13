@@ -77,7 +77,7 @@ describe("AppConfig", () => {
     const config = new AppConfig();
     expect(config.storageDriver).toBe("local");
     expect(config.storageLocalRoot).toContain("storage");
-    expect(config.storagePublicBaseUrl).toBe(`http://localhost:${config.port}/api/v1/storage`);
+    expect(config.storagePublicBaseUrl).toBe("/api/v1/storage");
   });
 
   it("requires Alibaba Cloud OSS connection settings when aliyun_oss storage is selected", () => {

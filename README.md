@@ -81,7 +81,7 @@ $env:WECOM_INSTALL_REDIRECT_URI="https://api.example.com/api/v1/wecom/authorizat
 $env:CORS_ORIGINS="https://admin.example.com"
 $env:STORAGE_DRIVER="local"
 $env:STORAGE_LOCAL_ROOT="/data/business-card-saas/uploads"
-$env:STORAGE_PUBLIC_BASE_URL="https://api.example.com/api/v1/storage"
+# 本地存储无需配置 STORAGE_PUBLIC_BASE_URL；仅独立 CDN/OSS 时配置。
 npm run build
 npm start
 ```

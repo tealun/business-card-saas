@@ -33,6 +33,7 @@ function request(path, options = {}) {
   const isIdempotent = method === "GET" || method === "HEAD";
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
+  const baseUrl = apiBase();
 
   const attempt = () => new Promise((resolve, reject) => {
     const app = getAppInstance();
@@ -46,14 +47,17 @@ function request(path, options = {}) {
     }
 
     wx.request({
-      url: `${apiBase()}${path}`,
+      url: `${baseUrl}${path}`,
       method,
       data: options.data,
       header: headers,
       timeout,
       success(response) {
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve(response.data && typeof response.data === "object" && "data" in response.data ? response.data.data : response.data);
+          const payload = response.data && typeof response.data === "object" && "data" in response.data
+            ? response.data.data
+            : response.data;
+          resolve(sanitizeApiData(payload, baseUrl));
           return;
         }
         if (response.statusCode === 401) {
@@ -75,6 +79,41 @@ function request(path, options = {}) {
   });
 
   return run();
+}
+
+// WeChat and DevTools expose selected images through http://tmp, wxfile, or a
+// loopback /**tmp**/ URL. Those URLs belong to one process and become invalid after the temp file is
+// cleared. Filter historical values at the API boundary so no page can hand a
+// stale local URL to the rendering layer.
+function sanitizeApiData(value, baseUrl = "") {
+  if (typeof value === "string") {
+    if (isTemporaryLocalFileUrl(value)) return "";
+    return rewriteLoopbackStorageUrl(value, baseUrl);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeApiData(item, baseUrl));
+  }
+  if (value && typeof value === "object") {
+    const sanitized = {};
+    Object.keys(value).forEach((key) => {
+      sanitized[key] = sanitizeApiData(value[key], baseUrl);
+    });
+    return sanitized;
+  }
+  return value;
+}
+
+function rewriteLoopbackStorageUrl(value, baseUrl) {
+  const match = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(\/api\/v1\/storage\/.*)$/i.exec(value);
+  const apiOrigin = /^(https?:\/\/[^/]+)/i.exec(String(baseUrl || ""));
+  const storagePath = match ? match[1] : /^\/api\/v1\/storage\//.test(value) ? value : "";
+  return storagePath && apiOrigin ? `${apiOrigin[1]}${storagePath}` : value;
+}
+
+function isTemporaryLocalFileUrl(value) {
+  return /^(?:wxfile:\/\/|https?:\/\/(?:tmp\/|(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/))/i.test(
+    String(value || "")
+  );
 }
 
 function clearSessionState() {
@@ -187,5 +226,6 @@ module.exports = {
   request,
   qyLoginCode,
   wxLoginCode,
-  isWeComRuntime
+  isWeComRuntime,
+  sanitizeApiData
 };

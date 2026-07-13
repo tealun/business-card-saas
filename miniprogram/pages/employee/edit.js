@@ -125,29 +125,6 @@ Page({
     }
   },
 
-  chooseAvatarFromAlbum() {
-    if (!this.canEdit("avatar_url")) {
-      this.lockedTip();
-      return;
-    }
-    if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持选择头像", icon: "none" });
-      return;
-    }
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ["image"],
-      sourceType: ["album", "camera"],
-      sizeType: ["compressed"],
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (file && file.tempFilePath) {
-          this.setAvatarFromPath(file.tempFilePath);
-        }
-      }
-    });
-  },
-
   setAvatarFromPath(path) {
     pathToDataUrl(path)
       .then((avatarUrl) => {
@@ -164,14 +141,6 @@ Page({
       this.setData({ "form.avatar_url": "" });
       wx.showToast({ title: "头像临时文件已失效，请重新选择", icon: "none" });
     }
-  },
-
-  clearAvatar() {
-    if (!this.canEdit("avatar_url")) {
-      this.lockedTip();
-      return;
-    }
-    this.setData({ "form.avatar_url": "" });
   },
 
   chooseLogoFromAlbum() {
@@ -348,5 +317,5 @@ function pathToDataUrl(path) {
 
 function isTemporaryImageUrl(value) {
   const source = String(value || "");
-  return /^(?:wxfile:\/\/|https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/)/i.test(source);
+  return /^(?:wxfile:\/\/|https?:\/\/(?:tmp\/|(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/))/i.test(source);
 }

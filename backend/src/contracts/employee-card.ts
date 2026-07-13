@@ -8,7 +8,7 @@ const imageSourceSchema = z
   });
 
 const persistedImageSourceSchema = imageSourceSchema.refine(
-  (value) => !/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\//i.test(value),
+  (value) => !/^https?:\/\/(?:tmp\/|(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/)/i.test(value),
   { message: "temporary local image URLs cannot be saved" }
 );
 

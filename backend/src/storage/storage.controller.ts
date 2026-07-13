@@ -17,6 +17,9 @@ export class StorageController {
     reply.header("content-type", object.contentType);
     reply.header("content-length", String(object.contentLength));
     reply.header("cache-control", "public, max-age=31536000, immutable");
+    // Mini Program images are fetched by an isolated rendering origin. Helmet's
+    // default `same-origin` CORP header blocks otherwise valid public images.
+    reply.header("cross-origin-resource-policy", "cross-origin");
     return reply.send(object.stream);
   }
 }

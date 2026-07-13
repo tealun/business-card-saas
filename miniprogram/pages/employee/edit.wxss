@@ -54,12 +54,6 @@
   border-top: 1rpx solid var(--divider);
 }
 
-.edit-avatar-actions {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
 .edit-logo-actions {
   display: flex;
   align-items: center;

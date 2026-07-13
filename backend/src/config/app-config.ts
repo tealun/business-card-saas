@@ -258,7 +258,7 @@ export class AppConfig {
   }
 
   get storagePublicBaseUrl(): string {
-    return (this.values.STORAGE_PUBLIC_BASE_URL?.trim() || `http://localhost:${this.port}/api/v1/storage`).replace(/\/$/, "");
+    return (this.values.STORAGE_PUBLIC_BASE_URL?.trim() || "/api/v1/storage").replace(/\/$/, "");
   }
 
   get storageMaxUploadBytes(): number {

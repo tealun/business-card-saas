@@ -53,4 +53,20 @@ describe("StorageService", () => {
     expect(object.contentLength).toBe(5);
     object.stream.destroy();
   });
+
+  it("returns a portable API path when no separate public storage origin is configured", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    delete process.env.STORAGE_PUBLIC_BASE_URL;
+    const service = new StorageService(new AppConfig());
+
+    const stored = await service.storeImageDataUrl({
+      tenantId: "tenant-001",
+      category: "logos",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    });
+
+    expect(stored.publicUrl).toMatch(/^\/api\/v1\/storage\/tenant\/tenant-001\/logos\/.+\.png$/);
+  });
 });
