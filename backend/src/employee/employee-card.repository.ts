@@ -702,6 +702,7 @@ export class EmployeeCardRepository {
     return {
       public_id: card.public_id,
       status: card.status,
+      allow_forward: card.privacy.allow_forward,
       card: {
         display_name: card.display_name,
         title: card.title,
@@ -922,6 +923,9 @@ function mergeCard(
   if (request.privacy?.show_wechat !== undefined) {
     next.privacy.show_wechat = request.privacy.show_wechat;
   }
+  if (request.privacy?.allow_forward !== undefined) {
+    next.privacy.allow_forward = request.privacy.allow_forward;
+  }
   return next;
 }
 
@@ -992,7 +996,8 @@ function defaultPrivacy(): CardPrivacy {
   return {
     show_mobile: false,
     show_email: true,
-    show_wechat: false
+    show_wechat: false,
+    allow_forward: true
   };
 }
 
@@ -1065,7 +1070,8 @@ function parsePrivacy(value: unknown): CardPrivacy {
   return {
     show_mobile: typeof record.show_mobile === "boolean" ? record.show_mobile : false,
     show_email: typeof record.show_email === "boolean" ? record.show_email : true,
-    show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false
+    show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
+    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true
   };
 }
 

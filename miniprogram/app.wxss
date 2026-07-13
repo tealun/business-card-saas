@@ -287,6 +287,12 @@ button::after { border: none; }
   z-index: 2;
   pointer-events: none;
 }
+.biz-card__type-corner--interactive {
+  pointer-events: auto;
+}
+.biz-card__type-corner--interactive:active {
+  border-bottom-color: rgba(var(--brand-rgb), 0.72);
+}
 .biz-card__type-corner .icon {
   position: absolute;
   right: 14rpx;

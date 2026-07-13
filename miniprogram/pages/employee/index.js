@@ -5,10 +5,24 @@ const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format
 const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 
+const DEMO_ENTERPRISE_ID = "demo_zhiyun_enterprise";
+const demoEnterpriseIdentity = {
+  member_identity_id: DEMO_ENTERPRISE_ID,
+  identity_type: "demo_enterprise",
+  display_name: "智云科技",
+  optionName: "智云科技",
+  tenant_name: "智云科技（深圳）有限公司",
+  typeLabel: "企业名片",
+  badgeClass: "badge--success",
+  subtitle: "智云科技（深圳）有限公司",
+  isDemo: true,
+  sampleLabel: "样例"
+};
+
 const demoCard = {
   display_name: "李明",
   title: "销售总监 · 市场部",
-  company: "智云科技",
+  company: "智云科技（深圳）有限公司",
   company_short_name: "智云科技",
   fields: {
     mobile: "138 0013 8000",
@@ -103,8 +117,8 @@ Page({
         demoMode: true,
         authState: "guest",
         loggedIn: false,
-        currentIdentity: null,
-        identities: [],
+        currentIdentity: Object.assign({}, demoEnterpriseIdentity, { selected: true }),
+        identities: [Object.assign({}, demoEnterpriseIdentity, { selected: true })],
         card: demoCard,
         cardTemplateClass: "biz-card--horizontal",
         cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
@@ -165,9 +179,16 @@ Page({
   syncIdentityState(session) {
     const currentIdentity = session.currentIdentity || app.globalData.currentIdentity;
     const currentId = currentIdentity && currentIdentity.member_identity_id;
-    const identities = (session.identities || app.globalData.identities || []).map((identity) =>
-      Object.assign({}, identity, { selected: identity.member_identity_id === currentId })
-    );
+    const identities = (session.identities || app.globalData.identities || []).map((identity) => {
+      const isPersonal = identity.identity_type === "personal";
+      return Object.assign({}, identity, {
+        optionName: isPersonal
+          ? (identity.display_name || "我的名片")
+          : (identity.tenant_short_name || identity.short_name || identity.tenant_name || "企业名片"),
+        selected: identity.member_identity_id === currentId
+      });
+    });
+    identities.push(Object.assign({}, demoEnterpriseIdentity, { selected: false }));
     this.setData({ currentIdentity, identities });
   },
 
@@ -253,9 +274,6 @@ Page({
   },
 
   openIdentitySheet() {
-    if (!this.ensureLoggedIn("请先登录后切换身份")) {
-      return;
-    }
     if (!this.data.identities.length) {
       wx.showToast({ title: "暂无可切换身份", icon: "none" });
       return;
@@ -270,11 +288,16 @@ Page({
   },
 
   async chooseIdentity(event) {
-    if (!this.ensureLoggedIn("请先登录后切换身份")) {
-      return;
-    }
     const memberIdentityId = event.currentTarget.dataset.id;
     if (!memberIdentityId || this.data.switchingIdentity) {
+      return;
+    }
+    if (memberIdentityId === DEMO_ENTERPRISE_ID) {
+      this.closeIdentitySheet();
+      wx.navigateTo({ url: "/pages/public/card" });
+      return;
+    }
+    if (!this.ensureLoggedIn("请先登录后切换真实身份")) {
       return;
     }
     if (this.data.currentIdentity && memberIdentityId === this.data.currentIdentity.member_identity_id) {
@@ -301,6 +324,20 @@ Page({
       return;
     }
     wx.navigateTo({ url: "/pages/employee/edit" });
+  },
+
+  openIdentityInfo() {
+    const identity = this.data.currentIdentity || {};
+    const isDemo = Boolean(identity.isDemo);
+    const isPersonal = identity.identity_type === "personal";
+    wx.showModal({
+      title: isDemo ? "企业名片 · 样例" : (isPersonal ? "个人名片" : "企业名片"),
+      content: isDemo
+        ? "这是智云科技（深圳）有限公司的企业名片样例。点击“切换名片”可选择真实身份或继续查看样例。"
+        : (isPersonal ? "这是你的微信个人名片，资料由你本人维护。" : "这是你的企业身份名片，企业字段由管理员统一维护。"),
+      showCancel: false,
+      confirmText: "知道了"
+    });
   },
 
   goStyle() {

@@ -25,13 +25,15 @@ export const demoEmployeeCard: EmployeeCardResponse = {
   privacy: {
     show_mobile: false,
     show_email: true,
-    show_wechat: false
+    show_wechat: false,
+    allow_forward: true
   }
 };
 
 export const demoPublicCard: PublicCardResponse = {
   public_id: "pub_demo0001",
   status: "active",
+  allow_forward: true,
   card: {
     display_name: "M1 Demo Employee",
     title: "Sales Consultant",

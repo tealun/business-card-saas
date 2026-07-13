@@ -37,7 +37,8 @@ export const employeeCardResponseSchema = z.object({
   privacy: z.object({
     show_mobile: z.boolean(),
     show_email: z.boolean(),
-    show_wechat: z.boolean()
+    show_wechat: z.boolean(),
+    allow_forward: z.boolean()
   }),
   editable_fields: z.array(z.string()).optional()
 });
@@ -72,7 +73,8 @@ export const updateEmployeeCardRequestSchema = z.object({
     .object({
       show_mobile: z.boolean().optional(),
       show_email: z.boolean().optional(),
-      show_wechat: z.boolean().optional()
+      show_wechat: z.boolean().optional(),
+      allow_forward: z.boolean().optional()
     })
     .optional()
 });

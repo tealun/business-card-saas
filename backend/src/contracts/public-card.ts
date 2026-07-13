@@ -33,6 +33,7 @@ export const publicCardStatsSchema = z.object({
 export const publicCardResponseSchema = z.object({
   public_id: publicIdSchema,
   status: z.enum(["active", "disabled", "expired", "employee_left", "tenant_cancelled"]),
+  allow_forward: z.boolean(),
   card: z.object({
     display_name: z.string(),
     title: z.string().nullable(),
@@ -110,7 +111,8 @@ export const actionRequestSchema = z.object({
     "expand_company_intro",
     "view_paper_card",
     "like_card",
-    "exchange_card"
+    "exchange_card",
+    "upgrade_enterprise"
   ])
 });
 

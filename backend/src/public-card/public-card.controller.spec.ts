@@ -1,6 +1,8 @@
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
+import { demoPublicCard } from "../fixtures/demo-cards.js";
+import { PublicCardRepository } from "./public-card.repository.js";
 import { SessionTokenService } from "../session/session-token.service.js";
 
 interface ActionBody {
@@ -259,6 +261,35 @@ describe("PublicCardController", () => {
     expect(share.parent_share_id).toBe("shr_demo0001");
     expect(share.depth).toBe(1);
     expect(share.capped).toBe(false);
+  });
+
+  it("rejects derived shares when card forwarding is disabled", async () => {
+    const repository = app.get(PublicCardRepository);
+    await repository.upsertPublicCard({
+      ...demoPublicCard,
+      public_id: "pub_nofwd001",
+      allow_forward: false
+    });
+    await repository.registerRootShare({
+      publicId: "pub_nofwd001",
+      shareId: "shr_nofwd001"
+    });
+    const visitResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_nofwd001/visit",
+      payload: { share: "shr_nofwd001" }
+    });
+    expect(visitResponse.statusCode).toBe(201);
+    const visit = dataOf<{ visit_token: string }>(visitResponse.body);
+
+    const deriveResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/public/cards/pub_nofwd001/shares/derive",
+      headers: { authorization: `Bearer ${visit.visit_token}` },
+      payload: { parent_share_id: "shr_nofwd001" }
+    });
+
+    expect(deriveResponse.statusCode).toBe(403);
   });
 
   it("rejects derived shares without a visit_token", async () => {

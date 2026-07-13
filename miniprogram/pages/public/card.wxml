@@ -53,6 +53,9 @@
         <view class="biz-card__status" wx:if="{{card.status !== 'active'}}">
           <text class="badge badge--warning">当前不可用</text>
         </view>
+        <view class="biz-card__type-corner biz-card__type-corner--interactive" catchtap="openIdentityInfo">
+          <view class="icon {{cardCompanyName ? 'icon-building' : 'icon-person'}}"></view>
+        </view>
       </view>
 
       <view class="card interact-card">
@@ -70,12 +73,17 @@
       </view>
 
       <view class="card public-cta-card" wx:if="{{!isDisabled}}">
-        <button wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item public-cta-card__button" open-type="share" bindtap="refreshShareImage">发名片</button>
+        <button wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item public-cta-card__button" open-type="share" bindtap="refreshShareImage">分享给好友</button>
         <view wx:if="{{isOwnCard}}" class="btn btn--soft public-cta-card__item" bindtap="editMyCard">修改信息</view>
         <view wx:if="{{!isOwnCard}}" class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
         <view wx:if="{{!isOwnCard && loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
         <view wx:if="{{!isOwnCard && !loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
       </view>
+
+      <button wx:if="{{!isDisabled && !isOwnCard && canShare}}" class="btn btn--soft btn--block public-share-button" open-type="share" bindtap="refreshShareImage">
+        <view class="icon icon-forward icon--sm"></view>
+        <text>分享给好友</text>
+      </button>
 
       <view class="card action-grid">
         <view class="action-grid__item" bindtap="callPhone"><view class="icon icon-phone"></view><text>手机号</text></view>
@@ -111,6 +119,14 @@
             <view wx:else class="intro-image__ph">{{item.caption || "业务介绍图片"}}</view>
           </view>
         </block>
+      </view>
+
+      <view class="card upgrade-card" wx:if="{{isDemo}}">
+        <view class="upgrade-card__copy">
+          <view class="card__title">也想拥有这样的企业名片？</view>
+          <view class="upgrade-card__desc">统一企业形象、员工名片与访客转化数据。</view>
+        </view>
+        <view class="btn btn--primary btn--sm" bindtap="openUpgradeEnterprise">升级为企业名片</view>
       </view>
 
       <view class="powered">由 智云名片 提供技术支持</view>

@@ -58,7 +58,7 @@
           <text wx:if="{{card.status === 'disabled'}}" class="badge badge--warning">已停用</text>
           <text wx:else class="badge badge--muted">未启用</text>
         </view>
-        <view class="biz-card__type-corner">
+        <view class="biz-card__type-corner biz-card__type-corner--interactive" catchtap="openIdentityInfo">
           <view class="icon {{currentIdentity && currentIdentity.identity_type === 'personal' ? 'icon-person' : 'icon-building'}}"></view>
         </view>
       </view>
@@ -259,15 +259,16 @@
         <view class="identity-option__avatar"><view class="avatar-placeholder"></view></view>
         <view class="identity-option__body">
           <view class="identity-option__top">
-            <text class="identity-option__name">{{item.display_name || "我的名片"}}</text>
+            <text class="identity-option__name">{{item.optionName || item.display_name || "我的名片"}}</text>
             <text class="badge {{item.badgeClass}}">{{item.typeLabel}}</text>
+            <text class="badge badge--warning" wx:if="{{item.isDemo}}">样例</text>
           </view>
           <view class="identity-option__sub">{{item.subtitle}}</view>
         </view>
         <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
       </view>
     </view>
-    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
+    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "个人名片和企业名片互不覆盖；样例仅用于展示，不会覆盖真实资料。"}}</view>
   </view>
 
   <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>

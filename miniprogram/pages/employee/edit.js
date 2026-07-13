@@ -44,7 +44,8 @@ Page({
     privacy: {
       show_mobile: false,
       show_email: true,
-      show_wechat: false
+      show_wechat: false,
+      allow_forward: true
     },
     loading: true,
     error: false,
@@ -258,7 +259,8 @@ function buildPayload(form, privacy, editable) {
     privacy: {
       show_mobile: privacy.show_mobile,
       show_email: privacy.show_email,
-      show_wechat: privacy.show_wechat
+      show_wechat: privacy.show_wechat,
+      allow_forward: privacy.allow_forward
     }
   };
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;

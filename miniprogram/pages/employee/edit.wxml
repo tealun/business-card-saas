@@ -150,6 +150,10 @@
       <text class="field-row__label">微信号对访客公开</text>
       <switch checked="{{privacy.show_wechat}}" color="{{themeBrand}}" data-key="show_wechat" bindchange="onPrivacy" />
     </view>
+    <view class="field-row">
+      <text class="field-row__label">允许访客转发名片</text>
+      <switch checked="{{privacy.allow_forward}}" color="{{themeBrand}}" data-key="allow_forward" bindchange="onPrivacy" />
+    </view>
   </view>
 
   <view class="edit-note">个人名片默认可全量编辑；企业名片的灰色带锁字段由管理员统一维护，保存时不会提交这些字段。</view>

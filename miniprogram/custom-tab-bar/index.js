@@ -6,7 +6,7 @@ Component({
     list: [
       { pagePath: "/pages/employee/index", text: "首页", icon: "home" },
       { pagePath: "/pages/card-wallet/index", text: "名片夹", icon: "wallet" },
-      { pagePath: "/pages/company-card/index", text: "企业名片", icon: "company" }
+      { pagePath: "/pages/company-card/index", text: "名片主页", icon: "company" }
     ]
   },
 

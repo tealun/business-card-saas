@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { createHmac } from "node:crypto";
 import { readSecret } from "../common/secrets.js";
 import {
@@ -145,6 +145,10 @@ export class PublicCardService {
     }
     if (!(await this.repository.findVisit(publicId, payload.visitId))) {
       throw new UnauthorizedException("visit not found");
+    }
+    const card = await this.repository.findPublicCard(publicId);
+    if (!card.allow_forward) {
+      throw new ForbiddenException("card forwarding is disabled");
     }
     const share = await this.repository.deriveShare({
       publicId,

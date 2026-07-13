@@ -18,10 +18,12 @@ const demoServiceItems = [
 const demoPublicCard = {
   public_id: "pub_demo0001",
   status: "active",
+  allow_forward: true,
   card: {
     display_name: "李明",
     title: "销售总监 · 市场部",
-    company: "智云科技",
+    company: "智云科技（深圳）有限公司",
+    company_short_name: "智云科技",
     avatar_url: "",
     fields: {
       mobile: "138 0013 8000",
@@ -36,7 +38,8 @@ const demoPublicCard = {
     layout: {}
   },
   company_profile: {
-    name: "智云科技",
+    name: "智云科技（深圳）有限公司",
+    short_name: "智云科技",
     address: "深圳市南山区科技园",
     intro_blocks: [
       { type: "paragraph", text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理与客户转化追踪。" },
@@ -73,6 +76,8 @@ Page({
     navTitle: "",
     isDisabled: false,
     isOwnCard: false,
+    isDemo: false,
+    canShare: true,
     loggedIn: false,
     viewCount: 269,
     visitCount: 269,
@@ -133,6 +138,8 @@ Page({
     const brand = (card.template && card.template.color_scheme && card.template.color_scheme.primary) || DEFAULT_BRAND;
     const theme = buildTheme(brand);
     const cardMeta = publicCardMeta(card);
+    const isOwnCard = this.isOwnPublicCard(card);
+    const canShare = isOwnCard || card.allow_forward !== false;
     this.setData({
       card,
       ...theme,
@@ -150,7 +157,9 @@ Page({
         layout.background_preset_id
       ),
       isDisabled: disabled,
-      isOwnCard: this.isOwnPublicCard(card),
+      isOwnCard,
+      isDemo: Boolean(isDemo),
+      canShare,
       serviceItems: resolveServiceItems(card, isDemo),
       introBlocks: resolveIntroBlocks(card),
       viewCount: isDemo ? 269 : 0,
@@ -159,16 +168,26 @@ Page({
       likedByMe: false,
       uiState: disabled ? "disabled" : "ready"
     });
+    this.updateShareMenu(canShare && !disabled);
     this.prepareShareImage(cardMeta);
     this.applyStats(card.stats);
   },
 
   isOwnPublicCard(card) {
     const currentIdentity = app.globalData.currentIdentity || {};
+    const identities = app.globalData.identities || [];
     return Boolean(
       (this.data.publicId && currentIdentity.public_id === this.data.publicId) ||
+      (this.data.publicId && identities.some((identity) => identity.public_id === this.data.publicId)) ||
       (card && (card.is_owner || card.is_own))
     );
+  },
+
+  updateShareMenu(visible) {
+    const method = visible ? wx.showShareMenu : wx.hideShareMenu;
+    if (typeof method === "function") {
+      method.call(wx, visible ? { menus: ["shareAppMessage"] } : {});
+    }
   },
 
   reload() {
@@ -236,7 +255,7 @@ Page({
   },
 
   async prepareDerivedShare() {
-    if (!app.globalData.visitToken || !this.data.shareId) {
+    if (!this.data.canShare || !app.globalData.visitToken || !this.data.shareId) {
       return;
     }
     try {
@@ -341,6 +360,34 @@ Page({
     wx.navigateTo({ url: "/pages/employee/edit" });
   },
 
+  openIdentityInfo() {
+    const company = this.data.cardCompanyShortName || this.data.cardCompanyName;
+    const isEnterprise = Boolean(company);
+    wx.showModal({
+      title: this.data.isDemo ? "企业名片 · 样例" : (isEnterprise ? "企业名片" : "个人名片"),
+      content: this.data.isDemo
+        ? "这是智云科技（深圳）有限公司的企业名片样例，用于体验访客看到的最终展示效果。"
+        : (isEnterprise
+          ? `这张名片来自${company}的企业身份，企业信息由企业统一维护。`
+          : "这是一张个人名片，资料由名片本人维护。"),
+      showCancel: false,
+      confirmText: "知道了"
+    });
+  },
+
+  openUpgradeEnterprise() {
+    if (typeof wx.reportEvent === "function") {
+      wx.reportEvent("upgrade_enterprise", { source: "demo_company_card" });
+    }
+    this.recordAction("upgrade_enterprise");
+    wx.showModal({
+      title: "升级为企业名片",
+      content: "企业管理员授权安装后，即可统一企业形象、管理员工名片并查看访客转化数据。正式接入开放后，我们会协助完成配置。",
+      showCancel: false,
+      confirmText: "我知道了"
+    });
+  },
+
   exchangeCard() {
     this.recordAction("exchange_card");
     wx.showToast({ title: "交换名片请求已发起", icon: "success" });
@@ -405,9 +452,10 @@ Page({
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
     const shareParam = shareId ? `&share=${shareId}` : "";
+    const cardParam = this.data.publicId ? `?card=${this.data.publicId}${shareParam}` : "";
     const message = {
       title: `${this.data.card.card.display_name || "名片"}的名片`,
-      path: `/pages/public/card?card=${this.data.publicId}${shareParam}`
+      path: `/pages/public/card${cardParam}`
     };
     if (this.data.shareImageUrl) {
       message.imageUrl = this.data.shareImageUrl;
@@ -485,6 +533,7 @@ function normalizePublicCard(card) {
   return {
     public_id: card.public_id || "",
     status: card.status || "active",
+    allow_forward: card.allow_forward !== false,
     card: Object.assign(
       { display_name: "", title: "", company: "", company_short_name: "", avatar_url: "", fields: {} },
       card.card || {}

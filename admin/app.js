@@ -250,6 +250,7 @@ function fillCard(card) {
   cardForm.show_mobile.checked = Boolean(card.privacy?.show_mobile);
   cardForm.show_email.checked = Boolean(card.privacy?.show_email);
   cardForm.show_wechat.checked = Boolean(card.privacy?.show_wechat);
+  cardForm.allow_forward.checked = card.privacy?.allow_forward !== false;
   if (adminCardStatusInput) {
     adminCardStatusInput.value = card.status || "active";
   }
@@ -273,7 +274,8 @@ function cardPayloadFromForm() {
     privacy: {
       show_mobile: cardForm.show_mobile.checked,
       show_email: cardForm.show_email.checked,
-      show_wechat: cardForm.show_wechat.checked
+      show_wechat: cardForm.show_wechat.checked,
+      allow_forward: cardForm.allow_forward.checked
     }
   };
 }

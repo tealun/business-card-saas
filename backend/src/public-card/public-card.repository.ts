@@ -604,6 +604,7 @@ export class PublicCardRepository {
     return {
       public_id: row.public_id,
       status: row.card_status,
+      allow_forward: privacy.allow_forward,
       card: {
         display_name: row.display_name ?? "Unnamed",
         title: row.title,
@@ -840,12 +841,13 @@ export class PublicCardRepository {
   }
 }
 
-function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean } {
+function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean; allow_forward: boolean } {
   const record = parseObject(value);
   return {
     show_mobile: typeof record.show_mobile === "boolean" ? record.show_mobile : false,
     show_email: typeof record.show_email === "boolean" ? record.show_email : true,
-    show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false
+    show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
+    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true
   };
 }
 

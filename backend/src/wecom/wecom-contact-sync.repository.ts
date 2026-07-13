@@ -391,7 +391,7 @@ export class WecomContactSyncRepository {
         publicId,
         defaultEmployeeCardSlug(input),
         input.displayName,
-        JSON.stringify({ show_mobile: false, show_email: true, show_wechat: false }),
+        JSON.stringify({ show_mobile: false, show_email: true, show_wechat: false, allow_forward: true }),
         input.status
       ]
     );

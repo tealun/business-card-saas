@@ -55,7 +55,7 @@ npm run verify
 
 - 后端 API：[`backend/`](backend/)
 - 静态后台工作台：[`admin/index.html`](admin/index.html)
-- 微信小程序骨架：[`miniprogram/`](miniprogram/)（三栏 Tab：我的名片 / 名片夹 / 企业名片）
+- 微信小程序骨架：[`miniprogram/`](miniprogram/)（三栏 Tab：我的名片 / 名片夹 / 名片主页）
 
 服务器 PgSQL 联调建议顺序（所有 secret 必须显式设置，无 fallback）：
 
