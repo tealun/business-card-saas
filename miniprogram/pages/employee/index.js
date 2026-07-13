@@ -2,6 +2,7 @@ const app = getApp();
 const { switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { mapRecentVisitors } = require("../../utils/format");
+const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 
 const demoCard = {
@@ -63,6 +64,7 @@ Page({
     previewPath: "",
     previewQrUrl: "",
     previewFullscreen: false,
+    shareImageUrl: "",
     personalWechatQr: "",
     submitting: false,
     switchingIdentity: false,
@@ -200,6 +202,7 @@ Page({
         stats: { visitors: 0, viewed: 0, friends: 0 },
         recentVisitors: []
       });
+      this.prepareShareImage();
       this.loadStats();
     } catch (error) {
       // 读取失败不等于登录失效：token 还在时保持登录态，只提示错误，
@@ -455,6 +458,28 @@ Page({
     this.setTabBarHidden(true);
   },
 
+  prepareShareImage() {
+    const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
+    nextTick(async () => {
+      const imageUrl = await buildShareCardImage(this, {
+        card: this.data.card,
+        templateClass: this.data.cardTemplateClass,
+        theme: {
+          brand: this.data.themeBrand,
+          brandDeep: this.data.themeBrandDeep,
+          brandSoft: this.data.themeBrandSoft
+        },
+        meta: {
+          companyName: this.data.card && this.data.card.company,
+          companyShortName: this.data.card && this.data.card.company_short_name
+        }
+      });
+      if (imageUrl) {
+        this.setData({ shareImageUrl: imageUrl });
+      }
+    });
+  },
+
   async createShare() {
     if (!this.ensureLoggedIn("请先登录后发名片")) {
       return;
@@ -509,7 +534,11 @@ Page({
 
   onShareAppMessage() {
     const card = this.data.card;
-    return { title: `${card.display_name || "我的"}的数字名片` };
+    const message = { title: `${card.display_name || "我的"}的数字名片` };
+    if (this.data.shareImageUrl) {
+      message.imageUrl = this.data.shareImageUrl;
+    }
+    return message;
   },
 
   ensureLoggedIn(message) {

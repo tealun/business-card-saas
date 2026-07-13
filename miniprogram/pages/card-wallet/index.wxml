@@ -60,7 +60,7 @@
         <view class="wallet-item__main">
           <view class="wallet-item__name">{{card.name}}</view>
           <view class="wallet-item__sub">{{card.title}}</view>
-          <view class="wallet-item__meta">{{card.meta}}</view>
+          <view class="wallet-item__meta" wx:if="{{card.meta}}">{{card.meta}}</view>
         </view>
         <view class="wallet-item__side">
           <text class="badge badge--success" wx:if="{{card.state === 'exchanged'}}">已交换</text>

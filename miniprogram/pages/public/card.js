@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require("../../utils/api");
+const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
@@ -86,6 +87,7 @@ Page({
     cardCompanyName: "",
     cardCompanyShortName: "",
     showCardHead: false,
+    shareImageUrl: "",
     cardBackgroundStyle: "",
     cardTemplateClass: "biz-card--horizontal",
     card: demoPublicCard
@@ -105,6 +107,12 @@ Page({
       await this.createVisit();
     } catch (_error) {
       this.setData({ uiState: "error" });
+    }
+  },
+
+  onShow() {
+    if (this.data.uiState === "ready" || this.data.uiState === "disabled") {
+      this.prepareShareImage();
     }
   },
 
@@ -151,6 +159,7 @@ Page({
       likedByMe: false,
       uiState: disabled ? "disabled" : "ready"
     });
+    this.prepareShareImage(cardMeta);
     this.applyStats(card.stats);
   },
 
@@ -396,10 +405,40 @@ Page({
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
     const shareParam = shareId ? `&share=${shareId}` : "";
-    return {
+    const message = {
       title: `${this.data.card.card.display_name || "名片"}的名片`,
       path: `/pages/public/card?card=${this.data.publicId}${shareParam}`
     };
+    if (this.data.shareImageUrl) {
+      message.imageUrl = this.data.shareImageUrl;
+    }
+    return message;
+  },
+
+  refreshShareImage() {
+    this.prepareShareImage();
+  },
+
+  prepareShareImage(cardMeta) {
+    const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
+    nextTick(async () => {
+      const imageUrl = await buildShareCardImage(this, {
+        card: this.data.card && this.data.card.card,
+        templateClass: this.data.cardTemplateClass,
+        theme: {
+          brand: this.data.themeBrand,
+          brandDeep: this.data.themeBrandDeep,
+          brandSoft: this.data.themeBrandSoft
+        },
+        meta: cardMeta || {
+          companyName: this.data.cardCompanyName,
+          companyShortName: this.data.cardCompanyShortName
+        }
+      });
+      if (imageUrl) {
+        this.setData({ shareImageUrl: imageUrl });
+      }
+    });
   }
 });
 

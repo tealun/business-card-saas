@@ -30,9 +30,9 @@ function mapRecentVisitors(recentVisitors, options = {}) {
 
     mapped.push({
       id: `${item.card_id || item.public_id || "card"}:${item.visitor_key || index}`,
-      name: isAnonymous ? `${peopleCount}人` : item.visitor_label || "微信访客",
+      name: isAnonymous ? `匿名访客 ${peopleCount} 人` : item.visitor_label || "微信访客",
       title: `访问了${visitedCardName}${visitCount}次`,
-      meta: `访问 ${visitCount} 次`,
+      meta: "",
       state: isAnonymous ? "anonymous" : item.state || "none",
       time: formatVisitTime(item.last_visit_at),
       avatarUrl: item.avatar_url || item.visitor_avatar_url || "",

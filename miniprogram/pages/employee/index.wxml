@@ -154,7 +154,7 @@
           <view class="visitor-item__right">
             <text class="badge badge--success" wx:if="{{item.state === 'exchanged'}}">已交换</text>
             <text class="badge badge--warning" wx:elif="{{item.state === 'pending'}}">待通过</text>
-            <text class="f12 t-secondary" wx:else>{{item.meta}}</text>
+            <text class="f12 t-secondary" wx:elif="{{item.meta}}">{{item.meta}}</text>
             <text class="visitor-item__time">{{item.time}}</text>
           </view>
         </view>
@@ -269,4 +269,6 @@
     </view>
     <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "微信个人名片和企业名片互不覆盖，可按场景选择要发送的身份。"}}</view>
   </view>
+
+  <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>
 </view>

@@ -523,3 +523,12 @@
   background-size: 28rpx 28rpx;
   flex: none;
 }
+
+.share-card-canvas {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 500px;
+  height: 400px;
+  pointer-events: none;
+}
