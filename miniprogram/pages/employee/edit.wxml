@@ -26,7 +26,7 @@
           disabled="{{!editable.avatar_url}}"
         >
           <view class="edit-avatar">
-            <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" />
+            <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" binderror="onAvatarImageError" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </button>

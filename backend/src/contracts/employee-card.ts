@@ -7,6 +7,11 @@ const imageSourceSchema = z
     message: "avatar_url must be an http(s) URL, absolute path, or data image"
   });
 
+const persistedImageSourceSchema = imageSourceSchema.refine(
+  (value) => !/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\//i.test(value),
+  { message: "temporary local image URLs cannot be saved" }
+);
+
 export const employeeCardResponseSchema = z.object({
   card_id: z.string(),
   public_id: publicIdSchema,
@@ -45,7 +50,7 @@ export const employeeShareResponseSchema = z.object({
 });
 
 export const updateEmployeeCardRequestSchema = z.object({
-  avatar_url: imageSourceSchema.nullable().optional(),
+  avatar_url: persistedImageSourceSchema.nullable().optional(),
   display_name: z.string().min(1).max(128).optional(),
   title: z.string().max(128).nullable().optional(),
   fields: z
@@ -57,8 +62,8 @@ export const updateEmployeeCardRequestSchema = z.object({
       phone: z.string().max(32).nullable().optional(),
       email: z.string().email().nullable().optional(),
       wechat_id: z.string().max(128).nullable().optional(),
-      wechat_qrcode_url: imageSourceSchema.nullable().optional(),
-      wecom_qrcode_url: imageSourceSchema.nullable().optional(),
+      wechat_qrcode_url: persistedImageSourceSchema.nullable().optional(),
+      wecom_qrcode_url: persistedImageSourceSchema.nullable().optional(),
       address: z.string().max(255).nullable().optional(),
       website: z.string().url().nullable().optional()
     })
@@ -74,14 +79,14 @@ export const updateEmployeeCardRequestSchema = z.object({
 
 export const updateEmployeeCardStyleRequestSchema = z.object({
   template_id: z.string().min(1).max(64).optional(),
-  logo_url: imageSourceSchema.nullable().optional(),
-  background_url: imageSourceSchema.nullable().optional(),
+  logo_url: persistedImageSourceSchema.nullable().optional(),
+  background_url: persistedImageSourceSchema.nullable().optional(),
   color_scheme: z.record(z.string(), z.unknown()).optional(),
   layout: z.record(z.string(), z.unknown()).optional()
 });
 
 export const updateWechatQrCodeRequestSchema = z.object({
-  qrcode_url: imageSourceSchema.nullable()
+  qrcode_url: persistedImageSourceSchema.nullable()
 });
 
 export const employeeWechatQrCodeResponseSchema = z.object({

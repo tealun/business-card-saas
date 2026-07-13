@@ -52,7 +52,10 @@ import { StorageModule } from "./storage/storage.module.js";
         {
           name: "default",
           ttl: 60_000,
-          limit: 100
+          // A company office commonly shares one public NAT address. Keep a
+          // broad abuse ceiling without making coworkers consume a tiny
+          // shared request budget during normal card browsing.
+          limit: 300
         }
       ]
     }),

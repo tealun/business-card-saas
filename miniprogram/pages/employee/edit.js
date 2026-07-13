@@ -158,6 +158,14 @@ Page({
       });
   },
 
+  onAvatarImageError() {
+    const avatarUrl = this.data.form.avatar_url;
+    if (isTemporaryImageUrl(avatarUrl)) {
+      this.setData({ "form.avatar_url": "" });
+      wx.showToast({ title: "头像临时文件已失效，请重新选择", icon: "none" });
+    }
+  },
+
   clearAvatar() {
     if (!this.canEdit("avatar_url")) {
       this.lockedTip();
@@ -318,7 +326,7 @@ function validateCardForm(form, editable) {
 }
 
 function pathToDataUrl(path) {
-  if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
+  if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
     return Promise.resolve(path);
   }
   return new Promise((resolve, reject) => {
@@ -336,4 +344,9 @@ function pathToDataUrl(path) {
       fail: reject
     });
   });
+}
+
+function isTemporaryImageUrl(value) {
+  const source = String(value || "");
+  return /^(?:wxfile:\/\/|https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/)/i.test(source);
 }

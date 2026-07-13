@@ -64,12 +64,20 @@ describe("ApiExceptionFilter", () => {
 
   it.each([
     [HttpStatus.UNPROCESSABLE_ENTITY, 20022],
-    [HttpStatus.TOO_MANY_REQUESTS, 40029],
     [HttpStatus.SERVICE_UNAVAILABLE, 50003]
   ])("maps HTTP status %i to API code %i", (status, code) => {
     const { host, captured } = hostFor(`trace-${status}`);
     filter.catch(new HttpException("mapped error", status), host);
     expect(captured()).toMatchObject({ status, body: { code, message: "mapped error" } });
+  });
+
+  it("returns a user-facing message for rate limits", () => {
+    const { host, captured } = hostFor("trace-429");
+    filter.catch(new HttpException("ThrottlerException: Too Many Requests", HttpStatus.TOO_MANY_REQUESTS), host);
+    expect(captured()).toMatchObject({
+      status: 429,
+      body: { code: 40029, message: "请求过于频繁，请稍后重试" }
+    });
   });
 
   it("replaces unknown errors with a generic 500", () => {

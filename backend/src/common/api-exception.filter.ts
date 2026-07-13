@@ -71,7 +71,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     // Request-body schema failures are client errors, not 500s: surface a generic 400
     // without echoing the raw Zod issue list (which can leak field/shape internals).
     let message: string;
-    if (isHttpException) {
+    if (status === HttpStatus.TOO_MANY_REQUESTS) {
+      message = "请求过于频繁，请稍后重试";
+    } else if (isHttpException) {
       message = errorMessage(exception);
     } else if (isValidationError) {
       message = "invalid request payload";

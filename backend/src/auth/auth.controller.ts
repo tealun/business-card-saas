@@ -9,13 +9,15 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("qy-login")
-  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
+  // Employee logins are backed by short-lived, one-time platform codes. Use a
+  // shared-IP-safe ceiling; many coworkers can legitimately sit behind one NAT.
+  @Throttle({ default: { ttl: 60_000, limit: 120 } })
   qyLogin(@Body() body: unknown) {
     return this.auth.qyLogin(authCodeRequestSchema.parse(body));
   }
 
   @Post("wx-login")
-  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 120 } })
   wxLogin(@Body() body: unknown) {
     return this.auth.wxLogin(authCodeRequestSchema.parse(body));
   }
