@@ -29,7 +29,10 @@ async function bootstrap() {
     }
   });
   registerXmlBodyParser(adapter);
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { bufferLogs: true });
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
+    bufferLogs: true,
+    abortOnError: false
+  });
   app.useLogger(app.get(Logger));
   const config = app.get(AppConfig);
 
@@ -71,4 +74,10 @@ async function bootstrap() {
   await app.listen({ port: config.port, host: config.host });
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  // Nest/Pino may not be initialized when configuration or adapter startup
+  // fails, so write directly to stderr for process managers such as BT-Panel.
+  console.error(`[FATAL] Backend startup failed: ${message}`);
+  process.exitCode = 1;
+});
