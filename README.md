@@ -109,7 +109,7 @@ GitHub Actions 自动部署配置见：
 
 ## 技术栈（§33 为唯一事实源）
 
-Node.js 24 LTS + TypeScript + NestJS · PostgreSQL 17+（RLS 多租户）· node-postgres (`pg`) · Redis / BullMQ · React + Vite + Ant Design（后台）· 原生微信小程序 · 腾讯云 COS / KMS · Docker → Kubernetes · GitHub Actions。
+当前实现：Node.js 24 LTS + TypeScript + NestJS · PostgreSQL 17+（RLS 多租户）· node-postgres (`pg`) · 原生 HTML/CSS/JavaScript 静态后台 · 原生微信小程序 · Docker · GitHub Actions。React + Vite + Ant Design、Redis / BullMQ、腾讯云 COS / KMS 与 Kubernetes 是后续目标架构，尚未作为当前运行时落地。
 
 ## M0 / M1 目标
 

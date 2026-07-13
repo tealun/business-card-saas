@@ -67,13 +67,13 @@ export class AdminDatabaseService {
       this.logger.warn(
         `database migration requested by open_userid=${session.openUserid} tenant_id=${session.tenantId} pending=${before.pending_count}`
       );
-      const executable = process.platform === "win32" ? "npm.cmd" : "npm";
+      const migrationScript = path.join(before.database_dir, "scripts", "migrate.cjs");
       let stdout = "";
       let stderr = "";
       try {
-        const result = await execFileAsync(executable, ["run", "migrate"], {
+        const result = await execFileAsync(process.execPath, [migrationScript], {
           cwd: before.database_dir,
-          env: process.env,
+          env: migrationEnvironment(),
           timeout: 120_000,
           maxBuffer: 1024 * 1024
         });
@@ -231,4 +231,21 @@ function sanitizeOutput(output: string): string {
     return output;
   }
   return output.replaceAll(databaseUrl, "[DATABASE_URL]");
+}
+
+function migrationEnvironment(): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_SSL: process.env.DATABASE_SSL,
+    DATABASE_POOL_MAX: process.env.DATABASE_POOL_MAX,
+    DATABASE_CONNECT_TIMEOUT_MS: process.env.DATABASE_CONNECT_TIMEOUT_MS,
+    DATABASE_IDLE_TIMEOUT_MS: process.env.DATABASE_IDLE_TIMEOUT_MS,
+    DATABASE_STATEMENT_TIMEOUT_MS: process.env.DATABASE_STATEMENT_TIMEOUT_MS,
+    DATABASE_APPLICATION_NAME: process.env.DATABASE_APPLICATION_NAME,
+    PATH: process.env.PATH,
+    Path: process.env.Path,
+    SystemRoot: process.env.SystemRoot,
+    WINDIR: process.env.WINDIR
+  };
 }

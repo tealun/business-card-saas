@@ -1,4 +1,9 @@
-import { BadRequestException, type ArgumentsHost } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  type ArgumentsHost
+} from "@nestjs/common";
 import { z } from "zod";
 import { ApiExceptionFilter } from "./api-exception.filter.js";
 
@@ -55,6 +60,16 @@ describe("ApiExceptionFilter", () => {
     const { status, body } = captured();
     expect(status).toBe(400);
     expect(body.message).toBe("bad code");
+  });
+
+  it.each([
+    [HttpStatus.UNPROCESSABLE_ENTITY, 20022],
+    [HttpStatus.TOO_MANY_REQUESTS, 40029],
+    [HttpStatus.SERVICE_UNAVAILABLE, 50003]
+  ])("maps HTTP status %i to API code %i", (status, code) => {
+    const { host, captured } = hostFor(`trace-${status}`);
+    filter.catch(new HttpException("mapped error", status), host);
+    expect(captured()).toMatchObject({ status, body: { code, message: "mapped error" } });
   });
 
   it("replaces unknown errors with a generic 500", () => {

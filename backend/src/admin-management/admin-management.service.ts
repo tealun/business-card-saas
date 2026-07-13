@@ -87,18 +87,9 @@ export class AdminManagementService {
     if (!persisted) {
       throw new NotFoundException("tenant member not found");
     }
-    let card = persisted;
-    if (request.status !== undefined) {
-      const statusUpdated = await this.repository.updateMemberStatus(session, memberIdentityId, request.status);
-      if (statusUpdated === false) {
-        throw new NotFoundException("tenant member not found");
-      }
-      const reloaded = await this.repository.getMemberCard(session, memberIdentityId);
-      if (!reloaded) {
-        throw new NotFoundException("tenant member not found");
-      }
-      card = reloaded;
-    }
-    return adminMemberCardResponseSchema.parse(card);
+    // The repository applies member, card, directory, fields and status updates
+    // inside one TenantTx and returns the reloaded card. Do not repeat the
+    // status mutation in a second transaction here.
+    return adminMemberCardResponseSchema.parse(persisted);
   }
 }

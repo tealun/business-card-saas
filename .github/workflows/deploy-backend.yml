@@ -66,6 +66,7 @@ jobs:
       - name: Verify backend
         working-directory: ./backend
         run: |
+          npm audit --audit-level=moderate
           npm run typecheck
           npm run lint
           npm test -- --coverage --coverageThreshold='{}'

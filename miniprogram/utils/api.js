@@ -170,7 +170,14 @@ function isWeComRuntime() {
 function maybeDemoCode(type = "qy") {
   const app = getAppInstance();
   const globalData = app && app.globalData ? app.globalData : {};
-  if (globalData.demoAuthEnabled) {
+  let isDevelop = false;
+  try {
+    const accountInfo = typeof wx.getAccountInfoSync === "function" ? wx.getAccountInfoSync() : null;
+    isDevelop = accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion === "develop";
+  } catch (_error) {
+    isDevelop = false;
+  }
+  if (globalData.demoAuthEnabled && isDevelop) {
     return type === "wx" ? "demo-wx-code" : "demo-qy-code";
   }
   return "";

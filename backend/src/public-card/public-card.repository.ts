@@ -459,7 +459,7 @@ export class PublicCardRepository {
       `
         SELECT
           count(*)::text AS visit_count,
-          count(DISTINCT COALESCE(visitor_account_id::text, anon_id, id::text))::text AS visitor_count
+          count(DISTINCT COALESCE(visitor_account_id::text, anon_id))::text AS visitor_count
         FROM card_visits
         WHERE tenant_id = $1 AND card_id = $2
       `,
@@ -467,7 +467,7 @@ export class PublicCardRepository {
     );
     const likes = await tx.query<{ like_count: string }>(
       `
-        SELECT count(DISTINCT COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text))::text AS like_count
+        SELECT count(DISTINCT COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id))::text AS like_count
         FROM card_actions
         JOIN card_visits
           ON card_visits.tenant_id = card_actions.tenant_id

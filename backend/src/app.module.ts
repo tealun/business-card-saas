@@ -26,9 +26,23 @@ import { StorageModule } from "./storage/storage.module.js";
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "error" : "debug"),
-        // Keep bearer tokens and login codes out of request logs (A54-P2-1).
+        // Keep bearer tokens, login codes, and contact PII out of request logs.
         redact: {
-          paths: ["req.headers.authorization", "req.body.code"],
+          paths: [
+            "req.headers.authorization",
+            "req.body.code",
+            "req.body.mobile",
+            "req.body.phone",
+            "req.body.email",
+            "req.body.wechat_id",
+            "req.body.wechatId",
+            "req.query.code",
+            "req.query.mobile",
+            "req.query.phone",
+            "req.query.email",
+            "req.query.wechat_id",
+            "req.query.wechatId"
+          ],
           censor: "[redacted]"
         }
       }

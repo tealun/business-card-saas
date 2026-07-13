@@ -104,7 +104,7 @@ export class EmployeeCardRepository {
         `
           SELECT
             count(*)::text AS visit_count,
-            count(DISTINCT COALESCE(visitor_account_id::text, anon_id, id::text))::text AS visitor_count
+            count(DISTINCT COALESCE(visitor_account_id::text, anon_id))::text AS visitor_count
           FROM card_visits
           WHERE tenant_id = $1 AND member_identity_id = $2
         `,
@@ -112,25 +112,53 @@ export class EmployeeCardRepository {
       );
       const recent = await tx.query<{
         visitor_key: string;
-        has_account: boolean;
+        visitor_label: string | null;
+        visitor_avatar_url: string | null;
+        visitor_count: string;
         visit_count: string;
+        is_anonymous: boolean;
+        card_id: string | number | bigint;
+        public_id: string;
+        card_name: string;
         trust_level: string | null;
         channel: string | null;
         last_visit_at: Date | string;
       }>(
         `
           SELECT
-            COALESCE(visitor_account_id::text, anon_id, id::text) AS visitor_key,
-            bool_or(visitor_account_id IS NOT NULL OR trust_level = 'authenticated_user') AS has_account,
+            CASE
+              WHEN card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user'
+                THEN 'anonymous'
+              ELSE COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text)
+            END AS visitor_key,
+            max(visitor_accounts.nickname) AS visitor_label,
+            max(visitor_accounts.avatar) AS visitor_avatar_url,
+            count(DISTINCT COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text))::text AS visitor_count,
             count(*)::text AS visit_count,
-            (array_agg(trust_level ORDER BY created_at DESC))[1] AS trust_level,
-            (array_agg(channel ORDER BY created_at DESC))[1] AS channel,
-            max(created_at) AS last_visit_at
+            bool_and(card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user') AS is_anonymous,
+            card_visits.card_id,
+            cards.public_id,
+            COALESCE(cards.display_name, '名片') AS card_name,
+            (array_agg(card_visits.trust_level ORDER BY card_visits.created_at DESC))[1] AS trust_level,
+            (array_agg(card_visits.channel ORDER BY card_visits.created_at DESC))[1] AS channel,
+            max(card_visits.created_at) AS last_visit_at
           FROM card_visits
-          WHERE tenant_id = $1 AND member_identity_id = $2
-          GROUP BY COALESCE(visitor_account_id::text, anon_id, id::text)
-          ORDER BY max(created_at) DESC
-          LIMIT 10
+          JOIN cards
+            ON cards.tenant_id = card_visits.tenant_id
+            AND cards.id = card_visits.card_id
+          LEFT JOIN visitor_accounts ON visitor_accounts.id = card_visits.visitor_account_id
+          WHERE card_visits.tenant_id = $1 AND card_visits.member_identity_id = $2
+          GROUP BY
+            card_visits.card_id,
+            cards.public_id,
+            cards.display_name,
+            CASE
+              WHEN card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user'
+                THEN 'anonymous'
+              ELSE COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text)
+            END
+          ORDER BY max(card_visits.created_at) DESC
+          LIMIT 50
         `,
         [session.tenantId, session.memberIdentityId]
       );
@@ -139,8 +167,15 @@ export class EmployeeCardRepository {
         visit_count: Number(totals.rows[0]?.visit_count ?? 0),
         recent_visitors: recent.rows.map((row) => ({
           visitor_key: row.visitor_key,
-          visitor_label: row.has_account ? "微信访客" : "匿名访客",
+          visitor_label: row.is_anonymous ? "匿名访客" : row.visitor_label ?? "微信访客",
+          visitor_count: Number(row.visitor_count),
           visit_count: Number(row.visit_count),
+          is_anonymous: row.is_anonymous,
+          card_id: String(row.card_id),
+          public_id: row.public_id,
+          card_name: row.card_name,
+          visitor_avatar_url: row.visitor_avatar_url,
+          trust_level: row.trust_level,
           channel: row.channel ?? null,
           last_visit_at: new Date(row.last_visit_at).toISOString()
         }))
@@ -587,11 +622,11 @@ export class EmployeeCardRepository {
         )
         VALUES ($1, $2, $3, $4, now(), now(), now())
         ON CONFLICT (public_id) DO UPDATE SET
-          tenant_id = EXCLUDED.tenant_id,
-          card_id = EXCLUDED.card_id,
           status = EXCLUDED.status,
           card_updated_at = now(),
           updated_at = now()
+        WHERE public_card_directory.tenant_id = EXCLUDED.tenant_id
+          AND public_card_directory.card_id = EXCLUDED.card_id
       `,
       [input.publicId, input.tenantId, input.cardId, input.status]
     );
