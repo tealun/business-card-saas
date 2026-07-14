@@ -52,6 +52,15 @@ describe("PublicCardController", () => {
     expect(body.company_profile).toBeTruthy();
     expect(Array.isArray(body.videos)).toBe(true);
     expect(Array.isArray(body.honors)).toBe(true);
+    expect(((body.company_profile as { display_modules: unknown[] }).display_modules).map((item) => (item as { key: string }).key)).toEqual([
+      "services",
+      "profile",
+      "videos",
+      "honors"
+    ]);
+    expect((body.company_profile as { service_items: unknown[] }).service_items.length).toBeGreaterThanOrEqual(5);
+    expect((body.videos as unknown[]).length).toBeGreaterThanOrEqual(1);
+    expect((body.honors as unknown[]).length).toBeGreaterThanOrEqual(2);
     expect(body.visit_token).toBeUndefined();
   });
 

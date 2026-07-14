@@ -7,12 +7,11 @@ const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
 const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
 
 const demoServiceItems = [
-  { title: "数字名片", desc: "员工对外名片展示" },
-  { title: "客户留资", desc: "访客行为追踪" },
-  { title: "企业形象", desc: "统一品牌展示" },
-  { title: "销售获客", desc: "分享链路转化" },
-  { title: "内容展示", desc: "图文介绍产品" },
-  { title: "数据分析", desc: "访问效果统计" }
+  { id: "demo_service_identity", title: "企业数字名片", desc: "统一员工名片、企业资料与品牌视觉", image_url: "https://images.unsplash.com/photo-1556761175-b413da4baf72" },
+  { id: "demo_service_leads", title: "客户留资", desc: "访客行为追踪与销售跟进", image_url: "https://images.unsplash.com/photo-1552664730-d307ca884978" },
+  { id: "demo_service_brand", title: "企业官网式展示", desc: "模块化呈现产品、简介、视频和荣誉", image_url: "https://images.unsplash.com/photo-1497366216548-37526070297c" },
+  { id: "demo_service_analytics", title: "数据分析", desc: "访问效果统计和线索判断", image_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71" },
+  { id: "demo_service_wecom", title: "企微身份集成", desc: "对接企业微信身份与组织架构", image_url: "https://images.unsplash.com/photo-1559136555-9303baea8ebd" }
 ];
 
 const demoPublicCard = {
@@ -43,13 +42,64 @@ const demoPublicCard = {
     name: "智云科技（深圳）有限公司",
     short_name: "智云科技",
     address: "深圳市南山区科技园",
+    service_items: demoServiceItems.map((item, index) => ({
+      id: item.id,
+      title: item.title,
+      description: item.desc,
+      image_url: item.image_url,
+      visible: true,
+      sort_order: (index + 1) * 10
+    })),
+    display_modules: [
+      { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+      { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+      { key: "videos", title: "企业视频", visible: true, sort_order: 30, layout: "carousel" },
+      { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+    ],
     intro_blocks: [
+      { type: "heading", text: "智云科技企业展示样例" },
       { type: "paragraph", text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理与客户转化追踪。" },
-      { type: "image", image_url: "", caption: "业务介绍图片" }
+      { type: "list", items: ["统一企业品牌形象", "员工名片集中管理", "访客行为与转化追踪"] },
+      { type: "image", url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72", caption: "开放协作办公区" },
+      {
+        type: "gallery",
+        images: [
+          { url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2", caption: "客户共创会议" },
+          { url: "https://images.unsplash.com/photo-1556761175-4b46a572b786", caption: "企业服务团队" },
+          { url: "https://images.unsplash.com/photo-1551434678-e076c223a692", caption: "产品研发现场" }
+        ]
+      },
+      { type: "video", video_id: "vid_demo_company" }
     ]
   },
-  videos: [],
-  honors: []
+  videos: [
+    {
+      video_id: "vid_demo_company",
+      title: "企业介绍视频",
+      video_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+      cover_url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72"
+    }
+  ],
+  honors: [
+    {
+      honor_id: "honor_demo_001",
+      title: "年度数字化服务创新奖",
+      body: "展示荣誉资质模块的多图轮播与大图预览能力。",
+      images: [
+        { image_url: "https://images.unsplash.com/photo-1567427017947-545c5f8d16ad", title: "创新奖证书", caption: "行业协会颁发" },
+        { image_url: "https://images.unsplash.com/photo-1521791136064-7986c2920216", title: "颁奖现场", caption: "年度服务创新论坛" }
+      ]
+    },
+    {
+      honor_id: "honor_demo_002",
+      title: "ISO 质量管理体系认证",
+      body: "展示同一荣誉下多张图片、图片标题与说明。",
+      images: [
+        { image_url: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85", title: "认证证书", caption: "质量管理体系认证" },
+        { image_url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d", title: "审核会议", caption: "标准流程复核" }
+      ]
+    }
+  ]
 };
 const TEMPLATE_BACKGROUNDS = {
   tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
