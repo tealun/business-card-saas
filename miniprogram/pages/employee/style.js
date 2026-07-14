@@ -34,7 +34,7 @@ const stylePage = {
     templateId: "tpl_horizontal_business",
     templateClass: "biz-card--horizontal",
     logoUrl: "",
-    card: { display_name: "", title: "", company: "", fields: {} },
+    card: { display_name: "", title: "", company: "", fields: {}, show_avatar: true },
     templates: [
       { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
       { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
@@ -97,7 +97,7 @@ const stylePage = {
         templateId,
         templateClass: templateClass(templateId),
         logoUrl: template.logo_url || "",
-        card: Object.assign({ fields: {}, status: preview.status }, preview.card)
+        card: Object.assign({ fields: {}, status: preview.status, show_avatar: preview.show_avatar !== false }, preview.card)
       });
     } catch (_error) {
       wx.showToast({ title: "名片信息加载失败，预览可能不完整", icon: "none" });

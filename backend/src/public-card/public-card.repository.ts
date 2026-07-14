@@ -605,12 +605,14 @@ export class PublicCardRepository {
       public_id: row.public_id,
       status: row.card_status,
       allow_forward: privacy.allow_forward,
+      show_avatar: privacy.show_avatar,
+      share_title: privacy.share_title,
       card: {
         display_name: row.display_name ?? "Unnamed",
         title: row.title,
         company: companyName,
         company_short_name: companyShortName,
-        avatar_url: row.avatar_url,
+        avatar_url: privacy.show_avatar ? row.avatar_url : null,
         fields: {
           company: companyName,
           company_short_name: companyShortName,
@@ -841,13 +843,15 @@ export class PublicCardRepository {
   }
 }
 
-function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean; allow_forward: boolean } {
+function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean; allow_forward: boolean; show_avatar: boolean; share_title: string | null } {
   const record = parseObject(value);
   return {
     show_mobile: typeof record.show_mobile === "boolean" ? record.show_mobile : false,
     show_email: typeof record.show_email === "boolean" ? record.show_email : true,
     show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
-    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true
+    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true,
+    show_avatar: typeof record.show_avatar === "boolean" ? record.show_avatar : true,
+    share_title: typeof record.share_title === "string" && record.share_title.trim() ? record.share_title.trim().slice(0, 50) : null
   };
 }
 

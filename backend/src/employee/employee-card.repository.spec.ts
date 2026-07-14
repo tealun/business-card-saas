@@ -124,7 +124,9 @@ describe("EmployeeCardRepository", () => {
         show_mobile: false,
         show_email: true,
         show_wechat: false,
-        allow_forward: true
+        allow_forward: true,
+        show_avatar: true,
+        share_title: null
       }
     };
 
@@ -135,6 +137,31 @@ describe("EmployeeCardRepository", () => {
     expect(() => publicCardResponseSchema.parse(preview)).not.toThrow();
     expect(preview.card.fields.email).toBeNull();
     expect(preview.company_profile.website_url).toBeNull();
+  });
+
+  it("persists the custom share title and hides the avatar from previews", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-share",
+      identityType: "personal" as const,
+      tenantId: "tenant-share",
+      tenantName: "Personal",
+      memberIdentityId: "member-share",
+      displayName: "Ada",
+      openUserid: "ou-share",
+      publicId: "pub_share001"
+    };
+
+    await repository.updateCurrentCard(session, {
+      avatar_url: "https://example.com/avatar.png",
+      privacy: { show_avatar: false, share_title: "欢迎查看我的名片" }
+    });
+    const card = await repository.getCurrentCard(session);
+    const preview = await repository.getPreview(session);
+
+    expect(card.privacy).toMatchObject({ show_avatar: false, share_title: "欢迎查看我的名片" });
+    expect(preview).toMatchObject({ show_avatar: false, share_title: "欢迎查看我的名片" });
+    expect(preview.card.avatar_url).toBeNull();
   });
 
   it("materializes avatar data URLs through configured storage before saving", async () => {

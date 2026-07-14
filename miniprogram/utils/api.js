@@ -119,9 +119,11 @@ function isTemporaryLocalFileUrl(value) {
 function clearSessionState() {
   const app = getAppInstance();
   if (app && app.globalData) {
+    const { demoIdentity } = require("./demo-card");
+    const demo = demoIdentity(true);
     app.globalData.token = "";
-    app.globalData.currentIdentity = null;
-    app.globalData.identities = [];
+    app.globalData.currentIdentity = demo;
+    app.globalData.identities = [demo];
     app.globalData.currentCard = null;
     app.globalData.shareId = "";
   }

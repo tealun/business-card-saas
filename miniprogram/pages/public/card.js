@@ -19,6 +19,8 @@ const demoPublicCard = {
   public_id: "pub_demo0001",
   status: "active",
   allow_forward: true,
+  show_avatar: true,
+  share_title: "",
   card: {
     display_name: "李明",
     title: "销售总监 · 市场部",
@@ -99,10 +101,11 @@ Page({
   },
 
   async onLoad(query) {
+    const isDemoRoute = query.demo === "1";
     const publicId = query.card || query.public_id || "";
     const shareId = query.share || "";
     this.setData({ publicId, shareId, loggedIn: Boolean(app.globalData.token) });
-    if (!publicId) {
+    if (isDemoRoute || !publicId) {
       this.applyPublicCard(demoPublicCard, true);
       wx.showToast({ title: "当前展示演示名片", icon: "none" });
       return;
@@ -381,8 +384,18 @@ Page({
     }
     this.recordAction("upgrade_enterprise");
     wx.showModal({
-      title: "升级为企业名片",
+      title: "企业名片开通流程",
       content: "企业管理员授权安装后，即可统一企业形象、管理员工名片并查看访客转化数据。正式接入开放后，我们会协助完成配置。",
+      showCancel: false,
+      confirmText: "我知道了"
+    });
+  },
+
+  openContactService() {
+    // 后续接入系统客服页面时，只需在这里替换为客服跳转能力。
+    wx.showModal({
+      title: "联系开通",
+      content: "系统客服页面正在接入中，开放后可在这里联系开通企业名片。",
       showCancel: false,
       confirmText: "我知道了"
     });
@@ -454,7 +467,7 @@ Page({
     const shareParam = shareId ? `&share=${shareId}` : "";
     const cardParam = this.data.publicId ? `?card=${this.data.publicId}${shareParam}` : "";
     const message = {
-      title: `${this.data.card.card.display_name || "名片"}的名片`,
+      title: this.data.card.share_title || `${this.data.card.card.display_name || "名片"}的名片`,
       path: `/pages/public/card${cardParam}`
     };
     if (this.data.shareImageUrl) {
@@ -534,6 +547,8 @@ function normalizePublicCard(card) {
     public_id: card.public_id || "",
     status: card.status || "active",
     allow_forward: card.allow_forward !== false,
+    show_avatar: card.show_avatar !== false,
+    share_title: typeof card.share_title === "string" ? card.share_title.trim() : "",
     card: Object.assign(
       { display_name: "", title: "", company: "", company_short_name: "", avatar_url: "", fields: {} },
       card.card || {}

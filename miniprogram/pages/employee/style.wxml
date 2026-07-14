@@ -19,7 +19,10 @@
           <view>{{card.fields.mobile || "联系方式未设置"}}</view>
         </view>
       </view>
-      <view class="biz-card__avatar"><view class="avatar-placeholder"></view></view>
+      <view class="biz-card__avatar" wx:if="{{card.show_avatar}}">
+        <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+        <view wx:else class="avatar-placeholder"></view>
+      </view>
     </view>
     <text class="badge badge--brand style-preview__tag">实时预览</text>
   </view>

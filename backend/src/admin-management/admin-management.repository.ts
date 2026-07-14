@@ -671,7 +671,9 @@ function mergePrivacy(current: CardPrivacy, patch: UpdateAdminMemberCardRequest[
     show_mobile: patch.show_mobile !== undefined ? patch.show_mobile : current.show_mobile,
     show_email: patch.show_email !== undefined ? patch.show_email : current.show_email,
     show_wechat: patch.show_wechat !== undefined ? patch.show_wechat : current.show_wechat,
-    allow_forward: patch.allow_forward !== undefined ? patch.allow_forward : current.allow_forward
+    allow_forward: patch.allow_forward !== undefined ? patch.allow_forward : current.allow_forward,
+    show_avatar: patch.show_avatar !== undefined ? patch.show_avatar : current.show_avatar,
+    share_title: patch.share_title !== undefined ? patch.share_title : current.share_title
   };
 }
 
@@ -680,7 +682,9 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_mobile: false,
     show_email: true,
     show_wechat: false,
-    allow_forward: true
+    allow_forward: true,
+    show_avatar: true,
+    share_title: null
   };
   if (!value) {
     return fallback;
@@ -694,7 +698,9 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_mobile: typeof privacy.show_mobile === "boolean" ? privacy.show_mobile : fallback.show_mobile,
     show_email: typeof privacy.show_email === "boolean" ? privacy.show_email : fallback.show_email,
     show_wechat: typeof privacy.show_wechat === "boolean" ? privacy.show_wechat : fallback.show_wechat,
-    allow_forward: typeof privacy.allow_forward === "boolean" ? privacy.allow_forward : fallback.allow_forward
+    allow_forward: typeof privacy.allow_forward === "boolean" ? privacy.allow_forward : fallback.allow_forward,
+    show_avatar: typeof privacy.show_avatar === "boolean" ? privacy.show_avatar : fallback.show_avatar,
+    share_title: typeof privacy.share_title === "string" && privacy.share_title.trim() ? privacy.share_title.trim().slice(0, 50) : fallback.share_title
   };
 }
 

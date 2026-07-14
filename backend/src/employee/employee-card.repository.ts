@@ -703,12 +703,14 @@ export class EmployeeCardRepository {
       public_id: card.public_id,
       status: card.status,
       allow_forward: card.privacy.allow_forward,
+      show_avatar: card.privacy.show_avatar !== false,
+      share_title: card.privacy.share_title ?? null,
       card: {
         display_name: card.display_name,
         title: card.title,
         company: card.company,
         company_short_name: card.company_short_name ?? null,
-        avatar_url: card.avatar_url,
+        avatar_url: card.privacy.show_avatar !== false ? card.avatar_url : null,
         fields: {
           company: card.company ?? null,
           company_short_name: card.company_short_name ?? null,
@@ -926,6 +928,12 @@ function mergeCard(
   if (request.privacy?.allow_forward !== undefined) {
     next.privacy.allow_forward = request.privacy.allow_forward;
   }
+  if (request.privacy?.show_avatar !== undefined) {
+    next.privacy.show_avatar = request.privacy.show_avatar;
+  }
+  if (request.privacy?.share_title !== undefined) {
+    next.privacy.share_title = request.privacy.share_title;
+  }
   return next;
 }
 
@@ -997,7 +1005,9 @@ function defaultPrivacy(): CardPrivacy {
     show_mobile: false,
     show_email: true,
     show_wechat: false,
-    allow_forward: true
+    allow_forward: true,
+    show_avatar: true,
+    share_title: null
   };
 }
 
@@ -1071,7 +1081,9 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_mobile: typeof record.show_mobile === "boolean" ? record.show_mobile : false,
     show_email: typeof record.show_email === "boolean" ? record.show_email : true,
     show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
-    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true
+    allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true,
+    show_avatar: typeof record.show_avatar === "boolean" ? record.show_avatar : true,
+    share_title: typeof record.share_title === "string" && record.share_title.trim() ? record.share_title.trim().slice(0, 50) : null
   };
 }
 

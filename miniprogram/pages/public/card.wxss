@@ -233,6 +233,16 @@
   line-height: 1.5;
 }
 
+.upgrade-card__action {
+  flex: none;
+  min-width: 176rpx;
+  padding: 0 30rpx;
+  color: #ffffff;
+  background: var(--warning);
+  box-shadow: 0 10rpx 24rpx rgba(247, 144, 9, 0.28);
+  white-space: nowrap;
+}
+
 .action-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);

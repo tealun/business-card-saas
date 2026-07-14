@@ -4,26 +4,14 @@ const { request } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
-
-const DEMO_ENTERPRISE_ID = "demo_zhiyun_enterprise";
-const demoEnterpriseIdentity = {
-  member_identity_id: DEMO_ENTERPRISE_ID,
-  identity_type: "demo_enterprise",
-  display_name: "智云科技",
-  optionName: "智云科技",
-  tenant_name: "智云科技（深圳）有限公司",
-  typeLabel: "企业名片",
-  badgeClass: "badge--success",
-  subtitle: "智云科技（深圳）有限公司",
-  isDemo: true,
-  sampleLabel: "样例"
-};
+const { DEMO_CARD_ID, DEMO_CARD_ROUTE, demoIdentity } = require("../../utils/demo-card");
 
 const demoCard = {
   display_name: "李明",
   title: "销售总监 · 市场部",
   company: "智云科技（深圳）有限公司",
   company_short_name: "智云科技",
+  show_avatar: true,
   fields: {
     mobile: "138 0013 8000",
     email: "liming@zhiyun.tech"
@@ -117,8 +105,8 @@ Page({
         demoMode: true,
         authState: "guest",
         loggedIn: false,
-        currentIdentity: Object.assign({}, demoEnterpriseIdentity, { selected: true }),
-        identities: [Object.assign({}, demoEnterpriseIdentity, { selected: true })],
+        currentIdentity: demoIdentity(true),
+        identities: [demoIdentity(true)],
         card: demoCard,
         cardTemplateClass: "biz-card--horizontal",
         cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
@@ -188,14 +176,14 @@ Page({
         selected: identity.member_identity_id === currentId
       });
     });
-    identities.push(Object.assign({}, demoEnterpriseIdentity, { selected: false }));
+    identities.push(demoIdentity(false));
     this.setData({ currentIdentity, identities });
   },
 
   async loadPreview() {
     try {
       const preview = await request("/employee/cards/current/preview");
-      app.globalData.currentCard = preview.card;
+      app.globalData.currentCard = Object.assign({}, preview.card, { public_id: preview.public_id });
       const layout = (preview.template && preview.template.layout) || {};
       const brand = (preview.template && preview.template.color_scheme && preview.template.color_scheme.primary) || DEFAULT_BRAND;
       setPageTheme(this, brand);
@@ -203,7 +191,10 @@ Page({
         this.getTabBar().applyTheme();
       }
       this.setData({
-        card: Object.assign({ status: preview.status, fields: {} }, preview.card),
+        card: Object.assign({ status: preview.status, fields: {} }, preview.card, {
+          show_avatar: preview.show_avatar !== false,
+          share_title: preview.share_title || ""
+        }),
         cardLogoUrl: (preview.template && preview.template.logo_url) || "",
         showCardHead: Boolean((preview.template && preview.template.logo_url) || (preview.card && preview.card.company_short_name)),
         cardTemplateClass: cardTemplateClass(preview.template && preview.template.template_id),
@@ -292,9 +283,9 @@ Page({
     if (!memberIdentityId || this.data.switchingIdentity) {
       return;
     }
-    if (memberIdentityId === DEMO_ENTERPRISE_ID) {
+    if (memberIdentityId === DEMO_CARD_ID) {
       this.closeIdentitySheet();
-      wx.navigateTo({ url: "/pages/public/card" });
+      wx.navigateTo({ url: DEMO_CARD_ROUTE });
       return;
     }
     if (!this.ensureLoggedIn("请先登录后切换真实身份")) {
@@ -499,7 +490,9 @@ Page({
     const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
     nextTick(async () => {
       const imageUrl = await buildShareCardImage(this, {
-        card: this.data.card,
+        card: Object.assign({}, this.data.card, {
+          avatar_url: this.data.card.show_avatar === false ? "" : this.data.card.avatar_url
+        }),
         templateClass: this.data.cardTemplateClass,
         theme: {
           brand: this.data.themeBrand,
@@ -571,7 +564,7 @@ Page({
 
   onShareAppMessage() {
     const card = this.data.card;
-    const message = { title: `${card.display_name || "我的"}的数字名片` };
+    const message = { title: card.share_title || `${card.display_name || "我的"}的数字名片` };
     if (this.data.shareImageUrl) {
       message.imageUrl = this.data.shareImageUrl;
     }
@@ -601,6 +594,8 @@ function fallbackCardFromIdentity(identity) {
     company: isPersonal ? "" : (identity && identity.tenant_name ? identity.tenant_name : "企业名片"),
     company_short_name: isPersonal ? "" : ((identity && (identity.tenant_short_name || identity.short_name)) || ""),
     avatar_url: "",
+    show_avatar: true,
+    share_title: "",
     fields: {},
     status: "active"
   };

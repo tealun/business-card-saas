@@ -20,7 +20,7 @@ const PRESET_BACKGROUNDS = {
 Page({
   data: {
     // 表单初始为空：读取失败时绝不能让占位演示数据被“保存”成真实名片。
-    card: { fields: {} },
+    card: { fields: {}, show_avatar: true },
     form: {
       display_name: "",
       title: "",
@@ -56,7 +56,7 @@ Page({
   async loadCard() {
     try {
       const preview = await request("/employee/cards/current/preview");
-      const card = Object.assign({ fields: {} }, preview.card || {});
+      const card = Object.assign({ fields: {}, show_avatar: preview.show_avatar !== false }, preview.card || {});
       const template = preview.template || {};
       const brand = template.color_scheme && template.color_scheme.primary;
       if (brand) {

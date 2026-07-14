@@ -1,5 +1,6 @@
 let config = {};
 let configError = "";
+const { demoIdentity } = require("./utils/demo-card");
 try {
   config = require("./config");
 } catch (error) {
@@ -14,8 +15,8 @@ App({
     apiBase: config.apiBase || "",
     configError,
     token: "",
-    currentIdentity: null,
-    identities: [],
+    currentIdentity: demoIdentity(true),
+    identities: [demoIdentity(true)],
     currentCard: null,
     shareId: "",
     visitToken: "",

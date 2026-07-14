@@ -34,6 +34,8 @@ export const publicCardResponseSchema = z.object({
   public_id: publicIdSchema,
   status: z.enum(["active", "disabled", "expired", "employee_left", "tenant_cancelled"]),
   allow_forward: z.boolean(),
+  show_avatar: z.boolean().default(true),
+  share_title: z.string().max(50).nullable().default(null),
   card: z.object({
     display_name: z.string(),
     title: z.string().nullable(),

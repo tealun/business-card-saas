@@ -34,7 +34,8 @@ Page({
       email: "",
       wechat_id: "",
       address: "",
-      website: ""
+      website: "",
+      share_title: ""
     },
     editable: {},
     themeBrand: "",
@@ -45,7 +46,8 @@ Page({
       show_mobile: false,
       show_email: true,
       show_wechat: false,
-      allow_forward: true
+      allow_forward: true,
+      show_avatar: true
     },
     loading: true,
     error: false,
@@ -86,7 +88,8 @@ Page({
           email: fields.email || "",
           wechat_id: fields.wechat_id || "",
           address: fields.address || "",
-          website: fields.website || ""
+          website: fields.website || "",
+          share_title: (card.privacy && card.privacy.share_title) || ""
         },
         editable: editableMap(editableFields),
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
@@ -260,7 +263,9 @@ function buildPayload(form, privacy, editable) {
       show_mobile: privacy.show_mobile,
       show_email: privacy.show_email,
       show_wechat: privacy.show_wechat,
-      allow_forward: privacy.allow_forward
+      allow_forward: privacy.allow_forward,
+      show_avatar: privacy.show_avatar,
+      share_title: String(form.share_title || "").trim() || null
     }
   };
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;

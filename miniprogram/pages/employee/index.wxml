@@ -49,7 +49,7 @@
               <view wx:if="{{card.fields.email}}">{{card.fields.email}}</view>
             </view>
           </view>
-          <view class="biz-card__avatar">
+          <view class="biz-card__avatar" wx:if="{{card.show_avatar}}">
             <image wx:if="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
             <view wx:else class="avatar-placeholder"></view>
           </view>

@@ -1,4 +1,6 @@
 const app = getApp();
+const { ensureSession } = require("../../utils/auth");
+const { DEMO_CARD_ROUTE } = require("../../utils/demo-card");
 const { setPageTheme } = require("../../utils/theme");
 
 Page({
@@ -13,24 +15,38 @@ Page({
       this.getTabBar().setData({ selected: 2 });
       this.getTabBar().applyTheme();
     }
-    if (this.data.routed) {
-      this.setData({ routed: false });
-      return;
-    }
+    this.setData({ routed: false });
     this.openCardHome();
   },
 
-  openCardHome() {
-    const identities = app.globalData.identities || [];
-    const currentIdentity = app.globalData.currentIdentity || {};
-    const enterpriseIdentity = currentIdentity.identity_type && currentIdentity.identity_type !== "personal"
-      ? currentIdentity
-      : identities.find((identity) => identity.identity_type !== "personal");
-    const publicId = enterpriseIdentity && enterpriseIdentity.public_id;
+  async openCardHome() {
+    let currentIdentity = app.globalData.currentIdentity || {};
+    if (currentIdentity.isDemo || !app.globalData.token) {
+      this.setData({ routed: true });
+      wx.navigateTo({ url: DEMO_CARD_ROUTE });
+      return;
+    }
+    if (!currentIdentity.public_id) {
+      try {
+        const session = await ensureSession();
+        currentIdentity = session.currentIdentity || {};
+      } catch (_error) {
+        this.setData({ routed: false });
+        wx.showToast({ title: "请先登录并选择名片", icon: "none" });
+        return;
+      }
+    }
+    const publicId = currentIdentity.public_id;
+
+    if (!publicId) {
+      this.setData({ routed: false });
+      wx.showToast({ title: "请先在首页选择名片", icon: "none" });
+      return;
+    }
 
     this.setData({ routed: true });
     wx.navigateTo({
-      url: publicId ? `/pages/public/card?card=${publicId}` : "/pages/public/card",
+      url: `/pages/public/card?card=${publicId}`,
       fail: () => {
         this.setData({ routed: false });
         wx.showToast({ title: "名片主页打开失败", icon: "none" });

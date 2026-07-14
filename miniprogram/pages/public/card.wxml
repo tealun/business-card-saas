@@ -45,7 +45,7 @@
               <view wx:if="{{card.card.fields.address}}">{{card.card.fields.address}}</view>
             </view>
           </view>
-          <view class="biz-card__avatar">
+          <view class="biz-card__avatar" wx:if="{{card.show_avatar}}">
             <image wx:if="{{card.card.avatar_url}}" src="{{card.card.avatar_url}}" mode="aspectFill" class="avatar-img" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
@@ -75,7 +75,8 @@
       <view class="card public-cta-card" wx:if="{{!isDisabled}}">
         <button wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item public-cta-card__button" open-type="share" bindtap="refreshShareImage">分享给好友</button>
         <view wx:if="{{isOwnCard}}" class="btn btn--soft public-cta-card__item" bindtap="editMyCard">修改信息</view>
-        <view wx:if="{{!isOwnCard}}" class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
+        <view wx:if="{{!isOwnCard && isDemo}}" class="btn btn--primary public-cta-card__item" bindtap="openContactService">联系开通</view>
+        <view wx:if="{{!isOwnCard && !isDemo}}" class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
         <view wx:if="{{!isOwnCard && loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
         <view wx:if="{{!isOwnCard && !loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
       </view>
@@ -126,7 +127,7 @@
           <view class="card__title">也想拥有这样的企业名片？</view>
           <view class="upgrade-card__desc">统一企业形象、员工名片与访客转化数据。</view>
         </view>
-        <view class="btn btn--primary btn--sm" bindtap="openUpgradeEnterprise">升级为企业名片</view>
+        <view class="btn btn--sm upgrade-card__action" bindtap="openUpgradeEnterprise">查看流程</view>
       </view>
 
       <view class="powered">由 智云名片 提供技术支持</view>

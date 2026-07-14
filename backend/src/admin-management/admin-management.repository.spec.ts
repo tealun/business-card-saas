@@ -146,7 +146,9 @@ describe("AdminManagementRepository", () => {
       show_mobile: true,
       show_email: true,
       show_wechat: true,
-      allow_forward: true
+      allow_forward: true,
+      show_avatar: true,
+      share_title: null
     });
     expect(result?.status).toBe("disabled");
     expect(transaction.memberStatusParams).toEqual(["tenant-001", "member-001", "Configured Name", "disabled"]);

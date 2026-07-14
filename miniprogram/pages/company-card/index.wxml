@@ -1,8 +1,8 @@
 <view class="company-gateway" style="{{themeStyle}}">
   <view class="company-gateway__loading">
     <view class="skeleton company-gateway__mark"></view>
-    <view class="f16 bold">正在打开名片主页…</view>
-    <view class="f13 t-secondary">无企业名片时自动展示“智云科技”样例</view>
+    <view class="f16 bold">正在打开当前名片主页…</view>
+    <view class="f13 t-secondary">名片主页将跟随首页当前选择的名片</view>
     <view class="btn btn--soft btn--sm" bindtap="openCardHome">重新打开</view>
     <view class="btn btn--ghost btn--sm" bindtap="goHome">返回首页</view>
   </view>
