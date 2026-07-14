@@ -27,6 +27,7 @@ const state = {
   anonId: ""
   ,companyProfile: null,
   companyHonors: [],
+  deletedHonorIds: [],
   videoCapability: { enabled: false },
   tenantFeatures: []
 };
@@ -388,7 +389,13 @@ function renderHonorEditors() {
     const remove = document.createElement("button");
     remove.type = "button";
     remove.textContent = "移除";
-    remove.onclick = () => { honors.splice(honorIndex, 1); renderHonorEditors(); };
+    remove.onclick = () => {
+      if (honor.honor_id && !String(honor.honor_id).startsWith("draft_")) {
+        state.deletedHonorIds.push(String(honor.honor_id));
+      }
+      honors.splice(honorIndex, 1);
+      renderHonorEditors();
+    };
     row.append(title, body, sort, status, visible, remove);
     block.append(row);
 
@@ -1154,6 +1161,7 @@ document.querySelector("#loadCompanyProfile").addEventListener("click", async ()
   const [profile, capability, honors] = await Promise.all([run("loading company profile", companyOutput, async () => adminRequest("/admin/company-profile")),adminRequest("/admin/features/company-video"),adminRequest("/admin/company-honors")]);
   state.videoCapability = capability;
   state.companyHonors = honors.items || [];
+  state.deletedHonorIds = [];
   fillCompany(profile);
 });
 
@@ -1164,9 +1172,9 @@ document.querySelector("#addParagraph").addEventListener("click",()=>addIntro("p
 document.querySelector("#addImage").addEventListener("click",()=>addIntro("image",{url:"https://",caption:""}));
 document.querySelector("#addGallery").addEventListener("click",()=>addIntro("gallery",{images:[]}));
 document.querySelector("#addVideo").addEventListener("click",()=>{if(state.videoCapability.enabled)addIntro("video",{video_id:""});});
-document.querySelector("#loadHonors").addEventListener("click",()=>run("loading honors",companyOutput,async()=>{const result=await adminRequest("/admin/company-honors");state.companyHonors=result.items||[];renderHonorEditors();return result;}));
+document.querySelector("#loadHonors").addEventListener("click",()=>run("loading honors",companyOutput,async()=>{const result=await adminRequest("/admin/company-honors");state.companyHonors=result.items||[];state.deletedHonorIds=[];renderHonorEditors();return result;}));
 document.querySelector("#addHonor").addEventListener("click",()=>{state.companyHonors.push({honor_id:`draft_${Date.now()}`,title:"新荣誉",body:null,sort_order:(state.companyHonors.length+1)*10,visible:true,status:"draft",images:[]});renderHonorEditors();});
-document.querySelector("#saveHonors").addEventListener("click",()=>run("saving honors",companyOutput,async()=>{syncHonorEditors();state.companyHonors.forEach((honor)=>{assertRequired(honor.title,"荣誉标题");(honor.images||[]).forEach((image)=>validateOptionalUrl(image.image_url,"荣誉图片"));});const saved=[];for(const honor of state.companyHonors){const payload={title:String(honor.title||"").trim(),body:honor.body||null,sort_order:Number(honor.sort_order||0),visible:honor.visible!==false,status:honor.status||"draft",images:honor.images||[]};if(String(honor.honor_id).startsWith("draft_"))saved.push(await adminRequest("/admin/company-honors",{method:"POST",body:payload}));else saved.push(await adminRequest(`/admin/company-honors/${encodeURIComponent(honor.honor_id)}`,{method:"PUT",body:payload}));}const result=await adminRequest("/admin/company-honors");state.companyHonors=result.items||saved;renderHonorEditors();return result;}));
+document.querySelector("#saveHonors").addEventListener("click",()=>run("saving honors",companyOutput,async()=>{syncHonorEditors();state.companyHonors.forEach((honor)=>{assertRequired(honor.title,"荣誉标题");(honor.images||[]).forEach((image)=>validateOptionalUrl(image.image_url,"荣誉图片"));});const saved=[];for(const honorId of [...new Set(state.deletedHonorIds)])await adminRequest(`/admin/company-honors/${encodeURIComponent(honorId)}`,{method:"DELETE"});for(const honor of state.companyHonors){const payload={title:String(honor.title||"").trim(),body:honor.body||null,sort_order:Number(honor.sort_order||0),visible:honor.visible!==false,status:honor.status||"draft",images:honor.images||[]};if(String(honor.honor_id).startsWith("draft_"))saved.push(await adminRequest("/admin/company-honors",{method:"POST",body:payload}));else saved.push(await adminRequest(`/admin/company-honors/${encodeURIComponent(honor.honor_id)}`,{method:"PUT",body:payload}));}const result=await adminRequest("/admin/company-honors");state.deletedHonorIds=[];state.companyHonors=result.items||saved;renderHonorEditors();return result;}));
 
 async function loadVideoFeatures(){const [platform,tenants]=await Promise.all([adminRequest("/admin/platform/features/company-video"),adminRequest(`/admin/platform/features/company-video/tenants?search=${encodeURIComponent(document.querySelector("#tenantFeatureSearch").value.trim())}`)]);document.querySelector("#platformVideoEnabled").checked=platform.enabled;document.querySelector("#platformVideoLimit").value=platform.default_limit_mb;state.tenantFeatures=tenants.items;renderTenantFeatures();write(featureOutput,{platform,total:tenants.total});}
 function renderTenantFeatures(){const root=document.querySelector("#tenantFeatureEditor");root.replaceChildren();state.tenantFeatures.forEach((item,index)=>{const row=document.createElement("div");row.className="editor-row";const name=document.createElement("strong");name.textContent=item.tenant_name;const enabled=inputField("","","enabled",index,"tenant","checkbox");enabled.checked=item.enabled;const limit=inputField(item.limit_bytes===null?"":item.limit_bytes/1048576,"继承默认 MB","limit",index,"tenant","number");const status=document.createElement("span");status.textContent=`生效 ${Math.round(item.effective_limit_bytes/1048576)} MB · ${item.source==="platform_default"?"继承":"独立"}`;const save=document.createElement("button");save.type="button";save.textContent="保存";save.onclick=async()=>{const updated=await adminRequest(`/admin/platform/features/company-video/tenants/${item.tenant_id}`,{method:"PUT",body:{enabled:enabled.checked,limit_bytes:limit.value?Math.round(Number(limit.value)*1048576):null}});state.tenantFeatures[index]=updated;renderTenantFeatures();};row.append(name,enabled,limit,status,save);root.append(row);});}

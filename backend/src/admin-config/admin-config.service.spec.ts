@@ -70,6 +70,41 @@ describe("AdminConfigService", () => {
     expect(list.items[0]?.title).toBe("ISO 认证");
   });
 
+  it("deletes company honors from the tenant list", async () => {
+    const service = createService();
+    const created = await service.createCompanyHonor(adminSession(), {
+      title: "待删除荣誉",
+      status: "published",
+      visible: true
+    });
+
+    await service.deleteCompanyHonor(adminSession(), created.honor_id);
+
+    await expect(service.listCompanyHonors(adminSession())).resolves.toMatchObject({ items: [] });
+  });
+
+  it("normalizes legacy persisted company profile JSON before response validation", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://unit-test";
+
+    try {
+      const service = new AdminConfigService(new AdminConfigRepository(fakeLegacyProfileTx()));
+
+      const profile = await service.getCompanyProfile(adminSession());
+
+      expect(profile.service_items).toMatchObject([
+        { id: "service_legacy_0", title: "旧服务", image_url: null, visible: true }
+      ]);
+      expect(profile.display_modules.map((module) => module.key)).toEqual(["services", "profile", "videos", "honors"]);
+    } finally {
+      if (originalDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      }
+    }
+  });
+
   it("marks the first persisted database template as default", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = "postgres://unit-test";
@@ -190,6 +225,43 @@ function fakeTenantTx(): TenantTx {
                   color_scheme_json: seedsDefaultTemplate ? params[4] : params[5],
                   layout_json: seedsDefaultTemplate ? params[5] : params[6],
                   status: "active"
+                }
+              ]
+            };
+          }
+          throw new Error(`unexpected query: ${sql}`);
+        }
+      } as unknown as TenantTransactionClient;
+      return callback(tx);
+    }
+  } as unknown as TenantTx;
+}
+
+function fakeLegacyProfileTx(): TenantTx {
+  return {
+    run: async <T>(
+      _tenantId: bigint | number | string,
+      callback: (tx: TenantTransactionClient) => Promise<T>
+    ): Promise<T> => {
+      const tx = {
+        query: async (sql: string) => {
+          if (sql.includes("FROM company_profiles")) {
+            return {
+              rows: [
+                {
+                  tenant_id: "tenant-001",
+                  display_name: "Pilot Corp",
+                  short_name: null,
+                  logo_url: null,
+                  website_url: null,
+                  address: null,
+                  intro_json: [],
+                  service_items_json: [
+                    { title: "旧服务", description: "旧描述", image_url: "not-a-url", sort_order: 30 }
+                  ],
+                  display_modules_json: [{ key: "services", title: "服务", visible: true, layout: "graphic" }],
+                  visible: true,
+                  status: "published"
                 }
               ]
             };

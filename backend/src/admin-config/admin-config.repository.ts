@@ -14,7 +14,7 @@ import type {
   UpdateAdminFieldSettingsRequest,
   UpdateAdminTemplateRequest
 } from "../contracts/admin-config.js";
-import { companyIntroBlockSchema } from "../contracts/admin-config.js";
+import { companyDisplayModulesSchema, companyIntroBlockSchema, companyServiceItemSchema } from "../contracts/admin-config.js";
 
 interface FieldSettingsRow extends QueryResultRow {
   fields_json: unknown;
@@ -347,6 +347,36 @@ export class AdminConfigRepository {
     current[index] = updated;
     this.companyHonors.set(tenantId, cloneCompanyHonors(current));
     return cloneCompanyHonor(updated);
+  }
+
+  async deleteCompanyHonor(tenantId: string, honorId: string): Promise<void> {
+    if (this.hasDatabase()) {
+      await this.tenantTx!.run(tenantId, async (tx) => {
+        const result = await tx.query(
+          `
+            UPDATE company_honors
+            SET deleted_at = now(), visible = false, status = 'draft', updated_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+          `,
+          [tenantId, honorId]
+        );
+        if (result.rowCount === 0) {
+          throw new NotFoundException("honor not found");
+        }
+        await tx.query(
+          "UPDATE company_honor_images SET deleted_at = now() WHERE tenant_id = $1 AND honor_id = $2 AND deleted_at IS NULL",
+          [tenantId, honorId]
+        );
+      });
+      return;
+    }
+
+    const current = await this.listCompanyHonors(tenantId);
+    const next = current.filter((honor) => honor.honor_id !== honorId);
+    if (next.length === current.length) {
+      throw new NotFoundException("honor not found");
+    }
+    this.companyHonors.set(tenantId, cloneCompanyHonors(next));
   }
 
   async publishedVideoExists(tenantId: string, videoId: string): Promise<boolean> {
@@ -745,10 +775,8 @@ function rowToCompanyProfile(row: CompanyProfileRow | undefined): AdminCompanyPr
           return parsed.success ? [parsed.data] : [];
         })
       : [],
-    service_items: Array.isArray(serviceItems) ? (serviceItems as AdminCompanyProfile["service_items"]) : [],
-    display_modules: Array.isArray(displayModules)
-      ? (displayModules as AdminCompanyProfile["display_modules"])
-      : defaultDisplayModules(),
+    service_items: parseAdminServiceItems(serviceItems),
+    display_modules: parseAdminDisplayModules(displayModules),
     visible: row.visible,
     status: row.status
   };
@@ -817,6 +845,70 @@ function cloneCompanyProfile(profile: AdminCompanyProfile): AdminCompanyProfile 
     service_items: profile.service_items.map((item) => ({ ...item })),
     display_modules: profile.display_modules.map((item) => ({ ...item }))
   };
+}
+
+function parseAdminServiceItems(value: unknown): AdminCompanyProfile["service_items"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .flatMap((raw, index) => {
+      const record = normalizeRecord(raw);
+      const title = typeof record.title === "string" ? record.title.slice(0, 80) : "";
+      const description = typeof record.description === "string" ? record.description.slice(0, 300) : "";
+      const rawImageUrl = typeof record.image_url === "string" ? record.image_url : null;
+      const image_url = rawImageUrl && isHttpUrl(rawImageUrl) ? rawImageUrl : null;
+      const parsed = companyServiceItemSchema.safeParse({
+        id: typeof record.id === "string" && /^service_[A-Za-z0-9_-]{1,64}$/.test(record.id)
+          ? record.id
+          : `service_legacy_${index}`,
+        title,
+        description,
+        image_url,
+        visible: typeof record.visible === "boolean" ? record.visible : true,
+        sort_order: typeof record.sort_order === "number" ? Math.trunc(record.sort_order) : index * 10
+      });
+      return parsed.success ? [parsed.data] : [];
+    })
+    .slice(0, 30)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+function parseAdminDisplayModules(value: unknown): AdminCompanyProfile["display_modules"] {
+  const defaults = defaultDisplayModules();
+  if (!Array.isArray(value)) {
+    return defaults;
+  }
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const raw of value) {
+    const record = normalizeRecord(raw);
+    if (typeof record.key === "string" && !byKey.has(record.key)) {
+      byKey.set(record.key, record);
+    }
+  }
+  const modules = defaults.map((fallback) => {
+    const record = byKey.get(fallback.key);
+    return {
+      key: fallback.key,
+      title: typeof record?.title === "string" && record.title.trim() ? record.title.slice(0, 32) : fallback.title,
+      visible: typeof record?.visible === "boolean" ? record.visible : fallback.visible,
+      sort_order: typeof record?.sort_order === "number" ? Math.trunc(record.sort_order) : fallback.sort_order,
+      layout: ["text", "image", "graphic", "grid", "carousel"].includes(String(record?.layout))
+        ? record!.layout
+        : fallback.layout
+    };
+  });
+  const parsed = companyDisplayModulesSchema.safeParse(modules);
+  return parsed.success ? parsed.data : defaults;
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function rowsToCompanyHonors(rows: HonorRow[]): AdminCompanyHonor[] {

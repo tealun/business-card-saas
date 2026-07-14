@@ -98,6 +98,11 @@ export class AdminConfigService {
     return adminCompanyHonorSchema.parse(await this.repository.updateCompanyHonor(session.tenantId, honorId, request));
   }
 
+  async deleteCompanyHonor(session: AdminSession, honorId: string): Promise<void> {
+    requireAdminRole(session.role, "admin");
+    await this.repository.deleteCompanyHonor(session.tenantId, honorId);
+  }
+
   async listTemplates(session: AdminSession): Promise<AdminTemplateListResponse> {
     return adminTemplateListResponseSchema.parse({
       tenant_id: session.tenantId,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
@@ -67,6 +67,13 @@ export class AdminConfigController {
       honorId,
       updateAdminCompanyHonorRequestSchema.parse(body)
     );
+  }
+
+  @Delete("company-honors/:honorId")
+  @HttpCode(204)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  deleteCompanyHonor(@Req() request: AdminRequest, @Param("honorId") honorId: string) {
+    return this.config.deleteCompanyHonor(requireAdminSession(request), honorId);
   }
 
   @Get("templates")
