@@ -1,0 +1,57 @@
+<view class="card company-module module-enter">
+  <view class="section-head">
+    <text class="card__title">{{module.title}}</text>
+  </view>
+
+  <scroll-view wx:if="{{module.key === 'services' && (module.layout === 'carousel' || module.layout === 'image')}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="module-scroll__track">
+      <view class="service-item service-item--media" wx:for="{{module.content}}" wx:for-item="service" wx:key="id">
+        <image wx:if="{{service.image_url}}" src="{{service.image_url}}" mode="aspectFill" />
+        <view wx:if="{{module.layout !== 'image'}}" class="service-item__title">{{service.title}}</view>
+        <view wx:if="{{module.layout === 'graphic'}}" class="service-item__desc">{{service.desc}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:elif="{{module.key === 'services'}}" class="service-grid service-grid--{{module.layout}}">
+    <view class="service-item" wx:for="{{module.content}}" wx:for-item="service" wx:key="id">
+      <image wx:if="{{service.image_url && module.layout !== 'text'}}" src="{{service.image_url}}" mode="aspectFill" />
+      <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{service.title}}</view>
+      <view class="service-item__desc" wx:if="{{module.layout === 'graphic' || module.layout === 'grid'}}">{{service.desc}}</view>
+    </view>
+  </view>
+
+  <block wx:elif="{{module.key === 'profile'}}">
+    <block wx:for="{{module.content}}" wx:for-item="block" wx:key="index">
+      <view class="intro-heading" wx:if="{{block.type === 'heading'}}">{{block.text}}</view>
+      <view class="intro-text intro-text--quote" wx:elif="{{block.type === 'quote'}}">{{block.text}}</view>
+      <view class="intro-text" wx:elif="{{block.type === 'paragraph'}}">{{block.text}}</view>
+      <view class="intro-list" wx:elif="{{block.type === 'list'}}">
+        <view class="intro-list__item" wx:for="{{block.items}}" wx:for-item="line" wx:key="index">{{line}}</view>
+      </view>
+      <view class="intro-image" wx:elif="{{block.type === 'image'}}" bindtap="previewImage" data-url="{{block.image_url}}" data-urls="{{block.preview_urls}}">
+        <image src="{{block.image_url}}" mode="aspectFill" />
+      </view>
+      <scroll-view wx:elif="{{block.type === 'gallery'}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="module-scroll__track">
+          <image class="gallery-image" wx:for="{{block.images}}" wx:for-item="image" wx:key="url" src="{{image.url}}" mode="aspectFill" bindtap="previewImage" data-url="{{image.url}}" data-urls="{{block.preview_urls}}" />
+        </view>
+      </scroll-view>
+      <video wx:elif="{{block.type === 'video' && block.video_url}}" class="company-video" src="{{block.video_url}}" poster="{{block.cover_url}}" controls />
+    </block>
+  </block>
+
+  <scroll-view wx:elif="{{module.key === 'honors'}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="module-scroll__track">
+      <view class="honor-item" wx:for="{{module.content}}" wx:for-item="honor" wx:key="honor_id">
+        <image wx:if="{{honor.primary_image_url}}" src="{{honor.primary_image_url}}" mode="aspectFill" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
+        <view class="service-item__title">{{honor.title}}</view>
+        <view class="service-item__desc" wx:if="{{honor.body}}">{{honor.body}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:elif="{{module.key === 'videos'}}" class="company-video-list">
+    <video wx:for="{{module.content}}" wx:for-item="video" wx:key="video_id" class="company-video" src="{{video.video_url}}" poster="{{video.cover_url}}" controls />
+  </view>
+</view>

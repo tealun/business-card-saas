@@ -71,6 +71,13 @@ export const demoPublicCard: PublicCardResponse = {
         text: "这是一份 M1 演示企业介绍。正式环境由企业后台维护，公开名片只展示已发布内容。"
       }
     ],
+    service_items: [],
+    display_modules: [
+      { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+      { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+      { key: "videos", title: "企业视频", visible: true, sort_order: 30, layout: "carousel" },
+      { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+    ],
     website_url: "https://example.com",
     address: "[示例地址]"
   },

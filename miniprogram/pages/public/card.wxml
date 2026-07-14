@@ -94,33 +94,7 @@
         <view class="action-grid__item" bindtap="viewPaperCard"><view class="icon icon-paper"></view><text>纸质名片</text></view>
       </view>
 
-      <view class="card service-card" wx:if="{{serviceItems.length}}">
-        <view class="row-between section-head">
-          <text class="card__title">产品与服务</text>
-          <text class="card__more">企业维护</text>
-        </view>
-        <view class="service-grid">
-          <view class="service-item" wx:for="{{serviceItems}}" wx:key="title">
-            <view class="service-item__icon">{{index + 1}}</view>
-            <view class="service-item__title">{{item.title}}</view>
-            <view class="service-item__desc">{{item.desc}}</view>
-          </view>
-        </view>
-      </view>
-
-      <view class="card intro-card" wx:if="{{introBlocks.length}}">
-        <view class="row-between section-head">
-          <text class="card__title">业务介绍</text>
-          <text class="card__more">内容由企业维护</text>
-        </view>
-        <block wx:for="{{introBlocks}}" wx:key="index">
-          <view class="intro-text" wx:if="{{item.type !== 'image'}}">{{item.text}}</view>
-          <view class="intro-image" wx:else bindtap="previewIntroImage" data-url="{{item.image_url}}">
-            <image wx:if="{{item.image_url}}" src="{{item.image_url}}" mode="aspectFill" />
-            <view wx:else class="intro-image__ph">{{item.caption || "业务介绍图片"}}</view>
-          </view>
-        </block>
-      </view>
+      <company-module wx:for="{{displayModules}}" wx:key="key" module="{{item}}" bindpreview="previewModuleImage" />
 
       <view class="card upgrade-card" wx:if="{{isDemo}}">
         <view class="upgrade-card__copy">

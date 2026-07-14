@@ -55,6 +55,21 @@ export const publicCardResponseSchema = z.object({
     name: z.string(),
     short_name: z.string().nullable().optional(),
     intro_blocks: z.array(z.record(z.string(), z.unknown())),
+    service_items: z.array(z.object({
+      id: z.string().optional(),
+      title: z.string(),
+      description: z.string(),
+      image_url: imageSourceSchema.nullable(),
+      visible: z.boolean().default(true),
+      sort_order: z.number().int().default(0)
+    })).default([]),
+    display_modules: z.array(z.object({
+      key: z.enum(["services", "profile", "videos", "honors"]),
+      title: z.string(),
+      visible: z.boolean(),
+      sort_order: z.number().int(),
+      layout: z.enum(["text", "image", "graphic", "grid", "carousel"])
+    })).default([]),
     website_url: z.string().url().nullable(),
     address: z.string().nullable()
   }),

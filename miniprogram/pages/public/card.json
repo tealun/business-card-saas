@@ -1,4 +1,7 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "名片"
+  "navigationBarTitleText": "名片",
+  "usingComponents": {
+    "company-module": "/components/company-module/company-module"
+  }
 }

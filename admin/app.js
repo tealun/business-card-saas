@@ -25,6 +25,10 @@ const state = {
   shareId: "",
   visitToken: "",
   anonId: ""
+  ,companyProfile: null,
+  companyHonors: [],
+  videoCapability: { enabled: false },
+  tenantFeatures: []
 };
 
 const apiBaseInput = document.querySelector("#apiBase");
@@ -82,6 +86,11 @@ const gateLoginButton = document.querySelector("#gateLogin");
 const gateError = document.querySelector("#gateError");
 const topbarAdmin = document.querySelector("#topbarAdmin");
 const logoutButton = document.querySelector("#logoutButton");
+const moduleEditor = document.querySelector("#moduleEditor");
+const serviceEditor = document.querySelector("#serviceEditor");
+const introEditor = document.querySelector("#introEditor");
+const honorEditor = document.querySelector("#honorEditor");
+const featureOutput = document.querySelector("#featureOutput");
 
 apiBaseInput.value = defaultApiBase();
 adminTokenInput.value = state.adminToken;
@@ -232,6 +241,7 @@ function applyAdminIdentity(admin) {
   setAuthedUi(admin);
   state.adminMemberId = admin.member_identity_id || "";
   adminMemberIdInput.value = state.adminMemberId;
+  document.querySelector("#featuresNav").classList.toggle("hidden", admin.account_type !== "platform");
 }
 
 function write(target, value) {
@@ -281,14 +291,166 @@ function cardPayloadFromForm() {
 }
 
 function fillCompany(profile) {
+  state.companyProfile = structuredClone(profile);
   companyForm.display_name.value = profile.display_name || "";
   companyForm.short_name.value = profile.short_name || "";
   companyForm.logo_url.value = profile.logo_url || "";
   companyForm.website_url.value = profile.website_url || "";
   companyForm.address.value = profile.address || "";
-  companyForm.intro_blocks.value = JSON.stringify(profile.intro_blocks || [], null, 2);
   companyForm.visible.checked = Boolean(profile.visible);
   companyForm.status.value = profile.status || "draft";
+  renderCompanyEditors();
+}
+
+function inputField(value, placeholder, key, index, group, type = "text") {
+  const input = document.createElement(type === "textarea" ? "textarea" : "input");
+  if (type !== "textarea") input.type = type;
+  input.value = value ?? ""; input.placeholder = placeholder; input.dataset.key = key; input.dataset.index = index; input.dataset.group = group;
+  return input;
+}
+
+function renderCompanyEditors() {
+  const profile = state.companyProfile || { display_modules: [], service_items: [], intro_blocks: [] };
+  moduleEditor.replaceChildren();
+  [...profile.display_modules].sort((a,b)=>a.sort_order-b.sort_order).forEach((item,index,array)=>{
+    const row=document.createElement("div"); row.className="editor-row module-row"; row.dataset.key=item.key;
+    const title=inputField(item.title,"模块标题","title",index,"module");
+    const visible=inputField("","","visible",index,"module","checkbox"); visible.checked=item.visible;
+    const layout=document.createElement("select"); layout.dataset.key="layout"; layout.dataset.index=index; layout.dataset.group="module";
+    ["text","image","graphic","grid","carousel"].forEach((value)=>{const option=document.createElement("option");option.value=value;option.textContent=value;option.selected=value===item.layout;layout.append(option);});
+    const up=document.createElement("button");up.type="button";up.textContent="上移";up.disabled=index===0;up.onclick=()=>moveModule(item.key,-1);
+    const down=document.createElement("button");down.type="button";down.textContent="下移";down.disabled=index===array.length-1;down.onclick=()=>moveModule(item.key,1);
+    const name=document.createElement("strong");name.textContent=item.key;
+    row.append(name,title,visible,layout,up,down);moduleEditor.append(row);
+  });
+  serviceEditor.replaceChildren();
+  profile.service_items.forEach((item,index)=>{const row=document.createElement("div");row.className="editor-row service-edit-row";[inputField(item.title,"标题","title",index,"service"),inputField(item.description,"描述","description",index,"service","textarea"),inputField(item.image_url,"图片 URL","image_url",index,"service")].forEach((node)=>row.append(node));const visible=inputField("","","visible",index,"service","checkbox");visible.checked=item.visible!==false;row.append(visible);const remove=document.createElement("button");remove.type="button";remove.textContent="删除";remove.onclick=()=>{profile.service_items.splice(index,1);renderCompanyEditors();};row.append(remove);serviceEditor.append(row);});
+  introEditor.replaceChildren();
+  profile.intro_blocks.forEach((item,index)=>{const row=document.createElement("div");row.className="editor-row intro-edit-row";const label=document.createElement("strong");label.textContent=item.type;row.append(label);if(["heading","paragraph","quote"].includes(item.type))row.append(inputField(item.text,"内容","text",index,"intro","textarea"));else if(item.type==="image")row.append(inputField(item.url,"图片 URL","url",index,"intro"),inputField(item.caption,"说明","caption",index,"intro"));else if(item.type==="gallery")row.append(inputField(item.images.map(x=>`${x.url}|${x.caption||""}`).join("\n"),"每行 URL|说明","images",index,"intro","textarea"));else if(item.type==="video")row.append(inputField(item.video_id,"视频 ID","video_id",index,"intro"));const remove=document.createElement("button");remove.type="button";remove.textContent="删除";remove.onclick=()=>{profile.intro_blocks.splice(index,1);renderCompanyEditors();};row.append(remove);introEditor.append(row);});
+  const addVideo=document.querySelector("#addVideo");addVideo.disabled=!state.videoCapability.enabled;document.querySelector("#videoCapabilityHint").textContent=state.videoCapability.enabled?`视频已开通，上限 ${state.videoCapability.effective_limit_mb} MB`:"视频是高级功能，请联系平台开通";
+  renderHonorEditors();
+}
+
+function moveModule(key,direction){const items=[...state.companyProfile.display_modules].sort((a,b)=>a.sort_order-b.sort_order);const index=items.findIndex(x=>x.key===key);const target=index+direction;if(target<0||target>=items.length)return;[items[index],items[target]]=[items[target],items[index]];items.forEach((item,i)=>item.sort_order=(i+1)*10);state.companyProfile.display_modules=items;renderCompanyEditors();}
+
+function syncCompanyEditors() {
+  document.querySelectorAll('[data-group="module"]').forEach((node)=>{const item=[...state.companyProfile.display_modules].sort((a,b)=>a.sort_order-b.sort_order)[Number(node.dataset.index)];item[node.dataset.key]=node.type==="checkbox"?node.checked:node.value;});
+  document.querySelectorAll('[data-group="service"]').forEach((node)=>{const item=state.companyProfile.service_items[Number(node.dataset.index)];item[node.dataset.key]=node.type==="checkbox"?node.checked:node.value||null;});
+  document.querySelectorAll('[data-group="intro"]').forEach((node)=>{const item=state.companyProfile.intro_blocks[Number(node.dataset.index)];if(node.dataset.key==="images")item.images=node.value.split(/\n/).filter(Boolean).map(line=>{const [url,...caption]=line.split("|");return{url:url.trim(),caption:caption.join("|").trim()};});else item[node.dataset.key]=node.value;});
+}
+
+function honorInput(value, placeholder, key, honorIndex, imageIndex = "") {
+  const input = document.createElement(key === "body" || key === "images_text" ? "textarea" : "input");
+  if (key === "visible") input.type = "checkbox";
+  else if (key === "sort_order") input.type = "number";
+  input.value = value ?? "";
+  input.placeholder = placeholder;
+  input.dataset.group = imageIndex === "" ? "honor" : "honor-image";
+  input.dataset.key = key;
+  input.dataset.honorIndex = honorIndex;
+  if (imageIndex !== "") input.dataset.imageIndex = imageIndex;
+  return input;
+}
+
+function renderHonorEditors() {
+  if (!honorEditor) return;
+  const honors = state.companyHonors || [];
+  honorEditor.replaceChildren();
+  if (!honors.length) {
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "暂无荣誉资质";
+    honorEditor.append(empty);
+    return;
+  }
+  honors.sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+  honors.forEach((honor, honorIndex) => {
+    const block = document.createElement("div");
+    block.className = "honor-edit-block";
+    const row = document.createElement("div");
+    row.className = "editor-row honor-edit-row";
+    const title = honorInput(honor.title, "荣誉标题", "title", honorIndex);
+    const body = honorInput(honor.body || "", "说明", "body", honorIndex);
+    const sort = honorInput(honor.sort_order ?? (honorIndex + 1) * 10, "排序", "sort_order", honorIndex);
+    const status = document.createElement("select");
+    status.dataset.group = "honor";
+    status.dataset.key = "status";
+    status.dataset.honorIndex = honorIndex;
+    ["draft", "published"].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      option.selected = (honor.status || "draft") === value;
+      status.append(option);
+    });
+    const visible = honorInput("", "", "visible", honorIndex);
+    visible.checked = honor.visible !== false;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "移除";
+    remove.onclick = () => { honors.splice(honorIndex, 1); renderHonorEditors(); };
+    row.append(title, body, sort, status, visible, remove);
+    block.append(row);
+
+    const images = document.createElement("div");
+    images.className = "honor-image-list";
+    (honor.images || []).forEach((image, imageIndex) => {
+      const imageRow = document.createElement("div");
+      imageRow.className = "editor-row honor-image-row";
+      imageRow.append(
+        honorInput(image.image_url, "图片 URL", "image_url", honorIndex, imageIndex),
+        honorInput(image.title || "", "图片标题", "title", honorIndex, imageIndex),
+        honorInput(image.caption || "", "图片说明", "caption", honorIndex, imageIndex),
+        honorInput(image.sort_order ?? (imageIndex + 1) * 10, "排序", "sort_order", honorIndex, imageIndex)
+      );
+      const removeImage = document.createElement("button");
+      removeImage.type = "button";
+      removeImage.textContent = "删图";
+      removeImage.onclick = () => { honor.images.splice(imageIndex, 1); renderHonorEditors(); };
+      imageRow.append(removeImage);
+      images.append(imageRow);
+    });
+    const addImage = document.createElement("button");
+    addImage.type = "button";
+    addImage.className = "secondary mini-button";
+    addImage.textContent = "添加图片";
+    addImage.onclick = () => {
+      honor.images = honor.images || [];
+      if (honor.images.length >= 12) return;
+      honor.images.push({ image_url: "", title: null, caption: null, sort_order: (honor.images.length + 1) * 10 });
+      renderHonorEditors();
+    };
+    block.append(images, addImage);
+    honorEditor.append(block);
+  });
+}
+
+function syncHonorEditors() {
+  document.querySelectorAll('[data-group="honor"]').forEach((node) => {
+    const honor = state.companyHonors[Number(node.dataset.honorIndex)];
+    if (!honor) return;
+    honor[node.dataset.key] = node.type === "checkbox"
+      ? node.checked
+      : node.dataset.key === "sort_order" ? Number(node.value || 0) : node.value || null;
+  });
+  document.querySelectorAll('[data-group="honor-image"]').forEach((node) => {
+    const honor = state.companyHonors[Number(node.dataset.honorIndex)];
+    const image = honor?.images?.[Number(node.dataset.imageIndex)];
+    if (!image) return;
+    image[node.dataset.key] = node.dataset.key === "sort_order" ? Number(node.value || 0) : node.value || null;
+  });
+  state.companyHonors.forEach((honor, honorIndex) => {
+    honor.sort_order = Number(honor.sort_order || (honorIndex + 1) * 10);
+    honor.images = (honor.images || [])
+      .filter((image) => String(image.image_url || "").trim())
+      .map((image, imageIndex) => ({
+        ...image,
+        image_url: String(image.image_url || "").trim(),
+        title: image.title ? String(image.title).trim() : null,
+        caption: image.caption ? String(image.caption).trim() : null,
+        sort_order: Number(image.sort_order || (imageIndex + 1) * 10)
+      }));
+  });
 }
 
 function text(value) {
@@ -582,15 +744,7 @@ function selectedTemplateIdFromForm() {
 }
 
 function companyProfilePayloadFromForm() {
-  let introBlocks;
-  try {
-    introBlocks = JSON.parse(companyForm.intro_blocks.value || "[]");
-  } catch (_) {
-    throw new Error("简介块 JSON 格式不正确");
-  }
-  if (!Array.isArray(introBlocks)) {
-    throw new Error("简介块 JSON 必须是数组");
-  }
+  syncCompanyEditors();
   assertRequired(companyForm.display_name.value, "企业名称");
   validateOptionalUrl(companyForm.logo_url.value, "企业 Logo");
   validateOptionalUrl(companyForm.website_url.value, "企业官网");
@@ -600,7 +754,9 @@ function companyProfilePayloadFromForm() {
     logo_url: companyForm.logo_url.value.trim() || null,
     website_url: companyForm.website_url.value.trim() || null,
     address: companyForm.address.value.trim() || null,
-    intro_blocks: introBlocks,
+    intro_blocks: state.companyProfile.intro_blocks,
+    service_items: state.companyProfile.service_items.map((item,index)=>({...item,id:item.id||`service_${Date.now()}_${index}`,sort_order:(index+1)*10})),
+    display_modules: state.companyProfile.display_modules,
     visible: companyForm.visible.checked,
     status: companyForm.status.value
   };
@@ -995,9 +1151,28 @@ document.querySelector("#saveAdminCard").addEventListener("click", async () => {
 });
 
 document.querySelector("#loadCompanyProfile").addEventListener("click", async () => {
-  const profile = await run("loading company profile", companyOutput, async () => adminRequest("/admin/company-profile"));
+  const [profile, capability, honors] = await Promise.all([run("loading company profile", companyOutput, async () => adminRequest("/admin/company-profile")),adminRequest("/admin/features/company-video"),adminRequest("/admin/company-honors")]);
+  state.videoCapability = capability;
+  state.companyHonors = honors.items || [];
   fillCompany(profile);
 });
+
+document.querySelector("#addService").addEventListener("click",()=>{if(state.companyProfile.service_items.length>=30)return;state.companyProfile.service_items.push({id:`service_${Date.now()}`,title:"",description:"",image_url:null,visible:true,sort_order:(state.companyProfile.service_items.length+1)*10});renderCompanyEditors();});
+function addIntro(type,value){state.companyProfile.intro_blocks.push({type,...value});renderCompanyEditors();}
+document.querySelector("#addHeading").addEventListener("click",()=>addIntro("heading",{text:"新标题"}));
+document.querySelector("#addParagraph").addEventListener("click",()=>addIntro("paragraph",{text:"正文"}));
+document.querySelector("#addImage").addEventListener("click",()=>addIntro("image",{url:"https://",caption:""}));
+document.querySelector("#addGallery").addEventListener("click",()=>addIntro("gallery",{images:[]}));
+document.querySelector("#addVideo").addEventListener("click",()=>{if(state.videoCapability.enabled)addIntro("video",{video_id:""});});
+document.querySelector("#loadHonors").addEventListener("click",()=>run("loading honors",companyOutput,async()=>{const result=await adminRequest("/admin/company-honors");state.companyHonors=result.items||[];renderHonorEditors();return result;}));
+document.querySelector("#addHonor").addEventListener("click",()=>{state.companyHonors.push({honor_id:`draft_${Date.now()}`,title:"新荣誉",body:null,sort_order:(state.companyHonors.length+1)*10,visible:true,status:"draft",images:[]});renderHonorEditors();});
+document.querySelector("#saveHonors").addEventListener("click",()=>run("saving honors",companyOutput,async()=>{syncHonorEditors();state.companyHonors.forEach((honor)=>{assertRequired(honor.title,"荣誉标题");(honor.images||[]).forEach((image)=>validateOptionalUrl(image.image_url,"荣誉图片"));});const saved=[];for(const honor of state.companyHonors){const payload={title:String(honor.title||"").trim(),body:honor.body||null,sort_order:Number(honor.sort_order||0),visible:honor.visible!==false,status:honor.status||"draft",images:honor.images||[]};if(String(honor.honor_id).startsWith("draft_"))saved.push(await adminRequest("/admin/company-honors",{method:"POST",body:payload}));else saved.push(await adminRequest(`/admin/company-honors/${encodeURIComponent(honor.honor_id)}`,{method:"PUT",body:payload}));}const result=await adminRequest("/admin/company-honors");state.companyHonors=result.items||saved;renderHonorEditors();return result;}));
+
+async function loadVideoFeatures(){const [platform,tenants]=await Promise.all([adminRequest("/admin/platform/features/company-video"),adminRequest(`/admin/platform/features/company-video/tenants?search=${encodeURIComponent(document.querySelector("#tenantFeatureSearch").value.trim())}`)]);document.querySelector("#platformVideoEnabled").checked=platform.enabled;document.querySelector("#platformVideoLimit").value=platform.default_limit_mb;state.tenantFeatures=tenants.items;renderTenantFeatures();write(featureOutput,{platform,total:tenants.total});}
+function renderTenantFeatures(){const root=document.querySelector("#tenantFeatureEditor");root.replaceChildren();state.tenantFeatures.forEach((item,index)=>{const row=document.createElement("div");row.className="editor-row";const name=document.createElement("strong");name.textContent=item.tenant_name;const enabled=inputField("","","enabled",index,"tenant","checkbox");enabled.checked=item.enabled;const limit=inputField(item.limit_bytes===null?"":item.limit_bytes/1048576,"继承默认 MB","limit",index,"tenant","number");const status=document.createElement("span");status.textContent=`生效 ${Math.round(item.effective_limit_bytes/1048576)} MB · ${item.source==="platform_default"?"继承":"独立"}`;const save=document.createElement("button");save.type="button";save.textContent="保存";save.onclick=async()=>{const updated=await adminRequest(`/admin/platform/features/company-video/tenants/${item.tenant_id}`,{method:"PUT",body:{enabled:enabled.checked,limit_bytes:limit.value?Math.round(Number(limit.value)*1048576):null}});state.tenantFeatures[index]=updated;renderTenantFeatures();};row.append(name,enabled,limit,status,save);root.append(row);});}
+document.querySelector("#loadVideoFeatures").addEventListener("click",()=>run("loading video features",featureOutput,loadVideoFeatures));
+document.querySelector("#searchTenantFeatures").addEventListener("click",()=>run("loading tenants",featureOutput,loadVideoFeatures));
+document.querySelector("#saveVideoFeatures").addEventListener("click",()=>run("saving video features",featureOutput,async()=>{const result=await adminRequest("/admin/platform/features/company-video",{method:"PUT",body:{enabled:document.querySelector("#platformVideoEnabled").checked,default_limit_bytes:Math.round(Number(document.querySelector("#platformVideoLimit").value)*1048576)}});await loadVideoFeatures();return result;}));
 
 document.querySelector("#saveCompanyProfile").addEventListener("click", async () => {
   const profile = await run("saving company profile", companyOutput, async () => adminRequest("/admin/company-profile", {

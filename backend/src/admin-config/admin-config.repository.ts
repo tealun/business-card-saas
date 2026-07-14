@@ -1,16 +1,20 @@
 import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import { randomToken } from "../common/id.js";
-import { TenantTx } from "../database/tenant-tx.service.js";
+import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import type {
   AdminCompanyProfile,
+  AdminCompanyHonor,
   AdminFieldRule,
   AdminTemplate,
+  CreateAdminCompanyHonorRequest,
   CreateAdminTemplateRequest,
   UpdateAdminCompanyProfileRequest,
+  UpdateAdminCompanyHonorRequest,
   UpdateAdminFieldSettingsRequest,
   UpdateAdminTemplateRequest
 } from "../contracts/admin-config.js";
+import { companyIntroBlockSchema } from "../contracts/admin-config.js";
 
 interface FieldSettingsRow extends QueryResultRow {
   fields_json: unknown;
@@ -24,6 +28,8 @@ interface CompanyProfileRow extends QueryResultRow {
   website_url: string | null;
   address: string | null;
   intro_json: unknown;
+  service_items_json: unknown;
+  display_modules_json: unknown;
   visible: boolean;
   status: "draft" | "published";
 }
@@ -39,6 +45,20 @@ interface TemplateRow extends QueryResultRow {
   status: "active" | "disabled";
 }
 
+interface HonorRow extends QueryResultRow {
+  id: string | number | bigint;
+  title: string;
+  body: string | null;
+  sort_order: number;
+  visible: boolean;
+  status: "draft" | "published";
+  image_id: string | number | bigint | null;
+  image_url: string | null;
+  image_title: string | null;
+  image_caption: string | null;
+  image_sort_order: number | null;
+}
+
 interface CountRow extends QueryResultRow {
   count: string;
 }
@@ -47,6 +67,7 @@ interface CountRow extends QueryResultRow {
 export class AdminConfigRepository {
   private readonly fieldSettings = new Map<string, AdminFieldRule[]>();
   private readonly companyProfiles = new Map<string, AdminCompanyProfile>();
+  private readonly companyHonors = new Map<string, AdminCompanyHonor[]>();
   private readonly templates = new Map<string, AdminTemplate[]>();
 
   constructor(@Optional() private readonly tenantTx?: TenantTx) {}
@@ -98,7 +119,8 @@ export class AdminConfigRepository {
       const result = await this.tenantTx!.run(input.tenantId, (tx) =>
         tx.query<CompanyProfileRow>(
           `
-            SELECT tenant_id, display_name, short_name, logo_url, website_url, address, intro_json, visible, status
+            SELECT tenant_id, display_name, short_name, logo_url, website_url, address, intro_json,
+                   service_items_json, display_modules_json, visible, status
             FROM company_profiles
             WHERE tenant_id = $1 AND deleted_at IS NULL
             ORDER BY id ASC
@@ -134,12 +156,14 @@ export class AdminConfigRepository {
               website_url,
               address,
               intro_json,
+              service_items_json,
+              display_modules_json,
               visible,
               status,
               created_at,
               updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
             ON CONFLICT (tenant_id) WHERE deleted_at IS NULL DO UPDATE SET
               display_name = EXCLUDED.display_name,
               short_name = EXCLUDED.short_name,
@@ -147,10 +171,13 @@ export class AdminConfigRepository {
               website_url = EXCLUDED.website_url,
               address = EXCLUDED.address,
               intro_json = EXCLUDED.intro_json,
+              service_items_json = EXCLUDED.service_items_json,
+              display_modules_json = EXCLUDED.display_modules_json,
               visible = EXCLUDED.visible,
               status = EXCLUDED.status,
               updated_at = now()
-            RETURNING tenant_id, display_name, short_name, logo_url, website_url, address, intro_json, visible, status
+            RETURNING tenant_id, display_name, short_name, logo_url, website_url, address, intro_json,
+                      service_items_json, display_modules_json, visible, status
           `,
           [
             input.tenantId,
@@ -160,6 +187,8 @@ export class AdminConfigRepository {
             next.website_url,
             next.address,
             JSON.stringify(next.intro_blocks),
+            JSON.stringify(next.service_items),
+            JSON.stringify(next.display_modules),
             next.visible,
             next.status
           ]
@@ -174,6 +203,176 @@ export class AdminConfigRepository {
 
     this.companyProfiles.set(input.tenantId, cloneCompanyProfile(next));
     return cloneCompanyProfile(next);
+  }
+
+  async listCompanyHonors(tenantId: string): Promise<AdminCompanyHonor[]> {
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, (tx) =>
+        tx.query<HonorRow>(
+          `
+            SELECT
+              company_honors.id,
+              company_honors.title,
+              company_honors.body,
+              company_honors.sort_order,
+              company_honors.visible,
+              company_honors.status,
+              company_honor_images.id AS image_id,
+              company_honor_images.image_url,
+              company_honor_images.title AS image_title,
+              company_honor_images.caption AS image_caption,
+              company_honor_images.sort_order AS image_sort_order
+            FROM company_honors
+            LEFT JOIN company_honor_images
+              ON company_honor_images.tenant_id = company_honors.tenant_id
+              AND company_honor_images.honor_id = company_honors.id
+              AND company_honor_images.deleted_at IS NULL
+            WHERE company_honors.tenant_id = $1
+              AND company_honors.deleted_at IS NULL
+            ORDER BY company_honors.sort_order ASC, company_honors.id ASC, company_honor_images.sort_order ASC
+          `,
+          [tenantId]
+        )
+      );
+      return rowsToCompanyHonors(result.rows);
+    }
+
+    const current = this.companyHonors.get(tenantId) ?? [];
+    this.companyHonors.set(tenantId, cloneCompanyHonors(current));
+    return cloneCompanyHonors(current);
+  }
+
+  async createCompanyHonor(tenantId: string, request: CreateAdminCompanyHonorRequest): Promise<AdminCompanyHonor> {
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, async (tx) => {
+        const created = await tx.query<{ id: string | number | bigint }>(
+          `
+            INSERT INTO company_honors (
+              tenant_id, title, body, sort_order, visible, status, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+            RETURNING id
+          `,
+          [
+            tenantId,
+            request.title,
+            request.body ?? null,
+            request.sort_order ?? 0,
+            request.visible ?? true,
+            request.status ?? "draft"
+          ]
+        );
+        const honorId = String(created.rows[0]!.id);
+        await this.replaceHonorImages(tx, tenantId, honorId, request.images ?? []);
+        return this.getCompanyHonor(tx, tenantId, honorId);
+      });
+      return result;
+    }
+
+    const current = await this.listCompanyHonors(tenantId);
+    const honor: AdminCompanyHonor = {
+      honor_id: randomToken("honor", 12),
+      title: request.title,
+      body: request.body ?? null,
+      sort_order: request.sort_order ?? (current.length + 1) * 10,
+      visible: request.visible ?? true,
+      status: request.status ?? "draft",
+      images: (request.images ?? []).map((image, index) => ({
+        ...image,
+        image_id: image.image_id ?? randomToken("himg", 12),
+        sort_order: image.sort_order ?? (index + 1) * 10
+      }))
+    };
+    current.push(honor);
+    this.companyHonors.set(tenantId, cloneCompanyHonors(current));
+    return cloneCompanyHonor(honor);
+  }
+
+  async updateCompanyHonor(
+    tenantId: string,
+    honorId: string,
+    request: UpdateAdminCompanyHonorRequest
+  ): Promise<AdminCompanyHonor> {
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, async (tx) => {
+        const current = await this.getCompanyHonor(tx, tenantId, honorId);
+        await tx.query(
+          `
+            UPDATE company_honors
+            SET title = $3,
+                body = $4,
+                sort_order = $5,
+                visible = $6,
+                status = $7,
+                updated_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+          `,
+          [
+            tenantId,
+            honorId,
+            request.title ?? current.title,
+            request.body !== undefined ? request.body : current.body,
+            request.sort_order ?? current.sort_order,
+            request.visible ?? current.visible,
+            request.status ?? current.status
+          ]
+        );
+        if (request.images) {
+          await this.replaceHonorImages(tx, tenantId, honorId, request.images);
+        }
+        return this.getCompanyHonor(tx, tenantId, honorId);
+      });
+      return result;
+    }
+
+    const current = await this.listCompanyHonors(tenantId);
+    const index = current.findIndex((honor) => honor.honor_id === honorId);
+    if (index < 0) {
+      throw new NotFoundException("honor not found");
+    }
+    const existing = current[index]!;
+    const updated: AdminCompanyHonor = {
+      honor_id: existing.honor_id,
+      title: request.title ?? existing.title,
+      body: request.body !== undefined ? request.body : existing.body,
+      sort_order: request.sort_order ?? existing.sort_order,
+      visible: request.visible ?? existing.visible,
+      status: request.status ?? existing.status,
+      images: (request.images ?? existing.images).map((image, imageIndex) => ({
+        ...image,
+        image_id: image.image_id ?? randomToken("himg", 12),
+        sort_order: image.sort_order ?? (imageIndex + 1) * 10
+      }))
+    };
+    current[index] = updated;
+    this.companyHonors.set(tenantId, cloneCompanyHonors(current));
+    return cloneCompanyHonor(updated);
+  }
+
+  async publishedVideoExists(tenantId: string, videoId: string): Promise<boolean> {
+    if (!/^\d+$/.test(videoId)) {
+      return false;
+    }
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, (tx) =>
+        tx.query<{ exists: boolean }>(
+          `
+            SELECT EXISTS (
+              SELECT 1
+              FROM company_videos
+              WHERE tenant_id = $1
+                AND id = $2
+                AND visible = true
+                AND status = 'published'
+                AND deleted_at IS NULL
+            ) AS exists
+          `,
+          [tenantId, videoId]
+        )
+      );
+      return Boolean(result.rows[0]?.exists);
+    }
+    return true;
   }
 
   async listTemplates(tenantId: string): Promise<AdminTemplate[]> {
@@ -403,6 +602,74 @@ export class AdminConfigRepository {
     return row;
   }
 
+  private async getCompanyHonor(
+    tx: TenantTransactionClient,
+    tenantId: string,
+    honorId: string
+  ): Promise<AdminCompanyHonor> {
+    const result = await tx.query<HonorRow>(
+      `
+        SELECT
+          company_honors.id,
+          company_honors.title,
+          company_honors.body,
+          company_honors.sort_order,
+          company_honors.visible,
+          company_honors.status,
+          company_honor_images.id AS image_id,
+          company_honor_images.image_url,
+          company_honor_images.title AS image_title,
+          company_honor_images.caption AS image_caption,
+          company_honor_images.sort_order AS image_sort_order
+        FROM company_honors
+        LEFT JOIN company_honor_images
+          ON company_honor_images.tenant_id = company_honors.tenant_id
+          AND company_honor_images.honor_id = company_honors.id
+          AND company_honor_images.deleted_at IS NULL
+        WHERE company_honors.tenant_id = $1
+          AND company_honors.id = $2
+          AND company_honors.deleted_at IS NULL
+        ORDER BY company_honor_images.sort_order ASC, company_honor_images.id ASC
+      `,
+      [tenantId, honorId]
+    );
+    const honor = rowsToCompanyHonors(result.rows)[0];
+    if (!honor) {
+      throw new NotFoundException("honor not found");
+    }
+    return honor;
+  }
+
+  private async replaceHonorImages(
+    tx: TenantTransactionClient,
+    tenantId: string,
+    honorId: string,
+    images: AdminCompanyHonor["images"]
+  ): Promise<void> {
+    await tx.query(
+      "UPDATE company_honor_images SET deleted_at = now() WHERE tenant_id = $1 AND honor_id = $2 AND deleted_at IS NULL",
+      [tenantId, honorId]
+    );
+    for (const [index, image] of images.entries()) {
+      await tx.query(
+        `
+          INSERT INTO company_honor_images (
+            tenant_id, honor_id, image_url, title, caption, sort_order, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, now())
+        `,
+        [
+          tenantId,
+          honorId,
+          image.image_url,
+          image.title ?? null,
+          image.caption ?? null,
+          image.sort_order ?? (index + 1) * 10
+        ]
+      );
+    }
+  }
+
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }
@@ -430,6 +697,8 @@ function defaultCompanyProfile(input: { tenantId: string; tenantName: string }):
     website_url: null,
     address: null,
     intro_blocks: [],
+    service_items: [],
+    display_modules: defaultDisplayModules(),
     visible: true,
     status: "draft"
   };
@@ -461,6 +730,8 @@ function rowToCompanyProfile(row: CompanyProfileRow | undefined): AdminCompanyPr
     return null;
   }
   const introBlocks = parseJsonValue(row.intro_json);
+  const serviceItems = parseJsonValue(row.service_items_json);
+  const displayModules = parseJsonValue(row.display_modules_json);
   return {
     tenant_id: String(row.tenant_id),
     display_name: row.display_name,
@@ -468,7 +739,16 @@ function rowToCompanyProfile(row: CompanyProfileRow | undefined): AdminCompanyPr
     logo_url: row.logo_url,
     website_url: row.website_url,
     address: row.address,
-    intro_blocks: Array.isArray(introBlocks) ? (introBlocks as Record<string, unknown>[]) : [],
+    intro_blocks: Array.isArray(introBlocks)
+      ? introBlocks.flatMap((block) => {
+          const parsed = companyIntroBlockSchema.safeParse(block);
+          return parsed.success ? [parsed.data] : [];
+        })
+      : [],
+    service_items: Array.isArray(serviceItems) ? (serviceItems as AdminCompanyProfile["service_items"]) : [],
+    display_modules: Array.isArray(displayModules)
+      ? (displayModules as AdminCompanyProfile["display_modules"])
+      : defaultDisplayModules(),
     visible: row.visible,
     status: row.status
   };
@@ -487,6 +767,8 @@ function mergeCompanyProfile(
     website_url: request.website_url !== undefined ? request.website_url : current.website_url,
     address: request.address !== undefined ? request.address : current.address,
     intro_blocks: request.intro_blocks ?? current.intro_blocks,
+    service_items: request.service_items ?? current.service_items,
+    display_modules: request.display_modules ?? current.display_modules,
     visible: request.visible ?? current.visible,
     status: request.status ?? current.status
   };
@@ -531,8 +813,59 @@ function cloneFieldRules(rules: AdminFieldRule[]): AdminFieldRule[] {
 function cloneCompanyProfile(profile: AdminCompanyProfile): AdminCompanyProfile {
   return {
     ...profile,
-    intro_blocks: profile.intro_blocks.map((block) => ({ ...block }))
+    intro_blocks: profile.intro_blocks.map((block) => ({ ...block })),
+    service_items: profile.service_items.map((item) => ({ ...item })),
+    display_modules: profile.display_modules.map((item) => ({ ...item }))
   };
+}
+
+function rowsToCompanyHonors(rows: HonorRow[]): AdminCompanyHonor[] {
+  const honors = new Map<string, AdminCompanyHonor>();
+  for (const row of rows) {
+    const honorId = String(row.id);
+    const honor =
+      honors.get(honorId) ??
+      ({
+        honor_id: honorId,
+        title: row.title,
+        body: row.body,
+        sort_order: Number(row.sort_order),
+        visible: row.visible,
+        status: row.status,
+        images: []
+      } satisfies AdminCompanyHonor);
+    if (row.image_url) {
+      honor.images.push({
+        image_id: row.image_id ? String(row.image_id) : undefined,
+        image_url: row.image_url,
+        title: row.image_title,
+        caption: row.image_caption,
+        sort_order: Number(row.image_sort_order ?? 0)
+      });
+    }
+    honors.set(honorId, honor);
+  }
+  return [...honors.values()];
+}
+
+function cloneCompanyHonor(honor: AdminCompanyHonor): AdminCompanyHonor {
+  return {
+    ...honor,
+    images: honor.images.map((image) => ({ ...image }))
+  };
+}
+
+function cloneCompanyHonors(honors: AdminCompanyHonor[]): AdminCompanyHonor[] {
+  return honors.map(cloneCompanyHonor);
+}
+
+function defaultDisplayModules(): AdminCompanyProfile["display_modules"] {
+  return [
+    { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+    { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+    { key: "videos", title: "企业视频", visible: false, sort_order: 30, layout: "carousel" },
+    { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+  ];
 }
 
 function cloneTemplates(templates: AdminTemplate[]): AdminTemplate[] {

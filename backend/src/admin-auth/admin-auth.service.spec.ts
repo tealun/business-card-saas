@@ -36,14 +36,16 @@ describe("AdminAuthService", () => {
       tenant_name: "Pilot Corp",
       member_identity_id: "member-001",
       open_userid: "ou-admin",
-      role: "owner"
+      role: "owner",
+      account_type: "tenant"
     });
     expect(tokens.verify(response.access_token)).toEqual({
       tenantId: "tenant-001",
       tenantName: "Pilot Corp",
       memberIdentityId: "member-001",
       openUserid: "ou-admin",
-      role: "owner"
+      role: "owner",
+      accountType: "tenant"
     });
     expect(service.me(tokens.verify(response.access_token)).admin.role).toBe("owner");
   });
@@ -65,7 +67,8 @@ describe("AdminAuthService", () => {
       tenant_name: "Pilot Corp",
       member_identity_id: "member-001",
       open_userid: "ou-claimed",
-      role: "owner"
+      role: "owner",
+      account_type: "tenant"
     });
     expect(admins.findClaimToken(bootstrap.hashClaimToken(claim.claim_token))?.usedAt).toBeInstanceOf(Date);
     await expect(admins.findActiveAdmin({ tenantId: "tenant-001", openUserid: "ou-claimed" })).resolves.toEqual({

@@ -12,7 +12,8 @@ export const adminIdentitySchema = z.object({
   tenant_name: z.string(),
   member_identity_id: z.string().nullable(),
   open_userid: z.string(),
-  role: adminRoleSchema
+  role: adminRoleSchema,
+  account_type: z.enum(["tenant", "platform"]).default("tenant")
 });
 
 export const adminLoginResponseSchema = z.object({

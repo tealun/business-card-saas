@@ -90,6 +90,7 @@ Page({
     wechatQrUrl: "",
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
+    displayModules: [],
     cardLogoUrl: "",
     cardCompanyName: "",
     cardCompanyShortName: "",
@@ -165,6 +166,7 @@ Page({
       canShare,
       serviceItems: resolveServiceItems(card, isDemo),
       introBlocks: resolveIntroBlocks(card),
+      displayModules: resolveDisplayModules(card, isDemo),
       viewCount: isDemo ? 269 : 0,
       visitCount: isDemo ? 269 : 0,
       likeCount: isDemo ? 136 : 0,
@@ -461,6 +463,13 @@ Page({
     }
   },
 
+  previewModuleImage(event) {
+    const detail = event.detail || {};
+    const urls = detail.urls || event.currentTarget.dataset.urls || [];
+    const current = detail.url || event.currentTarget.dataset.url || urls[0];
+    if (current) wx.previewImage({ urls: Array.isArray(urls) ? urls : [current], current });
+  },
+
   onShareAppMessage() {
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
@@ -625,27 +634,59 @@ function resolveServiceItems(card, isDemo) {
     [];
   const items = Array.isArray(source)
     ? source
-        .map((item) => ({
+        .map((item, index) => ({
+          id: String(item.id || item.title || `service_${index}`).replace(/\s+/g, "_"),
           title: String(item.title || item.name || "").trim(),
-          desc: String(item.desc || item.description || "").trim()
+          desc: String(item.desc || item.description || "").trim(),
+          image_url: String(item.image_url || "").trim()
         }))
-        .filter((item) => item.title)
+        .filter((item) => item.title || item.image_url)
         .slice(0, 6)
     : [];
-  return items.length ? items : isDemo ? demoServiceItems : [];
+  return items.length ? items : isDemo ? demoServiceItems.map((item, index) => ({ ...item, id: `demo_service_${index}` })) : [];
 }
 
 function resolveIntroBlocks(card) {
+  const videosById = new Map((card.videos || []).map((video) => [String(video.video_id), video]));
   const blocks = ((card.company_profile || {}).intro_blocks || []).map((item) => {
     const type = item.type || (item.image_url ? "image" : "paragraph");
+    const video = type === "video" ? videosById.get(String(item.video_id || "")) : null;
     return {
       type,
       text: item.text || item.content || "",
+      items: Array.isArray(item.items) ? item.items.filter(Boolean) : [],
       image_url: item.image_url || item.url || "",
-      caption: item.caption || ""
+      caption: item.caption || "",
+      images: (item.images || []).map((image) => ({ url: image.url || "", caption: image.caption || "" })).filter((image) => image.url),
+      video_id: item.video_id || "",
+      video_url: video ? video.video_url : "",
+      cover_url: video ? video.cover_url : "",
+      title: video ? video.title : ""
     };
   });
-  return blocks.filter((item) => item.text || item.image_url);
+  return blocks.map((item) => ({ ...item, preview_urls: item.type === "gallery" ? item.images.map((image) => image.url) : item.image_url ? [item.image_url] : [] })).filter((item) => item.text || item.items.length || item.image_url || item.images.length || item.video_url);
+}
+
+function resolveDisplayModules(card, isDemo) {
+  const profile = card.company_profile || {};
+  const defaults = [
+    { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+    { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+    { key: "videos", title: "企业视频", visible: false, sort_order: 30, layout: "carousel" },
+    { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+  ];
+  const services = resolveServiceItems(card, isDemo);
+  const intro = resolveIntroBlocks(card);
+  const honors = (card.honors || []).map((honor) => {
+    const imageUrls = (honor.images || []).map((image) => image.image_url).filter(Boolean);
+    return { ...honor, image_urls: imageUrls, primary_image_url: imageUrls[0] || "" };
+  });
+  const content = { services, profile: intro, videos: card.videos || [], honors };
+  return (Array.isArray(profile.display_modules) && profile.display_modules.length ? profile.display_modules : defaults)
+    .filter((module) => module.visible !== false)
+    .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
+    .map((module) => ({ ...module, title: module.title || defaults.find((item) => item.key === module.key)?.title, content: content[module.key] || [] }))
+    .filter((module) => module.content.length > 0);
 }
 
 function readStoredAnonId() {

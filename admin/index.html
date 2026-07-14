@@ -63,6 +63,7 @@
           <button class="nav-item" data-view-target="rules">字段与模板</button>
           <button class="nav-item" data-view-target="sync">同步</button>
           <button class="nav-item" data-view-target="database">数据库</button>
+          <button id="featuresNav" class="nav-item hidden" data-view-target="features">高级功能</button>
           <button class="nav-item" data-view-target="setup" data-dev-only>授权与联调</button>
         </nav>
       </aside>
@@ -296,12 +297,29 @@
                 <span>地址</span>
                 <input name="address" />
               </label>
-              <label class="wide">
-                <span>简介块 JSON</span>
-                <textarea name="intro_blocks" rows="6">[]</textarea>
-              </label>
             </form>
+            <div class="content-editor">
+              <div class="editor-head"><h3>模块管理</h3><span>使用上下按钮排序</span></div>
+              <div id="moduleEditor"></div>
+              <div class="editor-head"><h3>产品与服务</h3><button id="addService" type="button" class="secondary">新增产品</button></div>
+              <div id="serviceEditor"></div>
+              <div class="editor-head"><h3>企业简介</h3><div class="button-row compact-row"><button id="addHeading" type="button" class="secondary">添加标题</button><button id="addParagraph" type="button" class="secondary">添加正文</button><button id="addImage" type="button" class="secondary">添加图片</button><button id="addGallery" type="button" class="secondary">添加相册</button><button id="addVideo" type="button" class="secondary">添加视频</button></div></div>
+              <div id="introEditor"></div>
+              <div id="videoCapabilityHint" class="muted"></div>
+              <div class="editor-head"><h3>荣誉资质</h3><div class="button-row compact-row"><button id="loadHonors" type="button" class="secondary">读取荣誉</button><button id="addHonor" type="button" class="secondary">新增荣誉</button><button id="saveHonors" type="button">保存荣誉</button></div></div>
+              <div id="honorEditor"></div>
+            </div>
             <pre id="companyOutput" class="output compact-output" aria-label="company output"></pre>
+          </article>
+        </section>
+
+        <section class="view" data-view="features">
+          <div class="view-head"><div><h2>高级功能</h2><p>平台总管理员控制企业视频授权与上限</p></div><button id="loadVideoFeatures" class="secondary">刷新</button></div>
+          <article class="panel">
+            <div class="form-grid"><label><span>平台视频功能</span><input id="platformVideoEnabled" type="checkbox" /></label><label><span>默认上限（MB）</span><input id="platformVideoLimit" type="number" min="1" max="1024" value="500" /></label></div>
+            <button id="saveVideoFeatures">保存平台设置</button>
+            <div class="editor-head"><h3>企业授权</h3><div class="button-row compact-row"><input id="tenantFeatureSearch" placeholder="企业名称" /><button id="searchTenantFeatures" class="secondary">搜索</button></div></div>
+            <div id="tenantFeatureEditor"></div><pre id="featureOutput" class="output compact-output"></pre>
           </article>
         </section>
 

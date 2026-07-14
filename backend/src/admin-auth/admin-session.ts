@@ -6,4 +6,5 @@ export interface AdminSession {
   memberIdentityId: string | null;
   openUserid: string;
   role: AdminRole;
+  accountType?: "tenant" | "platform";
 }

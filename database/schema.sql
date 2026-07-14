@@ -288,6 +288,8 @@ CREATE TABLE "company_profiles" (
     "website_url" TEXT,
     "address" TEXT,
     "intro_json" JSONB,
+    "service_items_json" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "display_modules_json" JSONB NOT NULL DEFAULT '[{"key":"services","title":"产品与服务","visible":true,"sort_order":10,"layout":"graphic"},{"key":"profile","title":"企业简介","visible":true,"sort_order":20,"layout":"carousel"},{"key":"videos","title":"企业视频","visible":false,"sort_order":30,"layout":"carousel"},{"key":"honors","title":"荣誉资质","visible":true,"sort_order":40,"layout":"carousel"}]'::jsonb,
     "certification_json" JSONB,
     "visible" BOOLEAN NOT NULL DEFAULT true,
     "status" VARCHAR(32) NOT NULL DEFAULT 'draft',
@@ -314,6 +316,27 @@ CREATE TABLE "company_videos" (
     "deleted_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "company_videos_pkey" PRIMARY KEY ("id")
+);
+
+-- Platform-controlled advanced feature policy. These tables intentionally have
+-- no tenant RLS because only platform super-admin endpoints may access them.
+CREATE TABLE "platform_feature_settings" (
+    "feature_key" VARCHAR(64) NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "default_limit_bytes" BIGINT NOT NULL DEFAULT 524288000,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "platform_feature_settings_limit_check" CHECK ("default_limit_bytes" BETWEEN 1048576 AND 1073741824),
+    CONSTRAINT "platform_feature_settings_pkey" PRIMARY KEY ("feature_key")
+);
+
+CREATE TABLE "tenant_feature_settings" (
+    "tenant_id" BIGINT NOT NULL,
+    "feature_key" VARCHAR(64) NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "limit_bytes" BIGINT,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "tenant_feature_settings_limit_check" CHECK ("limit_bytes" IS NULL OR "limit_bytes" >= 1048576),
+    CONSTRAINT "tenant_feature_settings_pkey" PRIMARY KEY ("tenant_id", "feature_key")
 );
 
 -- CreateTable
@@ -560,6 +583,8 @@ ALTER TABLE "company_profiles" ADD CONSTRAINT "company_profiles_tenant_id_fkey" 
 
 -- AddForeignKey
 ALTER TABLE "company_videos" ADD CONSTRAINT "company_videos_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "tenant_feature_settings" ADD CONSTRAINT "tenant_feature_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "company_honors" ADD CONSTRAINT "company_honors_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -47,7 +47,8 @@ export class AdminAuthService {
       tenantName: identity.tenantName,
       memberIdentityId: admin.memberIdentityId ?? identity.memberIdentityId,
       openUserid: identity.openUserid,
-      role: admin.role
+      role: admin.role,
+      accountType: "tenant"
     };
     return adminLoginResponseSchema.parse({
       access_token: this.sessionTokens.sign(session),
@@ -69,7 +70,8 @@ export class AdminAuthService {
       tenant_name: session.tenantName,
       member_identity_id: session.memberIdentityId,
       open_userid: session.openUserid,
-      role: session.role
+      role: session.role,
+      account_type: session.accountType ?? "tenant"
     });
   }
 }

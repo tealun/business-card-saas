@@ -1,0 +1,155 @@
+.company-module {
+  overflow: hidden;
+}
+
+.section-head {
+  margin-bottom: 24rpx;
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18rpx;
+}
+
+.service-grid--text {
+  grid-template-columns: 1fr;
+}
+
+.service-grid--image {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.service-item {
+  min-height: 164rpx;
+  padding: 18rpx 12rpx;
+  border-radius: 18rpx;
+  background: var(--bg-page);
+  box-sizing: border-box;
+}
+
+.service-item__title {
+  margin-top: 14rpx;
+  color: var(--text-primary);
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.service-item__desc {
+  margin-top: 6rpx;
+  color: var(--text-secondary);
+  font-size: 22rpx;
+  line-height: 1.35;
+}
+
+.module-enter {
+  animation: module-enter 280ms ease-out both;
+}
+
+@keyframes module-enter {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.module-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.module-scroll__track {
+  display: inline-flex;
+  gap: 18rpx;
+  padding-right: 56rpx;
+}
+
+.service-item--media,
+.honor-item {
+  width: 420rpx;
+  flex: none;
+  white-space: normal;
+}
+
+.service-item image,
+.honor-item image,
+.gallery-image {
+  width: 100%;
+  height: 240rpx;
+  border-radius: 16rpx;
+  background: #f2f4f7;
+}
+
+.gallery-image {
+  width: 560rpx;
+  flex: none;
+}
+
+.company-video-list {
+  display: grid;
+  gap: 18rpx;
+}
+
+.company-video {
+  width: 100%;
+  height: 390rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+}
+
+.intro-heading {
+  margin-top: 24rpx;
+  color: var(--text-primary);
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.intro-text {
+  margin-top: 20rpx;
+  color: var(--text-primary);
+  font-size: 28rpx;
+  line-height: 1.75;
+}
+
+.intro-text--quote {
+  padding-left: 22rpx;
+  border-left: 6rpx solid var(--brand);
+  color: var(--text-secondary);
+}
+
+.intro-list {
+  display: grid;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.intro-list__item {
+  position: relative;
+  padding-left: 28rpx;
+  color: var(--text-primary);
+  font-size: 27rpx;
+  line-height: 1.6;
+}
+
+.intro-list__item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.intro-image {
+  height: 360rpx;
+  margin-top: 24rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+.intro-image image {
+  width: 100%;
+  height: 100%;
+}

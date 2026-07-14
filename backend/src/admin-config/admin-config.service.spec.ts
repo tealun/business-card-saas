@@ -48,6 +48,28 @@ describe("AdminConfigService", () => {
     expect(templates.filter((template) => template.is_default)).toHaveLength(1);
   });
 
+  it("creates and updates company honors with ordered images", async () => {
+    const service = createService();
+    const created = await service.createCompanyHonor(adminSession(), {
+      title: "ISO 认证",
+      body: "质量管理体系",
+      images: [
+        { image_url: "https://example.com/iso-a.jpg", title: "证书 A", caption: null, sort_order: 20 },
+        { image_url: "https://example.com/iso-b.jpg", title: "证书 B", caption: "副本", sort_order: 10 }
+      ]
+    });
+    const updated = await service.updateCompanyHonor(adminSession(), created.honor_id, {
+      status: "published",
+      visible: true,
+      images: [{ image_url: "https://example.com/iso-published.jpg", title: null, caption: null, sort_order: 10 }]
+    });
+    const list = await service.listCompanyHonors(adminSession());
+
+    expect(updated.status).toBe("published");
+    expect(updated.images).toHaveLength(1);
+    expect(list.items[0]?.title).toBe("ISO 认证");
+  });
+
   it("marks the first persisted database template as default", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = "postgres://unit-test";
@@ -101,6 +123,28 @@ describe("AdminConfigService", () => {
       ForbiddenException
     );
     await expect(service.createTemplate(auditor, { name: "Nope" })).rejects.toThrow(ForbiddenException);
+  });
+
+  it("rejects intro video blocks when the tenant has no video entitlement", async () => {
+    const service = new AdminConfigService(new AdminConfigRepository(), {
+      capability: async () => ({ enabled: false, effective_limit_bytes: 524288000, effective_limit_mb: 500, source: "platform_default" })
+    } as never);
+
+    await expect(service.updateCompanyProfile(adminSession(), {
+      intro_blocks: [{ type: "video", video_id: "123" }]
+    })).rejects.toThrow(ForbiddenException);
+  });
+
+  it("rejects intro video blocks that do not reference a published tenant video", async () => {
+    const repository = new AdminConfigRepository();
+    repository.publishedVideoExists = async () => false;
+    const service = new AdminConfigService(repository, {
+      capability: async () => ({ enabled: true, effective_limit_bytes: 524288000, effective_limit_mb: 500, source: "platform_default" })
+    } as never);
+
+    await expect(service.updateCompanyProfile(adminSession(), {
+      intro_blocks: [{ type: "video", video_id: "123" }]
+    })).rejects.toThrow(ForbiddenException);
   });
 
   it("rejects duplicate field rule keys", () => {

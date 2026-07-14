@@ -69,7 +69,8 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       tenantName: admin.tenantName,
       memberIdentityId: null,
       openUserid: `${PLATFORM_USER_PREFIX}${admin.username}`,
-      role: admin.role
+      role: admin.role,
+      accountType: "platform"
     };
     return adminLoginResponseSchema.parse({
       access_token: this.sessionTokens.sign(session),
@@ -80,7 +81,8 @@ export class PlatformAdminService implements OnApplicationBootstrap {
         tenant_name: session.tenantName,
         member_identity_id: session.memberIdentityId,
         open_userid: session.openUserid,
-        role: session.role
+        role: session.role,
+        account_type: "platform"
       })
     });
   }

@@ -513,6 +513,20 @@ h3 {
   display: none !important;
 }
 
+.content-editor { margin-top: 24px; display: grid; gap: 16px; }
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 12px; }
+.editor-head h3 { margin: 0; }
+.editor-row { display: grid; grid-template-columns: minmax(90px, .7fr) 1.5fr 90px 130px auto auto; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line, #e5e7eb); border-radius: 12px; margin-bottom: 8px; }
+.service-edit-row { grid-template-columns: 1fr 1.5fr 1.2fr 60px auto; }
+.intro-edit-row { grid-template-columns: 100px 1fr 1fr auto; }
+.honor-edit-block { padding: 12px; border: 1px solid var(--divider); border-radius: 8px; background: var(--bg-soft); }
+.honor-edit-row { grid-template-columns: 1fr 1.4fr 90px 120px 60px auto; background: var(--bg-surface); }
+.honor-image-list { display: grid; gap: 8px; margin: 10px 0; }
+.honor-image-row { grid-template-columns: 1.4fr 1fr 1.2fr 80px auto; background: #fff; }
+.editor-row textarea { min-height: 72px; }
+.muted { color: #667085; font-size: 13px; }
+@media (max-width: 900px) { .editor-row, .service-edit-row, .intro-edit-row, .honor-edit-row, .honor-image-row { grid-template-columns: 1fr; } }
+
 body:not(.dev-mode) [data-dev-only] {
   display: none !important;
 }

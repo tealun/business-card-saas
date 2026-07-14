@@ -91,6 +91,12 @@ CREATE POLICY account_preferences_account_ctx ON account_preferences
 -- platform_admins is a platform operations table (super-admin password login happens before any
 -- tenant context exists). It intentionally does not use tenant RLS.
 
+-- Feature settings are platform policy tables. They are accessed only by the platform feature
+-- repository and are deliberately excluded from ordinary tenant transaction/RLS read paths.
+ALTER TABLE platform_feature_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_feature_settings DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_tenant_feature_settings ON tenant_feature_settings;
+
 -- callback_events is a platform operations table. It intentionally does not use tenant RLS because
 -- callbacks can arrive before a tenant is known and retry/admin event queries are platform-scoped.
 ALTER TABLE callback_events DISABLE ROW LEVEL SECURITY;

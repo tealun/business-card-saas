@@ -46,7 +46,8 @@ export class AdminSessionTokenService {
       tenantName: envelope.payload.tenantName,
       memberIdentityId: envelope.payload.memberIdentityId,
       openUserid: envelope.payload.openUserid,
-      role: envelope.payload.role
+      role: envelope.payload.role,
+      accountType: envelope.payload.accountType === "platform" ? "platform" : "tenant"
     };
   }
 

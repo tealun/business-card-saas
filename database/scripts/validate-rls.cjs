@@ -7,7 +7,7 @@ const schemaSql = fs.readFileSync(schemaPath, "utf8");
 const sql = fs.readFileSync(rlsPath, "utf8");
 
 const accountTables = ["account_preferences"];
-const tenantRlsExceptions = new Set(["public_card_directory", "platform_admins"]);
+const tenantRlsExceptions = new Set(["public_card_directory", "platform_admins", "tenant_feature_settings"]);
 
 function assert(condition, message) {
   if (!condition) {
@@ -68,6 +68,10 @@ assert(
   !/ALTER TABLE\s+public_card_directory\s+ENABLE ROW LEVEL SECURITY/i.test(sql),
   "public_card_directory must remain outside tenant RLS"
 );
+for (const table of ["platform_feature_settings", "tenant_feature_settings"]) {
+  assert(new RegExp(`ALTER TABLE\\s+${table}\\s+DISABLE ROW LEVEL SECURITY`, "i").test(sql), `${table} must remain a platform-only table outside tenant RLS`);
+  assert(!new RegExp(`CREATE POLICY\\s+\\S+\\s+ON\\s+${table}`, "i").test(sql), `${table} must not expose a tenant RLS policy`);
+}
 assert(
   /ALTER TABLE\s+callback_events\s+DISABLE ROW LEVEL SECURITY/i.test(sql),
   "callback_events must remain a platform table without tenant RLS"

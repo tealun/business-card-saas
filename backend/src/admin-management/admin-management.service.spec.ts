@@ -177,7 +177,9 @@ function fakeRepository(): AdminManagementRepository {
       show_mobile: false,
       show_email: true,
       show_wechat: false,
-      allow_forward: true
+      allow_forward: true,
+      show_avatar: true,
+      share_title: null
     },
     status: "disabled"
   };

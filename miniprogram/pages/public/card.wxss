@@ -307,6 +307,17 @@
   font-size: 22rpx;
   line-height: 1.35;
 }
+.module-enter { animation: module-enter 280ms ease-out both; }
+@keyframes module-enter { from { opacity: 0; transform: translateY(16rpx); } to { opacity: 1; transform: translateY(0); } }
+.module-scroll { width: 100%; white-space: nowrap; }
+.module-scroll__track { display: inline-flex; gap: 18rpx; padding-right: 56rpx; }
+.service-item--media, .honor-item { width: 420rpx; flex: none; white-space: normal; }
+.service-item image, .honor-item image, .gallery-image { width: 100%; height: 240rpx; border-radius: 16rpx; background: #f2f4f7; }
+.gallery-image { width: 560rpx; flex: none; }
+.company-video { width: 100%; height: 390rpx; border-radius: 18rpx; overflow: hidden; }
+.intro-heading { margin-top: 24rpx; font-size: 34rpx; font-weight: 700; }
+.service-grid--text { grid-template-columns: 1fr; }
+.service-grid--image { grid-template-columns: repeat(2, 1fr); }
 
 .intro-text {
   margin-top: 20rpx;

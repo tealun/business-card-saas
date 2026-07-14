@@ -6,6 +6,7 @@ import { demoPublicCard } from "../fixtures/demo-cards.js";
 import { DatabaseService } from "../database/database.service.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
+import { CompanyVideoFeatureService } from "../company-video-feature/company-video-feature.service.js";
 
 export interface CardVisitRecord {
   visitId: string;
@@ -52,6 +53,8 @@ interface PublicCardRow extends QueryResultRow {
   website_url: string | null;
   address: string | null;
   intro_json: unknown;
+  service_items_json: unknown;
+  display_modules_json: unknown;
   background_url: string | null;
   color_scheme_json: unknown;
   layout_json: unknown;
@@ -109,7 +112,8 @@ export class PublicCardRepository {
   constructor(
     @Optional() private readonly database?: DatabaseService,
     @Optional() private readonly tenantTx?: TenantTx,
-    @Optional() private readonly cipher?: CardFieldCipherService
+    @Optional() private readonly cipher?: CardFieldCipherService,
+    @Optional() private readonly videoFeatures?: CompanyVideoFeatureService
   ) {}
 
   async findPublicCard(publicId: string): Promise<PublicCardResponse> {
@@ -413,6 +417,8 @@ export class PublicCardRepository {
           company_profiles.website_url,
           company_profiles.address,
           company_profiles.intro_json,
+          company_profiles.service_items_json,
+          company_profiles.display_modules_json,
           card_style_overrides.background_url,
           card_style_overrides.color_scheme_json,
           card_style_overrides.layout_json
@@ -421,6 +427,7 @@ export class PublicCardRepository {
           ON company_profiles.tenant_id = cards.tenant_id
           AND company_profiles.deleted_at IS NULL
           AND company_profiles.visible = true
+          AND company_profiles.status = 'published'
         LEFT JOIN LATERAL (
           SELECT background_url, color_scheme_json, layout_json
           FROM card_style_overrides
@@ -442,8 +449,9 @@ export class PublicCardRepository {
     if (!row || row.card_status !== "active") {
       throw new NotFoundException("card not found or disabled");
     }
+    const videoCapability = await this.videoFeatures?.capability(directory.tenantId);
     const [videos, honors, stats] = await Promise.all([
-      this.readVideos(tx, directory.tenantId),
+      videoCapability?.enabled ? this.readVideos(tx, directory.tenantId) : Promise.resolve([]),
       this.readHonors(tx, directory.tenantId),
       this.readStats(tx, directory)
     ]);
@@ -638,6 +646,8 @@ export class PublicCardRepository {
         name: companyName ?? "",
         short_name: companyShortName,
         intro_blocks: parseIntroBlocks(row.intro_json),
+        service_items: parseServiceItems(row.service_items_json),
+        display_modules: parseDisplayModules(row.display_modules_json, videos.length > 0),
         website_url: row.website_url,
         address: row.address ?? fields.address
       },
@@ -861,4 +871,47 @@ function parseObject(value: unknown): Record<string, unknown> {
 
 function parseIntroBlocks(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null && !Array.isArray(item)) : [];
+}
+
+function parseServiceItems(value: unknown): PublicCardResponse["company_profile"]["service_items"] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw, index) => {
+    const item = parseObject(raw);
+    const title = typeof item.title === "string" ? item.title : "";
+    const imageUrl = typeof item.image_url === "string" ? item.image_url : null;
+    if ((!title.trim() && !imageUrl) || item.visible === false) return [];
+    return [{
+      id: typeof item.id === "string" ? item.id : `service_legacy_${index}`,
+      title,
+      description: typeof item.description === "string" ? item.description : "",
+      image_url: imageUrl,
+      visible: true,
+      sort_order: typeof item.sort_order === "number" ? item.sort_order : index * 10
+    }];
+  }).sort((a, b) => a.sort_order - b.sort_order);
+}
+
+function parseDisplayModules(value: unknown, videoAvailable: boolean): PublicCardResponse["company_profile"]["display_modules"] {
+  const defaults: PublicCardResponse["company_profile"]["display_modules"] = [
+    { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+    { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+    { key: "videos", title: "企业视频", visible: false, sort_order: 30, layout: "carousel" },
+    { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+  ];
+  if (!Array.isArray(value) || value.length !== 4) return defaults;
+  const keys = new Set(value.map((item) => parseObject(item).key));
+  if (keys.size !== 4 || defaults.some((item) => !keys.has(item.key))) return defaults;
+  return value.map((raw) => {
+    const item = parseObject(raw);
+    const fallback = defaults.find((module) => module.key === item.key)!;
+    return {
+      key: fallback.key,
+      title: typeof item.title === "string" && item.title.trim() ? item.title.slice(0, 32) : fallback.title,
+      visible: fallback.key === "videos" ? item.visible === true && videoAvailable : item.visible !== false,
+      sort_order: typeof item.sort_order === "number" ? Math.trunc(item.sort_order) : fallback.sort_order,
+      layout: ["text", "image", "graphic", "grid", "carousel"].includes(String(item.layout))
+        ? item.layout as typeof fallback.layout
+        : fallback.layout
+    };
+  }).sort((a, b) => a.sort_order - b.sort_order);
 }

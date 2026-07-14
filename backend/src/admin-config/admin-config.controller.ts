@@ -4,7 +4,9 @@ import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guar
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
 import {
   createAdminTemplateRequestSchema,
+  createAdminCompanyHonorRequestSchema,
   updateAdminCompanyProfileRequestSchema,
+  updateAdminCompanyHonorRequestSchema,
   updateAdminFieldSettingsRequestSchema,
   updateAdminTemplateRequestSchema
 } from "../contracts/admin-config.js";
@@ -40,6 +42,30 @@ export class AdminConfigController {
     return this.config.updateCompanyProfile(
       requireAdminSession(request),
       updateAdminCompanyProfileRequestSchema.parse(body)
+    );
+  }
+
+  @Get("company-honors")
+  listCompanyHonors(@Req() request: AdminRequest) {
+    return this.config.listCompanyHonors(requireAdminSession(request));
+  }
+
+  @Post("company-honors")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createCompanyHonor(@Req() request: AdminRequest, @Body() body: unknown) {
+    return this.config.createCompanyHonor(
+      requireAdminSession(request),
+      createAdminCompanyHonorRequestSchema.parse(body)
+    );
+  }
+
+  @Put("company-honors/:honorId")
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  updateCompanyHonor(@Req() request: AdminRequest, @Param("honorId") honorId: string, @Body() body: unknown) {
+    return this.config.updateCompanyHonor(
+      requireAdminSession(request),
+      honorId,
+      updateAdminCompanyHonorRequestSchema.parse(body)
     );
   }
 

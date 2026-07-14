@@ -744,6 +744,13 @@ export class EmployeeCardRepository {
             text: "Published company introduction is managed in the admin console."
           }
         ],
+        service_items: [],
+        display_modules: [
+          { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+          { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+          { key: "videos", title: "企业视频", visible: false, sort_order: 30, layout: "carousel" },
+          { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "carousel" }
+        ],
         website_url: websiteUrl,
         address: card.fields.address ?? null
       },

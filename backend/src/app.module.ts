@@ -18,6 +18,7 @@ import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
 import { WecomModule } from "./wecom/wecom.module.js";
 import { ConfigModule } from "./config/config.module.js";
 import { StorageModule } from "./storage/storage.module.js";
+import { CompanyVideoFeatureModule } from "./company-video-feature/company-video-feature.module.js";
 
 @Module({
   imports: [
@@ -68,7 +69,8 @@ import { StorageModule } from "./storage/storage.module.js";
     AdminAuthModule,
     AdminDatabaseModule,
     AdminManagementModule,
-    AdminConfigModule
+    AdminConfigModule,
+    CompanyVideoFeatureModule
   ],
   controllers: [HealthController, MetricsController],
   providers: [
