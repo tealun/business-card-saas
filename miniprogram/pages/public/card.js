@@ -7,9 +7,10 @@ const config = require("../../config");
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
 const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
 const DEMO_ASSET_BASE = `${String(config.apiBase || "").replace(/\/$/, "")}/demo-assets/company`;
+const DEMO_ASSET_VERSION = "20260715-photo2";
 
 function demoAsset(name) {
-  return `${DEMO_ASSET_BASE}/${name}`;
+  return `${DEMO_ASSET_BASE}/${name}?v=${DEMO_ASSET_VERSION}`;
 }
 
 const demoServiceItems = [
