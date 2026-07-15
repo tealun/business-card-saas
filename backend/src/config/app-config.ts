@@ -67,6 +67,7 @@ const appConfigSchema = z
     WECOM_HTTP_TIMEOUT_MS: z.coerce.number().int().positive(),
     WECOM_INSTALL_BASE_URL: z.string().url(),
     WECOM_INSTALL_REDIRECT_URI: z.string().url(),
+    WECOM_SENSITIVE_REDIRECT_URI: z.string().url(),
     WECOM_AUTH_LAUNCH_TOKEN: z.string().min(1),
 
     WECOM_CALLBACK_ALERT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),

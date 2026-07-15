@@ -391,18 +391,24 @@ Page({
       return;
     }
     const cachedQrUrl = enterpriseWechatQrUrl();
-    if (cachedQrUrl) {
+    const hasEnterpriseAvatar = Boolean(this.data.card && this.data.card.avatar_url);
+    if (cachedQrUrl && hasEnterpriseAvatar) {
       this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl: cachedQrUrl, path: "长按识别加微信" });
+      return;
+    }
+    if (!hasEnterpriseAvatar) {
+      wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
       return;
     }
     try {
       const result = await request("/employee/cards/current/wechat-qrcode");
       const qrUrl = result.qr_url || "";
+      if (!qrUrl) {
+        wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
+        return;
+      }
       cacheCurrentWechatQr(qrUrl, currentIdentity.identity_type);
       this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl, path: "长按识别加微信" });
-      if (!qrUrl) {
-        wx.showToast({ title: "企业微信二维码接口已预留，等待企业微信拉取接入", icon: "none" });
-      }
     } catch (error) {
       wx.showToast({ title: error.message || "二维码读取失败", icon: "none" });
     }

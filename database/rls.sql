@@ -101,3 +101,8 @@ DROP POLICY IF EXISTS tenant_isolation_tenant_feature_settings ON tenant_feature
 -- callbacks can arrive before a tenant is known and retry/admin event queries are platform-scoped.
 ALTER TABLE callback_events DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_callback_events ON callback_events;
+
+-- Sensitive OAuth callbacks must atomically consume their opaque state before a tenant context is
+-- known. The table stores only hashes and binding metadata, never raw state/code/user_ticket.
+ALTER TABLE wecom_sensitive_auth_states DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_wecom_sensitive_auth_states ON wecom_sensitive_auth_states;

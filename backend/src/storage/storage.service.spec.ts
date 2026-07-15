@@ -6,10 +6,12 @@ import { StorageService } from "./storage.service.js";
 
 describe("StorageService", () => {
   const originalEnv = { ...process.env };
+  const originalFetch = global.fetch;
   let tempDir = "";
 
   afterEach(async () => {
     process.env = { ...originalEnv };
+    global.fetch = originalFetch;
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true });
       tempDir = "";
@@ -52,6 +54,35 @@ describe("StorageService", () => {
     expect(object.contentType).toBe("image/jpeg");
     expect(object.contentLength).toBe(5);
     object.stream.destroy();
+  });
+
+  it("caches trusted WeCom images and rejects arbitrary remote hosts", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    const response = {
+      ok: true,
+      url: "https://shp.qpic.cn/bizmp/avatar/0",
+      headers: new Headers({ "content-type": "image/png", "content-length": "5" }),
+      arrayBuffer: async () => Buffer.from("hello")
+    };
+    global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
+    const service = new StorageService(new AppConfig());
+
+    const stored = await service.storeTrustedRemoteImage({
+      tenantId: "tenant-001",
+      category: "avatars",
+      url: "https://shp.qpic.cn/bizmp/avatar/0"
+    });
+
+    expect(stored.storageKey).toContain("/avatars/");
+    await expect(
+      service.storeTrustedRemoteImage({
+        tenantId: "tenant-001",
+        category: "avatars",
+        url: "https://attacker.example/avatar.png"
+      })
+    ).rejects.toThrow("untrusted WeCom image URL");
   });
 
   it("returns a portable API path when no separate public storage origin is configured", async () => {

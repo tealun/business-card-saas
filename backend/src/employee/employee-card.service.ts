@@ -71,6 +71,15 @@ export class EmployeeCardService {
     return result;
   }
 
+  async syncWecomSensitiveProfile(
+    session: EmployeeSession,
+    profile: { avatarUrl: string | null; qrCodeUrl: string | null }
+  ): Promise<EmployeeCardResponse> {
+    const card = employeeCardResponseSchema.parse(await this.repository.syncWecomSensitiveProfile(session, profile));
+    await this.publishPreview(await this.repository.getPreview(session));
+    return card;
+  }
+
   async createShare(session: EmployeeSession): Promise<EmployeeShareResponse> {
     const share = await this.repository.createShare(session);
     await this.publishPreview(await this.repository.getPreview(session));

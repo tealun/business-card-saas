@@ -94,6 +94,20 @@ export interface FetchContactUserIdsResponse {
   nextCursor: string | null;
 }
 
+export interface FetchThirdPartyUserInfoResponse {
+  openCorpid: string;
+  openUserid: string;
+  userTicket: string;
+  expiresIn: number;
+}
+
+export interface FetchThirdPartyUserDetailResponse {
+  openCorpid: string | null;
+  openUserid: string | null;
+  avatarUrl: string | null;
+  qrCodeUrl: string | null;
+}
+
 interface WecomSuiteTokenPayload {
   errcode?: number;
   errmsg?: string;
@@ -160,6 +174,26 @@ interface WecomContactUserListPayload {
   next_cursor?: string;
   dept_user?: WecomContactUserPayload[];
   userlist?: WecomContactUserPayload[];
+}
+
+interface WecomThirdPartyUserInfoPayload {
+  errcode?: number;
+  errmsg?: string;
+  CorpId?: string;
+  UserId?: string;
+  open_userid?: string;
+  user_ticket?: string;
+  expires_in?: number;
+}
+
+interface WecomThirdPartyUserDetailPayload {
+  errcode?: number;
+  errmsg?: string;
+  corpid?: string;
+  userid?: string;
+  open_userid?: string;
+  avatar?: string;
+  qr_code?: string;
 }
 
 @Injectable()
@@ -353,6 +387,63 @@ export class WecomApiClientService {
     };
   }
 
+  async fetchThirdPartyUserInfo(
+    suiteAccessToken: string,
+    code: string
+  ): Promise<FetchThirdPartyUserInfoResponse> {
+    const payload = await this.getJson<WecomThirdPartyUserInfoPayload>(
+      "getuserinfo3rd",
+      `/cgi-bin/service/auth/getuserinfo3rd?code=${encodeURIComponent(code)}&suite_access_token=${encodeURIComponent(suiteAccessToken)}`
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom getuserinfo3rd failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+    const openCorpid = payload.CorpId?.trim();
+    const openUserid = (payload.open_userid ?? payload.UserId)?.trim();
+    const userTicket = payload.user_ticket?.trim();
+    if (!openCorpid || !openUserid || !userTicket) {
+      throw new BadGatewayException("WeCom getuserinfo3rd did not return member-sensitive authorization");
+    }
+    return { openCorpid, openUserid, userTicket, expiresIn: payload.expires_in ?? 0 };
+  }
+
+  async fetchThirdPartyUserDetail(
+    suiteAccessToken: string,
+    userTicket: string
+  ): Promise<FetchThirdPartyUserDetailResponse> {
+    const payload = await this.postJson<WecomThirdPartyUserDetailPayload>(
+      "getuserdetail3rd",
+      `/cgi-bin/service/getuserdetail3rd?suite_access_token=${encodeURIComponent(suiteAccessToken)}`,
+      { user_ticket: userTicket }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom getuserdetail3rd failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+    return {
+      openCorpid: payload.corpid?.trim() || null,
+      openUserid: (payload.open_userid ?? payload.userid)?.trim() || null,
+      avatarUrl: secureImageUrl(payload.avatar),
+      qrCodeUrl: secureImageUrl(payload.qr_code)
+    };
+  }
+
+  private async getJson<T>(operation: string, path: string): Promise<T> {
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
+    try {
+      const response = await fetch(`${this.config.apiBaseUrl}${path}`, { signal: abort.signal });
+      if (!response.ok) {
+        throw new ServiceUnavailableException(`WeCom ${operation} HTTP ${response.status}`);
+      }
+      return (await response.json()) as T;
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      throw new ServiceUnavailableException(`WeCom ${operation} request failed`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async postJson<T>(operation: string, path: string, body: unknown): Promise<T> {
     const maxRetries = 3;
     const baseDelayMs = 200;
@@ -445,4 +536,16 @@ function delay(ms: number): Promise<void> {
 function normalizeOptionalString(value: string | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function secureImageUrl(value: string | undefined): string | null {
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    if (url.protocol === "http:") url.protocol = "https:";
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

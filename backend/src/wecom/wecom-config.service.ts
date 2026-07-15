@@ -58,6 +58,10 @@ export class WecomConfigService {
     return readRequired("WECOM_AUTH_LAUNCH_TOKEN");
   }
 
+  get sensitiveAuthorizationRedirectUri(): string {
+    return readRequired("WECOM_SENSITIVE_REDIRECT_URI");
+  }
+
   get callbackAlertWebhookUrl(): string | null {
     return readOptional("WECOM_CALLBACK_ALERT_WEBHOOK_URL");
   }

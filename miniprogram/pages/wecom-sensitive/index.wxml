@@ -1,0 +1,13 @@
+<view class="sensitive-page" wx:if="{{loading}}">
+  <view class="sensitive-card">正在打开企业微信授权…</view>
+</view>
+
+<view class="sensitive-page" wx:elif="{{error}}">
+  <view class="sensitive-card">
+    <view class="sensitive-title">无法发起授权</view>
+    <view class="sensitive-desc">{{error}}</view>
+    <button class="sensitive-button" bindtap="retry">重试</button>
+  </view>
+</view>
+
+<web-view wx:else src="{{authorizationUrl}}" />

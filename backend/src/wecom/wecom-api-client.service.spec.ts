@@ -246,4 +246,42 @@ describe("WecomApiClientService", () => {
     expect(url).toContain("access_token=corp-token");
     expect(JSON.parse(String(init.body))).toEqual({ cursor: "cursor-1", limit: 500 });
   });
+
+  it("exchanges third-party OAuth code and user ticket for avatar and QR code", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ CorpId: "corp-1", open_userid: "open-user-1", user_ticket: "ticket", expires_in: 300 }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            errcode: 0,
+            corpid: "corp-1",
+            userid: "internal-user-1",
+            avatar: "http://images.example.com/avatar.png",
+            qr_code: "https://images.example.com/qr.png"
+          }),
+          { status: 200 }
+        )
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const service = new WecomApiClientService(new WecomConfigService());
+
+    const identity = await service.fetchThirdPartyUserInfo("suite-token", "oauth-code");
+    const detail = await service.fetchThirdPartyUserDetail("suite-token", identity.userTicket);
+
+    expect(identity).toMatchObject({ openCorpid: "corp-1", openUserid: "open-user-1", userTicket: "ticket" });
+    expect(detail).toEqual({
+      openCorpid: "corp-1",
+      openUserid: "internal-user-1",
+      avatarUrl: "https://images.example.com/avatar.png",
+      qrCodeUrl: "https://images.example.com/qr.png"
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/cgi-bin/service/auth/getuserinfo3rd");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/cgi-bin/service/getuserdetail3rd");
+  });
 });

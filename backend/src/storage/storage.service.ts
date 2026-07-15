@@ -52,6 +52,33 @@ export class StorageService {
     };
   }
 
+  async storeTrustedRemoteImage(input: {
+    tenantId: string;
+    category: "avatars" | "wechat-qrcodes";
+    url: string;
+  }): Promise<StoredObject> {
+    assertTrustedWecomImageUrl(input.url);
+    const response = await fetch(input.url, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) throw new BadRequestException("WeCom image download failed");
+    assertTrustedWecomImageUrl(response.url);
+    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+    const format = MIME_EXTENSIONS[contentType];
+    if (!format) throw new BadRequestException("WeCom returned an unsupported image type");
+    const declaredLength = Number(response.headers.get("content-length") ?? 0);
+    if (declaredLength > this.config.storageMaxUploadBytes) {
+      throw new BadRequestException("WeCom image exceeds STORAGE_MAX_UPLOAD_BYTES");
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > this.config.storageMaxUploadBytes) {
+      throw new BadRequestException("WeCom image exceeds STORAGE_MAX_UPLOAD_BYTES");
+    }
+    return this.storeImageDataUrl({
+      tenantId: input.tenantId,
+      category: input.category,
+      dataUrl: `data:${format.contentType};base64,${buffer.toString("base64")}`
+    });
+  }
+
   async readLocalObject(input: { tenantId: string; category: string; fileName: string }): Promise<LocalObject> {
     if (this.config.storageDriver !== "local") {
       throw new NotFoundException("local storage is not enabled");
@@ -111,4 +138,20 @@ function contentTypeForFile(fileName: string): string {
   if (ext === ".webp") return "image/webp";
   if (ext === ".mp4") return "video/mp4";
   return "application/octet-stream";
+}
+
+function assertTrustedWecomImageUrl(value: string): void {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new BadRequestException("invalid WeCom image URL");
+  }
+  const hostname = url.hostname.toLowerCase();
+  const trusted = ["qpic.cn", "weixin.qq.com", "weixin.work", "work.weixin.qq.com"].some(
+    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+  );
+  if (url.protocol !== "https:" || !trusted) {
+    throw new BadRequestException("untrusted WeCom image URL");
+  }
 }

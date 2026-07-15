@@ -7,7 +7,14 @@ const schemaSql = fs.readFileSync(schemaPath, "utf8");
 const sql = fs.readFileSync(rlsPath, "utf8");
 
 const accountTables = ["account_preferences"];
-const tenantRlsExceptions = new Set(["public_card_directory", "platform_admins", "tenant_feature_settings"]);
+const tenantRlsExceptions = new Set([
+  "public_card_directory",
+  "platform_admins",
+  "tenant_feature_settings",
+  // OAuth callbacks arrive before tenant context can be established. Access is gated by a
+  // high-entropy, single-use state hash; the row contains no raw state, code, or user ticket.
+  "wecom_sensitive_auth_states"
+]);
 
 function assert(condition, message) {
   if (!condition) {
@@ -79,6 +86,14 @@ assert(
 assert(
   !/CREATE POLICY\s+\S+\s+ON\s+callback_events/i.test(sql),
   "callback_events must not define tenant RLS policies"
+);
+assert(
+  /ALTER TABLE\s+wecom_sensitive_auth_states\s+DISABLE ROW LEVEL SECURITY/i.test(sql),
+  "wecom_sensitive_auth_states must remain callback-accessible before tenant context exists"
+);
+assert(
+  !/CREATE POLICY\s+\S+\s+ON\s+wecom_sensitive_auth_states/i.test(sql),
+  "wecom_sensitive_auth_states must not define a tenant RLS policy"
 );
 assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),

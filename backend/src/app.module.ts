@@ -16,6 +16,7 @@ import { OwnerBootstrapModule } from "./admin-bootstrap/owner-bootstrap.module.j
 import { ApiExceptionFilter } from "./common/api-exception.filter.js";
 import { ApiResponseInterceptor } from "./common/api-response.interceptor.js";
 import { WecomModule } from "./wecom/wecom.module.js";
+import { WecomSensitiveModule } from "./wecom-sensitive/wecom-sensitive.module.js";
 import { ConfigModule } from "./config/config.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { CompanyVideoFeatureModule } from "./company-video-feature/company-video-feature.module.js";
@@ -68,6 +69,7 @@ import { DemoAssetsModule } from "./demo-assets/demo-assets.module.js";
     EmployeeCardModule,
     OwnerBootstrapModule,
     WecomModule,
+    WecomSensitiveModule,
     AdminAuthModule,
     AdminDatabaseModule,
     AdminManagementModule,

@@ -364,6 +364,40 @@ export class EmployeeCardRepository {
     };
   }
 
+  async syncWecomSensitiveProfile(
+    session: EmployeeSession,
+    profile: { avatarUrl: string | null; qrCodeUrl: string | null }
+  ): Promise<EmployeeCardResponse> {
+    const card = await this.getCurrentCard(session);
+    const avatarUrl = profile.avatarUrl && this.storage
+      ? (await this.storage.storeTrustedRemoteImage({ tenantId: session.tenantId, category: "avatars", url: profile.avatarUrl })).publicUrl
+      : profile.avatarUrl;
+    const qrCodeUrl = profile.qrCodeUrl && this.storage
+      ? (await this.storage.storeTrustedRemoteImage({ tenantId: session.tenantId, category: "wechat-qrcodes", url: profile.qrCodeUrl })).publicUrl
+      : profile.qrCodeUrl;
+    const next: EmployeeCardResponse = {
+      ...card,
+      avatar_url: avatarUrl ?? card.avatar_url,
+      fields: {
+        ...card.fields,
+        wecom_qrcode_url: qrCodeUrl ?? card.fields.wecom_qrcode_url ?? null
+      }
+    };
+    if (this.hasDatabase()) {
+      await this.tenantTx!.run(session.tenantId, async (tx) => {
+        await tx.query(
+          `UPDATE cards
+           SET avatar_url = $3, fields_encrypted = $4, updated_at = now()
+           WHERE tenant_id = $1 AND id = $2`,
+          [session.tenantId, card.card_id, next.avatar_url, this.encryptJson(next.fields)]
+        );
+      });
+    } else {
+      this.cards.set(this.cardKey(session), next);
+    }
+    return this.cloneCard(next);
+  }
+
   async getPreview(session: EmployeeSession): Promise<EmployeeCardPreviewResponse> {
     const card = await this.getCurrentCard(session);
     const style = this.hasDatabase()
@@ -935,6 +969,7 @@ function mergeCard(
   if (request.privacy?.allow_forward !== undefined) {
     next.privacy.allow_forward = request.privacy.allow_forward;
   }
+
   if (request.privacy?.show_avatar !== undefined) {
     next.privacy.show_avatar = request.privacy.show_avatar;
   }

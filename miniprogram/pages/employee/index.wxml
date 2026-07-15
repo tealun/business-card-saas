@@ -92,7 +92,7 @@
         </view>
         <view class="tool-grid__item" bindtap="openWechatQr">
           <view class="icon icon-wechat"></view>
-          <text>设置微信号</text>
+          <text>{{currentIdentity && currentIdentity.identity_type === "wecom_member" ? "同步企微资料" : "设置微信号"}}</text>
         </view>
         <view class="tool-grid__item" bindtap="showPoster">
           <view class="icon icon-poster"></view>

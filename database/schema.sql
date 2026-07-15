@@ -319,6 +319,24 @@ CREATE TABLE "company_videos" (
     CONSTRAINT "company_videos_pkey" PRIMARY KEY ("id")
 );
 
+-- One-time member-sensitive OAuth state. Only hashes are stored; OAuth codes
+-- and user_ticket values are never persisted.
+CREATE TABLE "wecom_sensitive_auth_states" (
+    "state_hash" VARCHAR(64) NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "member_identity_id" BIGINT NOT NULL,
+    "open_corpid" VARCHAR(128) NOT NULL,
+    "open_userid_hash" VARCHAR(64) NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "consumed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    CONSTRAINT "wecom_sensitive_auth_states_pkey" PRIMARY KEY ("state_hash")
+);
+
+CREATE INDEX "idx_wecom_sensitive_auth_states_expiry"
+    ON "wecom_sensitive_auth_states"("expires_at");
+
 -- Platform-controlled advanced feature policy. These tables intentionally have
 -- no tenant RLS because only platform super-admin endpoints may access them.
 CREATE TABLE "platform_feature_settings" (

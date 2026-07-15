@@ -50,6 +50,7 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomTenantAuthRepository
   ],
   exports: [
+    WecomApiClientService,
     WecomAuthorizationLinkService,
     WecomAuthorizationService,
     WecomCallbackAlertService,

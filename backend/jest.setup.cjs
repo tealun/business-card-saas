@@ -14,5 +14,6 @@ process.env.WECOM_API_BASE_URL = "https://qyapi.weixin.qq.com";
 process.env.WECOM_HTTP_TIMEOUT_MS = "5000";
 process.env.WECOM_INSTALL_BASE_URL = "https://open.work.weixin.qq.com/3rdapp/install";
 process.env.WECOM_INSTALL_REDIRECT_URI = "http://localhost:3000/api/v1/wecom/authorization-complete";
+process.env.WECOM_SENSITIVE_REDIRECT_URI = "https://api.example.com/api/v1/wecom/member-sensitive/callback";
 process.env.WECOM_AUTH_LAUNCH_TOKEN = "test-auth-launch-token";
 process.env.DATABASE_URL = "postgres://localhost/business-card-test";
