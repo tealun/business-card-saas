@@ -84,22 +84,22 @@ export const demoPublicCard: PublicCardResponse = {
       },
       {
         type: "image",
-        url: "/api/v1/demo-assets/company/profile-office.png?v=20260715-photo2",
+        url: "/api/v1/demo-assets/company/profile-office.png?v=20260715-photo4",
         caption: "开放协作办公区"
       },
       {
         type: "gallery",
         images: [
           {
-            url: "/api/v1/demo-assets/company/profile-team.png?v=20260715-photo2",
+            url: "/api/v1/demo-assets/company/profile-team.png?v=20260715-photo4",
             caption: "客户共创会议"
           },
           {
-            url: "/api/v1/demo-assets/company/profile-office.png?v=20260715-photo2",
+            url: "/api/v1/demo-assets/company/profile-office.png?v=20260715-photo4",
             caption: "企业服务团队"
           },
           {
-            url: "/api/v1/demo-assets/company/profile-product.png?v=20260715-photo2",
+            url: "/api/v1/demo-assets/company/profile-product.png?v=20260715-photo4",
             caption: "产品研发现场"
           }
         ]
@@ -118,7 +118,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_identity",
         title: "企业数字名片",
         description: "统一员工名片、企业资料与品牌视觉。",
-        image_url: "/api/v1/demo-assets/company/service-identity.png?v=20260715-photo2",
+        image_url: "/api/v1/demo-assets/company/service-identity.png?v=20260715-photo4",
         visible: true,
         sort_order: 10
       },
@@ -126,7 +126,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_leads",
         title: "客户留资与跟进",
         description: "记录访问、点赞、转发等关键行为。",
-        image_url: "/api/v1/demo-assets/company/service-leads.png?v=20260715-photo2",
+        image_url: "/api/v1/demo-assets/company/service-leads.png?v=20260715-photo4",
         visible: true,
         sort_order: 20
       },
@@ -134,7 +134,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_brand",
         title: "企业官网式展示",
         description: "模块化呈现产品、简介、视频和荣誉。",
-        image_url: "/api/v1/demo-assets/company/service-brand.png?v=20260715-photo2",
+        image_url: "/api/v1/demo-assets/company/service-brand.png?v=20260715-photo4",
         visible: true,
         sort_order: 30
       },
@@ -142,7 +142,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_analytics",
         title: "访问数据分析",
         description: "帮助销售团队判断客户兴趣与跟进优先级。",
-        image_url: "/api/v1/demo-assets/company/service-analytics.png?v=20260715-photo2",
+        image_url: "/api/v1/demo-assets/company/service-analytics.png?v=20260715-photo4",
         visible: true,
         sort_order: 40
       },
@@ -150,7 +150,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_wecom",
         title: "企微身份集成",
         description: "对接企业微信身份与组织架构。",
-        image_url: "/api/v1/demo-assets/company/service-integration.png?v=20260715-photo2",
+        image_url: "/api/v1/demo-assets/company/service-integration.png?v=20260715-photo4",
         visible: true,
         sort_order: 50
       }
@@ -168,8 +168,8 @@ export const demoPublicCard: PublicCardResponse = {
     {
       video_id: "123",
       title: "企业介绍视频",
-      video_url: "/api/v1/demo-assets/company/company-intro.mp4?v=20260715-photo2",
-      cover_url: "/api/v1/demo-assets/company/video-cover.png?v=20260715-photo2"
+      video_url: "/api/v1/demo-assets/company/company-intro.mp4?v=20260715-photo4",
+      cover_url: "/api/v1/demo-assets/company/profile-office.png?v=20260715-photo4"
     }
   ],
   honors: [
@@ -179,12 +179,12 @@ export const demoPublicCard: PublicCardResponse = {
       body: "展示荣誉资质模块的多图轮播与大图预览能力。",
       images: [
         {
-          image_url: "/api/v1/demo-assets/company/honor-award.png?v=20260715-photo2",
+          image_url: "/api/v1/demo-assets/company/honor-award.png?v=20260715-photo4",
           title: "创新奖证书",
           caption: "行业协会颁发"
         },
         {
-          image_url: "/api/v1/demo-assets/company/honor-ceremony.png?v=20260715-photo2",
+          image_url: "/api/v1/demo-assets/company/honor-ceremony.png?v=20260715-photo4",
           title: "颁奖现场",
           caption: "年度服务创新论坛"
         }
@@ -196,12 +196,12 @@ export const demoPublicCard: PublicCardResponse = {
       body: "展示同一荣誉下多张图片、图片标题与说明。",
       images: [
         {
-          image_url: "/api/v1/demo-assets/company/honor-audit.png?v=20260715-photo2",
+          image_url: "/api/v1/demo-assets/company/honor-audit.png?v=20260715-photo4",
           title: "认证证书",
           caption: "质量管理体系认证"
         },
         {
-          image_url: "/api/v1/demo-assets/company/profile-team.png?v=20260715-photo2",
+          image_url: "/api/v1/demo-assets/company/profile-team.png?v=20260715-photo4",
           title: "审核会议",
           caption: "标准流程复核"
         }

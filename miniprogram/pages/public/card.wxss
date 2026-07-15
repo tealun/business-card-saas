@@ -67,6 +67,7 @@
 
 .public-name-card {
   margin-bottom: 20rpx;
+  background-color: #ffffff;
   box-shadow: 0 22rpx 54rpx rgba(26, 29, 31, 0.16);
 }
 

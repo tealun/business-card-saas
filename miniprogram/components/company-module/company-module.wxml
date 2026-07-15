@@ -47,15 +47,23 @@
           </view>
         </scroll-view>
         <view wx:elif="{{block.type === 'video' && block.video_url}}" class="intro-video-card">
-          <video class="company-video" src="{{block.video_url}}" poster="{{block.cover_url}}" controls />
+          <video wx:if="{{activeVideoKey === block.video_key}}" id="company-video-{{block.video_key}}" class="company-video intro-video-card__video" src="{{block.video_url}}" poster="{{block.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay />
+          <view wx:else class="company-video-cover intro-video-card__video" bindtap="playVideo" data-video-key="{{block.video_key}}">
+            <image wx:if="{{block.cover_url}}" class="company-video-cover__image" src="{{block.cover_url}}" mode="aspectFill" />
+            <view wx:else class="company-video-cover__fallback"></view>
+            <view class="company-video-cover__shade"></view>
+            <view class="company-video-cover__play"><view class="icon icon-play icon--sm"></view></view>
+          </view>
           <view class="intro-video-card__meta" wx:if="{{block.title}}">{{block.title}}</view>
         </view>
       </view>
     </block>
 
-    <view wx:if="{{module.has_more}}" class="intro-fold">
-      <view class="intro-fold__fade" wx:if="{{!profileExpanded}}"></view>
-      <view class="intro-fold__button" bindtap="toggleProfile">{{profileExpanded ? '收起简介' : '展开完整企业简介'}}</view>
+    <view wx:if="{{module.has_more}}" class="intro-fold {{profileExpanded ? 'intro-fold--expanded' : 'intro-fold--collapsed'}}" bindtap="toggleProfile">
+      <view class="intro-fold__button">
+        <text>{{profileExpanded ? '收起' : '展开更多'}}</text>
+        <text class="intro-fold__arrow">{{profileExpanded ? '↑' : '↓'}}</text>
+      </view>
     </view>
   </view>
 
@@ -70,6 +78,14 @@
   </scroll-view>
 
   <view wx:elif="{{module.key === 'videos'}}" class="company-video-list">
-    <video wx:for="{{module.content}}" wx:for-item="video" wx:key="video_id" class="company-video" src="{{video.video_url}}" poster="{{video.cover_url}}" controls />
+    <view class="company-video-shell" wx:for="{{module.content}}" wx:for-item="video" wx:key="video_id">
+      <video wx:if="{{activeVideoKey === video.video_key}}" id="company-video-{{video.video_key}}" class="company-video" src="{{video.video_url}}" poster="{{video.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay />
+      <view wx:else class="company-video-cover company-video" bindtap="playVideo" data-video-key="{{video.video_key}}">
+        <image wx:if="{{video.cover_url}}" class="company-video-cover__image" src="{{video.cover_url}}" mode="aspectFill" />
+        <view wx:else class="company-video-cover__fallback"></view>
+        <view class="company-video-cover__shade"></view>
+        <view class="company-video-cover__play"><view class="icon icon-play icon--sm"></view></view>
+      </view>
+    </view>
   </view>
 </view>

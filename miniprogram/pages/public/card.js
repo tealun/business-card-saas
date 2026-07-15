@@ -7,7 +7,7 @@ const config = require("../../config");
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
 const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
 const DEMO_ASSET_BASE = `${String(config.apiBase || "").replace(/\/$/, "")}/demo-assets/company`;
-const DEMO_ASSET_VERSION = "20260715-photo2";
+const DEMO_ASSET_VERSION = "20260715-photo4";
 
 function demoAsset(name) {
   return `${DEMO_ASSET_BASE}/${name}?v=${DEMO_ASSET_VERSION}`;
@@ -95,7 +95,7 @@ const demoPublicCard = {
       video_id: "123",
       title: "企业介绍视频",
       video_url: demoAsset("company-intro.mp4"),
-      cover_url: demoAsset("video-cover.png")
+      cover_url: demoAsset("profile-office.png")
     }
   ],
   honors: [
@@ -590,7 +590,18 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
   const overlay = normalizedTemplateId === "tpl_brand_image" || normalizedTemplateId === "tpl_dark"
     ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
     : `rgba(255,255,255,${alpha.toFixed(2)})`;
-  return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
+  const fallbackColor = normalizedTemplateId === "tpl_dark"
+    ? "#161b22"
+    : normalizedTemplateId === "tpl_brand_image"
+      ? "var(--brand)"
+      : "#ffffff";
+  return [
+    `background-color: ${fallbackColor}`,
+    `background-image: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}")`,
+    "background-position: center",
+    "background-size: cover",
+    "background-repeat: no-repeat"
+  ].join(";") + ";";
 }
 
 function cardTemplateClass(templateId) {
@@ -741,12 +752,14 @@ function resolveIntroBlocks(card) {
       const textLength = String(item.text || "").length + item.items.join("").length;
       const blockWeight = item.type === "paragraph" ? Math.max(1, Math.ceil(textLength / 160)) : item.type === "gallery" || item.type === "video" ? 2 : 1;
       visibleWeight += blockWeight;
+      const foldedExtra = visibleWeight > 6;
       return {
         ...item,
         kicker: index === 0 ? "ABOUT COMPANY" : "",
         tone: (index % 3) + 1,
+        video_key: item.type === "video" ? videoKey("profile", item.video_id || index) : "",
         long_text: textLength > 220,
-        folded_extra: visibleWeight > 6,
+        folded_extra: foldedExtra,
         preview_urls: item.type === "gallery" ? item.images.map((image) => image.url) : item.image_url ? [item.image_url] : []
       };
     })
@@ -767,7 +780,8 @@ function resolveDisplayModules(card, isDemo) {
     const imageUrls = (honor.images || []).map((image) => image.image_url).filter(Boolean);
     return { ...honor, image_urls: imageUrls, primary_image_url: imageUrls[0] || "" };
   });
-  const content = { services, profile: intro, videos: card.videos || [], honors };
+  const videos = (card.videos || []).map((video, index) => ({ ...video, video_key: videoKey("module", video.video_id || index) }));
+  const content = { services, profile: intro, videos, honors };
   return (Array.isArray(profile.display_modules) && profile.display_modules.length ? profile.display_modules : defaults)
     .filter((module) => module.visible !== false)
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
@@ -783,6 +797,10 @@ function resolveDisplayModules(card, isDemo) {
 function defaultModuleTitle(defaults, key) {
   const found = defaults.find((item) => item.key === key);
   return found ? found.title : "";
+}
+
+function videoKey(scope, value) {
+  return `${scope}-${String(value || "video").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 function readStoredAnonId() {

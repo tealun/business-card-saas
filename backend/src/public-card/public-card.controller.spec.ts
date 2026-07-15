@@ -16,6 +16,23 @@ function dataOf<T>(body: string): T {
   return envelope.data;
 }
 
+function collectDemoAssetUrls(value: unknown, urls: string[] = []): string[] {
+  if (typeof value === "string") {
+    if (value.includes("/api/v1/demo-assets/company/")) {
+      urls.push(value);
+    }
+    return urls;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectDemoAssetUrls(item, urls));
+    return urls;
+  }
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((item) => collectDemoAssetUrls(item, urls));
+  }
+  return urls;
+}
+
 describe("PublicCardController", () => {
   let app: NestFastifyApplication;
   const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -64,6 +81,9 @@ describe("PublicCardController", () => {
     expect(response.body).not.toContain("images.unsplash.com");
     expect(response.body).not.toContain("interactive-examples.mdn.mozilla.net");
     expect(response.body).toContain("/api/v1/demo-assets/company/");
+    const demoAssetUrls = collectDemoAssetUrls(body);
+    expect(demoAssetUrls.length).toBeGreaterThan(0);
+    expect(demoAssetUrls.every((url) => url.includes("?v="))).toBe(true);
     expect(body.visit_token).toBeUndefined();
   });
 
