@@ -17,6 +17,7 @@ describe("company profile contracts", () => {
   it("requires a service title or image and validates image URLs", () => {
     expect(companyServiceItemSchema.safeParse({id:"service_one",title:"",description:"",image_url:null,visible:true,sort_order:0}).success).toBe(false);
     expect(companyServiceItemSchema.safeParse({id:"service_one",title:"服务",description:"",image_url:"javascript:x",visible:true,sort_order:0}).success).toBe(false);
+    expect(companyServiceItemSchema.safeParse({id:"service_one",title:"",description:"",image_url:"/api/v1/storage/tenant/demo/company-images/a.png",visible:true,sort_order:0}).success).toBe(true);
   });
   it("accepts controlled content and rejects HTML blocks and overlong text", () => {
     expect(companyIntroBlockSchema.safeParse({type:"paragraph",text:"介绍"}).success).toBe(true);

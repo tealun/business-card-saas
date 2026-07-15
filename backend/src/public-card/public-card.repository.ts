@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
-import type { PublicCardResponse } from "../contracts/public-card.js";
+import { publicIntroBlockSchema, type PublicCardResponse } from "../contracts/public-card.js";
 import { randomToken } from "../common/id.js";
 import { demoPublicCard } from "../fixtures/demo-cards.js";
 import { DatabaseService } from "../database/database.service.js";
@@ -837,7 +837,9 @@ export class PublicCardRepository {
       },
       company_profile: {
         ...card.company_profile,
-        intro_blocks: card.company_profile.intro_blocks.map((block) => ({ ...block }))
+        intro_blocks: cloneJson(card.company_profile.intro_blocks),
+        service_items: card.company_profile.service_items.map((item) => ({ ...item })),
+        display_modules: card.company_profile.display_modules.map((module) => ({ ...module }))
       },
       videos: card.videos.map((video) => ({ ...video })),
       honors: card.honors.map((honor) => ({
@@ -869,26 +871,36 @@ function parseObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? { ...value } : {};
 }
 
-function parseIntroBlocks(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null && !Array.isArray(item)) : [];
+function parseIntroBlocks(value: unknown): PublicCardResponse["company_profile"]["intro_blocks"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    const parsed = publicIntroBlockSchema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  }).slice(0, 60);
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function parseServiceItems(value: unknown): PublicCardResponse["company_profile"]["service_items"] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((raw, index) => {
     const item = parseObject(raw);
-    const title = typeof item.title === "string" ? item.title : "";
-    const imageUrl = typeof item.image_url === "string" ? item.image_url : null;
+    const title = typeof item.title === "string" ? item.title.slice(0, 80) : "";
+    const imageUrl = typeof item.image_url === "string" && isPublicMediaSource(item.image_url) ? item.image_url : null;
     if ((!title.trim() && !imageUrl) || item.visible === false) return [];
     return [{
       id: typeof item.id === "string" ? item.id : `service_legacy_${index}`,
       title,
-      description: typeof item.description === "string" ? item.description : "",
+      description: typeof item.description === "string" ? item.description.slice(0, 300) : "",
       image_url: imageUrl,
       visible: true,
-      sort_order: typeof item.sort_order === "number" ? item.sort_order : index * 10
+      sort_order: typeof item.sort_order === "number" && Number.isFinite(item.sort_order) ? Math.trunc(item.sort_order) : index * 10
     }];
-  }).sort((a, b) => a.sort_order - b.sort_order);
+  }).slice(0, 30).sort((a, b) => a.sort_order - b.sort_order);
 }
 
 function parseDisplayModules(value: unknown, videoAvailable: boolean): PublicCardResponse["company_profile"]["display_modules"] {
@@ -914,4 +926,16 @@ function parseDisplayModules(value: unknown, videoAvailable: boolean): PublicCar
         : fallback.layout
     };
   }).sort((a, b) => a.sort_order - b.sort_order);
+}
+
+function isPublicMediaSource(value: string): boolean {
+  if (value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/")) {
+    return true;
+  }
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }

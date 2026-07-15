@@ -104,9 +104,9 @@ function sanitizeApiData(value, baseUrl = "") {
 }
 
 function rewriteLoopbackStorageUrl(value, baseUrl) {
-  const match = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(\/api\/v1\/storage\/.*)$/i.exec(value);
+  const match = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(\/api\/v1\/(?:storage|demo-assets)\/.*)$/i.exec(value);
   const apiOrigin = /^(https?:\/\/[^/]+)/i.exec(String(baseUrl || ""));
-  const storagePath = match ? match[1] : /^\/api\/v1\/storage\//.test(value) ? value : "";
+  const storagePath = match ? match[1] : /^\/api\/v1\/(?:storage|demo-assets)\//.test(value) ? value : "";
   return storagePath && apiOrigin ? `${apiOrigin[1]}${storagePath}` : value;
 }
 

@@ -10,6 +10,27 @@ const imageSourceSchema = z
     message: "image source must be an http(s) URL, absolute path, or data image"
   });
 
+const mediaSourceSchema = z
+  .string()
+  .refine((value) => /^https?:\/\//.test(value) || value.startsWith("/"), {
+    message: "media source must be an http(s) URL or absolute path"
+  });
+
+const publicContentImageSchema = z.object({
+  url: imageSourceSchema,
+  caption: z.string().max(160).default("")
+});
+
+export const publicIntroBlockSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("heading"), text: z.string().min(1).max(120) }),
+  z.object({ type: z.literal("paragraph"), text: z.string().min(1).max(3000) }),
+  z.object({ type: z.literal("list"), items: z.array(z.string().min(1).max(300)).min(1).max(20) }),
+  z.object({ type: z.literal("quote"), text: z.string().min(1).max(1000) }),
+  z.object({ type: z.literal("image"), url: imageSourceSchema, caption: z.string().max(160).default("") }),
+  z.object({ type: z.literal("gallery"), images: z.array(publicContentImageSchema).min(1).max(12) }),
+  z.object({ type: z.literal("video"), video_id: z.string().min(1).max(80) })
+]);
+
 export const publicCardFieldSchema = z.object({
   company: z.string().nullable().optional(),
   company_short_name: z.string().nullable().optional(),
@@ -54,7 +75,7 @@ export const publicCardResponseSchema = z.object({
   company_profile: z.object({
     name: z.string(),
     short_name: z.string().nullable().optional(),
-    intro_blocks: z.array(z.record(z.string(), z.unknown())),
+    intro_blocks: z.array(publicIntroBlockSchema).default([]),
     service_items: z.array(z.object({
       id: z.string().optional(),
       title: z.string(),
@@ -77,8 +98,8 @@ export const publicCardResponseSchema = z.object({
     z.object({
       video_id: z.string(),
       title: z.string(),
-      video_url: z.string().url(),
-      cover_url: z.string().url().nullable()
+      video_url: mediaSourceSchema,
+      cover_url: imageSourceSchema.nullable()
     })
   ),
   honors: z.array(
@@ -88,7 +109,7 @@ export const publicCardResponseSchema = z.object({
       body: z.string().nullable(),
       images: z.array(
         z.object({
-          image_url: z.string().url(),
+          image_url: imageSourceSchema,
           title: z.string().nullable(),
           caption: z.string().nullable()
         })

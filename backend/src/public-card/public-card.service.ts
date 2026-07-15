@@ -9,6 +9,7 @@ import {
   type DeriveShareRequest,
   type DeriveShareResponse,
   type PublicCardResponse,
+  publicCardResponseSchema,
   type VisitRequest,
   type VisitResponse,
   visitResponseSchema
@@ -35,7 +36,7 @@ export class PublicCardService {
   ) {}
 
   async getPublicCard(publicId: string): Promise<PublicCardResponse> {
-    return this.repository.findPublicCard(publicId);
+    return publicCardResponseSchema.parse(await this.repository.findPublicCard(publicId));
   }
 
   async createVisit(publicId: string, request: VisitRequest, context: VisitContext = {}): Promise<VisitResponse> {

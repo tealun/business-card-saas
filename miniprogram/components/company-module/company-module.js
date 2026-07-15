@@ -5,7 +5,13 @@ Component({
       value: {}
     }
   },
+  data: {
+    profileExpanded: false
+  },
   methods: {
+    toggleProfile() {
+      this.setData({ profileExpanded: !this.data.profileExpanded });
+    },
     previewImage(event) {
       const urls = event.currentTarget.dataset.urls || [];
       const url = event.currentTarget.dataset.url || urls[0];

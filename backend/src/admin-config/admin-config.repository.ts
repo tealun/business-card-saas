@@ -857,7 +857,7 @@ function parseAdminServiceItems(value: unknown): AdminCompanyProfile["service_it
       const title = typeof record.title === "string" ? record.title.slice(0, 80) : "";
       const description = typeof record.description === "string" ? record.description.slice(0, 300) : "";
       const rawImageUrl = typeof record.image_url === "string" ? record.image_url : null;
-      const image_url = rawImageUrl && isHttpUrl(rawImageUrl) ? rawImageUrl : null;
+      const image_url = rawImageUrl && isBackendImageSource(rawImageUrl) ? rawImageUrl : null;
       const parsed = companyServiceItemSchema.safeParse({
         id: typeof record.id === "string" && /^service_[A-Za-z0-9_-]{1,64}$/.test(record.id)
           ? record.id
@@ -902,7 +902,10 @@ function parseAdminDisplayModules(value: unknown): AdminCompanyProfile["display_
   return parsed.success ? parsed.data : defaults;
 }
 
-function isHttpUrl(value: string): boolean {
+function isBackendImageSource(value: string): boolean {
+  if (value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/")) {
+    return true;
+  }
   try {
     const url = new URL(value);
     return url.protocol === "http:" || url.protocol === "https:";

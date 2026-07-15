@@ -8,7 +8,7 @@
       <view class="service-item service-item--media" wx:for="{{module.content}}" wx:for-item="service" wx:key="id">
         <image wx:if="{{service.image_url}}" src="{{service.image_url}}" mode="aspectFill" />
         <view wx:if="{{module.layout !== 'image'}}" class="service-item__title">{{service.title}}</view>
-        <view wx:if="{{module.layout === 'graphic'}}" class="service-item__desc">{{service.desc}}</view>
+        <view wx:if="{{module.layout === 'graphic' || module.layout === 'carousel'}}" class="service-item__desc">{{service.desc}}</view>
       </view>
     </view>
   </scroll-view>
@@ -21,25 +21,43 @@
     </view>
   </view>
 
-  <block wx:elif="{{module.key === 'profile'}}">
+  <view wx:elif="{{module.key === 'profile'}}" class="profile-story {{profileExpanded ? 'profile-story--expanded' : 'profile-story--collapsed'}}">
     <block wx:for="{{module.content}}" wx:for-item="block" wx:key="index">
-      <view class="intro-heading" wx:if="{{block.type === 'heading'}}">{{block.text}}</view>
-      <view class="intro-text intro-text--quote" wx:elif="{{block.type === 'quote'}}">{{block.text}}</view>
-      <view class="intro-text" wx:elif="{{block.type === 'paragraph'}}">{{block.text}}</view>
-      <view class="intro-list" wx:elif="{{block.type === 'list'}}">
-        <view class="intro-list__item" wx:for="{{block.items}}" wx:for-item="line" wx:key="index">{{line}}</view>
-      </view>
-      <view class="intro-image" wx:elif="{{block.type === 'image'}}" bindtap="previewImage" data-url="{{block.image_url}}" data-urls="{{block.preview_urls}}">
-        <image src="{{block.image_url}}" mode="aspectFill" />
-      </view>
-      <scroll-view wx:elif="{{block.type === 'gallery'}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-        <view class="module-scroll__track">
-          <image class="gallery-image" wx:for="{{block.images}}" wx:for-item="image" wx:key="url" src="{{image.url}}" mode="aspectFill" bindtap="previewImage" data-url="{{image.url}}" data-urls="{{block.preview_urls}}" />
+      <view wx:if="{{profileExpanded || !block.folded_extra}}" class="intro-block intro-block--{{block.type}} intro-block--tone-{{block.tone}}">
+        <view class="intro-kicker" wx:if="{{block.type === 'heading' && block.kicker}}">{{block.kicker}}</view>
+        <view class="intro-heading" wx:if="{{block.type === 'heading'}}">{{block.text}}</view>
+        <view class="intro-text intro-text--quote" wx:elif="{{block.type === 'quote'}}">{{block.text}}</view>
+        <view class="intro-text {{!profileExpanded && block.long_text ? 'intro-text--clamp' : ''}}" wx:elif="{{block.type === 'paragraph'}}">{{block.text}}</view>
+        <view class="intro-list" wx:elif="{{block.type === 'list'}}">
+          <view class="intro-list__item" wx:for="{{block.items}}" wx:for-item="line" wx:key="index">
+            <view class="intro-list__index">0{{index + 1}}</view>
+            <view class="intro-list__text">{{line}}</view>
+          </view>
         </view>
-      </scroll-view>
-      <video wx:elif="{{block.type === 'video' && block.video_url}}" class="company-video" src="{{block.video_url}}" poster="{{block.cover_url}}" controls />
+        <view class="intro-image-card" wx:elif="{{block.type === 'image'}}" bindtap="previewImage" data-url="{{block.image_url}}" data-urls="{{block.preview_urls}}">
+          <image class="intro-image-card__image" src="{{block.image_url}}" mode="aspectFill" />
+          <view class="intro-image-card__caption" wx:if="{{block.caption}}">{{block.caption}}</view>
+        </view>
+        <scroll-view wx:elif="{{block.type === 'gallery'}}" class="module-scroll intro-gallery" scroll-x enhanced show-scrollbar="{{false}}">
+          <view class="module-scroll__track">
+            <view class="gallery-card" wx:for="{{block.images}}" wx:for-item="image" wx:key="url" bindtap="previewImage" data-url="{{image.url}}" data-urls="{{block.preview_urls}}">
+              <image class="gallery-image" src="{{image.url}}" mode="aspectFill" />
+              <view class="gallery-card__caption" wx:if="{{image.caption}}">{{image.caption}}</view>
+            </view>
+          </view>
+        </scroll-view>
+        <view wx:elif="{{block.type === 'video' && block.video_url}}" class="intro-video-card">
+          <video class="company-video" src="{{block.video_url}}" poster="{{block.cover_url}}" controls />
+          <view class="intro-video-card__meta" wx:if="{{block.title}}">{{block.title}}</view>
+        </view>
+      </view>
     </block>
-  </block>
+
+    <view wx:if="{{module.has_more}}" class="intro-fold">
+      <view class="intro-fold__fade" wx:if="{{!profileExpanded}}"></view>
+      <view class="intro-fold__button" bindtap="toggleProfile">{{profileExpanded ? '收起简介' : '展开完整企业简介'}}</view>
+    </view>
+  </view>
 
   <scroll-view wx:elif="{{module.key === 'honors'}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="module-scroll__track">

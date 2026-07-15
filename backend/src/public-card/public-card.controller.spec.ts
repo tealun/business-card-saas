@@ -61,7 +61,21 @@ describe("PublicCardController", () => {
     expect((body.company_profile as { service_items: unknown[] }).service_items.length).toBeGreaterThanOrEqual(5);
     expect((body.videos as unknown[]).length).toBeGreaterThanOrEqual(1);
     expect((body.honors as unknown[]).length).toBeGreaterThanOrEqual(2);
+    expect(response.body).not.toContain("images.unsplash.com");
+    expect(response.body).not.toContain("interactive-examples.mdn.mozilla.net");
+    expect(response.body).toContain("/api/v1/demo-assets/company/");
     expect(body.visit_token).toBeUndefined();
+  });
+
+  it("serves bundled demo company assets from the backend origin", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/demo-assets/company/service-identity.png"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toBe("image/png");
+    expect(Number(response.headers["content-length"])).toBeGreaterThan(0);
   });
 
   it("creates a visit and records idempotent actions with visit_token", async () => {

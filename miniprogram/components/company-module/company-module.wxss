@@ -96,60 +96,186 @@
   overflow: hidden;
 }
 
+.profile-story {
+  position: relative;
+  display: grid;
+  gap: 22rpx;
+}
+
+.intro-block {
+  position: relative;
+}
+
+.intro-block--heading {
+  padding: 34rpx 30rpx 30rpx;
+  border-radius: 28rpx;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.24), transparent 180rpx),
+    linear-gradient(135deg, var(--brand-deep), var(--brand));
+  overflow: hidden;
+  box-shadow: 0 18rpx 42rpx rgba(22, 119, 255, 0.22);
+}
+
+.intro-block--heading::after {
+  content: "";
+  position: absolute;
+  right: -68rpx;
+  bottom: -86rpx;
+  width: 220rpx;
+  height: 220rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+}
+
+.intro-kicker {
+  position: relative;
+  display: inline-flex;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+}
+
 .intro-heading {
-  margin-top: 24rpx;
-  color: var(--text-primary);
-  font-size: 34rpx;
-  font-weight: 700;
+  position: relative;
+  margin-top: 18rpx;
+  font-size: 40rpx;
+  font-weight: 800;
+  line-height: 1.24;
 }
 
 .intro-text {
-  margin-top: 20rpx;
+  padding: 28rpx 30rpx;
+  border-radius: 24rpx;
   color: var(--text-primary);
-  font-size: 28rpx;
-  line-height: 1.75;
+  font-size: 29rpx;
+  line-height: 1.82;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 252, 0.96));
+  box-shadow: inset 0 0 0 1rpx rgba(16, 24, 40, 0.05);
+}
+
+.intro-text--clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
 }
 
 .intro-text--quote {
-  padding-left: 22rpx;
-  border-left: 6rpx solid var(--brand);
-  color: var(--text-secondary);
+  padding: 30rpx 30rpx 30rpx 36rpx;
+  border-radius: 24rpx;
+  border-left: 8rpx solid var(--brand);
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.68;
+  background: var(--brand-tint);
 }
 
 .intro-list {
   display: grid;
-  gap: 12rpx;
-  margin-top: 20rpx;
+  gap: 14rpx;
 }
 
 .intro-list__item {
-  position: relative;
-  padding-left: 28rpx;
+  display: flex;
+  gap: 18rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 22rpx;
   color: var(--text-primary);
-  font-size: 27rpx;
-  line-height: 1.6;
+  background: #ffffff;
+  box-shadow: 0 10rpx 24rpx rgba(16, 24, 40, 0.06);
 }
 
-.intro-list__item::before {
-  content: "";
+.intro-list__index {
+  flex: none;
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--brand);
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.intro-list__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 27rpx;
+  line-height: 1.62;
+}
+
+.intro-image-card,
+.intro-video-card {
+  border-radius: 28rpx;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 16rpx 40rpx rgba(16, 24, 40, 0.09);
+}
+
+.intro-image-card__image {
+  width: 100%;
+  height: 380rpx;
+  display: block;
+  background: #f2f4f7;
+}
+
+.intro-image-card__caption,
+.gallery-card__caption,
+.intro-video-card__meta {
+  padding: 18rpx 22rpx 22rpx;
+  color: var(--text-secondary);
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
+.intro-gallery .module-scroll__track {
+  padding-bottom: 6rpx;
+}
+
+.gallery-card {
+  width: 560rpx;
+  flex: none;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 12rpx 30rpx rgba(16, 24, 40, 0.08);
+  white-space: normal;
+}
+
+.gallery-card .gallery-image {
+  border-radius: 0;
+}
+
+.intro-fold {
+  position: relative;
+  min-height: 82rpx;
+}
+
+.intro-fold__fade {
   position: absolute;
   left: 0;
-  top: 18rpx;
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  background: var(--brand);
+  right: 0;
+  top: -94rpx;
+  height: 112rpx;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--bg-surface));
 }
 
-.intro-image {
-  height: 360rpx;
-  margin-top: 24rpx;
-  border-radius: 18rpx;
-  overflow: hidden;
-  background: var(--bg-page);
-}
-
-.intro-image image {
-  width: 100%;
-  height: 100%;
+.intro-fold__button {
+  height: 72rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  background: var(--brand-tint);
+  font-size: 26rpx;
+  font-weight: 700;
 }

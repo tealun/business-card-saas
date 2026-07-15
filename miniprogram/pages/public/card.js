@@ -2,16 +2,22 @@ const app = getApp();
 const { request } = require("../../utils/api");
 const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
+const config = require("../../config");
 
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
 const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
+const DEMO_ASSET_BASE = `${String(config.apiBase || "").replace(/\/$/, "")}/demo-assets/company`;
+
+function demoAsset(name) {
+  return `${DEMO_ASSET_BASE}/${name}`;
+}
 
 const demoServiceItems = [
-  { id: "demo_service_identity", title: "企业数字名片", desc: "统一员工名片、企业资料与品牌视觉", image_url: "https://images.unsplash.com/photo-1556761175-b413da4baf72" },
-  { id: "demo_service_leads", title: "客户留资", desc: "访客行为追踪与销售跟进", image_url: "https://images.unsplash.com/photo-1552664730-d307ca884978" },
-  { id: "demo_service_brand", title: "企业官网式展示", desc: "模块化呈现产品、简介、视频和荣誉", image_url: "https://images.unsplash.com/photo-1497366216548-37526070297c" },
-  { id: "demo_service_analytics", title: "数据分析", desc: "访问效果统计和线索判断", image_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71" },
-  { id: "demo_service_wecom", title: "企微身份集成", desc: "对接企业微信身份与组织架构", image_url: "https://images.unsplash.com/photo-1559136555-9303baea8ebd" }
+  { id: "demo_service_identity", title: "企业数字名片", desc: "统一员工名片、企业资料与品牌视觉", image_url: demoAsset("service-identity.png") },
+  { id: "demo_service_leads", title: "客户留资", desc: "访客行为追踪与销售跟进", image_url: demoAsset("service-leads.png") },
+  { id: "demo_service_brand", title: "企业官网式展示", desc: "模块化呈现产品、简介、视频和荣誉", image_url: demoAsset("service-brand.png") },
+  { id: "demo_service_analytics", title: "数据分析", desc: "访问效果统计和线索判断", image_url: demoAsset("service-leads.png") },
+  { id: "demo_service_wecom", title: "企微身份集成", desc: "对接企业微信身份与组织架构", image_url: demoAsset("service-identity.png") }
 ];
 
 const demoPublicCard = {
@@ -58,26 +64,37 @@ const demoPublicCard = {
     ],
     intro_blocks: [
       { type: "heading", text: "智云科技企业展示样例" },
-      { type: "paragraph", text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理与客户转化追踪。" },
+      {
+        type: "paragraph",
+        text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理、客户转化追踪与企业官网式展示能力。我们把原本分散在员工微信、纸质名片、官网页面和销售资料里的信息整合到一张可分享、可追踪、可持续运营的企业名片中。"
+      },
+      {
+        type: "quote",
+        text: "我们的目标不是把名片做得更花，而是让每一次客户打开名片时，都能更快理解企业是谁、能提供什么价值，以及下一步应该如何联系。"
+      },
       { type: "list", items: ["统一企业品牌形象", "员工名片集中管理", "访客行为与转化追踪"] },
-      { type: "image", url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72", caption: "开放协作办公区" },
+      { type: "image", url: demoAsset("profile-office.png"), caption: "开放协作办公区" },
       {
         type: "gallery",
         images: [
-          { url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2", caption: "客户共创会议" },
-          { url: "https://images.unsplash.com/photo-1556761175-4b46a572b786", caption: "企业服务团队" },
-          { url: "https://images.unsplash.com/photo-1551434678-e076c223a692", caption: "产品研发现场" }
+          { url: demoAsset("profile-office.png"), caption: "客户共创会议" },
+          { url: demoAsset("service-brand.png"), caption: "企业服务团队" },
+          { url: demoAsset("service-identity.png"), caption: "产品研发现场" }
         ]
       },
-      { type: "video", video_id: "vid_demo_company" }
+      {
+        type: "paragraph",
+        text: "在销售、招聘、渠道合作和客户服务场景中，企业名片会作为轻量入口承接外部流量。管理员可以按模块维护产品服务、企业简介、荣誉资质和视频内容；员工转发自己的名片时，访客看到的不只是个人联系方式，也能顺手了解企业能力、查看案例素材、保存联系方式或继续转发给决策人。"
+      },
+      { type: "video", video_id: "123" }
     ]
   },
   videos: [
     {
-      video_id: "vid_demo_company",
+      video_id: "123",
       title: "企业介绍视频",
-      video_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-      cover_url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72"
+      video_url: demoAsset("company-intro.mp4"),
+      cover_url: demoAsset("video-cover.png")
     }
   ],
   honors: [
@@ -86,8 +103,8 @@ const demoPublicCard = {
       title: "年度数字化服务创新奖",
       body: "展示荣誉资质模块的多图轮播与大图预览能力。",
       images: [
-        { image_url: "https://images.unsplash.com/photo-1567427017947-545c5f8d16ad", title: "创新奖证书", caption: "行业协会颁发" },
-        { image_url: "https://images.unsplash.com/photo-1521791136064-7986c2920216", title: "颁奖现场", caption: "年度服务创新论坛" }
+        { image_url: demoAsset("honor-award.png"), title: "创新奖证书", caption: "行业协会颁发" },
+        { image_url: demoAsset("service-brand.png"), title: "颁奖现场", caption: "年度服务创新论坛" }
       ]
     },
     {
@@ -95,8 +112,8 @@ const demoPublicCard = {
       title: "ISO 质量管理体系认证",
       body: "展示同一荣誉下多张图片、图片标题与说明。",
       images: [
-        { image_url: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85", title: "认证证书", caption: "质量管理体系认证" },
-        { image_url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d", title: "审核会议", caption: "标准流程复核" }
+        { image_url: demoAsset("honor-award.png"), title: "认证证书", caption: "质量管理体系认证" },
+        { image_url: demoAsset("profile-office.png"), title: "审核会议", caption: "标准流程复核" }
       ]
     }
   ]
@@ -688,10 +705,13 @@ function resolveServiceItems(card, isDemo) {
           id: String(item.id || item.title || `service_${index}`).replace(/\s+/g, "_"),
           title: String(item.title || item.name || "").trim(),
           desc: String(item.desc || item.description || "").trim(),
-          image_url: String(item.image_url || "").trim()
+          image_url: String(item.image_url || "").trim(),
+          visible: item.visible !== false,
+          sort_order: Number.isFinite(Number(item.sort_order)) ? Number(item.sort_order) : index * 10
         }))
-        .filter((item) => item.title || item.image_url)
-        .slice(0, 6)
+        .filter((item) => item.visible && (item.title || item.image_url))
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .slice(0, 30)
     : [];
   return items.length ? items : isDemo ? demoServiceItems.map((item, index) => ({ ...item, id: `demo_service_${index}` })) : [];
 }
@@ -714,7 +734,22 @@ function resolveIntroBlocks(card) {
       title: video ? video.title : ""
     };
   });
-  return blocks.map((item) => ({ ...item, preview_urls: item.type === "gallery" ? item.images.map((image) => image.url) : item.image_url ? [item.image_url] : [] })).filter((item) => item.text || item.items.length || item.image_url || item.images.length || item.video_url);
+  let visibleWeight = 0;
+  return blocks
+    .map((item, index) => {
+      const textLength = String(item.text || "").length + item.items.join("").length;
+      const blockWeight = item.type === "paragraph" ? Math.max(1, Math.ceil(textLength / 160)) : item.type === "gallery" || item.type === "video" ? 2 : 1;
+      visibleWeight += blockWeight;
+      return {
+        ...item,
+        kicker: index === 0 ? "ABOUT COMPANY" : "",
+        tone: (index % 3) + 1,
+        long_text: textLength > 220,
+        folded_extra: visibleWeight > 6,
+        preview_urls: item.type === "gallery" ? item.images.map((image) => image.url) : item.image_url ? [item.image_url] : []
+      };
+    })
+    .filter((item) => item.text || item.items.length || item.image_url || item.images.length || item.video_url);
 }
 
 function resolveDisplayModules(card, isDemo) {
@@ -735,7 +770,12 @@ function resolveDisplayModules(card, isDemo) {
   return (Array.isArray(profile.display_modules) && profile.display_modules.length ? profile.display_modules : defaults)
     .filter((module) => module.visible !== false)
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
-    .map((module) => ({ ...module, title: module.title || defaults.find((item) => item.key === module.key)?.title, content: content[module.key] || [] }))
+    .map((module) => ({
+      ...module,
+      title: module.title || defaults.find((item) => item.key === module.key)?.title,
+      content: content[module.key] || [],
+      has_more: module.key === "profile" ? intro.some((block) => block.folded_extra || block.long_text) : false
+    }))
     .filter((module) => module.content.length > 0);
 }
 

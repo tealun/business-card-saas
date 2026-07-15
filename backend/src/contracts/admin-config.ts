@@ -45,6 +45,9 @@ export const updateAdminFieldSettingsRequestSchema = z.object({
 export const companyModuleKeys = ["services", "profile", "videos", "honors"] as const;
 export const companyModuleKeySchema = z.enum(companyModuleKeys);
 export const companyModuleLayoutSchema = z.enum(["text", "image", "graphic", "grid", "carousel"]);
+const backendImageSourceSchema = z.string().refine((value) => /^https?:\/\//.test(value) || value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/"), {
+  message: "image URL must use http(s) or a backend asset path"
+});
 export const companyModuleSchema = z.object({
   key: companyModuleKeySchema,
   title: z.string().min(1).max(32),
@@ -56,7 +59,7 @@ export const companyServiceItemSchema = z.object({
   id: z.string().regex(/^service_[A-Za-z0-9_-]{1,64}$/),
   title: z.string().max(80).default(""),
   description: z.string().max(300).default(""),
-  image_url: z.string().url().refine((value) => /^https?:\/\//.test(value), "image URL must use http(s)").nullable().default(null),
+  image_url: backendImageSourceSchema.nullable().default(null),
   visible: z.boolean().default(true),
   sort_order: z.number().int().min(0).max(999).default(0)
 }).refine((item) => Boolean(item.title.trim() || item.image_url), {
@@ -64,7 +67,7 @@ export const companyServiceItemSchema = z.object({
 });
 
 const contentImageSchema = z.object({
-  url: z.string().url().refine((value) => /^https?:\/\//.test(value), "image URL must use http(s)"),
+  url: backendImageSourceSchema,
   caption: z.string().max(160).default("")
 });
 export const companyIntroBlockSchema = z.discriminatedUnion("type", [
@@ -72,7 +75,7 @@ export const companyIntroBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("paragraph"), text: z.string().min(1).max(3000) }),
   z.object({ type: z.literal("list"), items: z.array(z.string().min(1).max(300)).min(1).max(20) }),
   z.object({ type: z.literal("quote"), text: z.string().min(1).max(1000) }),
-  z.object({ type: z.literal("image"), url: z.string().url().refine((value) => /^https?:\/\//.test(value), "image URL must use http(s)"), caption: z.string().max(160).default("") }),
+  z.object({ type: z.literal("image"), url: backendImageSourceSchema, caption: z.string().max(160).default("") }),
   z.object({ type: z.literal("gallery"), images: z.array(contentImageSchema).min(1).max(12) }),
   z.object({ type: z.literal("video"), video_id: z.string().regex(/^\d+$/) })
 ]);
@@ -105,7 +108,7 @@ export const adminCompanyProfileSchema = z.object({
 
 export const adminCompanyHonorImageSchema = z.object({
   image_id: z.string().optional(),
-  image_url: z.string().url().refine((value) => /^https?:\/\//.test(value), "image URL must use http(s)"),
+  image_url: backendImageSourceSchema,
   title: z.string().max(120).nullable().default(null),
   caption: z.string().max(300).nullable().default(null),
   sort_order: z.number().int().min(0).max(999).default(0)

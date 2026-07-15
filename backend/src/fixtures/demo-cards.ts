@@ -72,7 +72,11 @@ export const demoPublicCard: PublicCardResponse = {
       },
       {
         type: "paragraph",
-        text: "这是一份完整的模块化企业名片样例，用于展示产品服务、企业简介、多图相册、视频与荣誉资质。正式环境由企业后台维护，公开名片只展示已发布内容。"
+        text: "智云科技专注企业数字化名片与获客解决方案，为企业提供统一对外形象、员工名片管理、客户转化追踪与企业官网式展示能力。我们把原本分散在员工微信、纸质名片、官网页面和销售资料里的信息整合到一张可分享、可追踪、可持续运营的企业名片中。"
+      },
+      {
+        type: "quote",
+        text: "我们的目标不是把名片做得更花，而是让每一次客户打开名片时，都能更快理解企业是谁、能提供什么价值，以及下一步应该如何联系。"
       },
       {
         type: "list",
@@ -80,29 +84,33 @@ export const demoPublicCard: PublicCardResponse = {
       },
       {
         type: "image",
-        url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72",
+        url: "/api/v1/demo-assets/company/profile-office.png",
         caption: "开放协作办公区"
       },
       {
         type: "gallery",
         images: [
           {
-            url: "https://images.unsplash.com/photo-1497366811353-6870744d04b2",
+            url: "/api/v1/demo-assets/company/profile-office.png",
             caption: "客户共创会议"
           },
           {
-            url: "https://images.unsplash.com/photo-1556761175-4b46a572b786",
+            url: "/api/v1/demo-assets/company/service-brand.png",
             caption: "企业服务团队"
           },
           {
-            url: "https://images.unsplash.com/photo-1551434678-e076c223a692",
+            url: "/api/v1/demo-assets/company/service-identity.png",
             caption: "产品研发现场"
           }
         ]
       },
       {
+        type: "paragraph",
+        text: "在销售、招聘、渠道合作和客户服务场景中，企业名片会作为轻量入口承接外部流量。管理员可以按模块维护产品服务、企业简介、荣誉资质和视频内容；员工转发自己的名片时，访客看到的不只是个人联系方式，也能顺手了解企业能力、查看案例素材、保存联系方式或继续转发给决策人。"
+      },
+      {
         type: "video",
-        video_id: "vid_demo_company"
+        video_id: "123"
       }
     ],
     service_items: [
@@ -110,7 +118,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_identity",
         title: "企业数字名片",
         description: "统一员工名片、企业资料与品牌视觉。",
-        image_url: "https://images.unsplash.com/photo-1556761175-b413da4baf72",
+        image_url: "/api/v1/demo-assets/company/service-identity.png",
         visible: true,
         sort_order: 10
       },
@@ -118,7 +126,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_leads",
         title: "客户留资与跟进",
         description: "记录访问、点赞、转发等关键行为。",
-        image_url: "https://images.unsplash.com/photo-1552664730-d307ca884978",
+        image_url: "/api/v1/demo-assets/company/service-leads.png",
         visible: true,
         sort_order: 20
       },
@@ -126,7 +134,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_brand",
         title: "企业官网式展示",
         description: "模块化呈现产品、简介、视频和荣誉。",
-        image_url: "https://images.unsplash.com/photo-1497366216548-37526070297c",
+        image_url: "/api/v1/demo-assets/company/service-brand.png",
         visible: true,
         sort_order: 30
       },
@@ -134,7 +142,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_analytics",
         title: "访问数据分析",
         description: "帮助销售团队判断客户兴趣与跟进优先级。",
-        image_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
+        image_url: "/api/v1/demo-assets/company/service-leads.png",
         visible: true,
         sort_order: 40
       },
@@ -142,7 +150,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_wecom",
         title: "企微身份集成",
         description: "对接企业微信身份与组织架构。",
-        image_url: "https://images.unsplash.com/photo-1559136555-9303baea8ebd",
+        image_url: "/api/v1/demo-assets/company/service-identity.png",
         visible: true,
         sort_order: 50
       }
@@ -158,10 +166,10 @@ export const demoPublicCard: PublicCardResponse = {
   },
   videos: [
     {
-      video_id: "vid_demo_company",
+      video_id: "123",
       title: "企业介绍视频",
-      video_url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-      cover_url: "https://images.unsplash.com/photo-1497366754035-f200968a6e72"
+      video_url: "/api/v1/demo-assets/company/company-intro.mp4",
+      cover_url: "/api/v1/demo-assets/company/video-cover.png"
     }
   ],
   honors: [
@@ -171,12 +179,12 @@ export const demoPublicCard: PublicCardResponse = {
       body: "展示荣誉资质模块的多图轮播与大图预览能力。",
       images: [
         {
-          image_url: "https://images.unsplash.com/photo-1567427017947-545c5f8d16ad",
+          image_url: "/api/v1/demo-assets/company/honor-award.png",
           title: "创新奖证书",
           caption: "行业协会颁发"
         },
         {
-          image_url: "https://images.unsplash.com/photo-1521791136064-7986c2920216",
+          image_url: "/api/v1/demo-assets/company/service-brand.png",
           title: "颁奖现场",
           caption: "年度服务创新论坛"
         }
@@ -188,12 +196,12 @@ export const demoPublicCard: PublicCardResponse = {
       body: "展示同一荣誉下多张图片、图片标题与说明。",
       images: [
         {
-          image_url: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85",
+          image_url: "/api/v1/demo-assets/company/honor-award.png",
           title: "认证证书",
           caption: "质量管理体系认证"
         },
         {
-          image_url: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
+          image_url: "/api/v1/demo-assets/company/profile-office.png",
           title: "审核会议",
           caption: "标准流程复核"
         }
