@@ -32,7 +32,7 @@ export class WecomCallbackCryptoService {
   constructor(private readonly config: WecomConfigService) {}
 
   decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
-    this.guardFreshness(payload);
+    this.guardTimestamp(payload);
 
     const suite = this.config.suite;
     const token = options.token ?? suite.callbackToken;
@@ -44,6 +44,7 @@ export class WecomCallbackCryptoService {
     if (!this.verifySignature(payload, token)) {
       throw new UnauthorizedException("invalid WeCom callback signature");
     }
+    this.guardReplay(payload);
 
     return this.decryptTrustedCiphertext(payload.encrypt, {
       aesKey: encodingAesKey,
@@ -87,18 +88,24 @@ export class WecomCallbackCryptoService {
       .digest("hex");
   }
 
-  private guardFreshness(payload: WecomEncryptedPayload): void {
+  private guardTimestamp(payload: WecomEncryptedPayload): void {
     const now = Math.floor(Date.now() / 1000);
     const timestamp = Number(payload.timestamp);
     if (!Number.isFinite(timestamp) || Math.abs(now - timestamp) > REPLAY_WINDOW_SECONDS) {
       throw new UnauthorizedException("WeCom callback timestamp is outside the allowed window");
     }
+  }
 
-    const nonceKey = `${payload.timestamp}:${payload.nonce}`;
-    if (this.seenNonces.has(nonceKey)) {
+  private guardReplay(payload: WecomEncryptedPayload): void {
+    // WeCom may reuse timestamp + nonce while validating the command and data
+    // callback URLs together. Their ciphertext/signatures are different, so only
+    // reject an exact signed callback replay rather than a nonce shared by two
+    // distinct callback channels.
+    const replayKey = payload.msgSignature;
+    if (this.seenNonces.has(replayKey)) {
       throw new UnauthorizedException("WeCom callback nonce has already been processed");
     }
-    this.seenNonces.set(nonceKey, Date.now());
+    this.seenNonces.set(replayKey, Date.now());
     this.pruneNonces();
   }
 

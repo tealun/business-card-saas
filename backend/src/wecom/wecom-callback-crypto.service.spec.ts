@@ -140,6 +140,34 @@ describe("WecomCallbackCryptoService", () => {
 
     expect(() => service.decrypt(payload)).toThrow("WeCom callback nonce has already been processed");
   });
+
+  it("accepts distinct command and data validations that share timestamp and nonce", () => {
+    const timestamp = freshTimestamp();
+    const nonce = freshNonce();
+    const dataMessage = "<xml><Event><![CDATA[change_contact]]></Event></xml>";
+    const commandMessage = "<xml><InfoType><![CDATA[suite_ticket]]></InfoType></xml>";
+    const dataEncrypt = encryptFixture(dataMessage, "corp-001");
+    const commandEncrypt = encryptFixture(commandMessage, suite.suiteId);
+
+    const dataResult = service.decrypt(
+      {
+        msgSignature: signFixture(dataEncrypt, timestamp, nonce),
+        timestamp,
+        nonce,
+        encrypt: dataEncrypt
+      },
+      { expectedReceiveId: null }
+    );
+    const commandResult = service.decrypt({
+      msgSignature: signFixture(commandEncrypt, timestamp, nonce),
+      timestamp,
+      nonce,
+      encrypt: commandEncrypt
+    });
+
+    expect(dataResult).toEqual({ message: dataMessage, receiveId: "corp-001" });
+    expect(commandResult).toEqual({ message: commandMessage, receiveId: suite.suiteId });
+  });
 });
 
 function stubConfig(config: WecomSuiteConfig): WecomConfigService {
