@@ -186,14 +186,16 @@ const stylePage = {
           }
         }
       });
-      const primary = preview?.template?.color_scheme?.primary || this.data.primary;
+      const previewTemplate = preview && preview.template ? preview.template : {};
+      const previewColorScheme = previewTemplate.color_scheme || {};
+      const primary = previewColorScheme.primary || this.data.primary;
       setPageTheme(this, primary);
       app.globalData.currentCard = preview.card || app.globalData.currentCard;
-      const previewLayout = preview?.template?.layout || {};
-      const previewBackgroundUrl = preview?.template?.background_url || this.data.backgroundUrl;
+      const previewLayout = previewTemplate.layout || {};
+      const previewBackgroundUrl = previewTemplate.background_url || this.data.backgroundUrl;
       this.setData({
         backgroundUrl: previewBackgroundUrl,
-        backgroundPresetId: preview?.template?.background_url ? "" : (previewLayout.background_preset_id || this.data.backgroundPresetId),
+        backgroundPresetId: previewTemplate.background_url ? "" : (previewLayout.background_preset_id || this.data.backgroundPresetId),
         backgroundOpacity: normalizeOpacity(previewLayout.background_opacity, this.data.backgroundOpacity),
         backgroundPreviewStyle: backgroundStyle(
           previewBackgroundUrl,

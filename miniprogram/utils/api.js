@@ -19,9 +19,13 @@ function apiBase() {
   if (!base) {
     throw new Error("API Base 未配置");
   }
-  const envVersion = typeof wx.getAccountInfoSync === "function"
-    ? wx.getAccountInfoSync()?.miniProgram?.envVersion
-    : "develop";
+  let envVersion = "develop";
+  if (typeof wx.getAccountInfoSync === "function") {
+    const accountInfo = wx.getAccountInfoSync();
+    envVersion = accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion
+      ? accountInfo.miniProgram.envVersion
+      : "develop";
+  }
   if (envVersion !== "develop" && !base.startsWith("https://")) {
     throw new Error("体验版/正式版 API Base 必须使用 HTTPS");
   }
@@ -63,7 +67,7 @@ function request(path, options = {}) {
         if (response.statusCode === 401) {
           clearSessionState();
         }
-        reject(new Error(response.data?.message || `HTTP ${response.statusCode}`));
+        reject(new Error((response.data && response.data.message) || `HTTP ${response.statusCode}`));
       },
       fail(error) {
         reject(error);

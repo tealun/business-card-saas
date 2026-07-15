@@ -105,6 +105,9 @@
       </view>
 
       <view class="powered">由 智云名片 提供技术支持</view>
+      <view class="demo-source-note" wx:if="{{isDemo}}">
+        样例图片素材来源：Unsplash.com；文案为演示内容。
+      </view>
     </view>
   </block>
 

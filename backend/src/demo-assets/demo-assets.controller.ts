@@ -10,8 +10,14 @@ const DEMO_ASSETS: Record<string, string> = {
   "service-identity.png": "image/png",
   "service-leads.png": "image/png",
   "service-brand.png": "image/png",
+  "service-analytics.png": "image/png",
+  "service-integration.png": "image/png",
   "profile-office.png": "image/png",
+  "profile-team.png": "image/png",
+  "profile-product.png": "image/png",
   "honor-award.png": "image/png",
+  "honor-ceremony.png": "image/png",
+  "honor-audit.png": "image/png",
   "video-cover.png": "image/png",
   "company-intro.mp4": "video/mp4"
 };

@@ -16,8 +16,8 @@ const demoServiceItems = [
   { id: "demo_service_identity", title: "企业数字名片", desc: "统一员工名片、企业资料与品牌视觉", image_url: demoAsset("service-identity.png") },
   { id: "demo_service_leads", title: "客户留资", desc: "访客行为追踪与销售跟进", image_url: demoAsset("service-leads.png") },
   { id: "demo_service_brand", title: "企业官网式展示", desc: "模块化呈现产品、简介、视频和荣誉", image_url: demoAsset("service-brand.png") },
-  { id: "demo_service_analytics", title: "数据分析", desc: "访问效果统计和线索判断", image_url: demoAsset("service-leads.png") },
-  { id: "demo_service_wecom", title: "企微身份集成", desc: "对接企业微信身份与组织架构", image_url: demoAsset("service-identity.png") }
+  { id: "demo_service_analytics", title: "数据分析", desc: "访问效果统计和线索判断", image_url: demoAsset("service-analytics.png") },
+  { id: "demo_service_wecom", title: "企微身份集成", desc: "对接企业微信身份与组织架构", image_url: demoAsset("service-integration.png") }
 ];
 
 const demoPublicCard = {
@@ -77,9 +77,9 @@ const demoPublicCard = {
       {
         type: "gallery",
         images: [
-          { url: demoAsset("profile-office.png"), caption: "客户共创会议" },
-          { url: demoAsset("service-brand.png"), caption: "企业服务团队" },
-          { url: demoAsset("service-identity.png"), caption: "产品研发现场" }
+          { url: demoAsset("profile-team.png"), caption: "客户共创会议" },
+          { url: demoAsset("profile-office.png"), caption: "企业服务团队" },
+          { url: demoAsset("profile-product.png"), caption: "产品研发现场" }
         ]
       },
       {
@@ -104,7 +104,7 @@ const demoPublicCard = {
       body: "展示荣誉资质模块的多图轮播与大图预览能力。",
       images: [
         { image_url: demoAsset("honor-award.png"), title: "创新奖证书", caption: "行业协会颁发" },
-        { image_url: demoAsset("service-brand.png"), title: "颁奖现场", caption: "年度服务创新论坛" }
+        { image_url: demoAsset("honor-ceremony.png"), title: "颁奖现场", caption: "年度服务创新论坛" }
       ]
     },
     {
@@ -112,8 +112,8 @@ const demoPublicCard = {
       title: "ISO 质量管理体系认证",
       body: "展示同一荣誉下多张图片、图片标题与说明。",
       images: [
-        { image_url: demoAsset("honor-award.png"), title: "认证证书", caption: "质量管理体系认证" },
-        { image_url: demoAsset("profile-office.png"), title: "审核会议", caption: "标准流程复核" }
+        { image_url: demoAsset("honor-audit.png"), title: "认证证书", caption: "质量管理体系认证" },
+        { image_url: demoAsset("profile-team.png"), title: "审核会议", caption: "标准流程复核" }
       ]
     }
   ]
@@ -772,11 +772,16 @@ function resolveDisplayModules(card, isDemo) {
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
     .map((module) => ({
       ...module,
-      title: module.title || defaults.find((item) => item.key === module.key)?.title,
+      title: module.title || defaultModuleTitle(defaults, module.key),
       content: content[module.key] || [],
       has_more: module.key === "profile" ? intro.some((block) => block.folded_extra || block.long_text) : false
     }))
     .filter((module) => module.content.length > 0);
+}
+
+function defaultModuleTitle(defaults, key) {
+  const found = defaults.find((item) => item.key === key);
+  return found ? found.title : "";
 }
 
 function readStoredAnonId() {

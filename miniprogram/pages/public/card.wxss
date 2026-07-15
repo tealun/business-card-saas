@@ -350,10 +350,18 @@
 }
 
 .powered {
-  padding: 4rpx 0 28rpx;
+  padding: 4rpx 0 12rpx;
   text-align: center;
   color: var(--text-tertiary);
   font-size: 22rpx;
+}
+
+.demo-source-note {
+  padding: 0 24rpx 32rpx;
+  text-align: center;
+  color: #b0b6c3;
+  font-size: 20rpx;
+  line-height: 1.5;
 }
 
 .sheet-mask {

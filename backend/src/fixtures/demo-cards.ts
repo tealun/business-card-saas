@@ -91,15 +91,15 @@ export const demoPublicCard: PublicCardResponse = {
         type: "gallery",
         images: [
           {
-            url: "/api/v1/demo-assets/company/profile-office.png",
+            url: "/api/v1/demo-assets/company/profile-team.png",
             caption: "客户共创会议"
           },
           {
-            url: "/api/v1/demo-assets/company/service-brand.png",
+            url: "/api/v1/demo-assets/company/profile-office.png",
             caption: "企业服务团队"
           },
           {
-            url: "/api/v1/demo-assets/company/service-identity.png",
+            url: "/api/v1/demo-assets/company/profile-product.png",
             caption: "产品研发现场"
           }
         ]
@@ -142,7 +142,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_analytics",
         title: "访问数据分析",
         description: "帮助销售团队判断客户兴趣与跟进优先级。",
-        image_url: "/api/v1/demo-assets/company/service-leads.png",
+        image_url: "/api/v1/demo-assets/company/service-analytics.png",
         visible: true,
         sort_order: 40
       },
@@ -150,7 +150,7 @@ export const demoPublicCard: PublicCardResponse = {
         id: "service_wecom",
         title: "企微身份集成",
         description: "对接企业微信身份与组织架构。",
-        image_url: "/api/v1/demo-assets/company/service-identity.png",
+        image_url: "/api/v1/demo-assets/company/service-integration.png",
         visible: true,
         sort_order: 50
       }
@@ -184,7 +184,7 @@ export const demoPublicCard: PublicCardResponse = {
           caption: "行业协会颁发"
         },
         {
-          image_url: "/api/v1/demo-assets/company/service-brand.png",
+          image_url: "/api/v1/demo-assets/company/honor-ceremony.png",
           title: "颁奖现场",
           caption: "年度服务创新论坛"
         }
@@ -196,12 +196,12 @@ export const demoPublicCard: PublicCardResponse = {
       body: "展示同一荣誉下多张图片、图片标题与说明。",
       images: [
         {
-          image_url: "/api/v1/demo-assets/company/honor-award.png",
+          image_url: "/api/v1/demo-assets/company/honor-audit.png",
           title: "认证证书",
           caption: "质量管理体系认证"
         },
         {
-          image_url: "/api/v1/demo-assets/company/profile-office.png",
+          image_url: "/api/v1/demo-assets/company/profile-team.png",
           title: "审核会议",
           caption: "标准流程复核"
         }

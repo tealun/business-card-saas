@@ -2,7 +2,6 @@ const app = getApp();
 const { switchIdentity } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
-const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 const { DEMO_CARD_ID, DEMO_CARD_ROUTE, demoIdentity } = require("../../utils/demo-card");
 
@@ -489,23 +488,28 @@ Page({
   prepareShareImage() {
     const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
     nextTick(async () => {
-      const imageUrl = await buildShareCardImage(this, {
-        card: Object.assign({}, this.data.card, {
-          avatar_url: this.data.card.show_avatar === false ? "" : this.data.card.avatar_url
-        }),
-        templateClass: this.data.cardTemplateClass,
-        theme: {
-          brand: this.data.themeBrand,
-          brandDeep: this.data.themeBrandDeep,
-          brandSoft: this.data.themeBrandSoft
-        },
-        meta: {
-          companyName: this.data.card && this.data.card.company,
-          companyShortName: this.data.card && this.data.card.company_short_name
+      try {
+        const { buildShareCardImage } = require("../../utils/share-card-image");
+        const imageUrl = await buildShareCardImage(this, {
+          card: Object.assign({}, this.data.card, {
+            avatar_url: this.data.card.show_avatar === false ? "" : this.data.card.avatar_url
+          }),
+          templateClass: this.data.cardTemplateClass,
+          theme: {
+            brand: this.data.themeBrand,
+            brandDeep: this.data.themeBrandDeep,
+            brandSoft: this.data.themeBrandSoft
+          },
+          meta: {
+            companyName: this.data.card && this.data.card.company,
+            companyShortName: this.data.card && this.data.card.company_short_name
+          }
+        });
+        if (imageUrl) {
+          this.setData({ shareImageUrl: imageUrl });
         }
-      });
-      if (imageUrl) {
-        this.setData({ shareImageUrl: imageUrl });
+      } catch (_error) {
+        this.setData({ shareImageUrl: "" });
       }
     });
   },
