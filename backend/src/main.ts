@@ -57,7 +57,11 @@ async function bootstrap() {
         formAction: ["'self'"]
       }
     },
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    // WeChat Mini Program renders images and videos from an isolated origin
+    // (for example with #devtools_no_referrer). Helmet's default same-origin
+    // CORP makes otherwise public media fail with ERR_BLOCKED_BY_RESPONSE.
+    crossOriginResourcePolicy: { policy: "cross-origin" }
   });
   app.enableCors({
     origin: (origin: string | undefined, callback: (error: Error | null, allow: boolean) => void) => {

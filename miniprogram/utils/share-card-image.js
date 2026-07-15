@@ -21,7 +21,7 @@ function buildShareCardImage(page, options = {}) {
           return;
         }
         try {
-          const dpr = (wx.getSystemInfoSync && wx.getSystemInfoSync().pixelRatio) || 2;
+          const dpr = devicePixelRatio();
           node.width = SHARE_IMAGE_WIDTH * dpr;
           node.height = SHARE_IMAGE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
@@ -283,6 +283,19 @@ function hexToRgba(hex, alpha) {
   const g = parseInt(value.slice(2, 4), 16);
   const b = parseInt(value.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function devicePixelRatio() {
+  try {
+    if (typeof wx.getWindowInfo === "function") {
+      return wx.getWindowInfo().pixelRatio || 2;
+    }
+  } catch (_error) {}
+  try {
+    return (wx.getSystemInfoSync && wx.getSystemInfoSync().pixelRatio) || 2;
+  } catch (_error) {
+    return 2;
+  }
 }
 
 module.exports = {

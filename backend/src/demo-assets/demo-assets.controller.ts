@@ -22,15 +22,15 @@ export class DemoAssetsController {
   async readDemoCompanyAsset(@Param("fileName") fileName: string, @Res() reply: FastifyReply) {
     const contentType = DEMO_ASSETS[fileName];
     if (!contentType) {
-      throw new NotFoundException("demo asset not found");
+      throw demoAssetNotFound(reply);
     }
     const filePath = path.resolve(DEMO_ASSET_DIR, fileName);
     if (!filePath.startsWith(`${DEMO_ASSET_DIR}${path.sep}`)) {
-      throw new NotFoundException("demo asset not found");
+      throw demoAssetNotFound(reply);
     }
     const info = await stat(filePath).catch(() => null);
     if (!info || !info.isFile()) {
-      throw new NotFoundException("demo asset not found");
+      throw demoAssetNotFound(reply);
     }
     reply.header("content-type", contentType);
     reply.header("content-length", String(info.size));
@@ -38,4 +38,9 @@ export class DemoAssetsController {
     reply.header("cross-origin-resource-policy", "cross-origin");
     return reply.send(createReadStream(filePath));
   }
+}
+
+function demoAssetNotFound(reply: FastifyReply): NotFoundException {
+  reply.header("cross-origin-resource-policy", "cross-origin");
+  return new NotFoundException("demo asset not found");
 }

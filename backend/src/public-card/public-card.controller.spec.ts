@@ -78,6 +78,16 @@ describe("PublicCardController", () => {
     expect(Number(response.headers["content-length"])).toBeGreaterThan(0);
   });
 
+  it("keeps demo asset error responses embeddable by the Mini Program renderer", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/demo-assets/company/missing.png"
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers["cross-origin-resource-policy"]).toBe("cross-origin");
+  });
+
   it("creates a visit and records idempotent actions with visit_token", async () => {
     const visitResponse = await app.inject({
       method: "POST",
