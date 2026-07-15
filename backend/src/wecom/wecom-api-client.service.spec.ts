@@ -144,6 +144,36 @@ describe("WecomApiClientService", () => {
     });
   });
 
+  it("posts get_auth_info and verifies the returned enterprise identity", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          auth_corp_info: { corpid: "corp-001", corp_name: "Pilot Corp" },
+          auth_info: { agent: [{ agentid: 100001 }] }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchAuthorizationInfo({
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-001",
+      permanentCode: "perm-001"
+    });
+
+    expect(result).toEqual({
+      openCorpid: "corp-001",
+      corpName: "Pilot Corp",
+      agentId: "100001",
+      authInfo: { agent: [{ agentid: 100001 }] }
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("get_auth_info?suite_access_token=suite-token");
+    expect(JSON.parse(String(init.body))).toEqual({ auth_corpid: "corp-001", permanent_code: "perm-001" });
+  });
+
   it("posts miniprogram jscode2session and maps open_userid payloads", async () => {
     const fetchMock = jest.fn(async () =>
       new Response(

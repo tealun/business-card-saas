@@ -4,6 +4,7 @@ import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService, type WecomSuiteConfig } from "./wecom-config.service.js";
 
 const suite: WecomSuiteConfig = {
+  providerCorpId: "wwprovider0001",
   suiteId: "wwsuite0001",
   suiteSecret: "suite-secret",
   callbackToken: "callback-token",
@@ -128,7 +129,7 @@ describe("WecomCallbackCryptoService", () => {
     ).toThrow("WeCom callback timestamp is outside the allowed window");
   });
 
-  it("rejects callbacks with a replayed nonce", () => {
+  it("accepts an authenticated callback retry so the persistent event layer can deduplicate it", () => {
     const message = "<xml><SuiteTicket><![CDATA[ticket-replay]]></SuiteTicket></xml>";
     const encrypt = encryptFixture(message, suite.suiteId);
     const timestamp = freshTimestamp();
@@ -138,7 +139,7 @@ describe("WecomCallbackCryptoService", () => {
 
     service.decrypt(payload);
 
-    expect(() => service.decrypt(payload)).toThrow("WeCom callback nonce has already been processed");
+    expect(service.decrypt(payload)).toEqual({ message, receiveId: suite.suiteId });
   });
 
   it("accepts distinct command and data validations that share timestamp and nonce", () => {

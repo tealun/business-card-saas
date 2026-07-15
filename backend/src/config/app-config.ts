@@ -56,7 +56,8 @@ const appConfigSchema = z
     WECOM_STATE_ENCRYPTION_KEY_BASE64: base64Key("WECOM_STATE_ENCRYPTION_KEY_BASE64"),
     DEMO_AUTH_ENABLED: booleanFlag(false),
 
-    WECOM_SUITE_ID: z.string().min(1),
+    WECOM_PROVIDER_CORP_ID: z.string().regex(/^ww[A-Za-z0-9_-]+$/, "must be a WeCom CorpID"),
+    WECOM_SUITE_ID: z.string().regex(/^ww[A-Za-z0-9_-]+$/, "must be a WeCom SuiteID"),
     WECOM_SUITE_SECRET: z.string().min(1),
     WECOM_CALLBACK_TOKEN: z.string().min(1),
     WECOM_CALLBACK_AES_KEY: z.string().length(43),
@@ -123,6 +124,17 @@ const appConfigSchema = z
         message: "DEMO_AUTH_ENABLED must be disabled in production",
         path: ["DEMO_AUTH_ENABLED"]
       });
+    }
+    if (data.NODE_ENV === "production") {
+      for (const key of ["WECOM_PROVIDER_CORP_ID", "WECOM_SUITE_ID", "WECOM_SUITE_SECRET"] as const) {
+        if (/xxx|example|change|your/i.test(data[key])) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${key} must not contain a placeholder in production`,
+            path: [key]
+          });
+        }
+      }
     }
     if (data.STORAGE_DRIVER === "aliyun_oss") {
       for (const key of [

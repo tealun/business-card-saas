@@ -24,6 +24,7 @@ CREATE TABLE "tenants" (
     "agent_id" VARCHAR(64),
     "auth_scope_json" JSONB,
     "authorized_at" TIMESTAMPTZ(6),
+    "cancel_auth_time" TIMESTAMPTZ(6),
     "corp_access_token_encrypted" TEXT,
     "corp_access_token_expires_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL,

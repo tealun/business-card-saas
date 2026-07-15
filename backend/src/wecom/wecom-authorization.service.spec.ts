@@ -1,5 +1,11 @@
 import { DatabaseService } from "../database/database.service.js";
-import { WecomApiClientService, type FetchPermanentCodeRequest, type FetchPermanentCodeResponse } from "./wecom-api-client.service.js";
+import {
+  WecomApiClientService,
+  type FetchAuthorizationInfoRequest,
+  type FetchAuthorizationInfoResponse,
+  type FetchPermanentCodeRequest,
+  type FetchPermanentCodeResponse
+} from "./wecom-api-client.service.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteTokenService, type WecomSuiteAccessTokenResult } from "./wecom-suite-token.service.js";
@@ -53,6 +59,41 @@ describe("WecomAuthorizationService", () => {
     expect(stored?.permanentCode).toBe("perm-002");
     expect(stored?.agentId).toBe("100002");
   });
+
+  it("refreshes changed authorization scope without exchanging a new auth code", async () => {
+    const { service, api, tenants } = createService();
+    await service.handleAuthCode("auth-code-001");
+
+    const refreshed = await service.refreshAuthorization(" corp-001 ", new Date("2026-07-07T10:00:00.000Z"));
+
+    expect(api.lastAuthorizationInfoRequest).toEqual({
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-001",
+      permanentCode: "perm-001"
+    });
+    expect(refreshed.permanentCode).toBe("perm-001");
+    expect(refreshed.corpName).toBe("Pilot Corp Changed");
+  });
+
+  it("cancels authorization and removes reusable credentials", async () => {
+    const { service, tenants } = createService();
+    await service.handleAuthCode("auth-code-001");
+
+    await expect(service.cancelAuthorization("corp-001", new Date("2026-07-08T10:00:00.000Z"))).resolves.toBe(true);
+    await expect(tenants.getByOpenCorpid("corp-001")).resolves.toBeNull();
+  });
+
+  it("exchanges the same auth code only once across concurrent delivery paths", async () => {
+    const { service, api } = createService();
+
+    const [left, right] = await Promise.all([
+      service.handleAuthCode("auth-code-001"),
+      service.handleAuthCode("auth-code-001")
+    ]);
+
+    expect(left).toEqual(right);
+    expect(api.permanentCodeRequestCount).toBe(1);
+  });
 });
 
 class FakeSuiteTokenService {
@@ -67,7 +108,9 @@ class FakeSuiteTokenService {
 }
 
 class FakeWecomApiClient {
+  permanentCodeRequestCount = 0;
   lastRequest: FetchPermanentCodeRequest | null = null;
+  lastAuthorizationInfoRequest: FetchAuthorizationInfoRequest | null = null;
   nextResponse: FetchPermanentCodeResponse = {
     openCorpid: "corp-001",
     corpName: "Pilot Corp",
@@ -77,8 +120,19 @@ class FakeWecomApiClient {
   };
 
   async fetchPermanentCode(request: FetchPermanentCodeRequest): Promise<FetchPermanentCodeResponse> {
+    this.permanentCodeRequestCount += 1;
     this.lastRequest = request;
     return this.nextResponse;
+  }
+
+  async fetchAuthorizationInfo(request: FetchAuthorizationInfoRequest): Promise<FetchAuthorizationInfoResponse> {
+    this.lastAuthorizationInfoRequest = request;
+    return {
+      openCorpid: request.openCorpid,
+      corpName: "Pilot Corp Changed",
+      agentId: "100003",
+      authInfo: { agent: [{ agentid: 100003 }] }
+    };
   }
 }
 

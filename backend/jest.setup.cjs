@@ -3,7 +3,8 @@ process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-must-be-at-least-32-bytes-
 process.env.VISIT_TOKEN_SECRET = "test-visit-token-secret-must-be-at-least-32-bytes";
 process.env.CARD_FIELD_ENCRYPTION_KEY_BASE64 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
 process.env.WECOM_STATE_ENCRYPTION_KEY_BASE64 = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
-process.env.WECOM_SUITE_ID = "test-suite-id";
+process.env.WECOM_PROVIDER_CORP_ID = "wwtestproviderid";
+process.env.WECOM_SUITE_ID = "wwtestsuiteid";
 process.env.WECOM_SUITE_SECRET = "test-suite-secret";
 process.env.WECOM_CALLBACK_TOKEN = "test-callback-token";
 process.env.WECOM_CALLBACK_AES_KEY = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";

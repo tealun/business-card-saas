@@ -6,6 +6,7 @@ import { registerXmlBodyParser } from "../common/xml-body-parser.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 
 const suite = {
+  providerCorpId: process.env.WECOM_PROVIDER_CORP_ID ?? "wwprovider0001",
   suiteId: process.env.WECOM_SUITE_ID ?? "dev-wecom-suite-id",
   callbackToken: process.env.WECOM_CALLBACK_TOKEN ?? "dev-only-wecom-callback-token",
   callbackAesKey: process.env.WECOM_CALLBACK_AES_KEY ?? "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
@@ -52,7 +53,7 @@ describe("WecomCommandCallbackController", () => {
     const nonce = freshNonce();
     // The mini-program association flow can encrypt URL verification with a
     // platform/provider receiver id that differs from the application's SuiteID.
-    const encrypt = encryptFixture("verify-ok", "provider-receiver-id");
+    const encrypt = encryptFixture("verify-ok", suite.providerCorpId);
     const msgSignature = signFixture(encrypt, timestamp, nonce);
 
     const response = await app.inject({

@@ -153,6 +153,27 @@ export class WecomTenantAuthRepository {
     return this.rowToSnapshot(result.rows[0]);
   }
 
+  async cancelAuthorization(openCorpid: string, cancelledAt: Date): Promise<boolean> {
+    if (!this.hasDatabase()) {
+      return this.memory.delete(openCorpid);
+    }
+    const result = await this.database.query(
+      `
+        UPDATE tenants
+        SET auth_status = 'cancelled',
+            cancel_auth_time = $2,
+            permanent_code_encrypted = NULL,
+            corp_access_token_encrypted = NULL,
+            corp_access_token_expires_at = NULL,
+            updated_at = now()
+        WHERE open_corpid = $1
+          AND auth_status <> 'cancelled'
+      `,
+      [openCorpid, cancelledAt]
+    );
+    return Boolean(result.rowCount);
+  }
+
   async saveCorpAccessToken(
     openCorpid: string,
     accessToken: string,

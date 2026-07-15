@@ -48,6 +48,8 @@ describe("WecomAuthorizationLinkService", () => {
       state: "state_001",
       auth_type: "test"
     });
+    expect(service.consumeState("state_001")).toBe("state_001");
+    expect(() => service.consumeState("state_001")).toThrow(UnauthorizedException);
   });
 });
 

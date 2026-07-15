@@ -21,14 +21,9 @@ export interface WecomDecryptOptions {
 }
 
 const REPLAY_WINDOW_SECONDS = 5 * 60;
-const NONCE_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class WecomCallbackCryptoService {
-  // In-memory nonce deduplication. For multi-instance deployments this should be
-  // replaced with Redis or a shared cache so replays cannot slip through load balancers.
-  private readonly seenNonces = new Map<string, number>();
-
   constructor(private readonly config: WecomConfigService) {}
 
   decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
@@ -44,8 +39,6 @@ export class WecomCallbackCryptoService {
     if (!this.verifySignature(payload, token)) {
       throw new UnauthorizedException("invalid WeCom callback signature");
     }
-    this.guardReplay(payload);
-
     return this.decryptTrustedCiphertext(payload.encrypt, {
       aesKey: encodingAesKey,
       expectedReceiveId
@@ -93,28 +86,6 @@ export class WecomCallbackCryptoService {
     const timestamp = Number(payload.timestamp);
     if (!Number.isFinite(timestamp) || Math.abs(now - timestamp) > REPLAY_WINDOW_SECONDS) {
       throw new UnauthorizedException("WeCom callback timestamp is outside the allowed window");
-    }
-  }
-
-  private guardReplay(payload: WecomEncryptedPayload): void {
-    // WeCom may reuse timestamp + nonce while validating the command and data
-    // callback URLs together. Their ciphertext/signatures are different, so only
-    // reject an exact signed callback replay rather than a nonce shared by two
-    // distinct callback channels.
-    const replayKey = payload.msgSignature;
-    if (this.seenNonces.has(replayKey)) {
-      throw new UnauthorizedException("WeCom callback nonce has already been processed");
-    }
-    this.seenNonces.set(replayKey, Date.now());
-    this.pruneNonces();
-  }
-
-  private pruneNonces(): void {
-    const cutoff = Date.now() - NONCE_TTL_MS;
-    for (const [key, seenAt] of this.seenNonces) {
-      if (seenAt < cutoff) {
-        this.seenNonces.delete(key);
-      }
     }
   }
 

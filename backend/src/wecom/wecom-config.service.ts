@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 export interface WecomSuiteConfig {
+  providerCorpId: string;
   suiteId: string;
   suiteSecret: string;
   callbackToken: string;
@@ -15,6 +16,7 @@ export class WecomConfigService {
     const callbackToken = readRequired("WECOM_CALLBACK_TOKEN");
     const callbackAesKey = readRequired("WECOM_CALLBACK_AES_KEY");
     const suite = {
+      providerCorpId: readRequired("WECOM_PROVIDER_CORP_ID"),
       suiteId: readRequired("WECOM_SUITE_ID"),
       suiteSecret: readRequired("WECOM_SUITE_SECRET"),
       callbackToken,

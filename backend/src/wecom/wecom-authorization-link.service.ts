@@ -12,6 +12,7 @@ import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 
 @Injectable()
 export class WecomAuthorizationLinkService {
+  private readonly pendingStates = new Map<string, number>();
   constructor(
     private readonly config: WecomConfigService,
     private readonly suiteTokens: WecomSuiteTokenService,
@@ -46,6 +47,8 @@ export class WecomAuthorizationLinkService {
 
     const redirectUri = request.redirect_uri ?? this.config.authorizationRedirectUri;
     const state = request.state ?? randomToken("wcauth", 12);
+    this.pendingStates.set(state, Date.now() + preAuth.expiresIn * 1000);
+    this.pruneExpiredStates();
     const authorizationUrl = new URL(this.config.authorizationInstallBaseUrl);
     authorizationUrl.searchParams.set("suite_id", this.config.suite.suiteId);
     authorizationUrl.searchParams.set("pre_auth_code", preAuth.preAuthCode);
@@ -60,6 +63,28 @@ export class WecomAuthorizationLinkService {
       state,
       auth_type: request.auth_type
     });
+  }
+
+  consumeState(state: string | undefined): string {
+    const normalized = state?.trim();
+    if (!normalized) {
+      throw new UnauthorizedException("WeCom authorization state is required");
+    }
+    const expiresAt = this.pendingStates.get(normalized);
+    this.pendingStates.delete(normalized);
+    if (!expiresAt || expiresAt <= Date.now()) {
+      throw new UnauthorizedException("WeCom authorization state is invalid or expired");
+    }
+    return normalized;
+  }
+
+  private pruneExpiredStates(): void {
+    const now = Date.now();
+    for (const [state, expiresAt] of this.pendingStates) {
+      if (expiresAt <= now) {
+        this.pendingStates.delete(state);
+      }
+    }
   }
 
   private isValidLaunchToken(input: string | undefined): boolean {

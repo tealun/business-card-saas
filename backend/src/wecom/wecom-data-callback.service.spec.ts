@@ -166,6 +166,7 @@ describe("WecomDataCallbackService", () => {
 
 class FakeConfigService {
   suite: WecomSuiteConfig = {
+    providerCorpId: "wwprovider0001",
     suiteId: "suite-id",
     suiteSecret: "suite-secret",
     callbackToken: "command-token",

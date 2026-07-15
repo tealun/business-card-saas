@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
+import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
+import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 
 export interface WecomCallbackQuery {
@@ -25,6 +28,8 @@ export interface WecomCommandCallbackResult {
 export class WecomCommandCallbackService {
   constructor(
     private readonly crypto: WecomCallbackCryptoService,
+    private readonly config: WecomConfigService,
+    private readonly events: WecomCallbackEventRepository,
     private readonly suiteState: WecomSuiteStateRepository,
     private readonly authorization: WecomAuthorizationService
   ) {}
@@ -41,7 +46,7 @@ export class WecomCommandCallbackService {
         nonce: normalizedQuery.nonce,
         encrypt: echoStr
       },
-      { expectedReceiveId: null }
+      { expectedReceiveId: this.config.suite.providerCorpId }
     ).message;
   }
 
@@ -59,7 +64,31 @@ export class WecomCommandCallbackService {
       nonce: normalizedQuery.nonce,
       encrypt
     });
-    return this.handleCommandMessage(decrypted.message, decrypted.receiveId);
+    const infoType = readXmlText(decrypted.message, "InfoType") ?? "unknown";
+    const eventKey = `command:${createHash("sha256").update(decrypted.message).digest("hex")}`;
+    const event = await this.events.beginProcessing({
+      source: "command",
+      eventKey,
+      tenantId: null,
+      eventType: infoType,
+      changeType: null,
+      payloadEncrypted: encrypt
+    });
+    if (!event.shouldProcess) {
+      return { infoType, suiteId: readXmlText(decrypted.message, "SuiteId") ?? decrypted.receiveId, handled: true };
+    }
+    try {
+      const result = await this.handleCommandMessage(decrypted.message, decrypted.receiveId);
+      await this.events.markDone(eventKey, null);
+      return result;
+    } catch (error) {
+      try {
+        await this.events.markFailed(eventKey, error, null);
+      } catch {
+        // Preserve the original callback processing error.
+      }
+      throw error;
+    }
   }
 
   private async handleCommandMessage(messageXml: string, receiveId: string): Promise<WecomCommandCallbackResult> {
@@ -80,12 +109,30 @@ export class WecomCommandCallbackService {
       await this.suiteState.saveSuiteTicket(suiteId, suiteTicket, eventTime(messageXml));
       return { infoType, suiteId, handled: true };
     }
-    if (infoType === "create_auth" || infoType === "change_auth") {
+    if (infoType === "create_auth") {
       const authCode = readXmlText(messageXml, "AuthCode");
       if (!authCode) {
         throw new BadRequestException("missing WeCom AuthCode");
       }
       await this.authorization.handleAuthCode(authCode, eventTime(messageXml));
+      return { infoType, suiteId, handled: true };
+    }
+
+    if (infoType === "change_auth") {
+      const openCorpid = readXmlText(messageXml, "AuthCorpId");
+      if (!openCorpid) {
+        throw new BadRequestException("missing WeCom AuthCorpId");
+      }
+      await this.authorization.refreshAuthorization(openCorpid, eventTime(messageXml));
+      return { infoType, suiteId, handled: true };
+    }
+
+    if (infoType === "cancel_auth") {
+      const openCorpid = readXmlText(messageXml, "AuthCorpId");
+      if (!openCorpid) {
+        throw new BadRequestException("missing WeCom AuthCorpId");
+      }
+      await this.authorization.cancelAuthorization(openCorpid, eventTime(messageXml));
       return { infoType, suiteId, handled: true };
     }
 

@@ -5,14 +5,19 @@ import {
   type WecomAuthorizationCompleteResponse
 } from "../contracts/wecom-authorization.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
+import { WecomAuthorizationLinkService } from "./wecom-authorization-link.service.js";
 
 @Controller("wecom/authorization-complete")
 export class WecomAuthorizationCompleteController {
-  constructor(private readonly authorization: WecomAuthorizationService) {}
+  constructor(
+    private readonly authorization: WecomAuthorizationService,
+    private readonly authorizationLinks: WecomAuthorizationLinkService
+  ) {}
 
   @Get()
   async complete(@Query() queryInput: unknown): Promise<WecomAuthorizationCompleteResponse> {
     const query = parseQuery(queryInput);
+    const state = this.authorizationLinks.consumeState(query.state);
     const tenant = await this.authorization.handleAuthCode(query.auth_code);
     const response = {
       handled: true as const,
@@ -22,12 +27,10 @@ export class WecomAuthorizationCompleteController {
       auth_status: tenant.authStatus
     };
     return wecomAuthorizationCompleteResponseSchema.parse(
-      query.state
-        ? {
-            ...response,
-            state: query.state
-          }
-        : response
+      {
+        ...response,
+        state
+      }
     );
   }
 }

@@ -41,6 +41,19 @@ export interface FetchPermanentCodeResponse {
   authInfo: unknown;
 }
 
+export interface FetchAuthorizationInfoRequest {
+  suiteAccessToken: string;
+  openCorpid: string;
+  permanentCode: string;
+}
+
+export interface FetchAuthorizationInfoResponse {
+  openCorpid: string;
+  corpName: string;
+  agentId: string | null;
+  authInfo: unknown;
+}
+
 export interface FetchCorpTokenRequest {
   suiteAccessToken: string;
   openCorpid: string;
@@ -102,6 +115,8 @@ interface WecomPermanentCodePayload {
     }>;
   };
 }
+
+type WecomAuthorizationInfoPayload = WecomPermanentCodePayload;
 
 interface WecomPreAuthCodePayload {
   errcode?: number;
@@ -187,6 +202,30 @@ export class WecomApiClientService {
     return {
       preAuthCode: payload.pre_auth_code,
       expiresIn: payload.expires_in
+    };
+  }
+
+  async fetchAuthorizationInfo(request: FetchAuthorizationInfoRequest): Promise<FetchAuthorizationInfoResponse> {
+    const payload = await this.postJson<WecomAuthorizationInfoPayload>(
+      "get_auth_info",
+      `/cgi-bin/service/get_auth_info?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {
+        auth_corpid: request.openCorpid,
+        permanent_code: request.permanentCode
+      }
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom get_auth_info failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+    const openCorpid = payload.auth_corp_info?.corpid;
+    if (!openCorpid || openCorpid !== request.openCorpid) {
+      throw new BadGatewayException("WeCom get_auth_info returned invalid corp identity");
+    }
+    return {
+      openCorpid,
+      corpName: payload.auth_corp_info?.corp_name?.trim() || openCorpid,
+      agentId: payload.auth_info?.agent?.[0]?.agentid?.toString() ?? null,
+      authInfo: payload.auth_info ?? null
     };
   }
 

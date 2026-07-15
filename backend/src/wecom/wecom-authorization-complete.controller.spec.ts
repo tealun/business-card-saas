@@ -14,11 +14,15 @@ describe("WecomAuthorizationCompleteController", () => {
         authStatus: "active" as const
       }))
     } as unknown as jest.Mocked<WecomAuthorizationService>;
-    const controller = new WecomAuthorizationCompleteController(authorization);
+    const authorizationLinks = {
+      consumeState: jest.fn(() => "state_001")
+    };
+    const controller = new WecomAuthorizationCompleteController(authorization, authorizationLinks as never);
 
     const result = await controller.complete({ auth_code: " auth-code-001 ", state: "state_001" });
 
     expect(authorization.handleAuthCode).toHaveBeenCalledWith("auth-code-001");
+    expect(authorizationLinks.consumeState).toHaveBeenCalledWith("state_001");
     expect(result).toEqual({
       handled: true,
       tenant_id: "tenant-001",
@@ -34,7 +38,7 @@ describe("WecomAuthorizationCompleteController", () => {
     const authorization = {
       handleAuthCode: jest.fn()
     } as unknown as jest.Mocked<WecomAuthorizationService>;
-    const controller = new WecomAuthorizationCompleteController(authorization);
+    const controller = new WecomAuthorizationCompleteController(authorization, { consumeState: jest.fn() } as never);
 
     await expect(controller.complete({ state: "state_001" })).rejects.toThrow(BadRequestException);
     expect(authorization.handleAuthCode).not.toHaveBeenCalled();
