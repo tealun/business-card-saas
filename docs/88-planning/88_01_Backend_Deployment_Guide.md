@@ -93,6 +93,7 @@ Then edit `.env` on the server only. Required production secrets include:
 - `VISIT_TOKEN_SECRET`
 - `CARD_FIELD_ENCRYPTION_KEY_BASE64`
 - `WECOM_STATE_ENCRYPTION_KEY_BASE64`
+- `WECOM_PROVIDER_CORP_ID`
 - `WECOM_SUITE_ID`
 - `WECOM_SUITE_SECRET`
 - `WECOM_CALLBACK_TOKEN`
@@ -101,7 +102,22 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_DATA_CALLBACK_AES_KEY`
 - `WECOM_AUTH_LAUNCH_TOKEN`
 - `WECOM_INSTALL_REDIRECT_URI`
+- `WECOM_SENSITIVE_REDIRECT_URI`
 - `CORS_ORIGINS`
+
+### Required env reconciliation gate
+
+The real server `.env` is deliberately protected from Git sync. Therefore, every deployment that changes `.env.example` must reconcile new key names into the existing `.env` before migration, build, or restart. Pulling or deploying code does not perform this merge automatically.
+
+Run this from `${BACKEND_DEPLOY_PATH}` after files are synced. It reports missing key names without printing any values:
+
+```bash
+comm -23 \
+  <(sed -nE 's/^([A-Z][A-Z0-9_]*)=.*/\1/p' .env.example | sort -u) \
+  <(sed -nE 's/^([A-Z][A-Z0-9_]*)=.*/\1/p' .env | sort -u)
+```
+
+No output means every template key exists in `.env`. Output means those keys must be reviewed and added; never copy `.env.example` over an existing production `.env`, because that would replace real secrets with placeholders.
 
 ## BaoTa Node Project Setup
 
@@ -132,17 +148,19 @@ Recommended first-time sequence in BaoTa:
 4. In BaoTa, install backend dependencies from `${BACKEND_DEPLOY_PATH}` with `npm ci`.
 5. Build backend with `npm run build`.
 6. Install database dependencies from `${BACKEND_DEPLOY_PATH}/database` with `npm ci`.
-7. Run database migration from `${BACKEND_DEPLOY_PATH}/database` with `npm run migrate`.
-8. Run database readiness check from `${BACKEND_DEPLOY_PATH}/database` with `npm run check`.
+7. From `${BACKEND_DEPLOY_PATH}`, load the root `.env` explicitly and run `node --env-file=.env database/scripts/migrate.cjs`.
+8. From `${BACKEND_DEPLOY_PATH}`, run `node --env-file=.env database/scripts/db-check.cjs`.
 9. Start or restart the Node project.
 
 For later code-only deployments, GitHub Actions syncs source and database assets. BaoTa can then run:
 
 ```bash
-(cd database && npm run migrate)
-(cd database && npm run check)
+node --env-file=.env database/scripts/migrate.cjs
+node --env-file=.env database/scripts/db-check.cjs
 npm run start:prod
 ```
+
+Do not run plain `npm run migrate` from the `database/` directory on this deployment layout: Node does not automatically load the parent directory's `.env`, so the migration process will fail with `DATABASE_URL is required`.
 
 If BaoTa automatically restarts an already configured project, do not also set a GitHub Actions `DEPLOY_RESTART_COMMAND`. Use one restart owner to avoid two processes fighting over the same port.
 
@@ -192,6 +210,7 @@ NODE_ENV=production
 HOST=0.0.0.0
 PORT=3000
 WECOM_INSTALL_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/authorization-complete
+WECOM_SENSITIVE_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/member-sensitive/callback
 WECOM_INSTALL_BASE_URL=https://open.work.weixin.qq.com/3rdapp/install
 ```
 
@@ -266,9 +285,9 @@ Do not put secret values in `DEPLOY_RESTART_COMMAND`; read them from the server-
 ## Deployment Checklist
 
 1. Configure GitHub Secrets.
-2. Confirm `${BACKEND_DEPLOY_PATH}/.env` exists on the server and contains production values.
+2. Confirm `${BACKEND_DEPLOY_PATH}/.env` exists, run the required env reconciliation gate, and add every newly introduced key with a reviewed production value.
 3. Push a change under `backend/**` or run the workflow manually.
-4. After first deployment or any schema change, run `npm run migrate` and `npm run check` from `${BACKEND_DEPLOY_PATH}/database` on the server with the production `DATABASE_URL` loaded.
+4. After first deployment or any schema change, run `node --env-file=.env database/scripts/migrate.cjs` and `node --env-file=.env database/scripts/db-check.cjs` from `${BACKEND_DEPLOY_PATH}`.
 5. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.
 6. On the server, confirm the backend is built/restarted by the panel or `DEPLOY_RESTART_COMMAND`.
 7. Verify `/api/v1/health/ready`.
