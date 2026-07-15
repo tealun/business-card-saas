@@ -34,12 +34,15 @@ export class WecomCommandCallbackService {
     if (!echoStr?.trim()) {
       throw new BadRequestException("missing WeCom echostr");
     }
-    return this.crypto.decrypt({
-      msgSignature: normalizedQuery.msgSignature,
-      timestamp: normalizedQuery.timestamp,
-      nonce: normalizedQuery.nonce,
-      encrypt: echoStr
-    }).message;
+    return this.crypto.decrypt(
+      {
+        msgSignature: normalizedQuery.msgSignature,
+        timestamp: normalizedQuery.timestamp,
+        nonce: normalizedQuery.nonce,
+        encrypt: echoStr
+      },
+      { expectedReceiveId: null }
+    ).message;
   }
 
   async receive(query: WecomCallbackQueryInput, body: unknown): Promise<WecomCommandCallbackResult> {

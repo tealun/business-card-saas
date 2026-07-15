@@ -50,7 +50,9 @@ describe("WecomCommandCallbackController", () => {
   it("returns the decrypted echo string for WeCom URL verification", async () => {
     const timestamp = String(freshTimestamp());
     const nonce = freshNonce();
-    const encrypt = encryptFixture("verify-ok", suite.suiteId);
+    // The mini-program association flow can encrypt URL verification with a
+    // platform/provider receiver id that differs from the application's SuiteID.
+    const encrypt = encryptFixture("verify-ok", "provider-receiver-id");
     const msgSignature = signFixture(encrypt, timestamp, nonce);
 
     const response = await app.inject({
