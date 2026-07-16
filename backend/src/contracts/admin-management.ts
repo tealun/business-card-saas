@@ -58,7 +58,7 @@ export const adminSyncEventRetryResponseSchema = z.object({
 
 export const adminSyncEventSummarySchema = z.object({
   id: z.string(),
-  source: z.enum(["command", "data"]),
+  source: z.enum(["command", "data", "sync"]),
   event_key: z.string(),
   event_type: z.string(),
   change_type: z.string().nullable(),

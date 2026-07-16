@@ -10,6 +10,7 @@ import {
   type SyncTenantContactMembersInput
 } from "../wecom/wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
+import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 import { AdminManagementService } from "./admin-management.service.js";
 
@@ -62,16 +63,19 @@ describe("AdminManagementService", () => {
 
   it("retries failed sync events when the admin has admin or higher permission", async () => {
     const dataCallbacks = fakeDataCallbacks();
-    const service = createService(fakeRepository(), dataCallbacks);
+    const authorization = fakeAuthorization();
+    const service = createService(fakeRepository(), dataCallbacks, authorization);
 
     await expect(service.retryFailedSyncEvents(ownerSession())).resolves.toEqual({
-      retried_count: 2,
-      succeeded_count: 1,
+      retried_count: 3,
+      succeeded_count: 2,
       failed_count: 1,
       dead_count: 1
     });
     expect(dataCallbacks.retryCalls).toBe(1);
     expect(dataCallbacks.lastRetry?.tenantId).toBe("tenant-001");
+    expect(authorization.retryCalls).toBe(1);
+    expect(authorization.lastRetry?.tenantId).toBe("tenant-001");
   });
 
   it("updates a member card when the admin has operator or higher permission", async () => {
@@ -130,12 +134,14 @@ describe("AdminManagementService", () => {
 
 function createService(
   repository: AdminManagementRepository = fakeRepository(),
-  dataCallbacks = fakeDataCallbacks()
+  dataCallbacks = fakeDataCallbacks(),
+  authorization = fakeAuthorization()
 ): AdminManagementService {
   return new AdminManagementService(
     repository,
     fakeContactSync(),
-    dataCallbacks as unknown as WecomDataCallbackService
+    dataCallbacks as unknown as WecomDataCallbackService,
+    authorization as unknown as WecomAuthorizationService
   );
 }
 
@@ -256,6 +262,23 @@ function fakeDataCallbacks() {
         succeededCount: 1,
         failedCount: 1,
         deadCount: 1
+      };
+    }
+  };
+}
+
+function fakeAuthorization() {
+  return {
+    retryCalls: 0,
+    lastRetry: null as { tenantId?: string } | null,
+    async retryFailedContactSyncs(input?: { tenantId?: string }) {
+      this.retryCalls += 1;
+      this.lastRetry = input ?? null;
+      return {
+        retriedCount: 1,
+        succeededCount: 1,
+        failedCount: 0,
+        deadCount: 0
       };
     }
   };

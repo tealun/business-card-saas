@@ -33,7 +33,7 @@ interface MemberSummaryRow extends QueryResultRow {
 
 interface SyncEventRow extends QueryResultRow {
   id: string | number | bigint;
-  source: "command" | "data";
+  source: "command" | "data" | "sync";
   event_key: string;
   event_type: string;
   change_type: string | null;

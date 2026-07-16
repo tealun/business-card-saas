@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import { DatabaseService } from "../database/database.service.js";
 
-export type WecomCallbackEventSource = "command" | "data";
+export type WecomCallbackEventSource = "command" | "data" | "sync";
 export type WecomCallbackEventStatus = "received" | "processing" | "done" | "failed" | "dead";
 
 const PROCESSING_STALE_MS = 5 * 60 * 1000;
@@ -266,6 +266,114 @@ export class WecomCallbackEventRepository {
       eventType: row.event_type,
       changeType: row.change_type,
       payloadEncrypted: row.payload_encrypted,
+      retryCount: row.retry_count
+    }));
+  }
+
+  async recordTenantSyncFailure(input: {
+    eventKey: string;
+    tenantId: string;
+    eventType: string;
+    changeType: string | null;
+    error: unknown;
+  }): Promise<void> {
+    const message = errorMessage(input.error);
+    if (!this.hasDatabase()) {
+      const now = new Date();
+      const current = this.memory.get(input.eventKey);
+      this.memory.set(input.eventKey, {
+        source: "sync",
+        tenantId: input.tenantId,
+        eventType: input.eventType,
+        changeType: input.changeType,
+        payloadEncrypted: null,
+        status: "failed",
+        retryCount: current?.retryCount ?? 0,
+        lastError: message,
+        receivedAt: current?.receivedAt ?? now,
+        updatedAt: now,
+        processedAt: null
+      });
+      return;
+    }
+
+    await this.database!.query(
+      `
+        INSERT INTO callback_events (
+          source,
+          event_key,
+          tenant_id,
+          event_type,
+          change_type,
+          payload_encrypted,
+          status,
+          retry_count,
+          last_error,
+          received_at,
+          created_at,
+          updated_at
+        )
+        VALUES ('sync', $1, $2, $3, $4, NULL, 'failed', 0, $5, now(), now(), now())
+        ON CONFLICT (event_key) DO UPDATE SET
+          tenant_id = EXCLUDED.tenant_id,
+          event_type = EXCLUDED.event_type,
+          change_type = EXCLUDED.change_type,
+          status = 'failed',
+          last_error = EXCLUDED.last_error,
+          updated_at = now()
+      `,
+      [input.eventKey, input.tenantId, input.eventType, input.changeType, message]
+    );
+  }
+
+  async listRetryableSyncEvents(
+    maxRetryCount: number,
+    limit = 20,
+    tenantId: string | null = null
+  ): Promise<RetryableWecomCallbackEvent[]> {
+    if (!this.hasDatabase()) {
+      return [...this.memory.entries()]
+        .filter(([, event]) => event.source === "sync")
+        .filter(([, event]) => !tenantId || event.tenantId === tenantId)
+        .filter(([, event]) => event.status === "failed")
+        .filter(([, event]) => event.retryCount < maxRetryCount)
+        .sort((left, right) => left[1].updatedAt.getTime() - right[1].updatedAt.getTime())
+        .slice(0, limit)
+        .map(([eventKey, event]) => ({
+          eventKey,
+          tenantId: event.tenantId,
+          eventType: event.eventType,
+          changeType: event.changeType,
+          payloadEncrypted: "",
+          retryCount: event.retryCount
+        }));
+    }
+
+    const result = await this.database!.query<RetryableCallbackEventRow>(
+      `
+        SELECT
+          event_key,
+          tenant_id,
+          event_type,
+          change_type,
+          '' AS payload_encrypted,
+          retry_count
+        FROM callback_events
+        WHERE source = 'sync'
+          AND status = 'failed'
+          AND retry_count < $1
+          AND ($3::bigint IS NULL OR tenant_id = $3)
+        ORDER BY updated_at ASC, id ASC
+        LIMIT $2
+      `,
+      [maxRetryCount, limit, tenantId]
+    );
+    return result.rows.map((row) => ({
+      eventKey: row.event_key,
+      tenantId: row.tenant_id === null ? null : String(row.tenant_id),
+      eventType: row.event_type,
+      changeType: row.change_type,
+      payloadEncrypted: "",
       retryCount: row.retry_count
     }));
   }

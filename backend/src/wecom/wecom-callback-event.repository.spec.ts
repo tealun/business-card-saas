@@ -81,6 +81,29 @@ describe("WecomCallbackEventRepository", () => {
       }
     ]);
   });
+
+  it("records failed tenant contact sync compensation events for retry", async () => {
+    const repository = new WecomCallbackEventRepository();
+
+    await repository.recordTenantSyncFailure({
+      eventKey: "wecom:sync:tenant-001:create_auth",
+      tenantId: "tenant-001",
+      eventType: "contact_sync",
+      changeType: "create_auth",
+      error: new Error("contact sync unavailable")
+    });
+
+    await expect(repository.listRetryableSyncEvents(5, 20, "tenant-001")).resolves.toEqual([
+      {
+        eventKey: "wecom:sync:tenant-001:create_auth",
+        tenantId: "tenant-001",
+        eventType: "contact_sync",
+        changeType: "create_auth",
+        payloadEncrypted: "",
+        retryCount: 0
+      }
+    ]);
+  });
 });
 
 function eventInput(eventKey: string, tenantId = "tenant-001") {

@@ -7,6 +7,7 @@ import {
   type FetchPermanentCodeResponse
 } from "./wecom-api-client.service.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
+import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.js";
 import { WecomContactSyncService, type SyncTenantContactMembersInput } from "./wecom-contact-sync.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteTokenService, type WecomSuiteAccessTokenResult } from "./wecom-suite-token.service.js";
@@ -80,7 +81,7 @@ describe("WecomAuthorizationService", () => {
   });
 
   it("keeps authorization active when initial contact sync is temporarily unavailable", async () => {
-    const { service, tenants, contactSync } = createService();
+    const { service, tenants, contactSync, events } = createService();
     contactSync.fail = true;
 
     const saved = await service.handleAuthCode("auth-code-001");
@@ -90,6 +91,40 @@ describe("WecomAuthorizationService", () => {
       authStatus: "active"
     });
     expect(contactSync.requests).toEqual([{ tenantId: saved.tenantId, tenantName: "Pilot Corp" }]);
+    expect(events.syncFailures).toEqual([
+      {
+        eventKey: `wecom:sync:${saved.tenantId}:create_auth`,
+        tenantId: saved.tenantId,
+        eventType: "contact_sync",
+        changeType: "create_auth",
+        error: "contact sync unavailable"
+      }
+    ]);
+  });
+
+  it("retries failed authorization contact sync compensation events", async () => {
+    const { service, contactSync, events } = createService();
+    const saved = await service.handleAuthCode("auth-code-001");
+    contactSync.requests = [];
+    events.retryableSyncEvents = [
+      {
+        eventKey: `wecom:sync:${saved.tenantId}:create_auth`,
+        tenantId: saved.tenantId,
+        eventType: "contact_sync",
+        changeType: "create_auth",
+        payloadEncrypted: "",
+        retryCount: 1
+      }
+    ];
+
+    await expect(service.retryFailedContactSyncs({ tenantId: saved.tenantId })).resolves.toEqual({
+      retriedCount: 1,
+      succeededCount: 1,
+      failedCount: 0,
+      deadCount: 0
+    });
+    expect(contactSync.requests).toEqual([{ tenantId: saved.tenantId, tenantName: "Pilot Corp" }]);
+    expect(events.doneKeys).toEqual([`wecom:sync:${saved.tenantId}:create_auth`]);
   });
 
   it("cancels authorization and removes reusable credentials", async () => {
@@ -165,15 +200,65 @@ class FakeContactSyncService {
   }
 }
 
+class FakeCallbackEventRepository {
+  syncFailures: Array<{
+    eventKey: string;
+    tenantId: string;
+    eventType: string;
+    changeType: string | null;
+    error: string;
+  }> = [];
+  retryableSyncEvents: Array<{
+    eventKey: string;
+    tenantId: string | null;
+    eventType: string;
+    changeType: string | null;
+    payloadEncrypted: string;
+    retryCount: number;
+  }> = [];
+  doneKeys: string[] = [];
+  failedKeys: string[] = [];
+
+  async recordTenantSyncFailure(input: {
+    eventKey: string;
+    tenantId: string;
+    eventType: string;
+    changeType: string | null;
+    error: unknown;
+  }): Promise<void> {
+    this.syncFailures.push({
+      eventKey: input.eventKey,
+      tenantId: input.tenantId,
+      eventType: input.eventType,
+      changeType: input.changeType,
+      error: input.error instanceof Error ? input.error.message : String(input.error)
+    });
+  }
+
+  async listRetryableSyncEvents(): Promise<typeof this.retryableSyncEvents> {
+    return this.retryableSyncEvents;
+  }
+
+  async markDone(eventKey: string): Promise<void> {
+    this.doneKeys.push(eventKey);
+  }
+
+  async markFailed(eventKey: string): Promise<void> {
+    this.failedKeys.push(eventKey);
+  }
+}
+
 function createService() {
   const api = new FakeWecomApiClient();
   const tenants = new WecomTenantAuthRepository(new DatabaseService(), new WecomStateCipherService());
   const contactSync = new FakeContactSyncService();
+  const events = new FakeCallbackEventRepository();
   const service = new WecomAuthorizationService(
     new FakeSuiteTokenService() as unknown as WecomSuiteTokenService,
     api as unknown as WecomApiClientService,
     tenants,
-    contactSync as unknown as WecomContactSyncService
+    contactSync as unknown as WecomContactSyncService,
+    events as unknown as WecomCallbackEventRepository
   );
-  return { service, api, tenants, contactSync };
+  return { service, api, tenants, contactSync, events };
 }

@@ -19,6 +19,7 @@ import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
+import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 
 @Injectable()
@@ -26,7 +27,8 @@ export class AdminManagementService {
   constructor(
     private readonly repository: AdminManagementRepository,
     private readonly contactSync: WecomContactSyncService,
-    private readonly dataCallbacks: WecomDataCallbackService
+    private readonly dataCallbacks: WecomDataCallbackService,
+    private readonly authorization: WecomAuthorizationService
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
@@ -60,12 +62,13 @@ export class AdminManagementService {
 
   async retryFailedSyncEvents(session: AdminSession): Promise<AdminSyncEventRetryResponse> {
     requireAdminRole(session.role, "admin");
-    const result = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
+    const dataResult = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
+    const syncResult = await this.authorization.retryFailedContactSyncs({ tenantId: session.tenantId });
     return adminSyncEventRetryResponseSchema.parse({
-      retried_count: result.retriedCount,
-      succeeded_count: result.succeededCount,
-      failed_count: result.failedCount,
-      dead_count: result.deadCount
+      retried_count: dataResult.retriedCount + syncResult.retriedCount,
+      succeeded_count: dataResult.succeededCount + syncResult.succeededCount,
+      failed_count: dataResult.failedCount + syncResult.failedCount,
+      dead_count: dataResult.deadCount + syncResult.deadCount
     });
   }
 
