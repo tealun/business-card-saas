@@ -18,3 +18,9 @@ miniprogram/project.private.config.json
 
 # Local Agent customizations (not committed)
 .github/agents/*.agent.md
+
+# Real operator identity (company/address/phone/email) for legal docs and the
+# WeCom launch checklist — never commit real values, only *.local.* overrides
+docs/04-launch/*.local.md
+docs/03-compliance/*.local.md
+miniprogram/pages/legal/index.local.js
