@@ -7,6 +7,7 @@ import {
   type FetchPermanentCodeResponse
 } from "./wecom-api-client.service.js";
 import { WecomAuthorizationService } from "./wecom-authorization.service.js";
+import { WecomContactSyncService, type SyncTenantContactMembersInput } from "./wecom-contact-sync.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteTokenService, type WecomSuiteAccessTokenResult } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
@@ -25,7 +26,7 @@ describe("WecomAuthorizationService", () => {
   });
 
   it("exchanges auth_code and upserts an active tenant authorization", async () => {
-    const { service, api, tenants } = createService();
+    const { service, api, tenants, contactSync } = createService();
 
     const saved = await service.handleAuthCode(" auth-code-001 ", new Date("2026-07-06T10:00:00.000Z"));
 
@@ -38,10 +39,11 @@ describe("WecomAuthorizationService", () => {
     const stored = await tenants.getByOpenCorpid("corp-001");
     expect(stored?.permanentCode).toBe("perm-001");
     expect(stored?.authStatus).toBe("active");
+    expect(contactSync.requests).toEqual([{ tenantId: saved.tenantId, tenantName: "Pilot Corp" }]);
   });
 
   it("updates an existing tenant authorization for the same corp", async () => {
-    const { service, api, tenants } = createService();
+    const { service, api, tenants, contactSync } = createService();
     await service.handleAuthCode("auth-code-001");
     api.nextResponse = {
       openCorpid: "corp-001",
@@ -58,10 +60,11 @@ describe("WecomAuthorizationService", () => {
     expect(stored?.corpName).toBe("Pilot Corp Renamed");
     expect(stored?.permanentCode).toBe("perm-002");
     expect(stored?.agentId).toBe("100002");
+    expect(contactSync.requests.at(-1)).toEqual({ tenantId: updated.tenantId, tenantName: "Pilot Corp Renamed" });
   });
 
   it("refreshes changed authorization scope without exchanging a new auth code", async () => {
-    const { service, api, tenants } = createService();
+    const { service, api, tenants, contactSync } = createService();
     await service.handleAuthCode("auth-code-001");
 
     const refreshed = await service.refreshAuthorization(" corp-001 ", new Date("2026-07-07T10:00:00.000Z"));
@@ -73,6 +76,20 @@ describe("WecomAuthorizationService", () => {
     });
     expect(refreshed.permanentCode).toBe("perm-001");
     expect(refreshed.corpName).toBe("Pilot Corp Changed");
+    expect(contactSync.requests.at(-1)).toEqual({ tenantId: refreshed.tenantId, tenantName: "Pilot Corp Changed" });
+  });
+
+  it("keeps authorization active when initial contact sync is temporarily unavailable", async () => {
+    const { service, tenants, contactSync } = createService();
+    contactSync.fail = true;
+
+    const saved = await service.handleAuthCode("auth-code-001");
+
+    await expect(tenants.getByOpenCorpid("corp-001")).resolves.toMatchObject({
+      tenantId: saved.tenantId,
+      authStatus: "active"
+    });
+    expect(contactSync.requests).toEqual([{ tenantId: saved.tenantId, tenantName: "Pilot Corp" }]);
   });
 
   it("cancels authorization and removes reusable credentials", async () => {
@@ -136,13 +153,27 @@ class FakeWecomApiClient {
   }
 }
 
+class FakeContactSyncService {
+  requests: SyncTenantContactMembersInput[] = [];
+  fail = false;
+
+  async syncTenantMembers(input: SyncTenantContactMembersInput): Promise<void> {
+    this.requests.push(input);
+    if (this.fail) {
+      throw new Error("contact sync unavailable");
+    }
+  }
+}
+
 function createService() {
   const api = new FakeWecomApiClient();
   const tenants = new WecomTenantAuthRepository(new DatabaseService(), new WecomStateCipherService());
+  const contactSync = new FakeContactSyncService();
   const service = new WecomAuthorizationService(
     new FakeSuiteTokenService() as unknown as WecomSuiteTokenService,
     api as unknown as WecomApiClientService,
-    tenants
+    tenants,
+    contactSync as unknown as WecomContactSyncService
   );
-  return { service, api, tenants };
+  return { service, api, tenants, contactSync };
 }
