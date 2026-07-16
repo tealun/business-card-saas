@@ -286,6 +286,7 @@ function refreshPermissionControls() {
   applyPermissionState("#createTemplate", "tenant.template.write");
   applyPermissionState("#updateTemplate", "tenant.template.write");
   applyPermissionState("#setDefaultTemplate", "tenant.template.write");
+  applyPermissionState("#saveWecomSettings", "tenant.member.sync");
   applyPermissionState("#retrySyncEvents", "tenant.sync.retry");
   applyPermissionState("#saveVideoFeatures", "platform.feature.write");
   applyPermissionState("#createQuotaAdjustment", "platform.commercial.write");
