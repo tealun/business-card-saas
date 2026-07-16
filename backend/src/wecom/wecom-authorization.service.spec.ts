@@ -12,6 +12,7 @@ import { WecomContactSyncService, type SyncTenantContactMembersInput } from "./w
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteTokenService, type WecomSuiteAccessTokenResult } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
+import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 describe("WecomAuthorizationService", () => {
   const originalDatabaseUrl = process.env.DATABASE_URL;
@@ -253,12 +254,14 @@ function createService() {
   const tenants = new WecomTenantAuthRepository(new DatabaseService(), new WecomStateCipherService());
   const contactSync = new FakeContactSyncService();
   const events = new FakeCallbackEventRepository();
+  const settings = new WecomTenantSettingsRepository();
   const service = new WecomAuthorizationService(
     new FakeSuiteTokenService() as unknown as WecomSuiteTokenService,
     api as unknown as WecomApiClientService,
     tenants,
     contactSync as unknown as WecomContactSyncService,
-    events as unknown as WecomCallbackEventRepository
+    events as unknown as WecomCallbackEventRepository,
+    settings
   );
-  return { service, api, tenants, contactSync, events };
+  return { service, api, tenants, contactSync, events, settings };
 }

@@ -319,6 +319,74 @@ describe("EmployeeCardRepository", () => {
     }
   });
 
+  it("rejects enterprise privacy changes disabled by WeCom tenant settings", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://test";
+    const fakeTx = {
+      query: async (text: string) => {
+        if (text.includes("member_identities.id AS member_id")) {
+          return {
+            rows: [
+              {
+                member_id: "member-001",
+                member_name: "Ada",
+                member_status: "active",
+                card_id: "card-001",
+                public_id: "pub_001",
+                display_name: "Ada",
+                title: "Sales",
+                avatar_url: null,
+                fields_encrypted: null,
+                privacy_json: { show_mobile: false, show_email: true, show_wechat: false, allow_forward: true },
+                card_status: "active"
+              }
+            ]
+          };
+        }
+        if (text.includes("tenant_field_settings")) {
+          return { rows: [] };
+        }
+        if (text.includes("tenant_wecom_settings")) {
+          return {
+            rows: [
+              {
+                allow_employee_privacy_edit: false,
+                allow_employee_share_edit: false,
+                allow_employee_wecom_qrcode_upload: true,
+                qrcode_source: "enterprise_first"
+              }
+            ]
+          };
+        }
+        return { rows: [] };
+      }
+    };
+    const tenantTx = {
+      run: async (_tenantId: string, callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx)
+    };
+    try {
+      const repository = new EmployeeCardRepository(tenantTx as never);
+      await expect(
+        repository.updateCurrentCard(
+          {
+            accountId: "acct-001",
+            identityType: "wecom_member",
+            tenantId: "tenant-001",
+            memberIdentityId: "member-001",
+            openUserid: "ou-001"
+          },
+          { privacy: { show_mobile: true, allow_forward: false } }
+        )
+      ).rejects.toThrow("privacy setting not employee editable: show_mobile, allow_forward");
+    } finally {
+      if (originalDatabaseUrl) {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      } else {
+        delete process.env.DATABASE_URL;
+      }
+    }
+  });
+
   it("aggregates per-identity visit stats through the tenant transaction", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = "postgres://test";

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { employeeCardResponseSchema, updateEmployeeCardRequestSchema } from "./employee-card.js";
+import { updateWecomTenantSettingsRequestSchema, wecomTenantSettingsSchema } from "./wecom-tenant-settings.js";
 
 export const adminOverviewResponseSchema = z.object({
   tenant_id: z.string(),
@@ -74,6 +75,9 @@ export const adminSyncEventListResponseSchema = z.object({
   total: z.number().int().min(0)
 });
 
+export const adminWecomSettingsResponseSchema = wecomTenantSettingsSchema;
+export const updateAdminWecomSettingsRequestSchema = updateWecomTenantSettingsRequestSchema;
+
 export type AdminOverviewResponse = z.infer<typeof adminOverviewResponseSchema>;
 export type AdminMemberSummary = z.infer<typeof adminMemberSummarySchema>;
 export type AdminMemberListResponse = z.infer<typeof adminMemberListResponseSchema>;
@@ -84,3 +88,5 @@ export type AdminMemberSyncResponse = z.infer<typeof adminMemberSyncResponseSche
 export type AdminSyncEventRetryResponse = z.infer<typeof adminSyncEventRetryResponseSchema>;
 export type AdminSyncEventSummary = z.infer<typeof adminSyncEventSummarySchema>;
 export type AdminSyncEventListResponse = z.infer<typeof adminSyncEventListResponseSchema>;
+export type AdminWecomSettingsResponse = z.infer<typeof adminWecomSettingsResponseSchema>;
+export type UpdateAdminWecomSettingsRequest = z.infer<typeof updateAdminWecomSettingsRequestSchema>;

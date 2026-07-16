@@ -46,6 +46,11 @@ DROP POLICY IF EXISTS tenant_isolation_tenant_field_settings ON tenant_field_set
 CREATE POLICY tenant_isolation_tenant_field_settings ON tenant_field_settings
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+ALTER TABLE tenant_wecom_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_tenant_wecom_settings ON tenant_wecom_settings;
+CREATE POLICY tenant_isolation_tenant_wecom_settings ON tenant_wecom_settings
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
 ALTER TABLE company_profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_company_profiles ON company_profiles;
 CREATE POLICY tenant_isolation_company_profiles ON company_profiles

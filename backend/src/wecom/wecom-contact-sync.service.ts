@@ -3,6 +3,7 @@ import { WecomApiClientService, type WecomContactUserIdentity } from "./wecom-ap
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
+import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 export interface SyncTenantContactMembersInput {
   tenantId: string;
@@ -25,7 +26,8 @@ export class WecomContactSyncService {
     private readonly tenants: WecomTenantAuthRepository,
     private readonly corpTokens: WecomCorpTokenService,
     private readonly api: WecomApiClientService,
-    private readonly repository: WecomContactSyncRepository
+    private readonly repository: WecomContactSyncRepository,
+    private readonly settings: WecomTenantSettingsRepository
   ) {}
 
   async syncTenantMembers(input: SyncTenantContactMembersInput): Promise<SyncTenantContactMembersResult> {
@@ -35,10 +37,12 @@ export class WecomContactSyncService {
     }
 
     const corpToken = await this.corpTokens.getCorpAccessToken(authorization.openCorpid);
+    const settings = await this.settings.get(input.tenantId);
     const users = await this.fetchAllContactUsers(corpToken.accessToken);
     const result = await this.repository.upsertMembers({
       tenantId: input.tenantId,
       tenantName: input.tenantName,
+      createCards: settings.auto_create_cards,
       users: users.map((user) => ({
         userid: user.userid,
         openUserid: user.openUserid,
@@ -48,11 +52,13 @@ export class WecomContactSyncService {
       }))
     });
 
-    const disabledCount = await this.repository.disableStaleMembers({
-      tenantId: input.tenantId,
-      activeOpenUserids: users.map((user) => user.openUserid).filter(Boolean) as string[],
-      activeUserids: users.map((user) => user.userid).filter(Boolean) as string[]
-    });
+    const disabledCount = settings.auto_disable_left_members
+      ? await this.repository.disableStaleMembers({
+          tenantId: input.tenantId,
+          activeOpenUserids: users.map((user) => user.openUserid).filter(Boolean) as string[],
+          activeUserids: users.map((user) => user.userid).filter(Boolean) as string[]
+        })
+      : 0;
 
     return {
       tenantId: input.tenantId,

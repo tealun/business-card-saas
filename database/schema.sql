@@ -279,6 +279,25 @@ CREATE TABLE "tenant_field_settings" (
     CONSTRAINT "tenant_field_settings_pkey" PRIMARY KEY ("tenant_id")
 );
 
+-- Tenant-controlled WeCom behavior policy. Defaults preserve current behavior
+-- while allowing admins to tighten employee self-service.
+CREATE TABLE "tenant_wecom_settings" (
+    "tenant_id" BIGINT NOT NULL,
+    "auto_sync_on_auth" BOOLEAN NOT NULL DEFAULT true,
+    "auto_create_cards" BOOLEAN NOT NULL DEFAULT true,
+    "auto_disable_left_members" BOOLEAN NOT NULL DEFAULT true,
+    "allow_employee_privacy_edit" BOOLEAN NOT NULL DEFAULT true,
+    "allow_employee_share_edit" BOOLEAN NOT NULL DEFAULT true,
+    "allow_employee_wecom_qrcode_upload" BOOLEAN NOT NULL DEFAULT true,
+    "qrcode_source" TEXT NOT NULL DEFAULT 'enterprise_first',
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    CONSTRAINT "tenant_wecom_settings_pkey" PRIMARY KEY ("tenant_id"),
+    CONSTRAINT "tenant_wecom_settings_qrcode_source_check"
+      CHECK ("qrcode_source" IN ('enterprise_first', 'employee_upload_only', 'enterprise_only'))
+);
+
 -- CreateTable
 CREATE TABLE "company_profiles" (
     "id" BIGSERIAL NOT NULL,
@@ -671,6 +690,8 @@ ALTER TABLE "admin_claim_tokens" ADD CONSTRAINT "admin_claim_tokens_tenant_id_fk
 
 -- AddForeignKey
 ALTER TABLE "tenant_field_settings" ADD CONSTRAINT "tenant_field_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "tenant_wecom_settings" ADD CONSTRAINT "tenant_wecom_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "company_profiles" ADD CONSTRAINT "company_profiles_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

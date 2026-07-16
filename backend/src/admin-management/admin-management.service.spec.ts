@@ -11,6 +11,7 @@ import {
 } from "../wecom/wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
 import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
+import { WecomTenantSettingsRepository } from "../wecom/wecom-tenant-settings.repository.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
 import { AdminManagementService } from "./admin-management.service.js";
 
@@ -141,7 +142,8 @@ function createService(
     repository,
     fakeContactSync(),
     dataCallbacks as unknown as WecomDataCallbackService,
-    authorization as unknown as WecomAuthorizationService
+    authorization as unknown as WecomAuthorizationService,
+    new WecomTenantSettingsRepository()
   );
 }
 

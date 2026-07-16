@@ -15,9 +15,16 @@ import { demoEmployeeCard } from "../fixtures/demo-cards.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
 import { StorageService } from "../storage/storage.service.js";
+import type { WecomQrCodeSource } from "../contracts/wecom-tenant-settings.js";
 
 type CardFields = EmployeeCardResponse["fields"];
 type CardPrivacy = EmployeeCardResponse["privacy"];
+interface EmployeeWecomSettings {
+  allowEmployeePrivacyEdit: boolean;
+  allowEmployeeShareEdit: boolean;
+  allowEmployeeWecomQrCodeUpload: boolean;
+  qrcodeSource: WecomQrCodeSource;
+}
 type EditableFieldKey =
   | "avatar_url"
   | "display_name"
@@ -188,8 +195,10 @@ export class EmployeeCardRepository {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
         const current = await this.ensureCurrentCardInDb(tx, session);
         const allowedFields = await this.editableFields(tx, session);
+        const wecomSettings = await this.employeeWecomSettings(tx, session);
         assertCanUpdate(request, allowedFields);
-        const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields);
+        assertCanUpdatePrivacy(request, wecomSettings);
+        const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields, wecomSettings);
         const encryptedFields = this.encryptJson(next.fields);
         await tx.query(
           `
@@ -237,8 +246,10 @@ export class EmployeeCardRepository {
     const key = this.cardKey(session);
     const current = this.ensureCurrentCardInMemory(session);
     const allowedFields = defaultEditableFields();
+    const wecomSettings = defaultEmployeeWecomSettings();
     assertCanUpdate(request, allowedFields);
-    const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields);
+    assertCanUpdatePrivacy(request, wecomSettings);
+    const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields, wecomSettings);
     this.cards.set(key, next);
     return this.cloneCard(next);
   }
@@ -306,11 +317,12 @@ export class EmployeeCardRepository {
 
   async getWechatQrCode(session: EmployeeSession): Promise<EmployeeWechatQrCodeResponse> {
     const card = await this.getCurrentCard(session);
-    const qrUrl = this.wechatQrCodeUrl(session, card);
+    const settings = await this.readEmployeeWecomSettings(session);
+    const qrUrl = this.wechatQrCodeUrl(session, card, settings);
     if (qrUrl) {
       return {
         qr_url: qrUrl,
-        source: session.identityType === "personal" ? "personal_upload" : "enterprise_cache",
+        source: this.wechatQrCodeSource(session, card, qrUrl, settings),
         cached: true
       };
     }
@@ -322,13 +334,17 @@ export class EmployeeCardRepository {
   }
 
   async updateWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<EmployeeWechatQrCodeResponse> {
+    const settings = await this.readEmployeeWecomSettings(session);
+    if (session.identityType !== "personal" && !settings.allowEmployeeWecomQrCodeUpload) {
+      throw new ForbiddenException("employee WeCom QR-code upload is disabled by tenant settings");
+    }
     const materializedUrl = await this.materializeWechatQrCode(session, qrcodeUrl);
     const card = await this.getCurrentCard(session);
     const fields: CardFields = {
       ...card.fields,
       ...(session.identityType === "personal"
         ? { wechat_qrcode_url: materializedUrl, wecom_qrcode_url: card.fields.wecom_qrcode_url ?? null }
-        : { wecom_qrcode_url: materializedUrl, wechat_qrcode_url: card.fields.wechat_qrcode_url ?? null })
+        : { wechat_qrcode_url: materializedUrl, wecom_qrcode_url: card.fields.wecom_qrcode_url ?? null })
     };
 
     if (this.hasDatabase()) {
@@ -356,9 +372,7 @@ export class EmployeeCardRepository {
     return {
       qr_url: materializedUrl,
       source: materializedUrl
-        ? session.identityType === "personal"
-          ? "personal_upload"
-          : "enterprise_cache"
+        ? "personal_upload"
         : "not_configured",
       cached: Boolean(materializedUrl)
     };
@@ -369,6 +383,7 @@ export class EmployeeCardRepository {
     profile: { avatarUrl: string | null; qrCodeUrl: string | null }
   ): Promise<EmployeeCardResponse> {
     const card = await this.getCurrentCard(session);
+    const settings = await this.readEmployeeWecomSettings(session);
     const avatarUrl = profile.avatarUrl && this.storage
       ? (await this.storage.storeTrustedRemoteImage({ tenantId: session.tenantId, category: "avatars", url: profile.avatarUrl })).publicUrl
       : profile.avatarUrl;
@@ -380,7 +395,7 @@ export class EmployeeCardRepository {
       avatar_url: avatarUrl ?? card.avatar_url,
       fields: {
         ...card.fields,
-        wecom_qrcode_url: qrCodeUrl ?? card.fields.wecom_qrcode_url ?? null
+        wecom_qrcode_url: settings.qrcodeSource === "employee_upload_only" ? card.fields.wecom_qrcode_url ?? null : qrCodeUrl ?? card.fields.wecom_qrcode_url ?? null
       }
     };
     if (this.hasDatabase()) {
@@ -818,6 +833,49 @@ export class EmployeeCardRepository {
     return parseEditableFields(result.rows[0]?.fields_json);
   }
 
+  private async readEmployeeWecomSettings(session: EmployeeSession): Promise<EmployeeWecomSettings> {
+    if (session.identityType === "personal" || !this.hasDatabase()) {
+      return defaultEmployeeWecomSettings();
+    }
+    return this.tenantTx!.run(session.tenantId, (tx) => this.employeeWecomSettings(tx, session));
+  }
+
+  private async employeeWecomSettings(
+    tx: TenantTransactionClient,
+    session: EmployeeSession
+  ): Promise<EmployeeWecomSettings> {
+    if (session.identityType === "personal") {
+      return defaultEmployeeWecomSettings();
+    }
+    const result = await tx.query<{
+      allow_employee_privacy_edit: boolean;
+      allow_employee_share_edit: boolean;
+      allow_employee_wecom_qrcode_upload: boolean;
+      qrcode_source: WecomQrCodeSource;
+    }>(
+      `
+        SELECT
+          allow_employee_privacy_edit,
+          allow_employee_share_edit,
+          allow_employee_wecom_qrcode_upload,
+          qrcode_source
+        FROM tenant_wecom_settings
+        WHERE tenant_id = $1
+      `,
+      [session.tenantId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return defaultEmployeeWecomSettings();
+    }
+    return {
+      allowEmployeePrivacyEdit: row.allow_employee_privacy_edit,
+      allowEmployeeShareEdit: row.allow_employee_share_edit,
+      allowEmployeeWecomQrCodeUpload: row.allow_employee_wecom_qrcode_upload,
+      qrcodeSource: row.qrcode_source
+    };
+  }
+
   private async materializeStorageFields(
     session: EmployeeSession,
     request: UpdateEmployeeCardRequest
@@ -867,11 +925,39 @@ export class EmployeeCardRepository {
     return stored.publicUrl;
   }
 
-  private wechatQrCodeUrl(session: EmployeeSession, card: EmployeeCardResponse): string | null {
+  private wechatQrCodeUrl(
+    session: EmployeeSession,
+    card: EmployeeCardResponse,
+    settings = defaultEmployeeWecomSettings()
+  ): string | null {
     if (session.identityType === "personal") {
       return card.fields.wechat_qrcode_url ?? null;
     }
+    if (settings.qrcodeSource === "enterprise_only") {
+      return card.fields.wecom_qrcode_url ?? null;
+    }
+    if (settings.qrcodeSource === "employee_upload_only") {
+      return card.fields.wechat_qrcode_url ?? null;
+    }
     return card.fields.wecom_qrcode_url ?? card.fields.wechat_qrcode_url ?? null;
+  }
+
+  private wechatQrCodeSource(
+    session: EmployeeSession,
+    card: EmployeeCardResponse,
+    qrUrl: string,
+    settings = defaultEmployeeWecomSettings()
+  ): "personal_upload" | "enterprise_cache" {
+    if (session.identityType === "personal") {
+      return "personal_upload";
+    }
+    if (settings.qrcodeSource === "employee_upload_only") {
+      return "personal_upload";
+    }
+    if (settings.qrcodeSource === "enterprise_only") {
+      return "enterprise_cache";
+    }
+    return qrUrl === card.fields.wecom_qrcode_url ? "enterprise_cache" : "personal_upload";
   }
 
   private async materializeStyleStorageFields(
@@ -905,7 +991,8 @@ export class EmployeeCardRepository {
 function mergeCard(
   current: EmployeeCardResponse,
   request: UpdateEmployeeCardRequest,
-  allowedFields: readonly EditableFieldKey[]
+  allowedFields: readonly EditableFieldKey[],
+  wecomSettings = defaultEmployeeWecomSettings()
 ): EmployeeCardResponse {
   const next: EmployeeCardResponse = {
     ...current,
@@ -957,23 +1044,23 @@ function mergeCard(
   if (allowedFields.includes("website") && request.fields?.website !== undefined) {
     next.fields.website = request.fields.website;
   }
-  if (request.privacy?.show_mobile !== undefined) {
+  if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_mobile !== undefined) {
     next.privacy.show_mobile = request.privacy.show_mobile;
   }
-  if (request.privacy?.show_email !== undefined) {
+  if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_email !== undefined) {
     next.privacy.show_email = request.privacy.show_email;
   }
-  if (request.privacy?.show_wechat !== undefined) {
+  if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_wechat !== undefined) {
     next.privacy.show_wechat = request.privacy.show_wechat;
   }
-  if (request.privacy?.allow_forward !== undefined) {
+  if (wecomSettings.allowEmployeeShareEdit && request.privacy?.allow_forward !== undefined) {
     next.privacy.allow_forward = request.privacy.allow_forward;
   }
 
-  if (request.privacy?.show_avatar !== undefined) {
+  if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_avatar !== undefined) {
     next.privacy.show_avatar = request.privacy.show_avatar;
   }
-  if (request.privacy?.share_title !== undefined) {
+  if (wecomSettings.allowEmployeeShareEdit && request.privacy?.share_title !== undefined) {
     next.privacy.share_title = request.privacy.share_title;
   }
   return next;
@@ -1057,6 +1144,15 @@ function defaultEditableFields(): EditableFieldKey[] {
   return ["avatar_url", "display_name", "title", "company", "company_short_name", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
 }
 
+function defaultEmployeeWecomSettings(): EmployeeWecomSettings {
+  return {
+    allowEmployeePrivacyEdit: true,
+    allowEmployeeShareEdit: true,
+    allowEmployeeWecomQrCodeUpload: true,
+    qrcodeSource: "enterprise_first"
+  };
+}
+
 function parseEditableFields(value: unknown): EditableFieldKey[] {
   const rules = parseJsonValue(value);
   if (!Array.isArray(rules)) {
@@ -1076,6 +1172,27 @@ function assertCanUpdate(request: UpdateEmployeeCardRequest, allowedFields: read
   const denied = requested.filter((field) => !allowedFields.includes(field));
   if (denied.length) {
     throw new ForbiddenException(`field not employee editable: ${denied.join(", ")}`);
+  }
+}
+
+function assertCanUpdatePrivacy(request: UpdateEmployeeCardRequest, settings: EmployeeWecomSettings): void {
+  const privacy = request.privacy;
+  if (!privacy) {
+    return;
+  }
+  const denied: string[] = [];
+  if (!settings.allowEmployeePrivacyEdit) {
+    if (privacy.show_mobile !== undefined) denied.push("show_mobile");
+    if (privacy.show_email !== undefined) denied.push("show_email");
+    if (privacy.show_wechat !== undefined) denied.push("show_wechat");
+    if (privacy.show_avatar !== undefined) denied.push("show_avatar");
+  }
+  if (!settings.allowEmployeeShareEdit) {
+    if (privacy.allow_forward !== undefined) denied.push("allow_forward");
+    if (privacy.share_title !== undefined) denied.push("share_title");
+  }
+  if (denied.length) {
+    throw new ForbiddenException(`privacy setting not employee editable: ${denied.join(", ")}`);
   }
 }
 

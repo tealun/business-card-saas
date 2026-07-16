@@ -14,6 +14,7 @@ export interface SyncWecomContactUser {
 export interface SyncWecomContactMembersInput {
   tenantId: string;
   tenantName: string;
+  createCards?: boolean;
   users: SyncWecomContactUser[];
 }
 
@@ -69,13 +70,15 @@ export class WecomContactSyncRepository {
     await this.tenantTx!.run(input.tenantId, async (tx) => {
       for (const user of normalized) {
         const member = await this.upsertMember(tx, input.tenantId, user);
-        await this.ensureDefaultCard(tx, {
-          tenantId: input.tenantId,
-          tenantName: input.tenantName,
-          memberIdentityId: String(member.id),
-          displayName: member.name,
-          status: user.status
-        });
+        if (input.createCards !== false) {
+          await this.ensureDefaultCard(tx, {
+            tenantId: input.tenantId,
+            tenantName: input.tenantName,
+            memberIdentityId: String(member.id),
+            displayName: member.name,
+            status: user.status
+          });
+        }
       }
     });
     return { syncedCount: normalized.length, skippedCount };

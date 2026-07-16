@@ -2,7 +2,11 @@ import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
-import { adminMemberListQuerySchema, updateAdminMemberCardRequestSchema } from "../contracts/admin-management.js";
+import {
+  adminMemberListQuerySchema,
+  updateAdminMemberCardRequestSchema,
+  updateAdminWecomSettingsRequestSchema
+} from "../contracts/admin-management.js";
 import { AdminManagementService } from "./admin-management.service.js";
 
 @Controller("admin")
@@ -35,6 +39,20 @@ export class AdminManagementController {
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   retrySyncEvents(@Req() request: AdminRequest) {
     return this.management.retryFailedSyncEvents(requireAdminSession(request));
+  }
+
+  @Get("wecom/settings")
+  wecomSettings(@Req() request: AdminRequest) {
+    return this.management.getWecomSettings(requireAdminSession(request));
+  }
+
+  @Put("wecom/settings")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  updateWecomSettings(@Req() request: AdminRequest, @Body() body: unknown) {
+    return this.management.updateWecomSettings(
+      requireAdminSession(request),
+      updateAdminWecomSettingsRequestSchema.parse(body)
+    );
   }
 
   @Get("members/:memberIdentityId/card")

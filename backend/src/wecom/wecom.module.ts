@@ -21,6 +21,7 @@ import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
+import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 @Module({
   controllers: [
@@ -47,7 +48,8 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomStateCipherService,
     WecomSuiteStateRepository,
     WecomSuiteTokenService,
-    WecomTenantAuthRepository
+    WecomTenantAuthRepository,
+    WecomTenantSettingsRepository
   ],
   exports: [
     WecomApiClientService,
@@ -64,7 +66,8 @@ import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
     WecomStateCipherService,
     WecomSuiteStateRepository,
     WecomSuiteTokenService,
-    WecomTenantAuthRepository
+    WecomTenantAuthRepository,
+    WecomTenantSettingsRepository
   ]
 })
 export class WecomModule {}

@@ -13,6 +13,7 @@ import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
 import type { WecomCorpAccessTokenResult } from "./wecom-corp-token.service.js";
 import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./wecom-tenant-auth.repository.js";
+import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 describe("WecomContactSyncService", () => {
   it("fetches contact users across pages and upserts active members", async () => {
@@ -48,6 +49,28 @@ describe("WecomContactSyncService", () => {
     await expect(service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" })).rejects.toThrow(
       ServiceUnavailableException
     );
+  });
+
+  it("applies tenant sync settings for card creation and stale member disabling", async () => {
+    const { service, api, repository, settings } = createService();
+    settings.settings = {
+      tenant_id: "tenant-001",
+      auto_sync_on_auth: true,
+      auto_create_cards: false,
+      auto_disable_left_members: false,
+      allow_employee_privacy_edit: true,
+      allow_employee_share_edit: true,
+      allow_employee_wecom_qrcode_upload: true,
+      qrcode_source: "enterprise_first",
+      updated_at: null
+    };
+    api.pages = [{ users: [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }], nextCursor: null }];
+
+    const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
+
+    expect(result.disabledCount).toBe(0);
+    expect(repository.lastInput?.createCards).toBe(false);
+    expect(repository.lastStaleInput).toBeNull();
   });
 });
 
@@ -105,16 +128,36 @@ class FakeContactSyncRepository {
   }
 }
 
+class FakeTenantSettingsRepository {
+  settings = {
+    tenant_id: "tenant-001",
+    auto_sync_on_auth: true,
+    auto_create_cards: true,
+    auto_disable_left_members: true,
+    allow_employee_privacy_edit: true,
+    allow_employee_share_edit: true,
+    allow_employee_wecom_qrcode_upload: true,
+    qrcode_source: "enterprise_first" as const,
+    updated_at: null
+  };
+
+  async get() {
+    return this.settings;
+  }
+}
+
 function createService() {
   const tenants = new FakeTenantAuthRepository();
   const corpTokens = new FakeCorpTokenService();
   const api = new FakeWecomApiClient();
   const repository = new FakeContactSyncRepository();
+  const settings = new FakeTenantSettingsRepository();
   const service = new WecomContactSyncService(
     tenants as unknown as WecomTenantAuthRepository,
     corpTokens as unknown as WecomCorpTokenService,
     api as unknown as WecomApiClientService,
-    repository as unknown as WecomContactSyncRepository
+    repository as unknown as WecomContactSyncRepository,
+    settings as unknown as WecomTenantSettingsRepository
   );
-  return { service, tenants, api, repository };
+  return { service, tenants, api, repository, settings };
 }

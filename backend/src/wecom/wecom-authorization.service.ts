@@ -5,6 +5,7 @@ import { WecomCallbackEventRepository } from "./wecom-callback-event.repository.
 import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import { TenantAuthorizationSnapshot, WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
+import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 export interface WecomAuthorizationSyncRetryResult {
   retriedCount: number;
@@ -24,7 +25,8 @@ export class WecomAuthorizationService {
     private readonly api: WecomApiClientService,
     private readonly tenants: WecomTenantAuthRepository,
     private readonly contactSync: WecomContactSyncService,
-    private readonly events: WecomCallbackEventRepository
+    private readonly events: WecomCallbackEventRepository,
+    private readonly settings: WecomTenantSettingsRepository
   ) {}
 
   async handleAuthCode(authCode: string, authorizedAt = new Date()): Promise<TenantAuthorizationSnapshot> {
@@ -156,6 +158,10 @@ export class WecomAuthorizationService {
     source: "create_auth" | "change_auth"
   ): Promise<void> {
     try {
+      const settings = await this.settings.get(authorization.tenantId);
+      if (!settings.auto_sync_on_auth) {
+        return;
+      }
       await this.contactSync.syncTenantMembers({
         tenantId: authorization.tenantId,
         tenantName: authorization.corpName

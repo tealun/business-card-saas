@@ -66,6 +66,7 @@ const state = {
   videoCapability: null,
   fieldSettings: [],
   templates: [],
+  wecomSettings: null,
   selectedTemplateId: "",
   tenantFeatures: [],
   tenantAuthorizations: { items: [], total: 0, page: 1, pageSize: 20 }
@@ -333,7 +334,7 @@ function loadCurrentPage() {
     "tenant-members": loadMembers,
     "tenant-company": loadCompanyProfileBundle,
     "tenant-design": loadDesignBundle,
-    "tenant-sync": loadSyncEvents,
+    "tenant-sync": loadTenantSyncPage,
     "tenant-analytics": loadTenantAnalytics,
     "tenant-billing": loadTenantCommercial,
     "tenant-admins": loadTenantAdmins,
@@ -894,6 +895,60 @@ async function loadSyncEvents() {
     formatDate(item.received_at)
   ]);
   return result;
+}
+
+async function loadTenantSyncPage() {
+  const [settings, events] = await Promise.all([loadWecomSettings(), loadSyncEvents()]);
+  return { settings, events };
+}
+
+async function loadWecomSettings() {
+  const settings = await adminRequest("/admin/wecom/settings");
+  state.wecomSettings = settings;
+  fillWecomSettings(settings);
+  return settings;
+}
+
+function fillWecomSettings(settings) {
+  $("#wecomAutoSyncOnAuth").checked = Boolean(settings.auto_sync_on_auth);
+  $("#wecomAutoCreateCards").checked = Boolean(settings.auto_create_cards);
+  $("#wecomAutoDisableLeftMembers").checked = Boolean(settings.auto_disable_left_members);
+  $("#wecomAllowPrivacyEdit").checked = Boolean(settings.allow_employee_privacy_edit);
+  $("#wecomAllowShareEdit").checked = Boolean(settings.allow_employee_share_edit);
+  $("#wecomAllowQrUpload").checked = Boolean(settings.allow_employee_wecom_qrcode_upload);
+  $("#wecomQrCodeSource").value = settings.qrcode_source || "enterprise_first";
+  $("#wecomSettingsUpdated").textContent = settings.updated_at ? `Updated ${formatDate(settings.updated_at)}` : "Using default settings";
+  $("#wecomPolicySync").textContent = settings.auto_sync_on_auth
+    ? "Auth sync on"
+    : "Manual sync only";
+  $("#wecomPolicyCards").textContent = settings.auto_create_cards
+    ? settings.auto_disable_left_members ? "Auto create/disable" : "Auto create"
+    : "Manual card creation";
+  $("#wecomPolicyEmployee").textContent = [
+    settings.allow_employee_privacy_edit ? "privacy" : "privacy locked",
+    settings.allow_employee_share_edit ? "share" : "share locked"
+  ].join(" / ");
+  $("#wecomPolicyQr").textContent = qrSourceLabel(settings.qrcode_source);
+}
+
+function wecomSettingsPayloadFromForm() {
+  return {
+    auto_sync_on_auth: $("#wecomAutoSyncOnAuth").checked,
+    auto_create_cards: $("#wecomAutoCreateCards").checked,
+    auto_disable_left_members: $("#wecomAutoDisableLeftMembers").checked,
+    allow_employee_privacy_edit: $("#wecomAllowPrivacyEdit").checked,
+    allow_employee_share_edit: $("#wecomAllowShareEdit").checked,
+    allow_employee_wecom_qrcode_upload: $("#wecomAllowQrUpload").checked,
+    qrcode_source: $("#wecomQrCodeSource").value
+  };
+}
+
+function qrSourceLabel(value) {
+  return ({
+    enterprise_first: "Enterprise first",
+    employee_upload_only: "Employee upload only",
+    enterprise_only: "Enterprise only"
+  })[value] || value || "--";
 }
 
 async function loadTenantAnalytics() {
@@ -1516,6 +1571,16 @@ $("#setDefaultTemplate").addEventListener("click", async () => {
 });
 
 $("#loadSyncEvents").addEventListener("click", () => run("刷新同步事件", loadSyncEvents));
+$("#loadWecomSettings").addEventListener("click", () => run("Load WeCom settings", loadWecomSettings));
+$("#saveWecomSettings").addEventListener("click", async () => {
+  if (!requirePermission("tenant.member.sync")) return;
+  const settings = await run("Save WeCom settings", () => adminRequest("/admin/wecom/settings", {
+    method: "PUT",
+    body: wecomSettingsPayloadFromForm()
+  }));
+  fillWecomSettings(settings);
+  notify("WeCom settings saved");
+});
 $("#retrySyncEvents").addEventListener("click", async () => {
   if (!requirePermission("tenant.sync.retry")) return;
   const ok = await confirmAction({ title: "确认重试失败事件", body: "系统会重新处理当前企业可重试的失败同步事件。", danger: true });
