@@ -358,6 +358,69 @@ CREATE TABLE "tenant_feature_settings" (
     CONSTRAINT "tenant_feature_settings_pkey" PRIMARY KEY ("tenant_id", "feature_key")
 );
 
+CREATE TABLE "commercial_plans" (
+    "plan_key" VARCHAR(64) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "billing_period" VARCHAR(32) NOT NULL DEFAULT 'monthly',
+    "price_cents" INTEGER NOT NULL DEFAULT 0,
+    "currency" VARCHAR(8) NOT NULL DEFAULT 'CNY',
+    "member_limit" INTEGER NOT NULL DEFAULT 50,
+    "card_limit" INTEGER NOT NULL DEFAULT 50,
+    "video_limit_bytes" BIGINT NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "commercial_plans_price_check" CHECK ("price_cents" >= 0),
+    CONSTRAINT "commercial_plans_limits_check" CHECK ("member_limit" >= 0 AND "card_limit" >= 0 AND "video_limit_bytes" >= 0),
+    CONSTRAINT "commercial_plans_pkey" PRIMARY KEY ("plan_key")
+);
+
+CREATE TABLE "tenant_subscriptions" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "plan_key" VARCHAR(64) NOT NULL,
+    "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "started_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "expires_at" TIMESTAMPTZ(6),
+    "member_limit" INTEGER NOT NULL,
+    "card_limit" INTEGER NOT NULL,
+    "video_limit_bytes" BIGINT NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "tenant_subscriptions_limits_check" CHECK ("member_limit" >= 0 AND "card_limit" >= 0 AND "video_limit_bytes" >= 0),
+    CONSTRAINT "tenant_subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "commercial_orders" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "order_no" VARCHAR(64) NOT NULL,
+    "plan_key" VARCHAR(64) NOT NULL,
+    "amount_cents" INTEGER NOT NULL DEFAULT 0,
+    "currency" VARCHAR(8) NOT NULL DEFAULT 'CNY',
+    "status" VARCHAR(32) NOT NULL DEFAULT 'pending',
+    "payment_provider" VARCHAR(64),
+    "provider_trade_no" VARCHAR(128),
+    "paid_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "commercial_orders_amount_check" CHECK ("amount_cents" >= 0),
+    CONSTRAINT "commercial_orders_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "tenant_quota_ledger" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "quota_type" VARCHAR(32) NOT NULL,
+    "delta" INTEGER NOT NULL,
+    "reason" TEXT NOT NULL,
+    "idempotency_key" VARCHAR(128) NOT NULL,
+    "created_by" VARCHAR(128) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "tenant_quota_ledger_type_check" CHECK ("quota_type" IN ('member', 'card', 'video_mb')),
+    CONSTRAINT "tenant_quota_ledger_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "company_honors" (
     "id" BIGSERIAL NOT NULL,
@@ -513,6 +576,18 @@ CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_admin_claim_token" ON "admin_claim_tokens"("token_hash");
 
+CREATE INDEX "idx_tenant_subscriptions_tenant" ON "tenant_subscriptions"("tenant_id");
+
+CREATE UNIQUE INDEX "uk_tenant_subscription_active" ON "tenant_subscriptions"("tenant_id") WHERE "status" = 'active';
+
+CREATE INDEX "idx_commercial_orders_tenant" ON "commercial_orders"("tenant_id", "created_at");
+
+CREATE UNIQUE INDEX "uk_commercial_orders_order_no" ON "commercial_orders"("order_no");
+
+CREATE INDEX "idx_tenant_quota_ledger_tenant" ON "tenant_quota_ledger"("tenant_id", "created_at");
+
+CREATE UNIQUE INDEX "uk_tenant_quota_ledger_idem" ON "tenant_quota_ledger"("tenant_id", "idempotency_key");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_callback_event_key" ON "callback_events"("event_key");
 
@@ -604,6 +679,16 @@ ALTER TABLE "company_profiles" ADD CONSTRAINT "company_profiles_tenant_id_fkey" 
 ALTER TABLE "company_videos" ADD CONSTRAINT "company_videos_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "tenant_feature_settings" ADD CONSTRAINT "tenant_feature_settings_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "tenant_subscriptions" ADD CONSTRAINT "tenant_subscriptions_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "tenant_subscriptions" ADD CONSTRAINT "tenant_subscriptions_plan_key_fkey" FOREIGN KEY ("plan_key") REFERENCES "commercial_plans"("plan_key") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "commercial_orders" ADD CONSTRAINT "commercial_orders_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "commercial_orders" ADD CONSTRAINT "commercial_orders_plan_key_fkey" FOREIGN KEY ("plan_key") REFERENCES "commercial_plans"("plan_key") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "tenant_quota_ledger" ADD CONSTRAINT "tenant_quota_ledger_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "company_honors" ADD CONSTRAINT "company_honors_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

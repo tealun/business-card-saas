@@ -330,8 +330,26 @@
         </section>
 
         <section class="page" data-page="tenant-billing">
-          <div class="page-head"><div><h2>版本与额度</h2><p>当前后端尚未提供商业化真实接口。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>设计要求的 `/admin/commercial/subscription`、订单和用量接口尚未实现。此页不展示占位数据，避免误导运营判断。</p></article>
+          <div class="page-head">
+            <div><h2>版本与额度</h2><p>当前订阅、真实用量、订单和额度调整账本。</p></div>
+            <button id="loadTenantCommercial" type="button">刷新</button>
+          </div>
+          <div class="metric-grid">
+            <article class="metric"><span>当前版本</span><strong id="tenantPlanName">--</strong></article>
+            <article class="metric"><span>成员额度</span><strong id="tenantMemberQuota">--</strong></article>
+            <article class="metric"><span>名片额度</span><strong id="tenantCardQuota">--</strong></article>
+            <article class="metric"><span>视频额度</span><strong id="tenantVideoQuota">--</strong></article>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>订单</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>订单</th><th>套餐</th><th>金额</th><th>状态</th><th>时间</th></tr></thead><tbody id="tenantOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>额度账本</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>类型</th><th>变化</th><th>原因</th><th>时间</th></tr></thead><tbody id="tenantQuotaRows"><tr><td colspan="4">尚未加载</td></tr></tbody></table></div>
+            </article>
+          </div>
         </section>
 
         <section class="page" data-page="tenant-admins">
@@ -500,8 +518,33 @@
         </section>
 
         <section class="page" data-page="platform-commercial">
-          <div class="page-head"><div><h2>商业化</h2><p>套餐、订单、订阅和额度账本尚未落地。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>不展示设计稿中的示例金额和订单。待商业化模块实现真实数据库表和接口后再开放。</p></article>
+          <div class="page-head">
+            <div><h2>商业化</h2><p>套餐目录、企业订阅、订单和额度调整。</p></div>
+            <button id="loadPlatformCommercial" type="button">刷新</button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>套餐目录</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>套餐</th><th>价格</th><th>成员</th><th>名片</th></tr></thead><tbody id="platformPlanRows"><tr><td colspan="4">尚未加载</td></tr></tbody></table></div>
+            </article>
+            <article class="panel stack-form">
+              <h3>额度调整</h3>
+              <label><span>企业 ID</span><input id="quotaTenantId" /></label>
+              <label><span>类型</span><select id="quotaType"><option value="member">成员</option><option value="card">名片</option><option value="video_mb">视频 MB</option></select></label>
+              <label><span>变化量</span><input id="quotaDelta" type="number" value="0" /></label>
+              <label><span>原因</span><input id="quotaReason" /></label>
+              <label><span>幂等键</span><input id="quotaIdempotencyKey" /></label>
+              <button id="createQuotaAdjustment" type="button" class="secondary danger-lite">写入调整</button>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>企业订阅</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>企业</th><th>套餐</th><th>状态</th><th>成员</th><th>名片</th></tr></thead><tbody id="platformSubscriptionRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h3>订单</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>企业</th><th>订单</th><th>套餐</th><th>金额</th><th>状态</th></tr></thead><tbody id="platformOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-audit">

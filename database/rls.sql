@@ -71,6 +71,21 @@ DROP POLICY IF EXISTS tenant_isolation_card_style_overrides ON card_style_overri
 CREATE POLICY tenant_isolation_card_style_overrides ON card_style_overrides
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+ALTER TABLE tenant_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_tenant_subscriptions ON tenant_subscriptions;
+CREATE POLICY tenant_isolation_tenant_subscriptions ON tenant_subscriptions
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
+ALTER TABLE commercial_orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_commercial_orders ON commercial_orders;
+CREATE POLICY tenant_isolation_commercial_orders ON commercial_orders
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
+ALTER TABLE tenant_quota_ledger ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_tenant_quota_ledger ON tenant_quota_ledger;
+CREATE POLICY tenant_isolation_tenant_quota_ledger ON tenant_quota_ledger
+  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
+
 ALTER TABLE account_identity_bindings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS aib_tenant_ctx ON account_identity_bindings;
 CREATE POLICY aib_tenant_ctx ON account_identity_bindings
@@ -90,6 +105,9 @@ CREATE POLICY account_preferences_account_ctx ON account_preferences
 
 -- platform_admins is a platform operations table (super-admin password login happens before any
 -- tenant context exists). It intentionally does not use tenant RLS.
+
+-- commercial_plans is a platform catalog table without tenant data. Tenant subscriptions and
+-- ledgers hold tenant state and are protected above.
 
 -- Feature settings are platform policy tables. They are accessed only by the platform feature
 -- repository and are deliberately excluded from ordinary tenant transaction/RLS read paths.

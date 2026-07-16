@@ -287,6 +287,7 @@ function refreshPermissionControls() {
   applyPermissionState("#setDefaultTemplate", "tenant.template.write");
   applyPermissionState("#retrySyncEvents", "tenant.sync.retry");
   applyPermissionState("#saveVideoFeatures", "platform.feature.write");
+  applyPermissionState("#createQuotaAdjustment", "platform.commercial.write");
   applyPermissionState("#loadDatabaseMigrations", "platform.database.read");
   applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
 }
@@ -334,11 +335,13 @@ function loadCurrentPage() {
     "tenant-design": loadDesignBundle,
     "tenant-sync": loadSyncEvents,
     "tenant-analytics": loadTenantAnalytics,
+    "tenant-billing": loadTenantCommercial,
     "tenant-admins": loadTenantAdmins,
     "tenant-audit": loadTenantAuditEvents,
     "platform-dashboard": loadPlatformDashboard,
     "platform-tenants": () => loadTenantAuthorizations(),
     "platform-wecom": loadPlatformWecomEvents,
+    "platform-commercial": loadPlatformCommercial,
     "platform-features": loadVideoFeatures,
     "platform-ops": loadDatabaseMigrations,
     "platform-audit": loadPlatformAuditEvents,
@@ -952,6 +955,67 @@ function actionTypeLabel(type) {
   })[type] || type;
 }
 
+async function loadTenantCommercial() {
+  const result = await adminRequest("/admin/commercial");
+  const subscription = result.subscription;
+  const plan = subscription.plan;
+  $("#tenantPlanName").textContent = `${plan.name} · ${subscription.status}`;
+  $("#tenantMemberQuota").textContent = quotaText(subscription.usage.member_count, plan.member_limit + subscription.quota_adjustments.member);
+  $("#tenantCardQuota").textContent = quotaText(subscription.usage.active_card_count, plan.card_limit + subscription.quota_adjustments.card);
+  $("#tenantVideoQuota").textContent = `${Math.round((plan.video_limit_bytes / 1048576) + subscription.quota_adjustments.video_mb)} MB`;
+  renderRows($("#tenantOrderRows"), result.orders || [], 5, (item) => [
+    `<code>${escapeHtml(item.order_no)}</code>`,
+    escapeHtml(item.plan_key),
+    moneyText(item.amount_cents, item.currency),
+    tag(item.status, statusTone(item.status)),
+    formatDate(item.created_at)
+  ]);
+  renderRows($("#tenantQuotaRows"), result.quota_ledger || [], 4, (item) => [
+    quotaTypeLabel(item.quota_type),
+    String(item.delta),
+    escapeHtml(item.reason),
+    formatDate(item.created_at)
+  ]);
+  return result;
+}
+
+async function loadPlatformCommercial() {
+  const result = await adminRequest("/admin/platform/commercial");
+  renderRows($("#platformPlanRows"), result.plans || [], 4, (item) => [
+    `<strong>${escapeHtml(item.name)}</strong><br><code>${escapeHtml(item.plan_key)}</code>`,
+    moneyText(item.price_cents, item.currency),
+    String(item.member_limit),
+    String(item.card_limit)
+  ]);
+  renderRows($("#platformSubscriptionRows"), result.subscriptions || [], 5, (item) => [
+    `<strong>${escapeHtml(item.tenant_name)}</strong><br><code>${escapeHtml(item.tenant_id)}</code>`,
+    escapeHtml(item.plan.name),
+    tag(item.status, statusTone(item.status)),
+    quotaText(item.usage.member_count, item.plan.member_limit + item.quota_adjustments.member),
+    quotaText(item.usage.active_card_count, item.plan.card_limit + item.quota_adjustments.card)
+  ]);
+  renderRows($("#platformOrderRows"), result.orders || [], 5, (item) => [
+    `<strong>${escapeHtml(item.tenant_name || "--")}</strong><br><code>${escapeHtml(item.tenant_id)}</code>`,
+    `<code>${escapeHtml(item.order_no)}</code>`,
+    escapeHtml(item.plan_key),
+    moneyText(item.amount_cents, item.currency),
+    tag(item.status, statusTone(item.status))
+  ]);
+  return result;
+}
+
+function quotaText(used, limit) {
+  return `${used} / ${limit}`;
+}
+
+function moneyText(cents, currency) {
+  return `${currency} ${(Number(cents || 0) / 100).toFixed(2)}`;
+}
+
+function quotaTypeLabel(type) {
+  return ({ member: "成员", card: "名片", video_mb: "视频 MB" })[type] || type;
+}
+
 function queryFromControls(mapping) {
   const params = new URLSearchParams();
   mapping.forEach(([name, selector]) => {
@@ -1461,6 +1525,7 @@ $("#retrySyncEvents").addEventListener("click", async () => {
   }
 });
 $("#loadTenantAnalytics").addEventListener("click", () => run("刷新数据分析", loadTenantAnalytics));
+$("#loadTenantCommercial").addEventListener("click", () => run("刷新版本额度", loadTenantCommercial));
 
 $("#loadTenantAdmins").addEventListener("click", () => run("刷新管理员", loadTenantAdmins));
 $("#searchTenantAdmins").addEventListener("click", () => run("搜索管理员", loadTenantAdmins));
@@ -1504,6 +1569,26 @@ $("#platformWecomSearch").addEventListener("keydown", (event) => {
 });
 $("#platformWecomSource").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
 $("#platformWecomStatus").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
+$("#loadPlatformCommercial").addEventListener("click", () => run("刷新商业化", loadPlatformCommercial));
+$("#createQuotaAdjustment").addEventListener("click", async () => {
+  if (!requirePermission("platform.commercial.write")) return;
+  const body = {
+    tenant_id: $("#quotaTenantId").value.trim(),
+    quota_type: $("#quotaType").value,
+    delta: Number($("#quotaDelta").value),
+    reason: $("#quotaReason").value.trim(),
+    idempotency_key: $("#quotaIdempotencyKey").value.trim()
+  };
+  const ok = await confirmAction({
+    title: "确认写入额度调整",
+    body: "额度调整会写入真实账本并影响企业额度展示，请确认企业 ID、变化量和原因。",
+    danger: true
+  });
+  if (ok) {
+    await run("写入额度调整", () => adminRequest("/admin/platform/commercial/quota-adjustments", { method: "POST", body }));
+    await loadPlatformCommercial();
+  }
+});
 $("#loadVideoFeatures").addEventListener("click", () => run("读取功能开关", loadVideoFeatures));
 $("#searchTenantFeatures").addEventListener("click", () => run("搜索企业功能", loadVideoFeatures));
 $("#saveVideoFeatures").addEventListener("click", async () => {
