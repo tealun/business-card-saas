@@ -29,24 +29,24 @@ const PAGE_META = {
 
 const NAVS = {
   tenant: [
-    ["tenant-dashboard", "总览"],
-    ["tenant-members", "成员与名片"],
-    ["tenant-company", "企业主页"],
-    ["tenant-design", "字段与模板"],
-    ["tenant-sync", "同步与回调"],
-    ["tenant-billing", "版本与额度"],
-    ["tenant-admins", "管理员"],
-    ["tenant-audit", "审计日志"]
+    ["tenant-dashboard", "总览", "tenant.dashboard"],
+    ["tenant-members", "成员与名片", "tenant.members"],
+    ["tenant-company", "企业主页", "tenant.company"],
+    ["tenant-design", "字段与模板", "tenant.design"],
+    ["tenant-sync", "同步与回调", "tenant.sync"],
+    ["tenant-billing", "版本与额度", "tenant.billing"],
+    ["tenant-admins", "管理员", "tenant.admins"],
+    ["tenant-audit", "审计日志", "tenant.audit"]
   ],
   platform: [
-    ["platform-dashboard", "总览"],
-    ["platform-tenants", "企业"],
-    ["platform-wecom", "授权与回调"],
-    ["platform-commercial", "商业化"],
-    ["platform-features", "功能开关"],
-    ["platform-ops", "运维"],
-    ["platform-audit", "审计"],
-    ["platform-accounts", "系统账号"]
+    ["platform-dashboard", "总览", "platform.dashboard"],
+    ["platform-tenants", "企业", "platform.tenants"],
+    ["platform-wecom", "授权与回调", "platform.wecom"],
+    ["platform-commercial", "商业化", "platform.commercial"],
+    ["platform-features", "功能开关", "platform.features"],
+    ["platform-ops", "运维", "platform.ops"],
+    ["platform-audit", "审计", "platform.audit"],
+    ["platform-accounts", "系统账号", "platform.accounts"]
   ]
 };
 
@@ -225,7 +225,8 @@ function expireAdminSession(message) {
 function applyAdminIdentity(admin) {
   state.admin = admin;
   state.mode = admin.account_type === "platform" ? "platform" : "tenant";
-  state.page = state.mode === "platform" ? "platform-dashboard" : "tenant-dashboard";
+  const defaultPage = state.mode === "platform" ? "platform-dashboard" : "tenant-dashboard";
+  state.page = canSeePage(defaultPage) ? defaultPage : firstVisiblePage();
   topbarAdmin.textContent = `${admin.tenant_name} · ${admin.role}`;
   adminStatus.textContent = `${state.mode === "platform" ? "系统" : "企业"} · ${admin.role}`;
   loginStatus.textContent = admin.account_type;
@@ -237,9 +238,60 @@ function applyAdminIdentity(admin) {
   loadCurrentPage();
 }
 
+function hasCapability(listName, value) {
+  const values = state.admin?.[listName];
+  return !Array.isArray(values) || values.length === 0 || values.includes(value);
+}
+
+function hasMenuScope(scope) {
+  return !scope || hasCapability("menu_scopes", scope);
+}
+
+function hasPermission(permission) {
+  return !permission || hasCapability("permissions", permission);
+}
+
+function requirePermission(permission) {
+  if (hasPermission(permission)) return true;
+  notify("当前管理员没有此操作权限", "danger");
+  return false;
+}
+
+function canSeePage(page) {
+  if (page === "dev-tools") return DEV_MODE;
+  const item = (NAVS[state.mode] || []).find(([candidate]) => candidate === page);
+  return Boolean(item && hasMenuScope(item[2]));
+}
+
+function firstVisiblePage() {
+  const item = (NAVS[state.mode] || []).find(([, , scope]) => hasMenuScope(scope));
+  return item?.[0] || (state.mode === "platform" ? "platform-dashboard" : "tenant-dashboard");
+}
+
+function applyPermissionState(selector, permission) {
+  const node = $(selector);
+  if (!node) return;
+  const allowed = hasPermission(permission);
+  node.disabled = !allowed;
+  node.title = allowed ? "" : "当前管理员没有此操作权限";
+}
+
+function refreshPermissionControls() {
+  applyPermissionState("#syncMembers", "tenant.member.sync");
+  applyPermissionState("#saveCompanyProfile", "tenant.company.write");
+  applyPermissionState("#saveFieldSettings", "tenant.config.write");
+  applyPermissionState("#createTemplate", "tenant.template.write");
+  applyPermissionState("#updateTemplate", "tenant.template.write");
+  applyPermissionState("#setDefaultTemplate", "tenant.template.write");
+  applyPermissionState("#retrySyncEvents", "tenant.sync.retry");
+  applyPermissionState("#saveVideoFeatures", "platform.feature.write");
+  applyPermissionState("#loadDatabaseMigrations", "platform.database.read");
+  applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
+}
+
 function renderNav() {
   navList.replaceChildren();
-  const navItems = [...NAVS[state.mode]];
+  const navItems = (NAVS[state.mode] || []).filter(([, , scope]) => hasMenuScope(scope));
   if (DEV_MODE) navItems.push(["dev-tools", "联调工具"]);
   navItems.forEach(([page, label]) => {
     const button = document.createElement("button");
@@ -253,6 +305,13 @@ function renderNav() {
 }
 
 function showPage(page, options = {}) {
+  if (!canSeePage(page)) {
+    const fallback = firstVisiblePage();
+    if (fallback && fallback !== page) {
+      showPage(fallback, options);
+    }
+    return;
+  }
   state.page = page;
   $$(".page").forEach((node) => node.classList.toggle("active", node.dataset.page === page));
   $$("[data-page-target]").forEach((node) => node.classList.toggle("active", node.dataset.pageTarget === page));
@@ -261,6 +320,7 @@ function showPage(page, options = {}) {
   pageTitle.textContent = title;
   pageSubtitle.textContent = subtitle;
   closeDrawer();
+  refreshPermissionControls();
   if (options.load !== false) loadCurrentPage();
 }
 
@@ -417,11 +477,15 @@ async function loadMembers() {
   return result;
 }
 
-function actionButton(label, handler, className = "secondary") {
+function actionButton(label, handler, className = "secondary", permission = "") {
   const button = document.createElement("button");
   button.type = "button";
   button.className = className;
   button.textContent = label;
+  if (!hasPermission(permission)) {
+    button.disabled = true;
+    button.title = "当前管理员没有此操作权限";
+  }
   button.addEventListener("click", handler);
   return button;
 }
@@ -454,7 +518,7 @@ async function openMemberDrawer(item) {
   form.show_email.checked = Boolean(card.privacy?.show_email);
   form.show_wechat.checked = Boolean(card.privacy?.show_wechat);
   form.allow_forward.checked = card.privacy?.allow_forward !== false;
-  drawerFooter.replaceChildren(actionButton("保存名片", saveMemberCard));
+  drawerFooter.replaceChildren(actionButton("保存名片", saveMemberCard, "secondary", "tenant.member.card.write"));
   drawer.classList.remove("hidden");
 }
 
@@ -463,6 +527,7 @@ function escapeAttr(value) {
 }
 
 async function saveMemberCard() {
+  if (!requirePermission("tenant.member.card.write")) return;
   const form = $("#cardForm", drawerBody);
   if (!form.reportValidity()) return;
   const payload = {
@@ -764,9 +829,10 @@ function templateActions(item) {
   wrap.append(
     actionButton("选择", () => fillTemplateForm(item), "secondary"),
     actionButton("设默认", async () => {
+      if (!requirePermission("tenant.template.write")) return;
       await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(item.template_id)}/default`, { method: "PUT" }));
       await loadTemplates();
-    }, "secondary")
+    }, "secondary", "tenant.template.write")
   );
   return wrap;
 }
@@ -929,6 +995,7 @@ function renderTenantFeatures() {
     enabledLabel.append(enabled, document.createTextNode("启用"));
     const limit = input(item.limit_bytes === null ? "" : Math.round(item.limit_bytes / 1048576), "limit", index, "tenantFeature", "继承默认 MB", "number");
     const save = actionButton("保存", async () => {
+      if (!requirePermission("platform.feature.write")) return;
       const updated = await run("保存企业功能", () => adminRequest(`/admin/platform/features/company-video/tenants/${encodeURIComponent(item.tenant_id)}`, {
         method: "PUT",
         body: {
@@ -938,7 +1005,7 @@ function renderTenantFeatures() {
       }));
       state.tenantFeatures[index] = updated;
       renderTenantFeatures();
-    });
+    }, "secondary", "platform.feature.write");
     row.append(name, enabledLabel, limit, save);
     return row;
   }));
@@ -1095,6 +1162,7 @@ $("#memberSearch").addEventListener("keydown", (event) => {
 });
 $("#memberStatusFilter").addEventListener("change", () => run("筛选成员", loadMembers));
 $("#syncMembers").addEventListener("click", async () => {
+  if (!requirePermission("tenant.member.sync")) return;
   const ok = await confirmAction({
     title: "确认同步成员",
     body: "同步会从企业微信拉取通讯录并更新当前企业成员状态。",
@@ -1108,6 +1176,7 @@ $("#syncMembers").addEventListener("click", async () => {
 
 $("#loadCompanyProfile").addEventListener("click", () => run("读取主页", loadCompanyProfileBundle));
 $("#saveCompanyProfile").addEventListener("click", async () => {
+  if (!requirePermission("tenant.company.write")) return;
   if (!state.companyProfile) await loadCompanyProfileOnly();
   const profile = await run("保存主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: companyPayloadFromForm() }));
   fillCompany(profile);
@@ -1146,6 +1215,7 @@ $("#saveHonors").addEventListener("click", () => run("保存荣誉", saveHonors)
 
 $("#loadFieldSettings").addEventListener("click", () => run("读取字段", loadFieldSettings));
 $("#saveFieldSettings").addEventListener("click", async () => {
+  if (!requirePermission("tenant.config.write")) return;
   const result = await run("保存字段规则", () => adminRequest("/admin/settings/fields", { method: "PUT", body: fieldSettingsPayload() }));
   state.fieldSettings = result.fields || [];
   await loadFieldSettings();
@@ -1154,11 +1224,13 @@ $("#saveFieldSettings").addEventListener("click", async () => {
 $("#templateForm").addEventListener("submit", (event) => event.preventDefault());
 $("#loadTemplates").addEventListener("click", () => run("读取模板", loadTemplates));
 $("#createTemplate").addEventListener("click", async () => {
+  if (!requirePermission("tenant.template.write")) return;
   const template = await run("新增模板", () => adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
   fillTemplateForm(template);
   await loadTemplates();
 });
 $("#updateTemplate").addEventListener("click", async () => {
+  if (!requirePermission("tenant.template.write")) return;
   const templateId = $("#templateId").value.trim();
   if (!templateId) throw new Error("请先选择模板");
   const template = await run("保存模板", () => adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) }));
@@ -1166,6 +1238,7 @@ $("#updateTemplate").addEventListener("click", async () => {
   await loadTemplates();
 });
 $("#setDefaultTemplate").addEventListener("click", async () => {
+  if (!requirePermission("tenant.template.write")) return;
   const templateId = $("#templateId").value.trim();
   if (!templateId) throw new Error("请先选择模板");
   const template = await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" }));
@@ -1175,6 +1248,7 @@ $("#setDefaultTemplate").addEventListener("click", async () => {
 
 $("#loadSyncEvents").addEventListener("click", () => run("刷新同步事件", loadSyncEvents));
 $("#retrySyncEvents").addEventListener("click", async () => {
+  if (!requirePermission("tenant.sync.retry")) return;
   const ok = await confirmAction({ title: "确认重试失败事件", body: "系统会重新处理当前企业可重试的失败同步事件。", danger: true });
   if (ok) {
     await run("重试失败事件", () => adminRequest("/admin/sync-events/retry", { method: "POST" }));
@@ -1197,6 +1271,7 @@ $("#tenantAuthorizationNext").addEventListener("click", () => run("下一页", (
 $("#loadVideoFeatures").addEventListener("click", () => run("读取功能开关", loadVideoFeatures));
 $("#searchTenantFeatures").addEventListener("click", () => run("搜索企业功能", loadVideoFeatures));
 $("#saveVideoFeatures").addEventListener("click", async () => {
+  if (!requirePermission("platform.feature.write")) return;
   await run("保存平台功能", () => adminRequest("/admin/platform/features/company-video", {
     method: "PUT",
     body: {
@@ -1207,8 +1282,12 @@ $("#saveVideoFeatures").addEventListener("click", async () => {
   await loadVideoFeatures();
   notify("平台功能开关已保存");
 });
-$("#loadDatabaseMigrations").addEventListener("click", () => run("检测迁移", loadDatabaseMigrations));
+$("#loadDatabaseMigrations").addEventListener("click", () => {
+  if (!requirePermission("platform.database.read")) return;
+  run("检测迁移", loadDatabaseMigrations);
+});
 $("#runDatabaseMigrations").addEventListener("click", async () => {
+  if (!requirePermission("platform.database.migrate")) return;
   const ok = await confirmAction({
     title: "确认执行数据库迁移",
     body: "这是高风险运维动作。执行前请确认目标数据库和备份状态。",

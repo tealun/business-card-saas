@@ -9,6 +9,7 @@ import {
 import { AppConfig } from "../config/app-config.js";
 import type { AdminSession } from "./admin-session.js";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
+import { adminCapabilities } from "./admin-permissions.js";
 import { hashPassword, verifyPassword } from "./password.util.js";
 import { PlatformAdminRepository } from "./platform-admin.repository.js";
 
@@ -72,6 +73,7 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       role: admin.role,
       accountType: "platform"
     };
+    const capabilities = adminCapabilities(session);
     return adminLoginResponseSchema.parse({
       access_token: this.sessionTokens.sign(session),
       token_type: "Bearer",
@@ -82,7 +84,9 @@ export class PlatformAdminService implements OnApplicationBootstrap {
         member_identity_id: session.memberIdentityId,
         open_userid: session.openUserid,
         role: session.role,
-        account_type: "platform"
+        account_type: "platform",
+        permissions: capabilities.permissions,
+        menu_scopes: capabilities.menuScopes
       })
     });
   }

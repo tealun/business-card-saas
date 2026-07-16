@@ -37,7 +37,9 @@ describe("AdminAuthService", () => {
       member_identity_id: "member-001",
       open_userid: "ou-admin",
       role: "owner",
-      account_type: "tenant"
+      account_type: "tenant",
+      permissions: expect.arrayContaining(["tenant.member.sync", "tenant.config.write", "tenant.admin.write"]),
+      menu_scopes: expect.arrayContaining(["tenant.dashboard", "tenant.members", "tenant.admins"])
     });
     expect(tokens.verify(response.access_token)).toEqual({
       tenantId: "tenant-001",
@@ -68,7 +70,9 @@ describe("AdminAuthService", () => {
       member_identity_id: "member-001",
       open_userid: "ou-claimed",
       role: "owner",
-      account_type: "tenant"
+      account_type: "tenant",
+      permissions: expect.arrayContaining(["tenant.member.sync", "tenant.config.write", "tenant.admin.write"]),
+      menu_scopes: expect.arrayContaining(["tenant.dashboard", "tenant.members", "tenant.admins"])
     });
     expect(admins.findClaimToken(bootstrap.hashClaimToken(claim.claim_token))?.usedAt).toBeInstanceOf(Date);
     await expect(admins.findActiveAdmin({ tenantId: "tenant-001", openUserid: "ou-claimed" })).resolves.toEqual({

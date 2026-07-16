@@ -13,6 +13,7 @@ import { OwnerBootstrapService } from "../admin-bootstrap/owner-bootstrap.servic
 import { WecomMiniProgramLoginService } from "../wecom/wecom-miniprogram-login.service.js";
 import type { AdminSession } from "./admin-session.js";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
+import { adminCapabilities } from "./admin-permissions.js";
 
 @Injectable()
 export class AdminAuthService {
@@ -65,13 +66,16 @@ export class AdminAuthService {
   }
 
   private toIdentity(session: AdminSession): AdminIdentity {
+    const capabilities = adminCapabilities(session);
     return adminIdentitySchema.parse({
       tenant_id: session.tenantId,
       tenant_name: session.tenantName,
       member_identity_id: session.memberIdentityId,
       open_userid: session.openUserid,
       role: session.role,
-      account_type: session.accountType ?? "tenant"
+      account_type: session.accountType ?? "tenant",
+      permissions: capabilities.permissions,
+      menu_scopes: capabilities.menuScopes
     });
   }
 }

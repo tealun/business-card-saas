@@ -64,6 +64,12 @@ describe("PlatformAdminService", () => {
 
     expect(response.admin.role).toBe("owner");
     expect(response.admin.open_userid).toBe("platform:root");
+    expect(response.admin.permissions).toEqual(
+      expect.arrayContaining(["platform.tenant.read", "platform.feature.write", "platform.database.migrate"])
+    );
+    expect(response.admin.menu_scopes).toEqual(
+      expect.arrayContaining(["platform.dashboard", "platform.tenants", "platform.ops", "platform.accounts"])
+    );
     expect(tokens.verify(response.access_token).openUserid).toBe("platform:root");
   });
 
