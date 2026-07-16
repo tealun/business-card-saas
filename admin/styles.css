@@ -21,6 +21,46 @@
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
 }
 
+.trend-bars {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(7, minmax(28px, 1fr));
+  min-height: 180px;
+  padding-top: 16px;
+}
+
+.trend-item {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-rows: 1fr auto;
+  height: 160px;
+  justify-items: center;
+}
+
+.trend-item span {
+  align-self: end;
+  background: var(--brand);
+  border-radius: 6px 6px 2px 2px;
+  display: inline-block;
+  grid-row: 1;
+  opacity: .82;
+  width: 10px;
+}
+
+.trend-item span.accent {
+  background: var(--accent);
+  margin-left: 14px;
+}
+
+.trend-item small {
+  color: var(--muted);
+  font-size: 12px;
+  grid-column: 1 / span 2;
+  grid-row: 2;
+}
+
 * {
   box-sizing: border-box;
 }

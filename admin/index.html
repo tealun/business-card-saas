@@ -133,7 +133,8 @@
                 <span>成员与名片</span><strong>已接入</strong>
                 <span>企业主页</span><strong>已接入</strong>
                 <span>字段与模板</span><strong>已接入</strong>
-                <span>版本与额度</span><strong>后端未接入</strong>
+                <span>数据分析</span><strong>已接入</strong>
+                <span>版本与额度</span><strong>商业化表未接入</strong>
               </div>
             </article>
           </div>
@@ -286,6 +287,43 @@
               <table>
                 <thead><tr><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>时间</th></tr></thead>
                 <tbody id="syncEventRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="page" data-page="tenant-analytics">
+          <div class="page-head">
+            <div><h2>数据分析</h2><p>基于真实访问、互动和分享记录的企业级只读分析。</p></div>
+            <button id="loadTenantAnalytics" type="button">刷新</button>
+          </div>
+          <div class="metric-grid">
+            <article class="metric"><span>访问次数</span><strong id="analyticsVisits">--</strong></article>
+            <article class="metric"><span>独立访客</span><strong id="analyticsVisitors">--</strong></article>
+            <article class="metric"><span>互动次数</span><strong id="analyticsActions">--</strong></article>
+            <article class="metric"><span>分享数</span><strong id="analyticsShares">--</strong></article>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>近 7 日趋势</h3><span class="status-chip muted">访问 / 互动</span></div>
+              <div id="analyticsTrend" class="trend-bars"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>互动类型</h3></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>类型</th><th>次数</th></tr></thead>
+                  <tbody id="analyticsActionRows"><tr><td colspan="2">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>成员排行</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>成员</th><th>访问</th><th>访客</th><th>互动</th><th>互动率</th></tr></thead>
+                <tbody id="analyticsMemberRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
               </table>
             </div>
           </article>

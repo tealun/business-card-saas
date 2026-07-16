@@ -13,6 +13,7 @@ const PAGE_META = {
   "tenant-company": ["企业后台", "企业主页", "企业资料和主页内容"],
   "tenant-design": ["企业后台", "字段与模板", "名片字段规则和模板"],
   "tenant-sync": ["企业后台", "同步与回调", "企业同步事件"],
+  "tenant-analytics": ["企业后台", "数据分析", "访问、互动和成员表现"],
   "tenant-billing": ["企业后台", "版本与额度", "商业化能力状态"],
   "tenant-admins": ["企业后台", "管理员", "企业管理员能力状态"],
   "tenant-audit": ["企业后台", "审计日志", "企业审计能力状态"],
@@ -34,6 +35,7 @@ const NAVS = {
     ["tenant-company", "企业主页", "tenant.company"],
     ["tenant-design", "字段与模板", "tenant.design"],
     ["tenant-sync", "同步与回调", "tenant.sync"],
+    ["tenant-analytics", "数据分析", "tenant.analytics"],
     ["tenant-billing", "版本与额度", "tenant.billing"],
     ["tenant-admins", "管理员", "tenant.admins"],
     ["tenant-audit", "审计日志", "tenant.audit"]
@@ -331,6 +333,7 @@ function loadCurrentPage() {
     "tenant-company": loadCompanyProfileBundle,
     "tenant-design": loadDesignBundle,
     "tenant-sync": loadSyncEvents,
+    "tenant-analytics": loadTenantAnalytics,
     "tenant-admins": loadTenantAdmins,
     "tenant-audit": loadTenantAuditEvents,
     "platform-dashboard": loadPlatformDashboard,
@@ -404,20 +407,21 @@ function renderRows(tbody, rows, colSpan, render) {
 }
 
 async function loadTenantDashboard() {
-  const [overview, capability] = await Promise.all([
+  const [overview, capability, analytics] = await Promise.all([
     adminRequest("/admin/overview"),
-    adminRequest("/admin/features/company-video").catch(() => null)
+    adminRequest("/admin/features/company-video").catch(() => null),
+    adminRequest("/admin/analytics").catch(() => null)
   ]);
   $("#metricMembers").textContent = overview.member_count;
   $("#metricCards").textContent = overview.card_count;
   $("#metricActiveCards").textContent = overview.active_card_count;
   $("#metricVideo").textContent = capability?.enabled ? `${capability.effective_limit_mb} MB` : "未开通";
   state.videoCapability = capability;
-  renderTenantTodos(overview, capability);
-  return { overview, capability };
+  renderTenantTodos(overview, capability, analytics);
+  return { overview, capability, analytics };
 }
 
-function renderTenantTodos(overview, capability) {
+function renderTenantTodos(overview, capability, analytics) {
   const root = $("#tenantTodoList");
   const todos = [
     {
@@ -437,6 +441,12 @@ function renderTenantTodos(overview, capability) {
       title: capability?.enabled ? "企业视频能力已启用" : "企业视频能力未开通",
       action: "查看主页",
       page: "tenant-company"
+    },
+    {
+      tone: analytics?.overview?.visit_count > 0 ? "success" : "muted",
+      title: analytics?.overview?.visit_count > 0 ? `已有 ${analytics.overview.visit_count} 次访问` : "暂无访问数据",
+      action: "数据分析",
+      page: "tenant-analytics"
     }
   ];
   root.replaceChildren(...todos.map(taskItem));
@@ -881,6 +891,65 @@ async function loadSyncEvents() {
     formatDate(item.received_at)
   ]);
   return result;
+}
+
+async function loadTenantAnalytics() {
+  const result = await adminRequest("/admin/analytics");
+  const overview = result.overview || {};
+  $("#analyticsVisits").textContent = overview.visit_count ?? 0;
+  $("#analyticsVisitors").textContent = overview.visitor_count ?? 0;
+  $("#analyticsActions").textContent = overview.action_count ?? 0;
+  $("#analyticsShares").textContent = overview.share_count ?? 0;
+  renderTrendBars($("#analyticsTrend"), result.trend || []);
+  renderRows($("#analyticsMemberRows"), result.member_rank || [], 5, (item) => [
+    `<strong>${escapeHtml(item.display_name)}</strong><br><code>${escapeHtml(item.public_id || item.member_identity_id)}</code>`,
+    String(item.visit_count),
+    String(item.visitor_count),
+    String(item.action_count),
+    conversionText(item.action_count, item.visit_count)
+  ]);
+  renderRows($("#analyticsActionRows"), result.action_types || [], 2, (item) => [
+    escapeHtml(actionTypeLabel(item.action_type)),
+    String(item.action_count)
+  ]);
+  return result;
+}
+
+function renderTrendBars(root, rows) {
+  if (!rows.length) {
+    root.innerHTML = `<p class="hint">暂无趋势数据</p>`;
+    return;
+  }
+  const max = Math.max(...rows.map((row) => Math.max(row.visit_count, row.action_count)), 1);
+  root.replaceChildren(...rows.map((row) => {
+    const item = document.createElement("div");
+    item.className = "trend-item";
+    const visit = document.createElement("span");
+    visit.style.height = `${Math.max(6, Math.round((row.visit_count / max) * 90))}%`;
+    const action = document.createElement("span");
+    action.className = "accent";
+    action.style.height = `${Math.max(6, Math.round((row.action_count / max) * 90))}%`;
+    const label = document.createElement("small");
+    label.textContent = row.date.slice(5);
+    item.title = `${row.date} · 访问 ${row.visit_count} · 互动 ${row.action_count}`;
+    item.append(visit, action, label);
+    return item;
+  }));
+}
+
+function conversionText(actions, visits) {
+  if (!visits) return "0%";
+  return `${Math.round((actions / visits) * 1000) / 10}%`;
+}
+
+function actionTypeLabel(type) {
+  return ({
+    like_card: "点赞名片",
+    copy_phone: "复制电话",
+    copy_email: "复制邮箱",
+    call_phone: "拨打电话",
+    open_website: "访问官网"
+  })[type] || type;
 }
 
 function queryFromControls(mapping) {
@@ -1391,6 +1460,7 @@ $("#retrySyncEvents").addEventListener("click", async () => {
     await loadSyncEvents();
   }
 });
+$("#loadTenantAnalytics").addEventListener("click", () => run("刷新数据分析", loadTenantAnalytics));
 
 $("#loadTenantAdmins").addEventListener("click", () => run("刷新管理员", loadTenantAdmins));
 $("#searchTenantAdmins").addEventListener("click", () => run("搜索管理员", loadTenantAdmins));

@@ -13,7 +13,8 @@ const tenantReadPermissions = [
   "tenant.member.card.read",
   "tenant.company.read",
   "tenant.config.read",
-  "tenant.sync.read"
+  "tenant.sync.read",
+  "tenant.analytics.read"
 ];
 
 const platformReadPermissions = [
@@ -45,7 +46,8 @@ function tenantCapabilities(role: AdminRole): AdminCapabilities {
     "tenant.members",
     "tenant.company",
     "tenant.design",
-    "tenant.sync"
+    "tenant.sync",
+    "tenant.analytics"
   ]);
 
   if (adminRoleAtLeast(role, "operator")) {

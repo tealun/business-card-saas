@@ -23,6 +23,7 @@ import { CompanyVideoFeatureModule } from "./company-video-feature/company-video
 import { DemoAssetsModule } from "./demo-assets/demo-assets.module.js";
 import { PlatformTenantModule } from "./platform-tenants/platform-tenant.module.js";
 import { AdminObservabilityModule } from "./admin-observability/admin-observability.module.js";
+import { AdminAnalyticsModule } from "./admin-analytics/admin-analytics.module.js";
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { AdminObservabilityModule } from "./admin-observability/admin-observabil
     AdminDatabaseModule,
     AdminManagementModule,
     AdminConfigModule,
+    AdminAnalyticsModule,
     AdminObservabilityModule,
     CompanyVideoFeatureModule,
     PlatformTenantModule
