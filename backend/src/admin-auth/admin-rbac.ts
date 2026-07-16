@@ -1,5 +1,6 @@
 import { ForbiddenException } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
+import type { AdminSession } from "./admin-session.js";
 
 const roleRank: Record<AdminRole, number> = {
   owner: 4,
@@ -16,4 +17,11 @@ export function requireAdminRole(actual: AdminRole, required: AdminRole): void {
   if (!adminRoleAtLeast(actual, required)) {
     throw new ForbiddenException("admin role does not have permission");
   }
+}
+
+export function requirePlatformAdminRole(session: AdminSession, required: AdminRole): void {
+  if (session.accountType !== "platform") {
+    throw new ForbiddenException("platform administrator required");
+  }
+  requireAdminRole(session.role, required);
 }

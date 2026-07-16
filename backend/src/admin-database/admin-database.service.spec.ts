@@ -12,12 +12,19 @@ const ownerSession: AdminSession = {
   tenantName: "Pilot Corp",
   memberIdentityId: "member-001",
   openUserid: "ou-owner",
-  role: "owner"
+  role: "owner",
+  accountType: "platform"
 };
 
 const adminSession: AdminSession = {
   ...ownerSession,
   role: "admin"
+};
+
+const tenantOwnerSession: AdminSession = {
+  ...ownerSession,
+  openUserid: "ou-tenant-owner",
+  accountType: "tenant"
 };
 
 describe("AdminDatabaseService", () => {
@@ -135,6 +142,13 @@ describe("AdminDatabaseService", () => {
     const databaseDir = await createDatabaseDir();
     const { service } = createService({ databaseDir, applied: [] });
     await expect(service.runPendingMigrations(adminSession)).rejects.toThrow("admin role does not have permission");
+  });
+
+  it("rejects tenant owners from migration status and execution", async () => {
+    const databaseDir = await createDatabaseDir();
+    const { service } = createService({ databaseDir, applied: [] });
+    await expect(service.getMigrationStatus(tenantOwnerSession)).rejects.toThrow("platform administrator required");
+    await expect(service.runPendingMigrations(tenantOwnerSession)).rejects.toThrow("platform administrator required");
   });
 
   it("blocks execution when migration status has errors", async () => {

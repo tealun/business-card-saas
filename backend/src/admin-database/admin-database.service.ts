@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { requireAdminRole } from "../admin-auth/admin-rbac.js";
+import { requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { AppConfig } from "../config/app-config.js";
 import {
@@ -42,13 +42,13 @@ export class AdminDatabaseService {
   ) {}
 
   async getMigrationStatus(session: AdminSession): Promise<DatabaseMigrationStatus> {
-    requireAdminRole(session.role, "admin");
+    requirePlatformAdminRole(session, "admin");
     const status = await this.buildMigrationStatus();
     return databaseMigrationStatusSchema.parse(status);
   }
 
   async runPendingMigrations(session: AdminSession): Promise<DatabaseMigrationRunResponse> {
-    requireAdminRole(session.role, "owner");
+    requirePlatformAdminRole(session, "owner");
     if (this.running) {
       throw new ConflictException("database migration is already running");
     }

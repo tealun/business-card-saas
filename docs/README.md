@@ -39,12 +39,14 @@
 | [`01_05_Development_Guide.md`](01-specs/01_05_Development_Guide.md) | 开发执行指引：仓库结构、脚手架习惯、验证命令、部署边界、文档同步规则 |
 | [`01_06_Miniprogram_Config_Guide.md`](01-specs/01_06_Miniprogram_Config_Guide.md) | 小程序配置与后端对接：微信小程序后台、企业微信服务商后台、后端域名、`apiBase`、联调顺序 |
 | [`01_07_Commercialization_And_Quota_Spec.md`](01-specs/01_07_Commercialization_And_Quota_Spec.md) | 企业微信商业化规格：一年期收费版本、企业共享展示额度、订单状态机、原子扣量、通知、数据模型与安全边界 |
+| [`01_08_Admin_Backoffice_Architecture_Guide.md`](01-specs/01_08_Admin_Backoffice_Architecture_Guide.md) | 管理后台重构后端架构开发指南：系统管理员/企业管理员权限区分、授权管理、付费版本控制、审计与实施里程碑 |
 
 ### design（设计交付）
 
 | 文档 | 内容 |
 |------|------|
 | [`miniprogram-card-experience-brief.md`](design/miniprogram-card-experience-brief.md) | 小程序名片体验设计说明：对标参考截图，定义我的名片、访客详情、企业名片、名片夹、公司介绍、视频、荣誉轮播等页面与模块 |
+| [`admin-backoffice-ui-architecture.md`](design/admin-backoffice-ui-architecture.md) | 管理后台界面架构设计：双后台信息架构、页面布局、视觉系统、交互规范、核心页面设计和验收清单 |
 
 ### 03-compliance（合规）
 
