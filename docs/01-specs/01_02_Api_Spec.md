@@ -193,6 +193,15 @@
 
 数据回调处理前写入 `callback_events` 幂等日志；`done/processing` 重复事件直接返回 `success`，`failed` 事件允许企业微信重推或后台 `POST /api/v1/admin/sync-events/retry` 后重新处理。为避免进程异常导致事件永久卡在 `processing`，`processing` 超过 5 分钟后按重试处理并递增 `retry_count`；超过重试上限后标记为 `dead`，由后台日志展示并进入人工排查。若配置 `WECOM_CALLBACK_ALERT_WEBHOOK_URL`，进入 `dead` 时会发送脱敏 webhook 告警，payload 使用 `event_key_hash`，不发送原始密文或原始事件 key。
 
+### 3.8 平台企业授权查询
+
+| 方法 路径 | 鉴权 | 说明 |
+|-----------|------|------|
+| GET `/api/v1/admin/platform/tenants` | Platform Admin JWT | 分页查询已安装企业，支持 `search`、`status`、`page`、`page_size`；返回授权状态和成员/名片汇总 |
+| GET `/api/v1/admin/platform/tenants/{tenant_id}` | Platform Admin JWT | 查询授权范围、AgentID、授权码/企业 token 配置状态、管理员/成员/名片汇总和最近回调 |
+
+接口仅允许 `account_type=platform` 的管理员访问。响应不得返回 `permanent_code_encrypted`、`corp_access_token_encrypted` 或回调原始密文，只返回是否配置、到期时间和脱敏运行状态。
+
 ## 4. 待核对
 
 - 各接口完整 Zod schema 落地在 `backend/src/contracts` 后回链本文件；若后续小程序 / 后台直接复用，再抽独立共享包。

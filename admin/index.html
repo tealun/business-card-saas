@@ -63,6 +63,7 @@
           <button class="nav-item" data-view-target="rules">字段与模板</button>
           <button class="nav-item" data-view-target="sync">同步</button>
           <button class="nav-item" data-view-target="database">数据库</button>
+          <button id="tenantAuthorizationsNav" class="nav-item hidden" data-view-target="tenant-authorizations">企业授权</button>
           <button id="featuresNav" class="nav-item hidden" data-view-target="features">高级功能</button>
           <button class="nav-item" data-view-target="setup" data-dev-only>授权与联调</button>
         </nav>
@@ -311,6 +312,68 @@
             </div>
             <pre id="companyOutput" class="output compact-output" aria-label="company output"></pre>
           </article>
+        </section>
+
+        <section class="view" data-view="tenant-authorizations">
+          <div class="view-head">
+            <div>
+              <h2>企业授权</h2>
+              <p>查看已经安装智云名片的企业及授权运行状态</p>
+            </div>
+            <button id="loadTenantAuthorizations" class="secondary">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="tenant-toolbar">
+              <input id="tenantAuthorizationSearch" placeholder="搜索企业名称或 CorpID" />
+              <select id="tenantAuthorizationStatus">
+                <option value="all">全部状态</option>
+                <option value="active">授权有效</option>
+                <option value="cancelled">已取消授权</option>
+              </select>
+              <button id="searchTenantAuthorizations" type="button">搜索</button>
+            </div>
+            <div class="tenant-summary">
+              <strong id="tenantAuthorizationTotal">0</strong>
+              <span>家已安装企业</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table tenant-table">
+                <thead>
+                  <tr>
+                    <th>企业</th>
+                    <th>授权状态</th>
+                    <th>成员</th>
+                    <th>名片</th>
+                    <th>安装时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tenantAuthorizationRows">
+                  <tr><td colspan="6">尚未加载</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="tenant-pagination">
+              <button id="tenantAuthorizationPrev" type="button" class="secondary">上一页</button>
+              <span id="tenantAuthorizationPage">第 1 页</span>
+              <button id="tenantAuthorizationNext" type="button" class="secondary">下一页</button>
+            </div>
+          </article>
+          <article id="tenantAuthorizationDetailPanel" class="panel hidden">
+            <div class="panel-head">
+              <div>
+                <h3 id="tenantAuthorizationDetailTitle">企业授权详情</h3>
+                <p id="tenantAuthorizationDetailSubtitle" class="muted"></p>
+              </div>
+              <button id="closeTenantAuthorizationDetail" type="button" class="secondary">关闭</button>
+            </div>
+            <div id="tenantAuthorizationDetail" class="tenant-detail-grid"></div>
+            <div class="tenant-scope-block">
+              <h4>授权范围</h4>
+              <pre id="tenantAuthorizationScope" class="output compact-output">尚未加载</pre>
+            </div>
+          </article>
+          <pre id="tenantAuthorizationOutput" class="output compact-output" aria-label="tenant authorization output"></pre>
         </section>
 
         <section class="view" data-view="features">

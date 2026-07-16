@@ -21,6 +21,7 @@ import { ConfigModule } from "./config/config.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { CompanyVideoFeatureModule } from "./company-video-feature/company-video-feature.module.js";
 import { DemoAssetsModule } from "./demo-assets/demo-assets.module.js";
+import { PlatformTenantModule } from "./platform-tenants/platform-tenant.module.js";
 
 @Module({
   imports: [
@@ -74,7 +75,8 @@ import { DemoAssetsModule } from "./demo-assets/demo-assets.module.js";
     AdminDatabaseModule,
     AdminManagementModule,
     AdminConfigModule,
-    CompanyVideoFeatureModule
+    CompanyVideoFeatureModule,
+    PlatformTenantModule
   ],
   controllers: [HealthController, MetricsController],
   providers: [

@@ -47,6 +47,12 @@
 - **敏感数据**：手机号/邮箱/微信号列表默认脱敏；`audit_logs.detail_json` 敏感字段只记 hash/掩码（§31.5）。
 - **审计留痕**：管理端写操作统一落 `audit_logs`（actor/action/target/before-after-hash）。
 
+### 4.1 已实现的平台企业授权面板
+
+平台管理员登录后可见“企业授权”导航项。面板通过 `/api/v1/admin/platform/tenants` 查询已经安装应用的企业，展示企业名称、OpenCorpID、授权状态、安装时间、成员和名片汇总；详情页展示 AgentID、授权范围、永久授权码是否安全保存、企业 token 缓存状态、管理员汇总和最近企业微信回调。
+
+该面板只提供只读运行信息，不允许查看授权码/token 明文，也不允许通过前端改变企业授权状态。企业微信“接口调用许可”属于平台侧独立许可状态，未接入官方许可查询接口前不得根据 `auth_status=active` 推断许可已经开通。
+
 ## 5. 待核对
 
 - 企业微信管理员真实 OAuth/扫码跳转 URL、回跳参数与企业微信后台配置仍需在试点企业环境核对（见 [`01_01_Wecom_Integration.md`](01_01_Wecom_Integration.md)）。

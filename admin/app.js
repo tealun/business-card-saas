@@ -29,7 +29,8 @@ const state = {
   companyHonors: [],
   deletedHonorIds: [],
   videoCapability: { enabled: false },
-  tenantFeatures: []
+  tenantFeatures: [],
+  tenantAuthorizations: { items: [], total: 0, page: 1, pageSize: 20 }
 };
 
 const apiBaseInput = document.querySelector("#apiBase");
@@ -92,6 +93,11 @@ const serviceEditor = document.querySelector("#serviceEditor");
 const introEditor = document.querySelector("#introEditor");
 const honorEditor = document.querySelector("#honorEditor");
 const featureOutput = document.querySelector("#featureOutput");
+const tenantAuthorizationRows = document.querySelector("#tenantAuthorizationRows");
+const tenantAuthorizationOutput = document.querySelector("#tenantAuthorizationOutput");
+const tenantAuthorizationDetailPanel = document.querySelector("#tenantAuthorizationDetailPanel");
+const tenantAuthorizationDetail = document.querySelector("#tenantAuthorizationDetail");
+const tenantAuthorizationScope = document.querySelector("#tenantAuthorizationScope");
 
 apiBaseInput.value = defaultApiBase();
 adminTokenInput.value = state.adminToken;
@@ -243,6 +249,7 @@ function applyAdminIdentity(admin) {
   state.adminMemberId = admin.member_identity_id || "";
   adminMemberIdInput.value = state.adminMemberId;
   document.querySelector("#featuresNav").classList.toggle("hidden", admin.account_type !== "platform");
+  document.querySelector("#tenantAuthorizationsNav").classList.toggle("hidden", admin.account_type !== "platform");
 }
 
 function write(target, value) {
@@ -1181,6 +1188,140 @@ function renderTenantFeatures(){const root=document.querySelector("#tenantFeatur
 document.querySelector("#loadVideoFeatures").addEventListener("click",()=>run("loading video features",featureOutput,loadVideoFeatures));
 document.querySelector("#searchTenantFeatures").addEventListener("click",()=>run("loading tenants",featureOutput,loadVideoFeatures));
 document.querySelector("#saveVideoFeatures").addEventListener("click",()=>run("saving video features",featureOutput,async()=>{const result=await adminRequest("/admin/platform/features/company-video",{method:"PUT",body:{enabled:document.querySelector("#platformVideoEnabled").checked,default_limit_bytes:Math.round(Number(document.querySelector("#platformVideoLimit").value)*1048576)}});await loadVideoFeatures();return result;}));
+
+async function loadTenantAuthorizations(page = state.tenantAuthorizations.page) {
+  const search = document.querySelector("#tenantAuthorizationSearch").value.trim();
+  const status = document.querySelector("#tenantAuthorizationStatus").value;
+  const params = new URLSearchParams({
+    search,
+    status,
+    page: String(Math.max(1, page)),
+    page_size: String(state.tenantAuthorizations.pageSize)
+  });
+  const result = await adminRequest(`/admin/platform/tenants?${params.toString()}`);
+  state.tenantAuthorizations = {
+    items: result.items || [],
+    total: Number(result.total || 0),
+    page: Number(result.page || 1),
+    pageSize: Number(result.page_size || 20)
+  };
+  renderTenantAuthorizations();
+  return result;
+}
+
+function renderTenantAuthorizations() {
+  tenantAuthorizationRows.replaceChildren();
+  const current = state.tenantAuthorizations;
+  document.querySelector("#tenantAuthorizationTotal").textContent = String(current.total);
+  const totalPages = Math.max(1, Math.ceil(current.total / current.pageSize));
+  document.querySelector("#tenantAuthorizationPage").textContent = `第 ${current.page} / ${totalPages} 页`;
+  document.querySelector("#tenantAuthorizationPrev").disabled = current.page <= 1;
+  document.querySelector("#tenantAuthorizationNext").disabled = current.page >= totalPages;
+  if (!current.items.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 6;
+    cell.textContent = "没有找到符合条件的企业授权";
+    row.append(cell);
+    tenantAuthorizationRows.append(row);
+    return;
+  }
+  current.items.forEach((item) => {
+    const row = document.createElement("tr");
+    const enterprise = document.createElement("td");
+    const name = document.createElement("strong");
+    name.textContent = item.tenant_name;
+    const corpid = document.createElement("code");
+    corpid.textContent = item.open_corpid;
+    enterprise.append(name, corpid);
+    const status = document.createElement("td");
+    const statusPill = document.createElement("span");
+    statusPill.className = `auth-status auth-status--${item.auth_status === "active" ? "active" : "inactive"}`;
+    statusPill.textContent = item.auth_status === "active" ? "授权有效" : item.auth_status;
+    status.append(statusPill);
+    const members = document.createElement("td");
+    members.textContent = `${item.active_member_count} / ${item.member_count}`;
+    const cards = document.createElement("td");
+    cards.textContent = `${item.active_card_count} / ${item.card_count}`;
+    const installedAt = document.createElement("td");
+    installedAt.textContent = formatAdminDate(item.authorized_at);
+    const action = document.createElement("td");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "查看详情";
+    button.addEventListener("click", () => run("loading tenant authorization", tenantAuthorizationOutput, () => loadTenantAuthorizationDetail(item.tenant_id)));
+    action.append(button);
+    row.append(enterprise, status, members, cards, installedAt, action);
+    tenantAuthorizationRows.append(row);
+  });
+}
+
+async function loadTenantAuthorizationDetail(tenantId) {
+  const item = await adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}`);
+  document.querySelector("#tenantAuthorizationDetailTitle").textContent = item.tenant_name;
+  document.querySelector("#tenantAuthorizationDetailSubtitle").textContent = item.open_corpid;
+  tenantAuthorizationDetail.replaceChildren();
+  const fields = [
+    ["授权健康", item.authorization_healthy ? "正常" : "需要检查"],
+    ["授权状态", item.auth_status],
+    ["AgentID", item.agent_id || "未返回"],
+    ["安装时间", formatAdminDate(item.authorized_at)],
+    ["取消时间", formatAdminDate(item.cancel_auth_time)],
+    ["成员", `${item.active_member_count} 活跃 / ${item.member_count} 总数`],
+    ["管理员", `${item.active_admin_count} 活跃 / ${item.admin_count} 总数`],
+    ["名片", `${item.active_card_count} 启用 / ${item.card_count} 总数`],
+    ["永久授权码", item.permanent_code_configured ? "已安全保存" : "未配置"],
+    ["企业 Token", item.corp_token_cached ? `已缓存，${formatAdminDate(item.corp_token_expires_at)}到期` : "尚未缓存"],
+    ["最近回调", item.last_callback ? `${item.last_callback.event_type} · ${item.last_callback.status}` : "暂无"],
+    ["回调时间", formatAdminDate(item.last_callback?.received_at)]
+  ];
+  fields.forEach(([label, value]) => {
+    const card = document.createElement("div");
+    card.className = "tenant-detail-item";
+    const term = document.createElement("span");
+    term.textContent = label;
+    const description = document.createElement("strong");
+    description.textContent = String(value);
+    card.append(term, description);
+    tenantAuthorizationDetail.append(card);
+  });
+  tenantAuthorizationScope.textContent = JSON.stringify(item.auth_scope || {}, null, 2);
+  tenantAuthorizationDetailPanel.classList.remove("hidden");
+  tenantAuthorizationDetailPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  return item;
+}
+
+function formatAdminDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(date);
+}
+
+document.querySelector("#loadTenantAuthorizations").addEventListener("click", () => run("loading tenant authorizations", tenantAuthorizationOutput, () => loadTenantAuthorizations()));
+document.querySelector("#searchTenantAuthorizations").addEventListener("click", () => run("searching tenant authorizations", tenantAuthorizationOutput, () => loadTenantAuthorizations(1)));
+document.querySelector("#tenantAuthorizationSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    document.querySelector("#searchTenantAuthorizations").click();
+  }
+});
+document.querySelector("#tenantAuthorizationPrev").addEventListener("click", () => run("loading tenant authorizations", tenantAuthorizationOutput, () => loadTenantAuthorizations(state.tenantAuthorizations.page - 1)));
+document.querySelector("#tenantAuthorizationNext").addEventListener("click", () => run("loading tenant authorizations", tenantAuthorizationOutput, () => loadTenantAuthorizations(state.tenantAuthorizations.page + 1)));
+document.querySelector("#closeTenantAuthorizationDetail").addEventListener("click", () => tenantAuthorizationDetailPanel.classList.add("hidden"));
+document.querySelector("#tenantAuthorizationsNav").addEventListener("click", () => {
+  if (!state.tenantAuthorizations.items.length) {
+    document.querySelector("#loadTenantAuthorizations").click();
+  }
+});
 
 document.querySelector("#saveCompanyProfile").addEventListener("click", async () => {
   const profile = await run("saving company profile", companyOutput, async () => adminRequest("/admin/company-profile", {
