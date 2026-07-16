@@ -49,6 +49,12 @@ Page({
       allow_forward: true,
       show_avatar: true
     },
+    selfService: {
+      allow_privacy_edit: true,
+      allow_share_edit: true,
+      allow_wecom_qrcode_upload: true,
+      qrcode_source: "enterprise_first"
+    },
     loading: true,
     error: false,
     submitting: false
@@ -92,6 +98,7 @@ Page({
           share_title: (card.privacy && card.privacy.share_title) || ""
         },
         editable: editableMap(editableFields),
+        selfService: Object.assign({}, this.data.selfService, card.employee_self_service || {}),
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
           ? app.globalData.currentIdentity.typeLabel
           : "当前名片",
@@ -115,6 +122,10 @@ Page({
   },
 
   onPrivacy(event) {
+    if (!this.canEdit(event.currentTarget.dataset.key)) {
+      this.lockedTip();
+      return;
+    }
     this.setData({ [`privacy.${event.currentTarget.dataset.key}`]: event.detail.value });
   },
 
@@ -200,6 +211,12 @@ Page({
   },
 
   canEdit(fieldKey) {
+    if (fieldKey === "share_title" || fieldKey === "allow_forward") {
+      return this.data.selfService.allow_share_edit !== false;
+    }
+    if (fieldKey === "show_mobile" || fieldKey === "show_email" || fieldKey === "show_wechat" || fieldKey === "show_avatar") {
+      return this.data.selfService.allow_privacy_edit !== false;
+    }
     return this.data.editable[fieldKey] !== false;
   },
 
@@ -217,7 +234,7 @@ Page({
       validateCardForm(form, this.data.editable);
       const card = await request("/employee/cards/current", {
         method: "PUT",
-        data: buildPayload(form, this.data.privacy, this.data.editable)
+          data: buildPayload(form, this.data.privacy, this.data.editable, this.data.selfService)
       });
       if (this.data.editable.logo_url) {
         await request("/employee/cards/current/style", {
@@ -256,18 +273,22 @@ function normalizeDisplayName(displayName) {
   return displayName || "";
 }
 
-function buildPayload(form, privacy, editable) {
-  const payload = {
-    fields: {},
-    privacy: {
-      show_mobile: privacy.show_mobile,
-      show_email: privacy.show_email,
-      show_wechat: privacy.show_wechat,
-      allow_forward: privacy.allow_forward,
-      show_avatar: privacy.show_avatar,
-      share_title: String(form.share_title || "").trim() || null
-    }
-  };
+function buildPayload(form, privacy, editable, selfService) {
+  const payload = { fields: {} };
+  const privacyPayload = {};
+  if (selfService.allow_privacy_edit !== false) {
+    privacyPayload.show_mobile = privacy.show_mobile;
+    privacyPayload.show_email = privacy.show_email;
+    privacyPayload.show_wechat = privacy.show_wechat;
+    privacyPayload.show_avatar = privacy.show_avatar;
+  }
+  if (selfService.allow_share_edit !== false) {
+    privacyPayload.allow_forward = privacy.allow_forward;
+    privacyPayload.share_title = String(form.share_title || "").trim() || null;
+  }
+  if (Object.keys(privacyPayload).length) {
+    payload.privacy = privacyPayload;
+  }
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
   if (editable.display_name) payload.display_name = form.display_name;
   if (editable.title) payload.title = form.title || null;

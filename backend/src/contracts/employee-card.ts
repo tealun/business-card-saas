@@ -42,6 +42,14 @@ export const employeeCardResponseSchema = z.object({
     show_avatar: z.boolean().default(true),
     share_title: z.string().max(50).nullable().default(null)
   }),
+  employee_self_service: z
+    .object({
+      allow_privacy_edit: z.boolean(),
+      allow_share_edit: z.boolean(),
+      allow_wecom_qrcode_upload: z.boolean(),
+      qrcode_source: z.enum(["enterprise_first", "employee_upload_only", "enterprise_only"])
+    })
+    .optional(),
   editable_fields: z.array(z.string()).optional()
 });
 

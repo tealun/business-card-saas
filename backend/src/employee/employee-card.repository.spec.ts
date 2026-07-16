@@ -28,6 +28,12 @@ describe("EmployeeCardRepository", () => {
     });
 
     expect(card.status).toBe("disabled");
+    expect(card.employee_self_service).toEqual({
+      allow_privacy_edit: true,
+      allow_share_edit: true,
+      allow_wecom_qrcode_upload: true,
+      qrcode_source: "enterprise_first"
+    });
     expect(preview.status).toBe("disabled");
   });
 

@@ -67,6 +67,12 @@ Page({
     previewFullscreen: false,
     shareImageUrl: "",
     personalWechatQr: "",
+    selfService: {
+      allow_privacy_edit: true,
+      allow_share_edit: true,
+      allow_wecom_qrcode_upload: true,
+      qrcode_source: "enterprise_first"
+    },
     submitting: false,
     switchingIdentity: false,
     currentIdentity: null,
@@ -181,8 +187,16 @@ Page({
 
   async loadPreview() {
     try {
-      const preview = await request("/employee/cards/current/preview");
-      app.globalData.currentCard = Object.assign({}, preview.card, { public_id: preview.public_id });
+      const [current, preview] = await Promise.all([
+        request("/employee/cards/current"),
+        request("/employee/cards/current/preview")
+      ]);
+      const selfService = Object.assign({}, this.data.selfService, current.employee_self_service || {});
+      app.globalData.currentCard = Object.assign({}, current, preview.card, {
+        public_id: preview.public_id,
+        fields: Object.assign({}, current.fields || {}, (preview.card && preview.card.fields) || {}),
+        employee_self_service: selfService
+      });
       const layout = (preview.template && preview.template.layout) || {};
       const brand = (preview.template && preview.template.color_scheme && preview.template.color_scheme.primary) || DEFAULT_BRAND;
       setPageTheme(this, brand);
@@ -208,6 +222,7 @@ Page({
         demoMode: false,
         authState: "logged",
         loggedIn: true,
+        selfService,
         // 登录后先清掉演示数据，再拉取当前身份的真实统计
         requests: [],
         stats: { visitors: 0, viewed: 0, friends: 0 },
@@ -390,10 +405,19 @@ Page({
       this.choosePersonalWechatQr();
       return;
     }
-    const cachedQrUrl = enterpriseWechatQrUrl();
+    const selfService = this.data.selfService || {};
+    const cachedQrUrl = enterpriseWechatQrUrl(selfService);
     const hasEnterpriseAvatar = Boolean(this.data.card && this.data.card.avatar_url);
     if (cachedQrUrl && hasEnterpriseAvatar) {
       this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl: cachedQrUrl, path: "长按识别加微信" });
+      return;
+    }
+    if (selfService.qrcode_source === "employee_upload_only") {
+      if (selfService.allow_wecom_qrcode_upload === false) {
+        wx.showToast({ title: "企业统一维护二维码", icon: "none" });
+        return;
+      }
+      this.choosePersonalWechatQr("wecom_member");
       return;
     }
     if (!hasEnterpriseAvatar) {
@@ -404,17 +428,25 @@ Page({
       const result = await request("/employee/cards/current/wechat-qrcode");
       const qrUrl = result.qr_url || "";
       if (!qrUrl) {
+        if (selfService.allow_wecom_qrcode_upload === false) {
+          wx.showToast({ title: "企业统一维护二维码", icon: "none" });
+          return;
+        }
         wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
         return;
       }
-      cacheCurrentWechatQr(qrUrl, currentIdentity.identity_type);
+      cacheCurrentWechatQr(qrUrl, currentIdentity.identity_type, result.source);
       this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl, path: "长按识别加微信" });
     } catch (error) {
       wx.showToast({ title: error.message || "二维码读取失败", icon: "none" });
     }
   },
 
-  choosePersonalWechatQr() {
+  choosePersonalWechatQr(identityType = "personal") {
+    if (identityType !== "personal" && this.data.selfService.allow_wecom_qrcode_upload === false) {
+      wx.showToast({ title: "企业统一维护二维码", icon: "none" });
+      return;
+    }
     if (typeof wx.chooseMedia !== "function") {
       wx.showToast({ title: "当前微信版本暂不支持上传二维码", icon: "none" });
       return;
@@ -436,9 +468,11 @@ Page({
             data: { qrcode_url: dataUrl }
           });
           const qrUrl = result.qr_url || "";
-          cacheCurrentWechatQr(qrUrl, "personal");
-          this.setData({ personalWechatQr: qrUrl });
-          this.showPreview({ mode: "wechat", title: "个人微信二维码", qrUrl, path: "长按识别加微信" });
+          cacheCurrentWechatQr(qrUrl, identityType, result.source);
+          if (identityType === "personal") {
+            this.setData({ personalWechatQr: qrUrl });
+          }
+          this.showPreview({ mode: "wechat", title: identityType === "personal" ? "个人微信二维码" : "企业微信二维码", qrUrl, path: "长按识别加微信" });
         } catch (error) {
           wx.showToast({ title: error.message || "二维码上传失败", icon: "none" });
         }
@@ -611,20 +645,26 @@ function fallbackCardFromIdentity(identity) {
   };
 }
 
-function enterpriseWechatQrUrl() {
+function enterpriseWechatQrUrl(selfService = {}) {
   const current = app.globalData.currentCard || {};
   const fields = current.fields || {};
   const identity = app.globalData.currentIdentity || {};
+  if (selfService.qrcode_source === "enterprise_only") {
+    return fields.wecom_qrcode_url || identity.wecom_qrcode_url || "";
+  }
+  if (selfService.qrcode_source === "employee_upload_only") {
+    return fields.wechat_qrcode_url || identity.wechat_qrcode_url || "";
+  }
   return fields.wecom_qrcode_url || fields.wechat_qrcode_url || identity.wecom_qrcode_url || identity.wechat_qrcode_url || "";
 }
 
-function cacheCurrentWechatQr(qrUrl, identityType) {
+function cacheCurrentWechatQr(qrUrl, identityType, source) {
   if (!qrUrl) {
     return;
   }
   const currentCard = app.globalData.currentCard || {};
   const fields = Object.assign({}, currentCard.fields || {});
-  if (identityType === "personal") {
+  if (identityType === "personal" || source === "personal_upload") {
     fields.wechat_qrcode_url = qrUrl;
   } else {
     fields.wecom_qrcode_url = qrUrl;

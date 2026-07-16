@@ -25,6 +25,7 @@ interface EmployeeWecomSettings {
   allowEmployeeWecomQrCodeUpload: boolean;
   qrcodeSource: WecomQrCodeSource;
 }
+type EmployeeSelfService = NonNullable<EmployeeCardResponse["employee_self_service"]>;
 type EditableFieldKey =
   | "avatar_url"
   | "display_name"
@@ -93,10 +94,19 @@ export class EmployeeCardRepository {
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
         const card = await this.ensureCurrentCardInDb(tx, session);
-        return this.cloneCard({ ...card, editable_fields: await this.editableFields(tx, session) });
+        const wecomSettings = await this.employeeWecomSettings(tx, session);
+        return this.cloneCard({
+          ...card,
+          editable_fields: await this.editableFields(tx, session),
+          employee_self_service: toEmployeeSelfService(wecomSettings)
+        });
       });
     }
-    return this.cloneCard({ ...this.ensureCurrentCardInMemory(session), editable_fields: defaultEditableFields() });
+    return this.cloneCard({
+      ...this.ensureCurrentCardInMemory(session),
+      editable_fields: defaultEditableFields(),
+      employee_self_service: toEmployeeSelfService(defaultEmployeeWecomSettings())
+    });
   }
 
   // Per-identity visit stats: card_visits rows are already scoped to the
@@ -199,6 +209,7 @@ export class EmployeeCardRepository {
         assertCanUpdate(request, allowedFields);
         assertCanUpdatePrivacy(request, wecomSettings);
         const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields, wecomSettings);
+        next.employee_self_service = toEmployeeSelfService(wecomSettings);
         const encryptedFields = this.encryptJson(next.fields);
         await tx.query(
           `
@@ -250,6 +261,7 @@ export class EmployeeCardRepository {
     assertCanUpdate(request, allowedFields);
     assertCanUpdatePrivacy(request, wecomSettings);
     const next = mergeCard(current, await this.materializeStorageFields(session, request), allowedFields, wecomSettings);
+    next.employee_self_service = toEmployeeSelfService(wecomSettings);
     this.cards.set(key, next);
     return this.cloneCard(next);
   }
@@ -741,6 +753,7 @@ export class EmployeeCardRepository {
       ...card,
       fields: { ...card.fields },
       privacy: { ...card.privacy },
+      employee_self_service: card.employee_self_service ? { ...card.employee_self_service } : undefined,
       editable_fields: card.editable_fields ? [...card.editable_fields] : undefined
     };
   }
@@ -1150,6 +1163,15 @@ function defaultEmployeeWecomSettings(): EmployeeWecomSettings {
     allowEmployeeShareEdit: true,
     allowEmployeeWecomQrCodeUpload: true,
     qrcodeSource: "enterprise_first"
+  };
+}
+
+function toEmployeeSelfService(settings: EmployeeWecomSettings): EmployeeSelfService {
+  return {
+    allow_privacy_edit: settings.allowEmployeePrivacyEdit,
+    allow_share_edit: settings.allowEmployeeShareEdit,
+    allow_wecom_qrcode_upload: settings.allowEmployeeWecomQrCodeUpload,
+    qrcode_source: settings.qrcodeSource
   };
 }
 

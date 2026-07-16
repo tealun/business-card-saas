@@ -138,33 +138,33 @@
 
   <view class="card">
     <text class="card__title">分享设置</text>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_share_edit ? '' : 'field-row--locked'}}" data-key="share_title" bindtap="onLockedFieldTap">
       <text class="field-row__label">分享标题</text>
-      <input class="field-row__value" value="{{form.share_title}}" data-key="share_title" bindinput="onInput" maxlength="50" placeholder="默认使用姓名的数字名片" />
+      <input class="field-row__value {{selfService.allow_share_edit ? '' : 'field-row__value--locked'}}" value="{{form.share_title}}" data-key="share_title" bindinput="onInput" maxlength="50" disabled="{{!selfService.allow_share_edit}}" placeholder="{{selfService.allow_share_edit ? '默认使用姓名的数字名片' : '企业统一维护'}}" />
     </view>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_share_edit ? '' : 'field-row--locked'}}" data-key="allow_forward" bindtap="onLockedFieldTap">
       <text class="field-row__label">允许访客转发名片</text>
-      <switch checked="{{privacy.allow_forward}}" color="{{themeBrand}}" data-key="allow_forward" bindchange="onPrivacy" />
+      <switch checked="{{privacy.allow_forward}}" color="{{themeBrand}}" data-key="allow_forward" bindchange="onPrivacy" disabled="{{!selfService.allow_share_edit}}" />
     </view>
   </view>
 
   <view class="card">
     <text class="card__title">隐私设置</text>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_privacy_edit ? '' : 'field-row--locked'}}" data-key="show_avatar" bindtap="onLockedFieldTap">
       <text class="field-row__label">显示名片头像</text>
-      <switch checked="{{privacy.show_avatar}}" color="{{themeBrand}}" data-key="show_avatar" bindchange="onPrivacy" />
+      <switch checked="{{privacy.show_avatar}}" color="{{themeBrand}}" data-key="show_avatar" bindchange="onPrivacy" disabled="{{!selfService.allow_privacy_edit}}" />
     </view>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_privacy_edit ? '' : 'field-row--locked'}}" data-key="show_mobile" bindtap="onLockedFieldTap">
       <text class="field-row__label">手机号对访客公开</text>
-      <switch checked="{{privacy.show_mobile}}" color="{{themeBrand}}" data-key="show_mobile" bindchange="onPrivacy" />
+      <switch checked="{{privacy.show_mobile}}" color="{{themeBrand}}" data-key="show_mobile" bindchange="onPrivacy" disabled="{{!selfService.allow_privacy_edit}}" />
     </view>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_privacy_edit ? '' : 'field-row--locked'}}" data-key="show_email" bindtap="onLockedFieldTap">
       <text class="field-row__label">邮箱对访客公开</text>
-      <switch checked="{{privacy.show_email}}" color="{{themeBrand}}" data-key="show_email" bindchange="onPrivacy" />
+      <switch checked="{{privacy.show_email}}" color="{{themeBrand}}" data-key="show_email" bindchange="onPrivacy" disabled="{{!selfService.allow_privacy_edit}}" />
     </view>
-    <view class="field-row">
+    <view class="field-row {{selfService.allow_privacy_edit ? '' : 'field-row--locked'}}" data-key="show_wechat" bindtap="onLockedFieldTap">
       <text class="field-row__label">微信号对访客公开</text>
-      <switch checked="{{privacy.show_wechat}}" color="{{themeBrand}}" data-key="show_wechat" bindchange="onPrivacy" />
+      <switch checked="{{privacy.show_wechat}}" color="{{themeBrand}}" data-key="show_wechat" bindchange="onPrivacy" disabled="{{!selfService.allow_privacy_edit}}" />
     </view>
   </view>
 
