@@ -5,6 +5,7 @@ import { WecomCallbackAlertService } from "./wecom-callback-alert.service.js";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
+import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
 import type { WecomCallbackQuery, WecomCallbackQueryInput } from "./wecom-command-callback.service.js";
 
@@ -32,6 +33,7 @@ export class WecomDataCallbackService {
     private readonly events: WecomCallbackEventRepository,
     private readonly tenants: WecomTenantAuthRepository,
     private readonly contacts: WecomContactSyncRepository,
+    private readonly contactSync: WecomContactSyncService,
     private readonly alerts: WecomCallbackAlertService
   ) {}
 
@@ -206,6 +208,15 @@ export class WecomDataCallbackService {
         });
         await this.events.markDone(eventKey, tenant.tenantId);
         return { event, changeType, tenantId: tenant.tenantId, handled };
+      }
+
+      if (changeType === "create_party" || changeType === "update_party" || changeType === "delete_party") {
+        await this.contactSync.syncTenantMembers({
+          tenantId: tenant.tenantId,
+          tenantName: tenant.corpName
+        });
+        await this.events.markDone(eventKey, tenant.tenantId);
+        return { event, changeType, tenantId: tenant.tenantId, handled: true };
       }
 
       await this.events.markDone(eventKey, tenant.tenantId);

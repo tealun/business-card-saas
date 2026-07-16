@@ -8,6 +8,7 @@ import {
   type DisableWecomContactMemberInput,
   type SyncWecomContactMembersInput
 } from "./wecom-contact-sync.repository.js";
+import { WecomContactSyncService, type SyncTenantContactMembersInput } from "./wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "./wecom-data-callback.service.js";
 import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./wecom-tenant-auth.repository.js";
 
@@ -60,6 +61,17 @@ describe("WecomDataCallbackService", () => {
     await service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>");
 
     expect(contacts.lastUpsert?.users[0]?.userid).toBe("user-new");
+  });
+
+  it("runs a tenant contact sync when department callbacks change", async () => {
+    const { service, crypto, contactSync, events } = createService();
+    crypto.message = contactXml("update_party");
+
+    const result = await service.receive(callbackQuery(), "<xml><Encrypt><![CDATA[cipher]]></Encrypt></xml>");
+
+    expect(result).toEqual({ event: "change_contact", changeType: "update_party", tenantId: "tenant-001", handled: true });
+    expect(contactSync.requests).toEqual([{ tenantId: "tenant-001", tenantName: "Pilot Corp" }]);
+    expect(events.doneKeys).toHaveLength(1);
   });
 
   it("skips business work for duplicate callback events already in progress or done", async () => {
@@ -231,6 +243,14 @@ class FakeContactSyncRepository {
   }
 }
 
+class FakeContactSyncService {
+  requests: SyncTenantContactMembersInput[] = [];
+
+  async syncTenantMembers(input: SyncTenantContactMembersInput): Promise<void> {
+    this.requests.push(input);
+  }
+}
+
 class FakeCallbackAlertService {
   deadLetters: Array<{ eventKey: string; retryCount: number; errorType: string }> = [];
 
@@ -294,6 +314,7 @@ function createService() {
   const events = new FakeCallbackEventRepository();
   const tenants = new FakeTenantAuthRepository();
   const contacts = new FakeContactSyncRepository();
+  const contactSync = new FakeContactSyncService();
   const alerts = new FakeCallbackAlertService();
   const service = new WecomDataCallbackService(
     config as unknown as WecomConfigService,
@@ -301,9 +322,10 @@ function createService() {
     events as unknown as WecomCallbackEventRepository,
     tenants as unknown as WecomTenantAuthRepository,
     contacts as unknown as WecomContactSyncRepository,
+    contactSync as unknown as WecomContactSyncService,
     alerts as unknown as WecomCallbackAlertService
   );
-  return { service, crypto, events, tenants, contacts, alerts };
+  return { service, crypto, events, tenants, contacts, contactSync, alerts };
 }
 
 function callbackQuery() {
