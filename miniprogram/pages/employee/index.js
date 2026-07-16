@@ -428,10 +428,6 @@ Page({
       const result = await request("/employee/cards/current/wechat-qrcode");
       const qrUrl = result.qr_url || "";
       if (!qrUrl) {
-        if (selfService.allow_wecom_qrcode_upload === false) {
-          wx.showToast({ title: "企业统一维护二维码", icon: "none" });
-          return;
-        }
         wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
         return;
       }
