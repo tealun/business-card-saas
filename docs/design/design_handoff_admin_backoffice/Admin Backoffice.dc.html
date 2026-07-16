@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+  body { margin:0; background:#F6F7F9; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:#D8DBE2; border-radius:8px; }
+  a { color:#4A5AC2; text-decoration:none; }
+  a:hover { color:#38449C; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;color:#111827;font-size:14px;letter-spacing:0;">
+
+  <aside style="width:224px;flex:none;background:#FFFFFF;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;gap:8px;padding:18px 16px 14px 16px;">
+      <img src="uploads/color-nobg.png" style="width:26px;height:26px;object-fit:contain;" alt="logo"/>
+      <div style="font-size:15px;font-weight:700;color:#111827;">智云名片</div>
+    </div>
+
+    <div style="margin:0 16px 14px 16px;padding:3px;background:#F1F2F4;border-radius:8px;display:flex;gap:2px;">
+      <div style="{{ backendSwitch.platform.style }}" onClick="{{ backendSwitch.platform.onClick }}">系统后台</div>
+      <div style="{{ backendSwitch.tenant.style }}" onClick="{{ backendSwitch.tenant.onClick }}">企业后台</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 10px;">
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <div style="{{ item.style }}" onClick="{{ item.onClick }}">{{ item.label }}</div>
+      </sc-for>
+    </div>
+
+    <div style="padding:14px 16px;border-top:1px solid #E5E7EB;display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;border-radius:8px;background:#EEF0FC;color:#4A5AC2;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none;">{{ account.initial }}</div>
+      <div style="min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ account.name }}</div>
+        <div style="font-size:11px;color:#667085;">{{ account.role }}</div>
+      </div>
+    </div>
+  </aside>
+
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+
+    <div style="height:52px;flex:none;background:#FFFFFF;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;padding:0 20px;">
+      <div style="font-size:12px;color:#667085;">{{ breadcrumb }}</div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="搜索">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div style="width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="通知">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </div>
+        <div style="width:1px;height:20px;background:#E5E7EB;"></div>
+        <div style="font-size:13px;color:#111827;font-weight:600;">{{ account.name }}</div>
+      </div>
+    </div>
+
+    <div style="padding:22px 24px 12px 24px;display:flex;align-items:flex-start;justify-content:space-between;flex:none;">
+      <div>
+        <div style="font-size:24px;font-weight:700;color:#111827;">{{ pageHeader.title }}</div>
+        <div style="font-size:13px;color:#667085;margin-top:4px;">{{ pageHeader.subtitle }}</div>
+      </div>
+      <sc-if value="{{ pageHeader.hasPrimary }}">
+        <button style="background:#4A5AC2;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ pageHeader.primaryOnClick }}">{{ pageHeader.primaryLabel }}</button>
+      </sc-if>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 24px 32px 24px;">
+
+      <sc-if value="{{ isPlatformDashboard }}">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;">
+          <sc-for list="{{ platformMetrics }}" as="m" hint-placeholder-count="5">
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;cursor:pointer;" onClick="{{ m.onClick }}">
+              <div style="font-size:12px;color:#667085;">{{ m.label }}</div>
+              <div style="font-size:26px;font-weight:700;margin-top:6px;color:{{ m.color }};">{{ m.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;">
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:12px;">风险队列</div>
+            <sc-for list="{{ riskQueue }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F1F2F4;">
+                <div style="{{ r.dotStyle }}"></div>
+                <div style="flex:1;font-size:13px;color:#111827;">{{ r.title }}</div>
+                <div style="font-size:12px;color:#667085;">{{ r.time }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:4px;">最近 24 小时回调</div>
+            <div style="font-size:12px;color:#667085;margin-bottom:14px;">成功 / 失败</div>
+            <div style="display:flex;align-items:flex-end;gap:6px;height:120px;">
+              <sc-for list="{{ callbackTrend }}" as="b" hint-placeholder-count="12">
+                <div style="flex:1;height:{{ b.h }};background:{{ b.color }};border-radius:3px 3px 0 0;"></div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:12px;">快捷入口</div>
+          <div style="display:flex;gap:12px;">
+            <sc-for list="{{ quickLinks }}" as="q" hint-placeholder-count="4">
+              <div style="flex:1;border:1px solid #E5E7EB;border-radius:8px;padding:14px;cursor:pointer;text-align:center;font-size:13px;font-weight:600;color:#111827;" onClick="{{ q.onClick }}">{{ q.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformTenants }}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <input placeholder="搜索企业名称 / OpenCorpID" style="flex:1;max-width:320px;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;outline:none;"/>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;color:#111827;background:#fff;">
+            <option>全部状态</option><option>正常</option><option>需人工处理</option><option>已取消授权</option>
+          </select>
+          <div style="flex:1;"></div>
+          <div style="width:32px;height:32px;border:1px solid #E5E7EB;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;" title="刷新">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.4fr 1.3fr .9fr .9fr .9fr .9fr 1fr .7fr;padding:10px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>企业名称</div><div>OpenCorpID</div><div>授权状态</div><div>授权健康</div><div>成员</div><div>名片</div><div>安装时间</div><div>操作</div>
+          </div>
+          <sc-for list="{{ tenants }}" as="t" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:1.4fr 1.3fr .9fr .9fr .9fr .9fr 1fr .7fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ t.name }}</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#667085;">{{ t.openCorpId }}</div>
+              <div><span style="{{ t.statusTag }}">{{ t.statusLabel }}</span></div>
+              <div><span style="{{ t.healthTag }}">{{ t.healthLabel }}</span></div>
+              <div>{{ t.membersActive }}/{{ t.membersTotal }}</div>
+              <div>{{ t.cardsActive }}/{{ t.cardsTotal }}</div>
+              <div style="color:#667085;font-size:12px;">{{ t.installedAt }}</div>
+              <div><span style="color:#4A5AC2;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ t.onClick }}">查看详情</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformWecom }}">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;">
+          <sc-for list="{{ wecomStats }}" as="ws" hint-placeholder-count="3">
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;"><div style="font-size:12px;color:#667085;">{{ ws.label }}</div><div style="font-size:24px;font-weight:700;margin-top:6px;color:{{ ws.color }};">{{ ws.value }}</div></div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1.2fr .9fr 1fr 1.4fr .7fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>类型</div><div>企业</div><div>状态</div><div>时间</div><div>错误摘要</div><div>操作</div>
+          </div>
+          <sc-for list="{{ wecomEvents }}" as="w" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:1fr 1.2fr .9fr 1fr 1.4fr .7fr;padding:8px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div>{{ w.type }}</div><div>{{ w.tenant }}</div><div><span style="{{ w.tag }}">{{ w.status }}</span></div>
+              <div style="font-size:12px;color:#667085;">{{ w.time }}</div><div style="font-size:12px;color:#667085;">{{ w.error }}</div>
+              <div><sc-if value="{{ w.retryable }}"><span style="color:#4A5AC2;font-size:12px;font-weight:600;cursor:pointer;">重试</span></sc-if></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformCommercial }}">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+          <button style="background:#4A5AC2;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ openAdjustModal }}">人工调整额度</button>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1.4fr 1fr .8fr .8fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>套餐名称</div><div>企业微信版本ID</div><div>月价</div><div>状态</div>
+          </div>
+          <sc-for list="{{ planCatalog }}" as="p" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:1.4fr 1fr .8fr .8fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ p.name }}</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#667085;">{{ p.wecomId }}</div><div>{{ p.price }}</div><div><span style="{{ p.tag }}">{{ p.status }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:12px;">订单异常队列</div>
+          <sc-for list="{{ orderExceptions }}" as="oe" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F1F2F4;">
+              <div style="{{ oe.dotStyle }}"></div><div style="flex:1;font-size:13px;">{{ oe.title }}</div><div style="font-size:12px;color:#667085;">{{ oe.time }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformFeatures }}">
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.2fr .8fr .8fr 1.6fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>功能</div><div>平台默认</div><div>企业 override</div><div>说明</div>
+          </div>
+          <sc-for list="{{ featureFlags }}" as="f" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1.2fr .8fr .8fr 1.6fr;padding:10px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ f.name }}</div>
+              <div><div style="{{ f.toggleTrack }}" onClick="{{ f.onToggle }}"><div style="{{ f.toggleThumb }}"></div></div></div>
+              <div style="color:#667085;">{{ f.overrideCount }} 家</div>
+              <div style="color:#667085;font-size:12px;">{{ f.desc }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformOps }}">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <sc-for list="{{ healthChecks }}" as="hc" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:14px;"><div style="font-size:12px;color:#667085;">{{ hc.label }}</div><div style="margin-top:8px;"><span style="{{ hc.tag }}">{{ hc.status }}</span></div></div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.4fr .8fr 1fr .8fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>迁移任务</div><div>状态</div><div>执行时间</div><div>操作</div>
+          </div>
+          <sc-for list="{{ migrations }}" as="mg" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:1.4fr .8fr 1fr .8fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div>{{ mg.name }}</div><div><span style="{{ mg.tag }}">{{ mg.status }}</span></div><div style="font-size:12px;color:#667085;">{{ mg.time }}</div>
+              <div><span style="color:#4A5AC2;font-size:12px;font-weight:600;cursor:pointer;">查看日志</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformAudit }}">
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>近 24 小时</option><option>近 7 天</option><option>近 30 天</option></select>
+          <input placeholder="操作者" style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;width:140px;outline:none;"/>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>全部角色</option><option>平台管理员</option><option>企业管理员</option></select>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>全部风险级别</option><option>高</option><option>中</option><option>低</option></select>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1fr .9fr 1fr 1.2fr .8fr 1fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>时间</div><div>操作者</div><div>身份域</div><div>动作</div><div>目标</div><div>结果</div><div>IP/请求ID</div>
+          </div>
+          <sc-for list="{{ platformAuditLog }}" as="a" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:1fr 1fr .9fr 1fr 1.2fr .8fr 1fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-size:12px;color:#667085;">{{ a.time }}</div><div>{{ a.actor }}</div><div style="color:#667085;">{{ a.domain }}</div><div>{{ a.action }}</div><div style="color:#667085;">{{ a.target }}</div>
+              <div><span style="{{ a.tag }}">{{ a.result }}</span></div><div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#9AA1AF;">{{ a.ip }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlatformAccounts }}">
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.2fr .9fr .8fr .8fr .8fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>账号</div><div>角色</div><div>MFA</div><div>状态</div><div>操作</div>
+          </div>
+          <sc-for list="{{ systemAccounts }}" as="sa" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.2fr .9fr .8fr .8fr .8fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ sa.name }}</div><div style="color:#667085;">{{ sa.role }}</div><div><span style="{{ sa.mfaTag }}">{{ sa.mfa }}</span></div>
+              <div><span style="{{ sa.statusTag }}">{{ sa.status }}</span></div><div style="font-size:12px;color:#DC2626;font-weight:600;cursor:pointer;">{{ sa.actionLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantDashboard }}">
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <sc-for list="{{ healthChips }}" as="h" hint-placeholder-count="4">
+            <div style="flex:1;background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:12px 14px;">
+              <div style="font-size:12px;color:#667085;">{{ h.label }}</div>
+              <div style="margin-top:6px;"><span style="{{ h.tag }}">{{ h.value }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <sc-for list="{{ tenantMetrics }}" as="m" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+              <div style="font-size:12px;color:#667085;">{{ m.label }}</div>
+              <div style="font-size:26px;font-weight:700;margin-top:6px;">{{ m.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:16px;">
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:12px;">待办</div>
+            <sc-for list="{{ todos }}" as="td" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F1F2F4;">
+                <div style="{{ td.dotStyle }}"></div>
+                <div style="flex:1;font-size:13px;">{{ td.label }}</div>
+                <span style="font-size:12px;color:#4A5AC2;font-weight:600;cursor:pointer;" onClick="{{ td.onClick }}">{{ td.action }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:14px;">近 7 日访问趋势</div>
+            <div style="display:flex;align-items:flex-end;gap:10px;height:120px;">
+              <sc-for list="{{ visitTrend }}" as="v" hint-placeholder-count="7">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;">
+                  <div style="width:100%;height:{{ v.h }};background:#C7CEF2;border-radius:3px 3px 0 0;"></div>
+                  <div style="font-size:11px;color:#667085;">{{ v.day }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantMembers }}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <input placeholder="搜索姓名 / 手机 / 邮箱" style="flex:1;max-width:280px;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;outline:none;"/>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>全部状态</option><option>已启用</option><option>已停用</option><option>同步失败</option></select>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>全部部门</option><option>销售部</option><option>市场部</option><option>技术部</option></select>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1.3fr 1.2fr .9fr .9fr .9fr .6fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>姓名</div><div>职位</div><div>手机/邮箱</div><div>名片状态</div><div>最近同步</div><div>最近访问</div><div>操作</div>
+          </div>
+          <sc-for list="{{ members }}" as="mb" hint-placeholder-count="8">
+            <div style="display:grid;grid-template-columns:1fr 1.3fr 1.2fr .9fr .9fr .9fr .6fr;padding:8px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ mb.name }}</div>
+              <div style="color:#667085;">{{ mb.title }}</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#667085;">{{ mb.contact }}</div>
+              <div><span style="{{ mb.statusTag }}">{{ mb.statusLabel }}</span></div>
+              <div style="font-size:12px;color:#667085;">{{ mb.lastSync }}</div>
+              <div style="font-size:12px;color:#667085;">{{ mb.lastVisit }}</div>
+              <div><span style="color:#4A5AC2;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ mb.onClick }}">编辑</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantCompany }}">
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+          <div style="font-size:13px;color:#667085;flex:none;">资料完整度</div>
+          <div style="flex:1;height:8px;background:#F1F2F4;border-radius:4px;overflow:hidden;"><div style="height:100%;width:{{ companyForm.completeness }}%;background:#4A5AC2;"></div></div>
+          <div style="font-size:13px;font-weight:700;flex:none;">{{ companyForm.completeness }}%</div>
+          <div style="font-size:12px;color:#D97706;flex:none;">{{ companyForm.missingText }}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:160px 1fr 320px;gap:16px;">
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:8px;height:fit-content;">
+            <sc-for list="{{ companyModules }}" as="cm" hint-placeholder-count="5">
+              <div style="{{ cm.style }}" onClick="{{ cm.onClick }}">{{ cm.label }}</div>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:20px;">
+            <sc-if value="{{ isCompanyBasic }}">
+              <div style="display:flex;flex-direction:column;gap:14px;max-width:420px;">
+                <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">企业名称</div><input value="{{ companyForm.name }}" onChange="{{ setCompanyName }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+                <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">Slogan</div><input value="{{ companyForm.slogan }}" onChange="{{ setCompanySlogan }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+                <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">地址</div><input value="{{ companyForm.address }}" onChange="{{ setCompanyAddress }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isCompanyServices }}">
+              <div style="font-size:12px;color:#667085;margin-bottom:10px;">服务标签</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <sc-for list="{{ companyForm.servicesList }}" as="sv" hint-placeholder-count="3">
+                  <div style="background:#EEF0FC;color:#4A5AC2;padding:6px 10px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:6px;">{{ sv.label }}<span style="cursor:pointer;color:#8892D6;" onClick="{{ sv.onRemove }}">×</span></div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isCompanyIntro }}">
+              <div style="font-size:12px;color:#667085;margin-bottom:6px;">企业介绍</div>
+              <textarea value="{{ companyForm.intro }}" onChange="{{ setCompanyIntro }}" style="width:100%;box-sizing:border-box;height:160px;border:1px solid #E5E7EB;border-radius:6px;padding:10px;font-size:13px;outline:none;resize:vertical;"></textarea>
+            </sc-if>
+            <sc-if value="{{ isCompanyHonors }}">
+              <div style="font-size:12px;color:#667085;margin-bottom:10px;">荣誉资质</div>
+              <sc-for list="{{ companyForm.honors }}" as="ho" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F1F2F4;">
+                  <div style="flex:1;font-size:13px;">{{ ho.title }}</div>
+                  <div style="font-size:12px;color:#667085;">{{ ho.year }}</div>
+                </div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ isCompanyVideo }}">
+              <div style="text-align:center;padding:40px 20px;color:#667085;">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9AA1AF" stroke-width="1.6" style="margin:0 auto 12px auto;"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2"/></svg>
+                <div style="font-size:13px;">视频能力未开通</div>
+                <div style="font-size:12px;margin-top:6px;">请联系平台开通视频介绍能力</div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:12px;color:#667085;margin-bottom:12px;align-self:flex-start;">实时预览</div>
+            <div style="width:260px;border:1px solid #E5E7EB;border-radius:20px;padding:20px 16px;box-shadow:0 4px 16px rgba(17,24,39,0.06);">
+              <div style="width:48px;height:48px;border-radius:12px;background:#EEF0FC;display:flex;align-items:center;justify-content:center;margin:0 auto 12px auto;">
+                <img src="uploads/black-line.png" style="width:26px;height:26px;object-fit:contain;" alt=""/>
+              </div>
+              <div style="text-align:center;font-size:15px;font-weight:700;">{{ companyForm.name }}</div>
+              <div style="text-align:center;font-size:12px;color:#667085;margin-top:4px;">{{ companyForm.slogan }}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px;">
+                <sc-for list="{{ companyForm.servicesList }}" as="sv2" hint-placeholder-count="3">
+                  <div style="background:#F1F2F4;color:#667085;padding:3px 8px;border-radius:5px;font-size:11px;">{{ sv2.label }}</div>
+                </sc-for>
+              </div>
+              <div style="font-size:12px;color:#667085;margin-top:12px;line-height:1.6;">{{ companyForm.introPreview }}</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantBilling }}">
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-bottom:16px;">
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:16px;font-weight:700;">{{ plan.name }}</div>
+              <span style="{{ plan.tag }}">{{ plan.statusLabel }}</span>
+            </div>
+            <div style="font-size:12px;color:#667085;margin-top:8px;">有效期至 {{ plan.validUntil }}</div>
+            <button style="margin-top:14px;background:#4A5AC2;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;">购买 / 续费</button>
+          </div>
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:18px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#667085;margin-bottom:8px;">
+              <div>额度使用</div><div>{{ quota.used }} / {{ quota.total }}</div>
+            </div>
+            <div style="height:8px;background:#F1F2F4;border-radius:4px;overflow:hidden;"><div style="height:100%;width:{{ quota.rate }}%;background:{{ quota.barColor }};"></div></div>
+            <div style="font-size:12px;color:#667085;margin-top:8px;">剩余 {{ quota.remaining }}，使用率 {{ quota.rate }}%</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="font-size:15px;font-weight:700;">用量趋势</div>
+            <div style="display:flex;background:#F1F2F4;border-radius:6px;padding:2px;">
+              <div style="{{ rangeToggle.d7.style }}" onClick="{{ rangeToggle.d7.onClick }}">7天</div>
+              <div style="{{ rangeToggle.d30.style }}" onClick="{{ rangeToggle.d30.onClick }}">30天</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:5px;height:110px;">
+            <sc-for list="{{ usageTrend }}" as="u" hint-placeholder-count="7">
+              <div style="flex:1;height:{{ u.h }};background:#C7CEF2;border-radius:3px 3px 0 0;"></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.2fr 1.3fr .9fr .9fr 1fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>订单号</div><div>版本</div><div>金额</div><div>状态</div><div>时间</div>
+          </div>
+          <sc-for list="{{ orders }}" as="o" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:1.2fr 1.3fr .9fr .9fr 1fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;">{{ o.id }}</div>
+              <div>{{ o.plan }}</div>
+              <div>{{ o.amount }}</div>
+              <div><span style="{{ o.tag }}">{{ o.status }}</span></div>
+              <div style="font-size:12px;color:#667085;">{{ o.time }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantDesign }}">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">字段规则</div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+          <div style="display:grid;grid-template-columns:1fr .8fr .8fr .8fr 1.6fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>字段名</div><div>是否启用</div><div>员工可编辑</div><div>默认可见</div><div>说明</div>
+          </div>
+          <sc-for list="{{ fieldRules }}" as="fr" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1fr .8fr .8fr .8fr 1.6fr;padding:10px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ fr.name }}</div>
+              <div><div style="{{ fr.enabledTrack }}" onClick="{{ fr.onToggleEnabled }}"><div style="{{ fr.enabledThumb }}"></div></div></div>
+              <div><div style="{{ fr.editableTrack }}" onClick="{{ fr.onToggleEditable }}"><div style="{{ fr.editableThumb }}"></div></div></div>
+              <div><div style="{{ fr.visibleTrack }}" onClick="{{ fr.onToggleVisible }}"><div style="{{ fr.visibleThumb }}"></div></div></div>
+              <div style="color:#667085;font-size:12px;">{{ fr.desc }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">模板管理</div>
+        <div style="display:flex;gap:14px;">
+          <sc-for list="{{ templates }}" as="tp" hint-placeholder-count="3">
+            <div style="width:180px;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+              <div style="height:100px;background:{{ tp.previewColor }};"></div>
+              <div style="padding:10px;">
+                <div style="font-size:13px;font-weight:600;">{{ tp.name }}</div>
+                <div style="margin-top:8px;"><span style="{{ tp.tag }}">{{ tp.tagLabel }}</span></div>
+                <button style="{{ tp.buttonStyle }}" onClick="{{ tp.onSetDefault }}" disabled="{{ tp.isDefault }}">{{ tp.buttonLabel }}</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantAnalytics }}">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+          <sc-for list="{{ analyticsMetrics }}" as="am" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;"><div style="font-size:12px;color:#667085;">{{ am.label }}</div><div style="font-size:24px;font-weight:700;margin-top:6px;">{{ am.value }}</div></div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px;">
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+            <div style="padding:12px 16px;font-size:15px;font-weight:700;border-bottom:1px solid #E5E7EB;">成员排行</div>
+            <div style="display:grid;grid-template-columns:.5fr 1.2fr .9fr .9fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;"><div>排名</div><div>姓名</div><div>访问量</div><div>分享次数</div></div>
+            <sc-for list="{{ analyticsRanking }}" as="ar" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:.5fr 1.2fr .9fr .9fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+                <div style="color:#667085;">{{ ar.rank }}</div><div style="font-weight:600;">{{ ar.name }}</div><div>{{ ar.visits }}</div><div>{{ ar.shares }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:16px;">
+            <div style="font-size:15px;font-weight:700;margin-bottom:14px;">互动转化</div>
+            <sc-for list="{{ funnelSteps }}" as="fs" hint-placeholder-count="4">
+              <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>{{ fs.label }}</span><span style="color:#667085;">{{ fs.count }}</span></div>
+                <div style="height:8px;background:#F1F2F4;border-radius:4px;overflow:hidden;"><div style="height:100%;width:{{ fs.pct }}%;background:#4A5AC2;"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantAdmins }}">
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1.2fr .9fr .8fr .8fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>姓名</div><div>角色</div><div>状态</div><div>操作</div>
+          </div>
+          <sc-for list="{{ tenantAdmins }}" as="ta" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:1.2fr .9fr .8fr .8fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-weight:600;">{{ ta.name }}</div><div><span style="{{ ta.roleTag }}">{{ ta.role }}</span></div><div style="color:#667085;">{{ ta.status }}</div>
+              <div><span style="color:#DC2626;font-size:12px;font-weight:600;cursor:pointer;">移除</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isTenantAudit }}">
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>近 24 小时</option><option>近 7 天</option><option>近 30 天</option></select>
+          <select style="border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;"><option>全部动作</option><option>编辑成员</option><option>发布主页</option><option>调整字段</option></select>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr 1.2fr .8fr;padding:9px 16px;font-size:12px;color:#667085;border-bottom:1px solid #E5E7EB;background:#FAFAFB;">
+            <div>时间</div><div>操作者</div><div>动作</div><div>目标</div><div>结果</div>
+          </div>
+          <sc-for list="{{ tenantAuditLog }}" as="a" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr 1.2fr .8fr;padding:9px 16px;font-size:13px;align-items:center;border-bottom:1px solid #F1F2F4;">
+              <div style="font-size:12px;color:#667085;">{{ a.time }}</div><div>{{ a.actor }}</div><div>{{ a.action }}</div><div style="color:#667085;">{{ a.target }}</div>
+              <div><span style="{{ a.tag }}">{{ a.result }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+<sc-if value="{{ tenantDrawer.open }}">
+  <div style="position:fixed;inset:0;background:rgba(17,24,39,0.32);z-index:40;" onClick="{{ tenantDrawer.onClose }}"></div>
+  <div style="position:fixed;top:0;right:0;bottom:0;width:560px;background:#fff;z-index:41;box-shadow:-8px 0 24px rgba(17,24,39,0.08);display:flex;flex-direction:column;">
+    <div style="padding:18px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:700;">{{ tenantDrawer.name }}</div>
+      <div style="cursor:pointer;color:#667085;font-size:20px;line-height:1;" onClick="{{ tenantDrawer.onClose }}">×</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;">授权状态</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">状态</span><span style="{{ tenantDrawer.statusTag }}">{{ tenantDrawer.statusLabel }}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">安装时间</span><span>{{ tenantDrawer.installedAt }}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">AgentID</span><span style="font-family:ui-monospace,Menlo,monospace;">{{ tenantDrawer.agentId }}</span></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;">安全凭据</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">凭据已配置</span><span>是</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">凭据已缓存</span><span>是</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:#667085;">到期时间</span><span>2026-09-01</span></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;">企业规模</div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <div style="flex:1;background:#FAFAFB;border:1px solid #F1F2F4;border-radius:6px;padding:10px;text-align:center;"><div style="font-size:11px;color:#667085;">成员</div><div style="font-size:16px;font-weight:700;margin-top:2px;">{{ tenantDrawer.membersActive }}/{{ tenantDrawer.membersTotal }}</div></div>
+        <div style="flex:1;background:#FAFAFB;border:1px solid #F1F2F4;border-radius:6px;padding:10px;text-align:center;"><div style="font-size:11px;color:#667085;">名片</div><div style="font-size:16px;font-weight:700;margin-top:2px;">{{ tenantDrawer.cardsActive }}/{{ tenantDrawer.cardsTotal }}</div></div>
+        <div style="flex:1;background:#FAFAFB;border:1px solid #F1F2F4;border-radius:6px;padding:10px;text-align:center;"><div style="font-size:11px;color:#667085;">管理员</div><div style="font-size:16px;font-weight:700;margin-top:2px;">3</div></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;">最近回调</div>
+      <sc-for list="{{ tenantDrawer.callbacks }}" as="cb" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F1F2F4;font-size:12px;">
+          <div style="flex:1;">{{ cb.type }}</div>
+          <span style="{{ cb.tag }}">{{ cb.status }}</span>
+          <div style="width:90px;color:#667085;text-align:right;">{{ cb.time }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid #E5E7EB;display:flex;gap:10px;">
+      <button style="flex:1;border:1px solid #E5E7EB;background:#fff;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;" onClick="{{ tenantDrawer.onResync }}">
+        <sc-if value="{{ resyncing }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" style="animation:spin 1s linear infinite;"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 3v6h-6"/></svg></sc-if>
+        重新同步
+      </button>
+      <button style="flex:1;border:1px solid #E5E7EB;background:#fff;color:#DC2626;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;">重试失败事件</button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ memberDrawer.open }}">
+  <div style="position:fixed;inset:0;background:rgba(17,24,39,0.32);z-index:40;" onClick="{{ memberDrawer.onRequestClose }}"></div>
+  <div style="position:fixed;top:0;right:0;bottom:0;width:440px;background:#fff;z-index:41;box-shadow:-8px 0 24px rgba(17,24,39,0.08);display:flex;flex-direction:column;">
+    <div style="padding:18px 20px;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:700;">{{ memberDrawer.name }}</div>
+      <div style="cursor:pointer;color:#667085;font-size:20px;line-height:1;" onClick="{{ memberDrawer.onRequestClose }}">×</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;">
+      <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">姓名（同步自企业微信）</div><input value="{{ memberDrawer.name }}" disabled="true" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;background:#FAFAFB;color:#9AA1AF;"/></div>
+      <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">部门</div><input value="{{ memberDrawer.dept }}" disabled="true" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;background:#FAFAFB;color:#9AA1AF;"/></div>
+      <div>
+        <div style="font-size:12px;color:#667085;margin-bottom:6px;">职位 <span style="color:#DC2626;">*</span></div>
+        <input value="{{ memberDrawer.formTitle }}" onChange="{{ memberDrawer.onTitleChange }}" style="width:100%;box-sizing:border-box;border:1px solid {{ memberDrawer.titleBorder }};border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/>
+        <sc-if value="{{ memberDrawer.hasError }}"><div style="font-size:12px;color:#DC2626;margin-top:4px;">{{ memberDrawer.errorText }}</div></sc-if>
+      </div>
+      <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">手机/邮箱</div><div style="border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;font-family:ui-monospace,Menlo,monospace;background:#FAFAFB;color:#667085;">{{ memberDrawer.contact }}</div></div>
+      <div>
+        <div style="font-size:12px;color:#667085;margin-bottom:6px;">名片状态</div>
+        <div style="{{ memberDrawer.toggleTrackStyle }}" onClick="{{ memberDrawer.onToggleStatus }}"><div style="{{ memberDrawer.toggleThumbStyle }}"></div></div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#667085;margin-bottom:6px;">名片模板</div>
+        <select disabled="{{ memberDrawer.templateLocked }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;background:{{ memberDrawer.templateBg }};color:{{ memberDrawer.templateColor }};">
+          <option>默认模板</option><option>简约商务</option><option>创意撞色</option>
+        </select>
+        <sc-if value="{{ memberDrawer.templateLocked }}"><div style="font-size:12px;color:#9AA1AF;margin-top:4px;">企业规则禁止编辑，只读</div></sc-if>
+      </div>
+      <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">分享码</div><div style="display:flex;gap:8px;"><div style="flex:1;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;font-family:ui-monospace,Menlo,monospace;background:#FAFAFB;color:#667085;">{{ memberDrawer.shareCode }}</div><div style="width:36px;border:1px solid #E5E7EB;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div></div></div>
+    </div>
+    <div style="padding:16px 20px;border-top:1px solid #E5E7EB;display:flex;gap:10px;">
+      <button style="flex:1;border:1px solid #E5E7EB;background:#fff;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ memberDrawer.onRequestClose }}">取消</button>
+      <button style="flex:1;border:none;background:#4A5AC2;color:#fff;border-radius:6px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ memberDrawer.onSave }}">保存</button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ confirm }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:rgba(17,24,39,0.4);z-index:60;display:flex;align-items:center;justify-content:center;">
+    <div style="width:380px;background:#fff;border-radius:10px;padding:22px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">{{ confirm.title }}</div>
+      <div style="font-size:13px;color:#667085;line-height:1.6;margin-bottom:20px;">{{ confirm.body }}</div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button style="border:1px solid #E5E7EB;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ confirm.onCancel }}">取消</button>
+        <button style="{{ confirm.confirmStyle }}" onClick="{{ confirm.onConfirm }}">{{ confirm.confirmLabel }}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ adjustModal.open }}">
+  <div style="position:fixed;inset:0;background:rgba(17,24,39,0.4);z-index:60;display:flex;align-items:center;justify-content:center;">
+    <div style="width:420px;background:#fff;border-radius:10px;padding:22px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px;">人工调整额度</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">企业</div>
+          <select style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;background:#fff;" onChange="{{ adjustModal.onTenantChange }}">
+            <sc-for list="{{ adjustModal.tenantOptions }}" as="to" hint-placeholder-count="6"><option value="{{ to.id }}">{{ to.name }}</option></sc-for>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="{{ adjustModal.dirPlusStyle }}" onClick="{{ adjustModal.onDirPlus }}">增加额度</div>
+          <div style="{{ adjustModal.dirMinusStyle }}" onClick="{{ adjustModal.onDirMinus }}">扣减额度</div>
+        </div>
+        <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">次数</div><input type="number" value="{{ adjustModal.amount }}" onChange="{{ adjustModal.onAmountChange }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:13px;outline:none;"/></div>
+        <div>
+          <div style="font-size:12px;color:#667085;margin-bottom:6px;">原因 <span style="color:#DC2626;">*</span></div>
+          <textarea value="{{ adjustModal.reason }}" onChange="{{ adjustModal.onReasonChange }}" style="width:100%;box-sizing:border-box;height:70px;border:1px solid {{ adjustModal.reasonBorder }};border-radius:6px;padding:8px 10px;font-size:13px;outline:none;resize:vertical;"></textarea>
+          <sc-if value="{{ adjustModal.hasError }}"><div style="font-size:12px;color:#DC2626;margin-top:4px;">{{ adjustModal.errorText }}</div></sc-if>
+        </div>
+        <div style="font-size:12px;color:#667085;">幂等键：{{ adjustModal.idemKey }}　·　此操作将写入审计日志且不可撤销</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button style="border:1px solid #E5E7EB;background:#fff;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ adjustModal.onCancel }}">取消</button>
+        <button style="border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;background:#4A5AC2;" onClick="{{ adjustModal.onSubmit }}">提交调整</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:70;">{{ toast }}</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const TAG = (type) => {
+  const map = {
+    success: 'background:#E7F7ED;color:#16803C;',
+    warning: 'background:#FEF3E2;color:#B45309;',
+    danger: 'background:#FDECEC;color:#C0272B;',
+    muted: 'background:#F1F2F4;color:#667085;',
+    brand: 'background:#EEF0FC;color:#4A5AC2;'
+  };
+  return 'display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:5px;height:20px;line-height:14px;' + map[type];
+};
+const DOT = (type) => {
+  const map = { success:'#16A34A', warning:'#D97706', danger:'#DC2626', muted:'#9AA1AF' };
+  return 'width:7px;height:7px;border-radius:50%;flex:none;background:' + map[type] + ';';
+};
+const TOGGLE = (on) => ({
+  track: 'width:36px;height:20px;border-radius:10px;position:relative;cursor:pointer;transition:background .15s;background:' + (on ? '#4A5AC2' : '#E5E7EB'),
+  thumb: 'position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;left:' + (on ? '18px' : '2px')
+});
+
+class Component extends DCLogic {
+  state = {
+    backend: 'platform',
+    platformPage: 'dashboard',
+    tenantPage: 'dashboard',
+    tenantDetailId: null,
+    resyncing: false,
+    confirm: null,
+    toast: null,
+    members: [
+      {id:1,name:'陈思远',title:'华东区销售总监',contact:'138****2231',cardStatus:'enabled',lastSync:'10分钟前',lastVisit:'2小时前',dept:'销售部',shareCode:'SC-8821-EA'},
+      {id:2,name:'林晓雯',title:'市场经理',contact:'lin****@corp.com',cardStatus:'enabled',lastSync:'1小时前',lastVisit:'今天 09:20',dept:'市场部',shareCode:'SC-4432-FB'},
+      {id:3,name:'王振宇',title:'高级工程师',contact:'139****7765',cardStatus:'disabled',lastSync:'2天前',lastVisit:'5天前',dept:'技术部',shareCode:'SC-1290-CD',templateLocked:true},
+      {id:4,name:'赵晴',title:'人力资源专员',contact:'zhao****@corp.com',cardStatus:'enabled',lastSync:'30分钟前',lastVisit:'昨天',dept:'人力资源部',shareCode:'SC-7743-AB'},
+      {id:5,name:'孙浩然',title:'华南区大客户经理',contact:'137****4402',cardStatus:'sync_failed',lastSync:'同步失败',lastVisit:'3天前',dept:'销售部',shareCode:'SC-9987-XZ'},
+      {id:6,name:'周雅琪',title:'品牌设计师',contact:'zhou****@corp.com',cardStatus:'enabled',lastSync:'5分钟前',lastVisit:'今天 14:05',dept:'市场部',shareCode:'SC-3321-QW'},
+      {id:7,name:'黄立强',title:'财务经理',contact:'136****9981',cardStatus:'enabled',lastSync:'2小时前',lastVisit:'2天前',dept:'财务部',shareCode:'SC-5567-TY'},
+      {id:8,name:'吴佳怡',title:'客户成功专员',contact:'wu****@corp.com',cardStatus:'disabled',lastSync:'1周前',lastVisit:'2周前',dept:'客户成功部',shareCode:'SC-2298-UI'}
+    ],
+    memberDrawerId: null,
+    memberFormTitle: '',
+    memberFormDirty: false,
+    memberFormError: '',
+    pendingSwitchMemberId: undefined,
+    companyModule: 'basic',
+    companyForm: {
+      name: '星辰科技有限公司',
+      slogan: '连接产业未来的数字名片',
+      address: '上海市浦东新区世纪大道100号',
+      services: ['名片定制','企业官网','视频推介'],
+      intro: '星辰科技成立于2012年，专注于为企业提供一体化数字营销与智能名片解决方案，服务超过500家客户。',
+      honors: [{title:'国家高新技术企业', year:'2023'},{title:'年度最佳SaaS服务商', year:'2022'}],
+      completeness: 80,
+      missing: ['视频介绍未配置','荣誉资质图片未上传']
+    },
+    billingRange: 7,
+    featureFlags: [
+      {key:'video', name:'视频介绍', on:true, overrideCount:12, desc:'企业主页视频推介能力'},
+      {key:'ai_card', name:'AI 名片推荐', on:false, overrideCount:3, desc:'基于访问数据的智能推荐'},
+      {key:'export', name:'数据导出', on:true, overrideCount:28, desc:'成员/访问数据导出为表格'},
+      {key:'sso', name:'企业单点登录', on:false, overrideCount:1, desc:'对接企业身份提供方'},
+      {key:'watermark', name:'名片水印', on:true, overrideCount:6, desc:'名片分享页强制水印'}
+    ],
+    fieldRules: [
+      {key:'phone', name:'手机号', enabled:true, editable:false, visible:true, desc:'同步自企业微信，员工不可改'},
+      {key:'email', name:'邮箱', enabled:true, editable:true, visible:true, desc:'员工可自行修改'},
+      {key:'wechat', name:'微信号', enabled:true, editable:true, visible:false, desc:'默认对外隐藏'},
+      {key:'address', name:'办公地址', enabled:false, editable:true, visible:false, desc:'当前企业未启用该字段'},
+      {key:'intro', name:'个人简介', enabled:true, editable:true, visible:true, desc:'限 200 字'}
+    ],
+    templates: [
+      {key:'default', name:'默认模板', color:'#C7CEF2', isDefault:true},
+      {key:'business', name:'简约商务', color:'#9AA1AF', isDefault:false},
+      {key:'creative', name:'创意撞色', color:'#F3C5C5', isDefault:false}
+    ],
+    adjustModal: null
+  };
+
+  tenants = [
+    {id:1, name:'星辰科技', openCorpId:'wpxxx...ab12', status:'active', health:'need_check', membersActive:86, membersTotal:120, cardsActive:80, cardsTotal:120, installedAt:'2025-11-02', agentId:'10023****'},
+    {id:2, name:'蓝海教育', openCorpId:'wpxxx...cd34', status:'active', health:'ok', membersActive:210, membersTotal:230, cardsActive:200, cardsTotal:230, installedAt:'2025-08-15', agentId:'10041****'},
+    {id:3, name:'云帆物流', openCorpId:'wpxxx...ef56', status:'manual_review', health:'need_check', membersActive:45, membersTotal:60, cardsActive:40, cardsTotal:60, installedAt:'2026-01-20', agentId:'10077****'},
+    {id:4, name:'明德医疗', openCorpId:'wpxxx...gh78', status:'active', health:'ok', membersActive:150, membersTotal:160, cardsActive:145, cardsTotal:160, installedAt:'2025-05-30', agentId:'10088****'},
+    {id:5, name:'汇通金融', openCorpId:'wpxxx...ij90', status:'cancelled', health:'ok', membersActive:0, membersTotal:80, cardsActive:0, cardsTotal:80, installedAt:'2024-12-11', agentId:'10012****'},
+    {id:6, name:'天工制造', openCorpId:'wpxxx...kl12', status:'active', health:'ok', membersActive:320, membersTotal:340, cardsActive:300, cardsTotal:340, installedAt:'2025-09-09', agentId:'10099****'}
+  ];
+
+  platformNav = [
+    {key:'dashboard', label:'总览'}, {key:'tenants', label:'企业'}, {key:'wecom', label:'授权与回调'},
+    {key:'commercial', label:'商业化'}, {key:'features', label:'功能开关'}, {key:'ops', label:'运维'},
+    {key:'audit', label:'审计'}, {key:'accounts', label:'系统账号'}
+  ];
+  tenantNav = [
+    {key:'dashboard', label:'总览'}, {key:'members', label:'成员与名片'}, {key:'company', label:'企业主页'},
+    {key:'design', label:'字段与模板'}, {key:'analytics', label:'数据分析'}, {key:'billing', label:'版本与额度'},
+    {key:'admins', label:'管理员'}, {key:'audit', label:'审计日志'}
+  ];
+  pageTitles = {
+    platform: {dashboard:['总览','系统运营健康度与异常队列'], tenants:['企业授权中心','企业授权、回调与数据规模总览'], wecom:['授权与回调',''], commercial:['商业化',''], features:['功能开关',''], ops:['运维',''], audit:['审计',''], accounts:['系统账号','']},
+    tenant: {dashboard:['总览','企业运营状态与待办事项'], members:['成员与名片','成员名片状态与同步管理'], company:['企业主页','企业资料分栏编辑与实时预览'], design:['字段与模板',''], analytics:['数据分析',''], billing:['版本与额度','当前版本、额度用量与订单'], admins:['管理员',''], audit:['审计日志','']}
+  };
+
+  navStyle(active) {
+    return 'padding:9px 12px;border-radius:6px;font-size:13px;font-weight:' + (active?'700':'500') + ';cursor:pointer;margin-bottom:2px;' +
+      (active ? 'background:#EEF0FC;color:#4A5AC2;' : 'color:#374151;');
+  }
+
+  setBackend(b) { this.setState({ backend: b, tenantDetailId: null, memberDrawerId: null, confirm: null, adjustModal: null }); }
+  setPlatformPage(p) { this.setState({ platformPage: p, tenantDetailId: null, memberDrawerId: null, confirm: null, adjustModal: null }); }
+  setTenantPage(p) { this.setState({ tenantPage: p, tenantDetailId: null, memberDrawerId: null, confirm: null, adjustModal: null }); }
+
+  openTenantDetail(id) { this.setState({ tenantDetailId: id }); }
+  closeTenantDetail() { this.setState({ tenantDetailId: null }); }
+  requestResync() {
+    this.setState({ confirm: {
+      title: '确认重新同步该企业？', body: '将重新拉取企业微信授权信息与成员数据，过程可能耗时数分钟。',
+      confirmLabel: '确认同步', danger: false,
+      onCancel: () => this.setState({ confirm: null }),
+      onConfirm: () => {
+        this.setState({ confirm: null, resyncing: true });
+        setTimeout(() => this.setState({ resyncing: false, toast: '同步任务已完成' }), 1400);
+        setTimeout(() => this.setState({ toast: null }), 3200);
+      }
+    }});
+  }
+
+  openMemberDrawer(id) {
+    const doOpen = () => {
+      const m = this.state.members.find(x => x.id === id);
+      this.setState({ memberDrawerId: id, memberFormTitle: m.title, memberFormDirty: false, memberFormError: '' });
+    };
+    if (this.state.memberFormDirty && this.state.memberDrawerId != null) {
+      this.setState({ confirm: {
+        title: '有未保存的修改', body: '切换成员将丢失当前未保存的编辑内容，是否继续？',
+        confirmLabel: '放弃修改', danger: true,
+        onCancel: () => this.setState({ confirm: null }),
+        onConfirm: () => { this.setState({ confirm: null }); doOpen(); }
+      }});
+    } else { doOpen(); }
+  }
+  requestCloseMemberDrawer() {
+    if (this.state.memberFormDirty) {
+      this.setState({ confirm: {
+        title: '有未保存的修改', body: '关闭编辑面板将丢失当前未保存的编辑内容，是否继续？',
+        confirmLabel: '放弃修改', danger: true,
+        onCancel: () => this.setState({ confirm: null }),
+        onConfirm: () => this.setState({ confirm: null, memberDrawerId: null })
+      }});
+    } else { this.setState({ memberDrawerId: null }); }
+  }
+  onMemberTitleChange(e) { this.setState({ memberFormTitle: e.target.value, memberFormDirty: true, memberFormError: '' }); }
+  toggleMemberStatus() {
+    const id = this.state.memberDrawerId;
+    const members = this.state.members.map(m => m.id === id ? { ...m, cardStatus: m.cardStatus === 'enabled' ? 'disabled' : 'enabled' } : m);
+    this.setState({ members, memberFormDirty: true });
+  }
+  saveMemberForm() {
+    if (!this.state.memberFormTitle.trim()) { this.setState({ memberFormError: '职位不能为空' }); return; }
+    const id = this.state.memberDrawerId;
+    const members = this.state.members.map(m => m.id === id ? { ...m, title: this.state.memberFormTitle } : m);
+    this.setState({ members, memberDrawerId: null, memberFormDirty: false, toast: '已保存' });
+    setTimeout(() => this.setState({ toast: null }), 2400);
+  }
+
+  setCompanyModule(key) { this.setState({ companyModule: key }); }
+  setCompanyField(key, val) { this.setState({ companyForm: { ...this.state.companyForm, [key]: val } }); }
+  removeService(idx) {
+    const services = this.state.companyForm.services.slice(); services.splice(idx, 1);
+    this.setState({ companyForm: { ...this.state.companyForm, services } });
+  }
+  setBillingRange(n) { this.setState({ billingRange: n }); }
+
+  toggleFeature(key) {
+    const featureFlags = this.state.featureFlags.map(f => f.key === key ? { ...f, on: !f.on } : f);
+    this.setState({ featureFlags });
+  }
+  toggleFieldRule(key, prop) {
+    const fieldRules = this.state.fieldRules.map(fr => fr.key === key ? { ...fr, [prop]: !fr[prop] } : fr);
+    this.setState({ fieldRules });
+  }
+  setDefaultTemplate(key) {
+    const templates = this.state.templates.map(t => ({ ...t, isDefault: t.key === key }));
+    this.setState({ templates });
+  }
+
+  openAdjustModal() {
+    this.setState({ adjustModal: { tenantId: this.tenants[0].id, direction: 'plus', amount: 100, reason: '', error: '' } });
+  }
+  closeAdjustModal() { this.setState({ adjustModal: null }); }
+  setAdjustField(patch) { this.setState({ adjustModal: { ...this.state.adjustModal, ...patch } }); }
+  submitAdjust() {
+    const am = this.state.adjustModal;
+    if (!am.reason.trim()) { this.setState({ adjustModal: { ...am, error: '请填写调整原因' } }); return; }
+    const tenant = this.tenants.find(t => t.id === Number(am.tenantId));
+    const dirLabel = am.direction === 'plus' ? '增加' : '扣减';
+    this.setState({ confirm: {
+      title: '确认提交人工调整？', body: '将对「' + (tenant ? tenant.name : '') + '」' + dirLabel + ' ' + am.amount + ' 次额度，该操作不可撤销并写入审计日志。',
+      confirmLabel: '确认提交', danger: true,
+      onCancel: () => this.setState({ confirm: null }),
+      onConfirm: () => { this.setState({ confirm: null, adjustModal: null, toast: '额度调整已提交' }); setTimeout(() => this.setState({ toast: null }), 2400); }
+    }});
+  }
+
+  renderVals() {
+    const s = this.state;
+    const backendSwitch = {
+      platform: { style: 'flex:1;text-align:center;padding:6px 0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' + (s.backend==='platform'?'background:#fff;color:#111827;box-shadow:0 1px 2px rgba(17,24,39,0.08);':'color:#667085;'), onClick: () => this.setBackend('platform') },
+      tenant: { style: 'flex:1;text-align:center;padding:6px 0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;' + (s.backend==='tenant'?'background:#fff;color:#111827;box-shadow:0 1px 2px rgba(17,24,39,0.08);':'color:#667085;'), onClick: () => this.setBackend('tenant') }
+    };
+
+    const navSource = s.backend === 'platform' ? this.platformNav : this.tenantNav;
+    const activeKey = s.backend === 'platform' ? s.platformPage : s.tenantPage;
+    const navItems = navSource.map(n => ({
+      label: n.label,
+      style: this.navStyle(n.key === activeKey),
+      onClick: () => s.backend === 'platform' ? this.setPlatformPage(n.key) : this.setTenantPage(n.key)
+    }));
+
+    const [pt, pst] = this.pageTitles[s.backend][activeKey];
+    const isPlatform = s.backend === 'platform';
+    const isTenant = s.backend === 'tenant';
+    const isPlatformDashboard = isPlatform && s.platformPage === 'dashboard';
+    const isPlatformTenants = isPlatform && s.platformPage === 'tenants';
+    const isPlatformWecom = isPlatform && s.platformPage === 'wecom';
+    const isPlatformCommercial = isPlatform && s.platformPage === 'commercial';
+    const isPlatformFeatures = isPlatform && s.platformPage === 'features';
+    const isPlatformOps = isPlatform && s.platformPage === 'ops';
+    const isPlatformAudit = isPlatform && s.platformPage === 'audit';
+    const isPlatformAccounts = isPlatform && s.platformPage === 'accounts';
+    const isTenantDashboard = isTenant && s.tenantPage === 'dashboard';
+    const isTenantMembers = isTenant && s.tenantPage === 'members';
+    const isTenantCompany = isTenant && s.tenantPage === 'company';
+    const isTenantBilling = isTenant && s.tenantPage === 'billing';
+    const isTenantDesign = isTenant && s.tenantPage === 'design';
+    const isTenantAnalytics = isTenant && s.tenantPage === 'analytics';
+    const isTenantAdmins = isTenant && s.tenantPage === 'admins';
+    const isTenantAudit = isTenant && s.tenantPage === 'audit';
+
+    const pageHeader = {
+      title: pt, subtitle: pst,
+      hasPrimary: isTenantMembers || isTenantCompany,
+      primaryLabel: isTenantMembers ? '同步成员' : '发布',
+      primaryOnClick: () => this.setState({ toast: isTenantMembers ? '成员同步任务已提交' : '企业主页已发布', ...( {} ) }, () => setTimeout(() => this.setState({toast:null}),2400))
+    };
+
+    const platformMetrics = [
+      {label:'授权企业数', value:'128', color:'#111827', onClick:()=>this.setPlatformPage('tenants')},
+      {label:'异常授权数', value:'3', color:'#D97706', onClick:()=>this.setPlatformPage('tenants')},
+      {label:'今日回调失败', value:'7', color:'#DC2626', onClick:()=>this.setPlatformPage('wecom')},
+      {label:'订单待处理', value:'5', color:'#111827', onClick:()=>this.setPlatformPage('commercial')},
+      {label:'额度风险企业', value:'4', color:'#D97706', onClick:()=>this.setPlatformPage('commercial')}
+    ];
+    const riskQueue = [
+      {title:'企业「星辰科技」授权回调连续失败', time:'10分钟前', dotStyle: DOT('danger')},
+      {title:'企业「蓝海教育」订单支付超时未确认', time:'42分钟前', dotStyle: DOT('warning')},
+      {title:'企业「云帆物流」数据库迁移待执行', time:'1小时前', dotStyle: DOT('warning')},
+      {title:'企业「明德医疗」额度使用率超过90%', time:'2小时前', dotStyle: DOT('muted')}
+    ];
+    const cbVals = [40,55,30,70,45,60,80,50,35,65,48,72];
+    const callbackTrend = cbVals.map(v => ({ h: v + '%', color: v > 65 ? '#DC2626' : '#C7CEF2' }));
+    const quickLinks = [
+      {label:'企业授权', onClick:()=>this.setPlatformPage('tenants')},
+      {label:'异常订单', onClick:()=>this.setPlatformPage('commercial')},
+      {label:'数据库迁移', onClick:()=>this.setPlatformPage('ops')},
+      {label:'功能开关', onClick:()=>this.setPlatformPage('features')}
+    ];
+
+    const statusMeta = { active:['正常','success'], cancelled:['已取消授权','muted'], manual_review:['需人工处理','warning'] };
+    const healthMeta = { ok:['正常','success'], need_check:['需检查','warning'] };
+    const tenants = this.tenants.map(t => {
+      const [sl, st] = statusMeta[t.status]; const [hl, ht] = healthMeta[t.health];
+      return { ...t, statusLabel: sl, statusTag: TAG(st), healthLabel: hl, healthTag: TAG(ht), onClick: () => this.openTenantDetail(t.id) };
+    });
+
+    const tdId = s.tenantDetailId;
+    const tdSrc = tdId != null ? this.tenants.find(t => t.id === tdId) : null;
+    const tenantDrawer = tdSrc ? (() => {
+      const [sl, st] = statusMeta[tdSrc.status];
+      const callbacks = [
+        {type:'数据回调', status:'失败', time:'10分钟前', tag: TAG('danger')},
+        {type:'授权回调', status:'成功', time:'1小时前', tag: TAG('success')},
+        {type:'数据回调', status:'成功', time:'3小时前', tag: TAG('success')}
+      ];
+      return { open:true, name:tdSrc.name, statusLabel:sl, statusTag:TAG(st), installedAt:tdSrc.installedAt, agentId:tdSrc.agentId,
+        membersActive:tdSrc.membersActive, membersTotal:tdSrc.membersTotal, cardsActive:tdSrc.cardsActive, cardsTotal:tdSrc.cardsTotal,
+        callbacks, onClose: () => this.closeTenantDetail(), onResync: () => this.requestResync() };
+    })() : { open:false };
+
+    const healthChips = [
+      {label:'授权', value:'正常', tag: TAG('success')},
+      {label:'成员同步', value:'正常', tag: TAG('success')},
+      {label:'版本额度', value:'剩余9%', tag: TAG('warning')},
+      {label:'资料完整度', value:'80%', tag: TAG('brand')}
+    ];
+    const tenantMetrics = [
+      {label:'成员', value:'156'}, {label:'启用名片', value:'148'}, {label:'近7日访问', value:'2,340'}, {label:'剩余额度', value:'180'}
+    ];
+    const todos = [
+      {label:'企业主页未发布', action:'去发布', dotStyle: DOT('warning'), onClick: () => this.setTenantPage('company')},
+      {label:'额度剩余不足20%', action:'去续费', dotStyle: DOT('warning'), onClick: () => this.setTenantPage('billing')},
+      {label:'3名成员同步失败', action:'去处理', dotStyle: DOT('danger'), onClick: () => this.setTenantPage('members')},
+      {label:'2个字段未配置', action:'去设置', dotStyle: DOT('muted'), onClick: () => this.setTenantPage('design')}
+    ];
+    const visitVals = [45,60,52,70,65,80,58];
+    const days = ['周一','周二','周三','周四','周五','周六','周日'];
+    const visitTrend = visitVals.map((v,i) => ({ h: v + '%', day: days[i] }));
+
+    const memberCardMeta = { enabled:['已启用','success'], disabled:['已停用','muted'], sync_failed:['同步失败','danger'] };
+    const members = s.members.map(m => {
+      const [ml, mt] = memberCardMeta[m.cardStatus];
+      return { ...m, statusLabel: ml, statusTag: TAG(mt), onClick: () => this.openMemberDrawer(m.id) };
+    });
+
+    const mdId = s.memberDrawerId;
+    const mdSrc = mdId != null ? s.members.find(m => m.id === mdId) : null;
+    const memberDrawer = mdSrc ? {
+      open:true, name:mdSrc.name, dept:mdSrc.dept, contact:mdSrc.contact, shareCode:mdSrc.shareCode,
+      formTitle: s.memberFormTitle, titleBorder: s.memberFormError ? '#DC2626' : '#E5E7EB',
+      hasError: !!s.memberFormError, errorText: s.memberFormError,
+      templateLocked: !!mdSrc.templateLocked, templateBg: mdSrc.templateLocked ? '#FAFAFB' : '#fff', templateColor: mdSrc.templateLocked ? '#9AA1AF' : '#111827',
+      toggleTrackStyle: 'width:40px;height:22px;border-radius:11px;position:relative;cursor:pointer;transition:background .15s;background:' + (mdSrc.cardStatus==='enabled' ? '#4A5AC2' : '#E5E7EB'),
+      toggleThumbStyle: 'position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;left:' + (mdSrc.cardStatus==='enabled' ? '20px' : '2px'),
+      onTitleChange: (e) => this.onMemberTitleChange(e), onToggleStatus: () => this.toggleMemberStatus(),
+      onRequestClose: () => this.requestCloseMemberDrawer(), onSave: () => this.saveMemberForm()
+    } : { open:false };
+
+    const companyModuleMeta = [
+      {key:'basic', label:'基础资料'}, {key:'services', label:'服务'}, {key:'intro', label:'介绍'}, {key:'honors', label:'荣誉'}, {key:'video', label:'视频'}
+    ];
+    const companyModules = companyModuleMeta.map(cm => ({
+      label: cm.label, style: this.navStyle(s.companyModule === cm.key), onClick: () => this.setCompanyModule(cm.key)
+    }));
+    const cf = s.companyForm;
+    const companyForm = {
+      name: cf.name, slogan: cf.slogan, address: cf.address, intro: cf.intro,
+      introPreview: cf.intro.length > 60 ? cf.intro.slice(0,60) + '…' : cf.intro,
+      servicesList: cf.services.map((sv, i) => ({ label: sv, onRemove: () => this.removeService(i) })),
+      honors: cf.honors, completeness: cf.completeness, missingText: cf.missing.join(' · ')
+    };
+
+    const plan = { name:'专业版', validUntil:'2026-12-31', statusLabel:'生效中', tag: TAG('success') };
+    const quota = { total:2000, used:1820, remaining:180, rate:91, barColor: 91 > 85 ? '#D97706' : '#4A5AC2' };
+    const usage7 = [60,72,55,80,66,90,75];
+    const usage30raw = [55,60,58,62,66,64,70,68,72,75,73,78,80,77,82,85,83,88,86,90,89,92,90,94,93,95,94,96,97,91];
+    const usageTrend = (s.billingRange === 7 ? usage7 : usage30raw).map(v => ({ h: v + '%' }));
+    const rangeToggle = {
+      d7: { style: 'padding:5px 12px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;' + (s.billingRange===7?'background:#fff;color:#111827;box-shadow:0 1px 2px rgba(17,24,39,0.08);':'color:#667085;'), onClick: () => this.setBillingRange(7) },
+      d30: { style: 'padding:5px 12px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;' + (s.billingRange===30?'background:#fff;color:#111827;box-shadow:0 1px 2px rgba(17,24,39,0.08);':'color:#667085;'), onClick: () => this.setBillingRange(30) }
+    };
+    const orderStatusMeta = { '已支付':'success', '处理中':'warning', '失败':'danger' };
+    const orders = [
+      {id:'ORD****8823', plan:'专业版年费', amount:'¥12,000', status:'已支付', time:'2025-12-01'},
+      {id:'ORD****7710', plan:'名片扩容包', amount:'¥2,400', status:'已支付', time:'2025-09-15'},
+      {id:'ORD****6602', plan:'专业版续费', amount:'¥12,000', status:'处理中', time:'2026-07-10'}
+    ].map(o => ({ ...o, tag: TAG(orderStatusMeta[o.status]) }));
+
+    const wecomStats = [
+      {label:'今日成功回调', value:'1,204', color:'#111827'}, {label:'今日失败回调', value:'7', color:'#DC2626'}, {label:'待重试', value:'4', color:'#D97706'}
+    ];
+    const wecomEvents = [
+      {type:'数据回调', tenant:'星辰科技', status:'失败', tag:TAG('danger'), time:'10分钟前', error:'连接超时', retryable:true},
+      {type:'授权回调', tenant:'蓝海教育', status:'成功', tag:TAG('success'), time:'32分钟前', error:'-', retryable:false},
+      {type:'数据回调', tenant:'云帆物流', status:'失败', tag:TAG('danger'), time:'1小时前', error:'签名校验失败', retryable:true},
+      {type:'suite ticket', tenant:'平台', status:'成功', tag:TAG('success'), time:'2小时前', error:'-', retryable:false},
+      {type:'授权回调', tenant:'明德医疗', status:'成功', tag:TAG('success'), time:'3小时前', error:'-', retryable:false},
+      {type:'数据回调', tenant:'天工制造', status:'可重试失败', tag:TAG('warning'), time:'5小时前', error:'企业微信限流', retryable:true}
+    ];
+
+    const planCatalog = [
+      {name:'基础版', wecomId:'WX-BASIC-01', price:'¥0/月', status:'启用', tag:TAG('success')},
+      {name:'专业版', wecomId:'WX-PRO-02', price:'¥1,000/月', status:'启用', tag:TAG('success')},
+      {name:'旗舰版', wecomId:'WX-ULTRA-03', price:'¥3,000/月', status:'停售', tag:TAG('muted')}
+    ];
+    const orderExceptions = [
+      {title:'订单 ORD-7724 支付回调超时', time:'20分钟前', dotStyle:DOT('danger')},
+      {title:'企业「云帆物流」续费订单待人工核实', time:'2小时前', dotStyle:DOT('warning')},
+      {title:'订单 ORD-7699 金额与套餐不匹配', time:'昨天', dotStyle:DOT('warning')}
+    ];
+
+    const featureFlags = s.featureFlags.map(f => { const t = TOGGLE(f.on); return { name:f.name, overrideCount:f.overrideCount, desc:f.desc, toggleTrack:t.track, toggleThumb:t.thumb, onToggle:()=>this.toggleFeature(f.key) }; });
+
+    const healthChecks = [
+      {label:'数据库', status:'正常', tag:TAG('success')}, {label:'消息队列', status:'正常', tag:TAG('success')},
+      {label:'缓存', status:'正常', tag:TAG('success')}, {label:'企业微信 API', status:'延迟偏高', tag:TAG('warning')}
+    ];
+    const migrations = [
+      {name:'成员表新增分享码字段', status:'已完成', tag:TAG('success'), time:'2026-07-10 02:00'},
+      {name:'额度账本结构迁移', status:'待执行', tag:TAG('warning'), time:'计划 2026-07-20'},
+      {name:'审计日志分区归档', status:'执行中', tag:TAG('brand'), time:'2026-07-16 03:00'}
+    ];
+
+    const platformAuditLog = [
+      {time:'07-16 14:02', actor:'admin@platform', domain:'平台', action:'重新同步企业', target:'星辰科技', result:'成功', tag:TAG('success'), ip:'req_8a2f...'},
+      {time:'07-16 11:47', actor:'ops@platform', domain:'平台', action:'人工调整额度', target:'蓝海教育', result:'成功', tag:TAG('success'), ip:'req_1c9d...'},
+      {time:'07-15 22:10', actor:'admin@tenant:云帆物流', domain:'企业', action:'编辑成员', target:'孙浩然', result:'成功', tag:TAG('success'), ip:'req_44be...'},
+      {time:'07-15 18:33', actor:'admin@platform', domain:'平台', action:'禁用功能开关', target:'AI 名片推荐', result:'成功', tag:TAG('success'), ip:'req_902a...'},
+      {time:'07-15 09:05', actor:'auditor@platform', domain:'平台', action:'导出审计日志', target:'全部企业', result:'成功', tag:TAG('success'), ip:'req_00f1...'},
+      {time:'07-14 16:20', actor:'admin@platform', domain:'平台', action:'重试失败事件', target:'云帆物流', result:'失败', tag:TAG('danger'), ip:'req_77cd...'}
+    ];
+    const systemAccounts = [
+      {name:'admin@platform', role:'超级管理员', mfa:'已启用', mfaTag:TAG('success'), status:'正常', statusTag:TAG('success'), actionLabel:'禁用'},
+      {name:'ops@platform', role:'运维', mfa:'已启用', mfaTag:TAG('success'), status:'正常', statusTag:TAG('success'), actionLabel:'禁用'},
+      {name:'auditor@platform', role:'审计', mfa:'未启用', mfaTag:TAG('warning'), status:'正常', statusTag:TAG('success'), actionLabel:'禁用'},
+      {name:'temp@platform', role:'支持', mfa:'未启用', mfaTag:TAG('warning'), status:'已禁用', statusTag:TAG('muted'), actionLabel:'启用'}
+    ];
+
+    const fieldRules = s.fieldRules.map(fr => {
+      const e = TOGGLE(fr.enabled), ed = TOGGLE(fr.editable), v = TOGGLE(fr.visible);
+      return { name:fr.name, desc:fr.desc, enabledTrack:e.track, enabledThumb:e.thumb, onToggleEnabled:()=>this.toggleFieldRule(fr.key,'enabled'),
+        editableTrack:ed.track, editableThumb:ed.thumb, onToggleEditable:()=>this.toggleFieldRule(fr.key,'editable'),
+        visibleTrack:v.track, visibleThumb:v.thumb, onToggleVisible:()=>this.toggleFieldRule(fr.key,'visible') };
+    });
+    const templates = s.templates.map(t => ({
+      name:t.name, previewColor:t.color, tag: TAG(t.isDefault ? 'brand' : 'muted'), tagLabel: t.isDefault ? '默认模板' : '未启用', isDefault:t.isDefault,
+      buttonLabel: t.isDefault ? '当前默认' : '设为默认',
+      buttonStyle: 'margin-top:10px;width:100%;box-sizing:border-box;border-radius:6px;padding:7px;font-size:12px;font-weight:600;border:1px solid #E5E7EB;' + (t.isDefault ? 'background:#FAFAFB;color:#9AA1AF;cursor:default;' : 'background:#fff;color:#4A5AC2;cursor:pointer;'),
+      onSetDefault: () => this.setDefaultTemplate(t.key)
+    }));
+
+    const analyticsMetrics = [
+      {label:'访问总数', value:'12,480'}, {label:'独立访客', value:'6,230'}, {label:'平均停留', value:'48秒'}, {label:'转化率', value:'6.2%'}
+    ];
+    const analyticsRanking = [
+      {rank:1, name:'陈思远', visits:820, shares:64}, {rank:2, name:'孙浩然', visits:710, shares:52},
+      {rank:3, name:'林晓雯', visits:590, shares:41}, {rank:4, name:'周雅琪', visits:430, shares:30}, {rank:5, name:'黄立强', visits:310, shares:22}
+    ];
+    const funnelSteps = [
+      {label:'曝光', count:'12,480', pct:100}, {label:'访问', count:'6,230', pct:50}, {label:'留资', count:'1,120', pct:9}, {label:'转化', count:'386', pct:3}
+    ];
+
+    const roleMeta = { owner:['Owner','brand'], admin:['管理员','success'], operator:['运营','muted'] };
+    const tenantAdmins = [
+      {name:'李明', roleKey:'owner'}, {name:'陈思远', roleKey:'admin'}, {name:'林晓雯', roleKey:'admin'}, {name:'赵晴', roleKey:'operator'}
+    ].map(a => { const [rl, rt] = roleMeta[a.roleKey]; return { name:a.name, role:rl, roleTag:TAG(rt), status:'正常' }; });
+
+    const tenantAuditLog = [
+      {time:'07-16 15:12', actor:'陈思远', action:'编辑成员名片', target:'王振宇', result:'成功', tag:TAG('success')},
+      {time:'07-16 10:03', actor:'李明', action:'发布企业主页', target:'企业主页', result:'成功', tag:TAG('success')},
+      {time:'07-15 19:40', actor:'赵晴', action:'调整字段规则', target:'办公地址', result:'成功', tag:TAG('success')},
+      {time:'07-14 09:22', actor:'林晓雯', action:'设置默认模板', target:'简约商务', result:'成功', tag:TAG('success')},
+      {time:'07-13 21:05', actor:'陈思远', action:'停用成员名片', target:'吴佳怡', result:'成功', tag:TAG('success')}
+    ];
+
+    const am = s.adjustModal;
+    const adjustModal = am ? {
+      open:true, tenantOptions: this.tenants.map(t => ({ id:t.id, name:t.name })),
+      onTenantChange: (e) => this.setAdjustField({ tenantId: e.target.value }),
+      dirPlusStyle: 'flex:1;text-align:center;padding:8px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (am.direction==='plus' ? '#4A5AC2' : '#E5E7EB') + ';' + (am.direction==='plus' ? 'background:#EEF0FC;color:#4A5AC2;' : 'color:#667085;'),
+      dirMinusStyle: 'flex:1;text-align:center;padding:8px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (am.direction==='minus' ? '#DC2626' : '#E5E7EB') + ';' + (am.direction==='minus' ? 'background:#FDECEC;color:#DC2626;' : 'color:#667085;'),
+      onDirPlus: () => this.setAdjustField({ direction:'plus' }), onDirMinus: () => this.setAdjustField({ direction:'minus' }),
+      amount: am.amount, onAmountChange: (e) => this.setAdjustField({ amount: e.target.value }),
+      reason: am.reason, reasonBorder: am.error ? '#DC2626' : '#E5E7EB', hasError: !!am.error, errorText: am.error,
+      onReasonChange: (e) => this.setAdjustField({ reason: e.target.value, error:'' }),
+      idemKey: 'adj_' + am.tenantId + '_' + am.amount, onCancel: () => this.closeAdjustModal(), onSubmit: () => this.submitAdjust()
+    } : { open:false };
+
+    const confirm = s.confirm ? { ...s.confirm, confirmStyle: 'border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;background:' + (s.confirm.danger ? '#DC2626' : '#4A5AC2') } : null;
+
+    return {
+      backendSwitch, navItems, account: { initial:'管', name:'系统管理员', role: isPlatform ? '平台运营' : '企业管理员' },
+      breadcrumb: (isPlatform ? '系统管理后台' : '企业管理后台') + ' / ' + pt,
+      pageHeader,
+      isPlatformDashboard, isPlatformTenants, isPlatformWecom, isPlatformCommercial, isPlatformFeatures, isPlatformOps, isPlatformAudit, isPlatformAccounts,
+      isTenantDashboard, isTenantMembers, isTenantCompany, isTenantBilling, isTenantDesign, isTenantAnalytics, isTenantAdmins, isTenantAudit,
+      platformMetrics, riskQueue, callbackTrend, quickLinks, tenants,
+      tenantDrawer, resyncing: s.resyncing,
+      healthChips, tenantMetrics, todos, visitTrend,
+      members, memberDrawer,
+      companyModules, companyForm,
+      isCompanyBasic: s.companyModule==='basic', isCompanyServices: s.companyModule==='services', isCompanyIntro: s.companyModule==='intro', isCompanyHonors: s.companyModule==='honors', isCompanyVideo: s.companyModule==='video',
+      setCompanyName: (e) => this.setCompanyField('name', e.target.value),
+      setCompanySlogan: (e) => this.setCompanyField('slogan', e.target.value),
+      setCompanyAddress: (e) => this.setCompanyField('address', e.target.value),
+      setCompanyIntro: (e) => this.setCompanyField('intro', e.target.value),
+      plan, quota, rangeToggle, usageTrend, orders,
+      wecomStats, wecomEvents, planCatalog, orderExceptions, featureFlags, healthChecks, migrations, platformAuditLog, systemAccounts,
+      fieldRules, templates, analyticsMetrics, analyticsRanking, funnelSteps, tenantAdmins, tenantAuditLog,
+      openAdjustModal: () => this.openAdjustModal(), adjustModal,
+      confirm, toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
