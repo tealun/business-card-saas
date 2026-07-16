@@ -63,4 +63,16 @@ describe("AdminObservabilityService", () => {
       { items: [], total: 0 }
     );
   });
+
+  it("rejects tenant operators from audit events", async () => {
+    const repository = {
+      listTenantEvents: jest.fn().mockResolvedValue({ items: [], total: 0 })
+    };
+    const service = new AdminObservabilityService(repository as never);
+    const operator = { ...tenantOwner, role: "operator" } satisfies AdminSession;
+
+    await expect(service.listTenantAuditEvents(operator, { status: "all", source: "all", search: "" })).rejects.toThrow(
+      ForbiddenException
+    );
+  });
 });

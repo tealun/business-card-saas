@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
+import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole, requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import {
@@ -28,6 +29,7 @@ export class AdminObservabilityService {
   }
 
   async listTenantAuditEvents(session: AdminSession, query: AdminEventQuery): Promise<AdminEventListResponse> {
+    requireTenantAuditRead(session.role);
     return adminEventListResponseSchema.parse(await this.repository.listTenantEvents(session, query));
   }
 
@@ -35,4 +37,9 @@ export class AdminObservabilityService {
     requirePlatformAdminRole(session, "auditor");
     return adminEventListResponseSchema.parse(await this.repository.listPlatformEvents(query));
   }
+}
+
+function requireTenantAuditRead(role: AdminRole): void {
+  if (role === "owner" || role === "admin" || role === "auditor") return;
+  throw new ForbiddenException("admin role does not have permission");
 }
