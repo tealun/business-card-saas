@@ -240,7 +240,7 @@ function applyAdminIdentity(admin) {
 
 function hasCapability(listName, value) {
   const values = state.admin?.[listName];
-  return !Array.isArray(values) || values.length === 0 || values.includes(value);
+  return !Array.isArray(values) || values.includes(value);
 }
 
 function hasMenuScope(scope) {
