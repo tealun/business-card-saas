@@ -1180,7 +1180,15 @@ function parseEditableFields(value: unknown): EditableFieldKey[] {
   if (!Array.isArray(rules)) {
     return defaultEditableFields();
   }
-  const editable = rules
+  const overrides = new Map(
+    rules
+      .filter((rule): rule is { field_key: EditableFieldKey; locked?: boolean; employee_editable?: boolean } =>
+        isRecord(rule) && isEditableFieldKey(rule.field_key)
+      )
+      .map((rule) => [rule.field_key, rule])
+  );
+  const editable = defaultEditableFields()
+    .map((field_key) => ({ field_key, ...(overrides.get(field_key) ?? {}) }))
     .filter((rule): rule is { field_key: EditableFieldKey; locked?: boolean; employee_editable?: boolean } =>
       isRecord(rule) && isEditableFieldKey(rule.field_key)
     )

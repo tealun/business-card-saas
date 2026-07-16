@@ -26,7 +26,8 @@ describe("AdminConfigService", () => {
       website_url: "https://example.com"
     });
 
-    expect(fields.fields[0]?.locked).toBe(true);
+    expect(fields.fields.find((field) => field.field_key === "display_name")?.locked).toBe(true);
+    expect(fields.fields.find((field) => field.field_key === "website")?.employee_editable).toBe(true);
     expect(profile.display_name).toBe("Pilot Corp Updated");
     expect(profile.website_url).toBe("https://example.com");
   });

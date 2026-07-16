@@ -93,7 +93,7 @@ export class AdminConfigRepository {
   }
 
   async updateFieldSettings(tenantId: string, request: UpdateAdminFieldSettingsRequest): Promise<AdminFieldRule[]> {
-    const next = cloneFieldRules(request.fields);
+    const next = normalizeFieldRules(request.fields);
     if (this.hasDatabase()) {
       await this.tenantTx!.run(tenantId, (tx) =>
         tx.query(
@@ -710,11 +710,17 @@ function defaultFieldRules(): AdminFieldRule[] {
     { field_key: "avatar_url", label: "头像", locked: false, employee_editable: true, default_visible: true },
     { field_key: "display_name", label: "姓名", locked: false, employee_editable: true, default_visible: true },
     { field_key: "title", label: "职位", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "company", label: "公司全称", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "company_short_name", label: "公司简称", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "department", label: "部门", locked: false, employee_editable: true, default_visible: true },
     { field_key: "mobile", label: "手机", locked: false, employee_editable: true, default_visible: false },
     { field_key: "phone", label: "座机", locked: false, employee_editable: true, default_visible: true },
     { field_key: "email", label: "邮箱", locked: false, employee_editable: true, default_visible: true },
     { field_key: "wechat_id", label: "微信", locked: false, employee_editable: true, default_visible: false },
-    { field_key: "address", label: "地址", locked: false, employee_editable: true, default_visible: true }
+    { field_key: "wechat_qrcode_url", label: "个人微信二维码", locked: false, employee_editable: true, default_visible: false },
+    { field_key: "wecom_qrcode_url", label: "企业微信二维码", locked: false, employee_editable: true, default_visible: false },
+    { field_key: "address", label: "地址", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "website", label: "官网", locked: false, employee_editable: true, default_visible: true }
   ];
 }
 
@@ -752,7 +758,12 @@ function parseFieldRules(value: unknown): AdminFieldRule[] | null {
   if (!Array.isArray(parsed)) {
     return null;
   }
-  return cloneFieldRules(parsed as AdminFieldRule[]);
+  return normalizeFieldRules(parsed as AdminFieldRule[]);
+}
+
+function normalizeFieldRules(rules: AdminFieldRule[]): AdminFieldRule[] {
+  const byKey = new Map(rules.map((rule) => [rule.field_key, rule]));
+  return defaultFieldRules().map((rule) => ({ ...rule, ...(byKey.get(rule.field_key) ?? {}) }));
 }
 
 function rowToCompanyProfile(row: CompanyProfileRow | undefined): AdminCompanyProfile | null {

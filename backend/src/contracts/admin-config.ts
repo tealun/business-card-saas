@@ -4,11 +4,17 @@ export const adminFieldKeySchema = z.enum([
   "avatar_url",
   "display_name",
   "title",
+  "company",
+  "company_short_name",
+  "department",
   "mobile",
   "phone",
   "email",
   "wechat_id",
-  "address"
+  "wechat_qrcode_url",
+  "wecom_qrcode_url",
+  "address",
+  "website"
 ]);
 
 export const adminFieldRuleSchema = z.object({
