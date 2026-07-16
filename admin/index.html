@@ -297,13 +297,46 @@
         </section>
 
         <section class="page" data-page="tenant-admins">
-          <div class="page-head"><div><h2>管理员</h2><p>当前后端尚未提供企业管理员列表接口。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>已有登录和角色校验，但缺少企业管理员管理 API。请先补齐后端再开放写操作。</p></article>
+          <div class="page-head">
+            <div><h2>管理员</h2><p>来自 tenant_admins 的企业管理员只读清单。</p></div>
+            <button id="loadTenantAdmins" type="button">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="tenantAdminSearch" placeholder="搜索姓名、Userid 或 OpenUserID" />
+              <select id="tenantAdminStatus"><option value="all">全部状态</option><option value="active">启用</option><option value="disabled">停用</option></select>
+              <button id="searchTenantAdmins" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>管理员</th><th>角色</th><th>状态</th><th>成员</th><th>创建时间</th><th>更新时间</th></tr></thead>
+                <tbody id="tenantAdminRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="tenantAdminTotal">0 个管理员</strong></div>
+          </article>
         </section>
 
         <section class="page" data-page="tenant-audit">
-          <div class="page-head"><div><h2>审计日志</h2><p>当前后端尚未提供后台审计日志查询接口。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>不展示模拟日志；待后端接入脱敏审计查询后再启用。</p></article>
+          <div class="page-head">
+            <div><h2>审计日志</h2><p>本企业回调、同步和处理事件，不展示 payload 明文。</p></div>
+            <button id="loadTenantAuditEvents" type="button">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="tenantAuditSearch" placeholder="搜索事件 Key 或类型" />
+              <select id="tenantAuditSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+              <select id="tenantAuditStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+              <button id="searchTenantAuditEvents" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>错误摘要</th><th>时间</th></tr></thead>
+                <tbody id="tenantAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="tenantAuditTotal">0 条事件</strong></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-dashboard">
@@ -407,8 +440,25 @@
         </section>
 
         <section class="page" data-page="platform-wecom">
-          <div class="page-head"><div><h2>授权与回调</h2><p>平台级回调事件查询接口尚未独立提供。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>企业授权详情已经展示最近回调摘要；全局回调队列需要后端提供平台级只读 API。</p></article>
+          <div class="page-head">
+            <div><h2>授权与回调</h2><p>平台级回调事件队列，只显示脱敏摘要。</p></div>
+            <button id="loadPlatformWecomEvents" type="button">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="platformWecomSearch" placeholder="搜索企业、事件 Key 或类型" />
+              <select id="platformWecomSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+              <select id="platformWecomStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+              <button id="searchPlatformWecomEvents" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>企业</th><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>时间</th></tr></thead>
+                <tbody id="platformWecomRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="platformWecomTotal">0 条事件</strong></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-commercial">
@@ -417,13 +467,46 @@
         </section>
 
         <section class="page" data-page="platform-audit">
-          <div class="page-head"><div><h2>审计</h2><p>平台审计查询接口尚未接入。</p></div></div>
-          <article class="panel empty-state"><h3>后端能力未接入</h3><p>缺少脱敏审计日志 API，暂不渲染模拟记录。</p></article>
+          <div class="page-head">
+            <div><h2>审计</h2><p>平台和企业事件审计视图，不展示明文 payload。</p></div>
+            <button id="loadPlatformAuditEvents" type="button">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="platformAuditSearch" placeholder="搜索企业、事件 Key 或类型" />
+              <select id="platformAuditSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+              <select id="platformAuditStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+              <button id="searchPlatformAuditEvents" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>企业</th><th>事件</th><th>状态</th><th>错误摘要</th><th>接收时间</th><th>处理时间</th></tr></thead>
+                <tbody id="platformAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="platformAuditTotal">0 条事件</strong></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-accounts">
-          <div class="page-head"><div><h2>系统账号</h2><p>保留现有密码登录和改密业务逻辑，不改动管理员密码机制。</p></div></div>
-          <article class="panel empty-state"><h3>密码能力已保留</h3><p>当前可登录、可修改密码；系统账号列表、禁用和 MFA 尚未有后端接口。</p></article>
+          <div class="page-head">
+            <div><h2>系统账号</h2><p>保留现有密码登录和改密业务逻辑；列表不返回密码哈希。</p></div>
+            <button id="loadPlatformAccounts" type="button">刷新</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="platformAccountSearch" placeholder="搜索用户名" />
+              <select id="platformAccountStatus"><option value="all">全部状态</option><option value="active">启用</option><option value="disabled">停用</option></select>
+              <button id="searchPlatformAccounts" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>用户名</th><th>角色</th><th>状态</th><th>密码更新时间</th><th>创建时间</th><th>更新时间</th></tr></thead>
+                <tbody id="platformAccountRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="platformAccountTotal">0 个账号</strong></div>
+          </article>
         </section>
 
         <section class="page" data-page="dev-tools" data-dev-only>

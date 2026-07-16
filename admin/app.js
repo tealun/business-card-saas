@@ -331,10 +331,15 @@ function loadCurrentPage() {
     "tenant-company": loadCompanyProfileBundle,
     "tenant-design": loadDesignBundle,
     "tenant-sync": loadSyncEvents,
+    "tenant-admins": loadTenantAdmins,
+    "tenant-audit": loadTenantAuditEvents,
     "platform-dashboard": loadPlatformDashboard,
     "platform-tenants": () => loadTenantAuthorizations(),
+    "platform-wecom": loadPlatformWecomEvents,
     "platform-features": loadVideoFeatures,
-    "platform-ops": loadDatabaseMigrations
+    "platform-ops": loadDatabaseMigrations,
+    "platform-audit": loadPlatformAuditEvents,
+    "platform-accounts": loadPlatformAccounts
   };
   const loader = loaders[state.page];
   if (loader) run("加载页面", loader);
@@ -878,6 +883,137 @@ async function loadSyncEvents() {
   return result;
 }
 
+function queryFromControls(mapping) {
+  const params = new URLSearchParams();
+  mapping.forEach(([name, selector]) => {
+    const node = $(selector);
+    if (!node) return;
+    const value = node.value.trim();
+    if (value) params.set(name, value);
+  });
+  return params.toString();
+}
+
+async function loadTenantAdmins() {
+  const query = queryFromControls([
+    ["search", "#tenantAdminSearch"],
+    ["status", "#tenantAdminStatus"]
+  ]);
+  const result = await adminRequest(`/admin/admins?${query}`);
+  renderRows($("#tenantAdminRows"), result.items || [], 6, (item) => [
+    `<strong>${escapeHtml(item.display_name || item.open_userid || "--")}</strong><br><code>${escapeHtml(item.open_userid || "--")}</code>`,
+    tag(roleLabel(item.role), roleTone(item.role)),
+    tag(item.status === "active" ? "启用" : item.status, statusTone(item.status)),
+    `${escapeHtml(item.userid || "--")}<br><code>${escapeHtml(item.member_identity_id || "--")}</code>`,
+    formatDate(item.created_at),
+    formatDate(item.updated_at)
+  ]);
+  $("#tenantAdminTotal").textContent = `${result.total || 0} 个管理员`;
+  return result;
+}
+
+async function loadTenantAuditEvents() {
+  const query = queryFromControls([
+    ["search", "#tenantAuditSearch"],
+    ["source", "#tenantAuditSource"],
+    ["status", "#tenantAuditStatus"]
+  ]);
+  const result = await adminRequest(`/admin/audit-events?${query}`);
+  renderRows($("#tenantAuditRows"), result.items || [], 6, (item) => [
+    eventCell(item),
+    sourceLabel(item.source),
+    tag(item.status, statusTone(item.status)),
+    String(item.retry_count),
+    escapeHtml(item.last_error || "--"),
+    formatDate(item.received_at)
+  ]);
+  $("#tenantAuditTotal").textContent = `${result.total || 0} 条事件`;
+  return result;
+}
+
+async function loadPlatformWecomEvents() {
+  const result = await loadPlatformEvents({
+    search: "#platformWecomSearch",
+    source: "#platformWecomSource",
+    status: "#platformWecomStatus"
+  });
+  renderRows($("#platformWecomRows"), result.items || [], 6, (item) => [
+    tenantCell(item),
+    eventCell(item),
+    sourceLabel(item.source),
+    tag(item.status, statusTone(item.status)),
+    String(item.retry_count),
+    formatDate(item.received_at)
+  ]);
+  $("#platformWecomTotal").textContent = `${result.total || 0} 条事件`;
+  return result;
+}
+
+async function loadPlatformAuditEvents() {
+  const result = await loadPlatformEvents({
+    search: "#platformAuditSearch",
+    source: "#platformAuditSource",
+    status: "#platformAuditStatus"
+  });
+  renderRows($("#platformAuditRows"), result.items || [], 6, (item) => [
+    tenantCell(item),
+    eventCell(item),
+    tag(item.status, statusTone(item.status)),
+    escapeHtml(item.last_error || "--"),
+    formatDate(item.received_at),
+    formatDate(item.processed_at)
+  ]);
+  $("#platformAuditTotal").textContent = `${result.total || 0} 条事件`;
+  return result;
+}
+
+async function loadPlatformEvents(selectors) {
+  const query = queryFromControls([
+    ["search", selectors.search],
+    ["source", selectors.source],
+    ["status", selectors.status]
+  ]);
+  return adminRequest(`/admin/platform/audit-events?${query}`);
+}
+
+async function loadPlatformAccounts() {
+  const query = queryFromControls([
+    ["search", "#platformAccountSearch"],
+    ["status", "#platformAccountStatus"]
+  ]);
+  const result = await adminRequest(`/admin/platform/accounts?${query}`);
+  renderRows($("#platformAccountRows"), result.items || [], 6, (item) => [
+    `<strong>${escapeHtml(item.username)}</strong><br><code>${escapeHtml(item.admin_id)}</code>`,
+    tag(roleLabel(item.role), roleTone(item.role)),
+    tag(item.status === "active" ? "启用" : item.status, statusTone(item.status)),
+    formatDate(item.password_updated_at),
+    formatDate(item.created_at),
+    formatDate(item.updated_at)
+  ]);
+  $("#platformAccountTotal").textContent = `${result.total || 0} 个账号`;
+  return result;
+}
+
+function roleLabel(role) {
+  return ({ owner: "Owner", admin: "Admin", operator: "Operator", auditor: "Auditor" })[role] || role;
+}
+
+function roleTone(role) {
+  return ({ owner: "brand", admin: "success", operator: "warning", auditor: "muted" })[role] || "muted";
+}
+
+function sourceLabel(source) {
+  return ({ command: "指令回调", data: "数据回调", sync: "同步任务" })[source] || source;
+}
+
+function tenantCell(item) {
+  return `<strong>${escapeHtml(item.tenant_name || "--")}</strong><br><code>${escapeHtml(item.tenant_id || "--")}</code>`;
+}
+
+function eventCell(item) {
+  return `<strong>${escapeHtml(item.event_type)}</strong><br><code>${escapeHtml(item.event_key)}</code>`;
+}
+
 async function loadPlatformDashboard() {
   const [tenants, video, migrations] = await Promise.all([
     adminRequest("/admin/platform/tenants?page=1&page_size=20&status=all"),
@@ -1256,6 +1392,26 @@ $("#retrySyncEvents").addEventListener("click", async () => {
   }
 });
 
+$("#loadTenantAdmins").addEventListener("click", () => run("刷新管理员", loadTenantAdmins));
+$("#searchTenantAdmins").addEventListener("click", () => run("搜索管理员", loadTenantAdmins));
+$("#tenantAdminSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索管理员", loadTenantAdmins);
+  }
+});
+$("#tenantAdminStatus").addEventListener("change", () => run("筛选管理员", loadTenantAdmins));
+$("#loadTenantAuditEvents").addEventListener("click", () => run("刷新审计", loadTenantAuditEvents));
+$("#searchTenantAuditEvents").addEventListener("click", () => run("搜索审计", loadTenantAuditEvents));
+$("#tenantAuditSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索审计", loadTenantAuditEvents);
+  }
+});
+$("#tenantAuditSource").addEventListener("change", () => run("筛选审计", loadTenantAuditEvents));
+$("#tenantAuditStatus").addEventListener("change", () => run("筛选审计", loadTenantAuditEvents));
+
 $("#loadPlatformDashboard").addEventListener("click", () => run("刷新系统总览", loadPlatformDashboard));
 $("#loadTenantAuthorizations").addEventListener("click", () => run("刷新企业授权", () => loadTenantAuthorizations(1)));
 $("#searchTenantAuthorizations").addEventListener("click", () => run("搜索企业授权", () => loadTenantAuthorizations(1)));
@@ -1268,6 +1424,16 @@ $("#tenantAuthorizationSearch").addEventListener("keydown", (event) => {
 $("#tenantAuthorizationStatus").addEventListener("change", () => run("筛选企业授权", () => loadTenantAuthorizations(1)));
 $("#tenantAuthorizationPrev").addEventListener("click", () => run("上一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page - 1)));
 $("#tenantAuthorizationNext").addEventListener("click", () => run("下一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page + 1)));
+$("#loadPlatformWecomEvents").addEventListener("click", () => run("刷新回调", loadPlatformWecomEvents));
+$("#searchPlatformWecomEvents").addEventListener("click", () => run("搜索回调", loadPlatformWecomEvents));
+$("#platformWecomSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索回调", loadPlatformWecomEvents);
+  }
+});
+$("#platformWecomSource").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
+$("#platformWecomStatus").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
 $("#loadVideoFeatures").addEventListener("click", () => run("读取功能开关", loadVideoFeatures));
 $("#searchTenantFeatures").addEventListener("click", () => run("搜索企业功能", loadVideoFeatures));
 $("#saveVideoFeatures").addEventListener("click", async () => {
@@ -1299,6 +1465,25 @@ $("#runDatabaseMigrations").addEventListener("click", async () => {
     await loadDatabaseMigrations();
   }
 });
+$("#loadPlatformAuditEvents").addEventListener("click", () => run("刷新审计", loadPlatformAuditEvents));
+$("#searchPlatformAuditEvents").addEventListener("click", () => run("搜索审计", loadPlatformAuditEvents));
+$("#platformAuditSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索审计", loadPlatformAuditEvents);
+  }
+});
+$("#platformAuditSource").addEventListener("change", () => run("筛选审计", loadPlatformAuditEvents));
+$("#platformAuditStatus").addEventListener("change", () => run("筛选审计", loadPlatformAuditEvents));
+$("#loadPlatformAccounts").addEventListener("click", () => run("刷新系统账号", loadPlatformAccounts));
+$("#searchPlatformAccounts").addEventListener("click", () => run("搜索系统账号", loadPlatformAccounts));
+$("#platformAccountSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索系统账号", loadPlatformAccounts);
+  }
+});
+$("#platformAccountStatus").addEventListener("change", () => run("筛选系统账号", loadPlatformAccounts));
 $("#closeDrawer").addEventListener("click", closeDrawer);
 $$("[data-go]").forEach((node) => node.addEventListener("click", () => showPage(node.dataset.go)));
 
