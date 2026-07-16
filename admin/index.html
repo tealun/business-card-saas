@@ -7,176 +7,152 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     />
-    <title>智云名片 · 企业管理后台</title>
+    <title>智云名片 · 管理后台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="authGate" class="auth-gate hidden">
-      <div class="auth-card">
-        <img src="./assets/mark-color-144.png" alt="" />
-        <h1>智云名片 · 企业管理后台</h1>
-        <p class="auth-hint">请输入管理员账号密码登录</p>
-        <form id="gatePasswordForm" class="gate-form">
-          <label class="stacked">
-            <span>账号</span>
-            <input id="gateUsername" name="username" autocomplete="username" />
-          </label>
-          <label class="stacked">
-            <span>密码</span>
-            <input id="gatePassword" name="password" type="password" autocomplete="current-password" />
-          </label>
-          <button id="gatePasswordLogin" type="submit">登录</button>
-        </form>
-        <details class="gate-alt">
-          <summary>其他登录方式</summary>
-          <label class="stacked">
-            <span>企业微信登录 Code</span>
-            <input id="gateLoginCode" autocomplete="off" placeholder="企微 OAuth 回调获取的 code" />
-          </label>
-          <label class="stacked">
-            <span>Owner Claim Token（仅首次认领企业时填写）</span>
-            <input id="gateClaimToken" autocomplete="off" placeholder="可留空" />
-          </label>
-          <button id="gateLogin" type="button" class="secondary">企微 Code 登录</button>
-          <label class="stacked">
-            <span>访问令牌（由运维 admin-bootstrap 签发）</span>
-            <input id="gateTokenInput" autocomplete="off" placeholder="粘贴 access token" />
-          </label>
-          <button id="gateTokenLogin" type="button" class="secondary">令牌登录</button>
-        </details>
-        <p id="gateError" class="auth-error" role="alert"></p>
+    <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
+      <div class="login-visual" aria-hidden="true">
+        <div class="network-map">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <img src="./assets/mark-color-144.png" alt="" class="login-mark" />
+        <div class="login-card-preview">
+          <div class="preview-avatar"></div>
+          <div>
+            <strong>企业名片管理</strong>
+            <span>授权 · 成员 · 主页 · 模板</span>
+          </div>
+        </div>
       </div>
-    </div>
+      <div class="login-form-panel">
+        <div class="login-form">
+          <img src="./assets/mark-color-144.png" alt="" />
+          <h1>智云名片管理后台</h1>
+          <p>使用管理员账号密码登录，或通过企业微信授权登录企业后台。</p>
+          <form id="gatePasswordForm" class="stack-form">
+            <label>
+              <span>账号</span>
+              <input id="gateUsername" name="username" autocomplete="username" required />
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="gatePassword" name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button id="gatePasswordLogin" type="submit">登录</button>
+          </form>
+          <details class="login-alt">
+            <summary>企业微信登录 / 运维令牌</summary>
+            <label>
+              <span>企业微信登录 Code</span>
+              <input id="gateLoginCode" autocomplete="off" />
+            </label>
+            <label>
+              <span>Owner Claim Token</span>
+              <input id="gateClaimToken" autocomplete="off" placeholder="首次认领企业 owner 时填写" />
+            </label>
+            <button id="gateLogin" type="button" class="secondary">企业微信 Code 登录</button>
+            <label>
+              <span>访问令牌</span>
+              <input id="gateTokenInput" autocomplete="off" />
+            </label>
+            <button id="gateTokenLogin" type="button" class="secondary">令牌登录</button>
+          </details>
+          <p id="gateError" class="form-error" role="alert"></p>
+        </div>
+      </div>
+    </section>
+
     <main id="adminShell" class="admin-shell hidden">
       <aside class="sidebar" aria-label="后台导航">
         <div class="brand">
           <img src="./assets/mark-color-144.png" alt="" />
           <div>
             <strong>智云名片</strong>
-            <span>企业管理后台</span>
+            <span id="shellModeLabel">管理后台</span>
           </div>
         </div>
-        <nav class="nav-list">
-          <button class="nav-item active" data-view-target="dashboard">概览</button>
-          <button class="nav-item" data-view-target="members">员工</button>
-          <button class="nav-item" data-view-target="company">企业资料</button>
-          <button class="nav-item" data-view-target="rules">字段与模板</button>
-          <button class="nav-item" data-view-target="sync">同步</button>
-          <button class="nav-item" data-view-target="database">数据库</button>
-          <button id="tenantAuthorizationsNav" class="nav-item hidden" data-view-target="tenant-authorizations">企业授权</button>
-          <button id="featuresNav" class="nav-item hidden" data-view-target="features">高级功能</button>
-          <button class="nav-item" data-view-target="setup" data-dev-only>授权与联调</button>
-        </nav>
+        <nav id="navList" class="nav-list"></nav>
+        <div class="sidebar-account">
+          <span id="adminStatus">未连接</span>
+          <button id="logoutButton" type="button" class="ghost">退出</button>
+        </div>
       </aside>
 
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">M1 Admin Console</p>
-            <h1>企业配置工作台</h1>
+            <p id="breadcrumb" class="eyebrow">后台</p>
+            <h1 id="pageTitle">管理后台</h1>
+            <p id="pageSubtitle">登录后按身份进入对应后台。</p>
           </div>
-          <div class="topbar-side">
-            <label class="api-base" data-dev-only>
+          <div class="topbar-actions">
+            <label id="apiBaseLabel" class="api-base" data-dev-only>
               <span>API Base</span>
               <input id="apiBase" autocomplete="off" placeholder="https://api.example.com/api/v1" />
             </label>
-            <div class="topbar-session">
-              <span id="topbarAdmin" class="pill">未登录</span>
-              <button id="changePasswordButton" class="secondary" type="button">修改密码</button>
-              <button id="logoutButton" class="secondary" type="button">退出登录</button>
-            </div>
+            <span id="topbarAdmin" class="status-chip muted">未登录</span>
+            <button id="loadAdminMe" type="button" class="secondary">刷新会话</button>
+            <button id="changePasswordButton" type="button" class="secondary">修改密码</button>
           </div>
         </header>
 
         <section class="status-strip" aria-live="polite">
-          <div>
-            <span class="label">API</span>
-            <strong id="apiStatus">未检查</strong>
-          </div>
-          <div>
-            <span class="label">登录</span>
-            <strong id="loginStatus">未登录</strong>
-          </div>
-          <div>
-            <span class="label">Admin</span>
-            <strong id="adminStatus">未连接</strong>
-          </div>
-          <div>
-            <span class="label">Share</span>
-            <strong id="shareStatus">未签发</strong>
-          </div>
+          <div><span>API</span><strong id="apiStatus">未检查</strong></div>
+          <div><span>登录身份</span><strong id="loginStatus">未登录</strong></div>
+          <div><span>企业</span><strong id="tenantStatus">未加载</strong></div>
+          <div><span>最近操作</span><strong id="lastActionStatus">待命</strong></div>
         </section>
 
-        <section class="console-panel panel">
-          <div class="panel-head">
-            <h3>操作输出</h3>
-            <button id="loadAdminMe" class="secondary">读取会话</button>
-          </div>
-          <pre id="adminOutput" class="output compact-output" aria-label="admin output"></pre>
-        </section>
+        <section id="toast" class="toast hidden" role="status"></section>
 
-        <section class="view active" data-view="dashboard">
-          <div class="view-head">
+        <section class="page active" data-page="tenant-dashboard">
+          <div class="page-head">
             <div>
-              <h2>经营概览</h2>
+              <h2>企业总览</h2>
+              <p>企业授权、成员名片、主页资料和功能能力的实时状态。</p>
             </div>
-            <div class="button-row compact-row">
-              <button id="checkHealth" class="secondary">检查 API</button>
-              <button id="loadOverview">刷新概览</button>
-            </div>
+            <button id="loadTenantDashboard" type="button">刷新总览</button>
           </div>
           <div class="metric-grid">
-            <article class="metric">
-              <span>成员数</span>
-              <strong id="metricMembers">--</strong>
+            <button class="metric" data-go="tenant-members"><span>成员数</span><strong id="metricMembers">--</strong></button>
+            <button class="metric" data-go="tenant-members"><span>名片数</span><strong id="metricCards">--</strong></button>
+            <button class="metric" data-go="tenant-members"><span>启用名片</span><strong id="metricActiveCards">--</strong></button>
+            <article class="metric"><span>视频能力</span><strong id="metricVideo">--</strong></article>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>待办</h3><span class="status-chip brand">真实接口</span></div>
+              <div id="tenantTodoList" class="task-list"></div>
             </article>
-            <article class="metric">
-              <span>名片数</span>
-              <strong id="metricCards">--</strong>
-            </article>
-            <article class="metric">
-              <span>展示中</span>
-              <strong id="metricActiveCards">--</strong>
+            <article class="panel">
+              <div class="panel-head"><h3>后台能力矩阵</h3></div>
+              <div class="capability-list">
+                <span>成员与名片</span><strong>已接入</strong>
+                <span>企业主页</span><strong>已接入</strong>
+                <span>字段与模板</span><strong>已接入</strong>
+                <span>版本与额度</span><strong>后端未接入</strong>
+              </div>
             </article>
           </div>
         </section>
 
-        <section class="view" data-view="members">
-          <div class="view-head">
-            <div>
-              <h2>员工管理</h2>
-            </div>
-            <div class="button-row compact-row">
-              <button id="syncMembers" class="secondary">同步成员</button>
-              <button id="loadMembers">加载成员</button>
-            </div>
+        <section class="page" data-page="tenant-members">
+          <div class="page-head">
+            <div><h2>成员与名片</h2><p>成员来自企业微信同步，名片资料通过后台接口保存。</p></div>
+            <button id="syncMembers" type="button" class="secondary danger-lite">同步成员</button>
           </div>
           <article class="panel">
-            <div class="panel-head">
-              <h3>成员列表</h3>
-              <span id="membersTotal" class="pill">0</span>
-            </div>
-            <div class="filter-grid">
-              <label>
-                <span>搜索</span>
-                <input id="memberSearch" placeholder="姓名 / userid / open_userid" />
-              </label>
-              <label>
-                <span>状态</span>
-                <select id="memberStatusFilter">
-                  <option value="all">全部</option>
-                  <option value="active">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
-              </label>
-              <label>
-                <span>每页</span>
-                <input id="memberLimit" type="number" min="1" max="100" value="50" />
-              </label>
-              <label>
-                <span>偏移</span>
-                <input id="memberOffset" type="number" min="0" value="0" />
-              </label>
+            <div class="toolbar">
+              <input id="memberSearch" placeholder="搜索姓名 / userid / open_userid" />
+              <select id="memberStatusFilter">
+                <option value="all">全部状态</option>
+                <option value="active">启用</option>
+                <option value="disabled">停用</option>
+              </select>
+              <button id="loadMembers" type="button">刷新</button>
             </div>
             <div class="table-wrap">
               <table>
@@ -185,146 +161,187 @@
                     <th>成员</th>
                     <th>状态</th>
                     <th>公开 ID</th>
-                    <th>企微身份</th>
+                    <th>企业微信身份</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
-                <tbody id="membersRows">
-                  <tr><td colspan="4">尚未加载</td></tr>
-                </tbody>
+                <tbody id="membersRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><span id="membersTotal">0 个成员</span></div>
+          </article>
+        </section>
+
+        <section class="page" data-page="tenant-company">
+          <div class="page-head">
+            <div><h2>企业主页</h2><p>编辑企业资料、产品服务、简介、荣誉与视频模块。</p></div>
+            <button id="saveCompanyProfile" type="button">保存主页</button>
+          </div>
+          <div class="company-layout">
+            <aside class="module-tabs">
+              <button data-company-tab="profile" class="active" type="button">基础资料</button>
+              <button data-company-tab="modules" type="button">模块</button>
+              <button data-company-tab="services" type="button">服务</button>
+              <button data-company-tab="intro" type="button">简介</button>
+              <button data-company-tab="honors" type="button">荣誉</button>
+            </aside>
+            <article class="panel company-editor">
+              <div class="panel-head">
+                <h3 id="companyTabTitle">基础资料</h3>
+                <button id="loadCompanyProfile" type="button" class="secondary">读取主页</button>
+              </div>
+              <form id="companyForm" class="form-grid company-tab active" data-company-panel="profile">
+                <label><span>企业名称</span><input name="display_name" required /></label>
+                <label><span>企业简称</span><input name="short_name" /></label>
+                <label><span>Logo URL</span><input name="logo_url" /></label>
+                <label><span>官网</span><input name="website_url" /></label>
+                <label><span>状态</span><select name="status"><option value="draft">草稿</option><option value="published">已发布</option></select></label>
+                <label class="check-line"><input name="visible" type="checkbox" /> 公开可见</label>
+                <label class="wide"><span>地址</span><input name="address" /></label>
+              </form>
+              <div id="moduleEditor" class="company-tab editor-stack" data-company-panel="modules"></div>
+              <div class="company-tab editor-stack" data-company-panel="services">
+                <div class="inline-actions"><button id="addService" type="button" class="secondary">新增服务</button></div>
+                <div id="serviceEditor"></div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="intro">
+                <div class="inline-actions">
+                  <button id="addHeading" type="button" class="secondary">标题</button>
+                  <button id="addParagraph" type="button" class="secondary">正文</button>
+                  <button id="addImage" type="button" class="secondary">图片</button>
+                  <button id="addGallery" type="button" class="secondary">相册</button>
+                  <button id="addVideo" type="button" class="secondary">视频</button>
+                </div>
+                <p id="videoCapabilityHint" class="hint"></p>
+                <div id="introEditor"></div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="honors">
+                <div class="inline-actions">
+                  <button id="loadHonors" type="button" class="secondary">读取荣誉</button>
+                  <button id="addHonor" type="button" class="secondary">新增荣誉</button>
+                  <button id="saveHonors" type="button">保存荣誉</button>
+                </div>
+                <div id="honorEditor"></div>
+              </div>
+            </article>
+            <aside class="phone-preview">
+              <span>实时预览</span>
+              <strong id="previewCompanyName">企业名称</strong>
+              <p id="previewCompanyIntro">主页资料读取后展示预览。</p>
+              <div id="previewModules" class="preview-modules"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page" data-page="tenant-design">
+          <div class="page-head">
+            <div><h2>字段与模板</h2><p>统一成员名片字段规则和企业默认模板。</p></div>
+            <button id="saveFieldSettings" type="button">保存字段规则</button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>字段规则</h3><button id="loadFieldSettings" type="button" class="secondary">读取字段</button></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>字段</th><th>锁定</th><th>员工可编辑</th><th>默认展示</th></tr></thead>
+                  <tbody id="fieldRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>模板</h3><button id="loadTemplates" type="button" class="secondary">读取模板</button></div>
+              <form id="templateForm" class="stack-form compact-form">
+                <input id="templateId" type="hidden" />
+                <label><span>模板名称</span><input id="templateName" required /></label>
+                <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
+                <label><span>背景 URL</span><input id="templateBackgroundUrl" /></label>
+                <label><span>Logo URL</span><input id="templateLogoUrl" /></label>
+                <label><span>主色</span><input id="templatePrimaryColor" value="#2563eb" /></label>
+                <label><span>底色</span><input id="templateSurfaceColor" value="#ffffff" /></label>
+                <label><span>布局</span><input id="templateLayoutVariant" value="horizontal-business" /></label>
+                <div class="inline-actions">
+                  <button id="createTemplate" type="button">新增</button>
+                  <button id="updateTemplate" type="button" class="secondary">保存</button>
+                  <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
+                </div>
+              </form>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>名称</th><th>默认</th><th>状态</th><th>操作</th></tr></thead>
+                  <tbody id="templateRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="page" data-page="tenant-sync">
+          <div class="page-head">
+            <div><h2>同步与回调</h2><p>查看当前企业同步事件，并重试可恢复失败。</p></div>
+            <button id="retrySyncEvents" type="button" class="secondary danger-lite">重试失败事件</button>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>同步事件</h3><button id="loadSyncEvents" type="button">刷新</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>时间</th></tr></thead>
+                <tbody id="syncEventRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
               </table>
             </div>
           </article>
-          <article class="panel">
-            <div class="panel-head">
-              <h3>成员名片配置</h3>
-              <div class="button-row compact-row">
-                <button id="loadAdminCard" class="secondary">读取名片</button>
-                <button id="saveAdminCard">保存名片</button>
-              </div>
-            </div>
-            <div class="form-grid">
-              <label>
-                <span>Member Identity ID</span>
-                <input id="adminMemberId" autocomplete="off" />
-              </label>
-              <label>
-                <span>成员状态</span>
-                <select id="adminCardStatus">
-                  <option value="active">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
-              </label>
-            </div>
-            <form id="cardForm" class="form-grid card-editor">
-              <label>
-                <span>姓名</span>
-                <input name="display_name" />
-              </label>
-              <label>
-                <span>职位</span>
-                <input name="title" />
-              </label>
-              <label>
-                <span>手机</span>
-                <input name="mobile" />
-              </label>
-              <label>
-                <span>座机</span>
-                <input name="phone" />
-              </label>
-              <label>
-                <span>邮箱</span>
-                <input name="email" type="email" />
-              </label>
-              <label>
-                <span>微信号</span>
-                <input name="wechat_id" />
-              </label>
-              <label class="wide">
-                <span>地址</span>
-                <input name="address" />
-              </label>
-              <div class="toggle-row wide">
-                <label><input name="show_mobile" type="checkbox" /> 展示手机</label>
-                <label><input name="show_email" type="checkbox" /> 展示邮箱</label>
-                <label><input name="show_wechat" type="checkbox" /> 展示微信</label>
-                <label><input name="allow_forward" type="checkbox" /> 允许访客转发</label>
-              </div>
-            </form>
-            <pre id="adminCardOutput" class="output compact-output" aria-label="admin card output"></pre>
-          </article>
         </section>
 
-        <section class="view" data-view="company">
-          <div class="view-head">
-            <div>
-              <h2>企业资料</h2>
-            </div>
-            <div class="button-row compact-row">
-              <button id="loadCompanyProfile" class="secondary">读取资料</button>
-              <button id="saveCompanyProfile">保存资料</button>
-            </div>
-          </div>
-          <article class="panel">
-            <form id="companyForm" class="form-grid">
-              <label>
-                <span>企业名称</span>
-                <input name="display_name" />
-              </label>
-              <label>
-                <span>企业简称</span>
-                <input name="short_name" />
-              </label>
-              <label>
-                <span>Logo URL</span>
-                <input name="logo_url" />
-              </label>
-              <label>
-                <span>官网</span>
-                <input name="website_url" />
-              </label>
-              <label>
-                <span>状态</span>
-                <select name="status">
-                  <option value="draft">draft</option>
-                  <option value="published">published</option>
-                </select>
-              </label>
-              <label class="stacked">
-                <span>可见</span>
-                <input name="visible" type="checkbox" />
-              </label>
-              <label class="wide">
-                <span>地址</span>
-                <input name="address" />
-              </label>
-            </form>
-            <div class="content-editor">
-              <div class="editor-head"><h3>模块管理</h3><span>使用上下按钮排序</span></div>
-              <div id="moduleEditor"></div>
-              <div class="editor-head"><h3>产品与服务</h3><button id="addService" type="button" class="secondary">新增产品</button></div>
-              <div id="serviceEditor"></div>
-              <div class="editor-head"><h3>企业简介</h3><div class="button-row compact-row"><button id="addHeading" type="button" class="secondary">添加标题</button><button id="addParagraph" type="button" class="secondary">添加正文</button><button id="addImage" type="button" class="secondary">添加图片</button><button id="addGallery" type="button" class="secondary">添加相册</button><button id="addVideo" type="button" class="secondary">添加视频</button></div></div>
-              <div id="introEditor"></div>
-              <div id="videoCapabilityHint" class="muted"></div>
-              <div class="editor-head"><h3>荣誉资质</h3><div class="button-row compact-row"><button id="loadHonors" type="button" class="secondary">读取荣誉</button><button id="addHonor" type="button" class="secondary">新增荣誉</button><button id="saveHonors" type="button">保存荣誉</button></div></div>
-              <div id="honorEditor"></div>
-            </div>
-            <pre id="companyOutput" class="output compact-output" aria-label="company output"></pre>
-          </article>
+        <section class="page" data-page="tenant-billing">
+          <div class="page-head"><div><h2>版本与额度</h2><p>当前后端尚未提供商业化真实接口。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>设计要求的 `/admin/commercial/subscription`、订单和用量接口尚未实现。此页不展示占位数据，避免误导运营判断。</p></article>
         </section>
 
-        <section class="view" data-view="tenant-authorizations">
-          <div class="view-head">
-            <div>
-              <h2>企业授权</h2>
-              <p>查看已经安装智云名片的企业及授权运行状态</p>
-            </div>
-            <button id="loadTenantAuthorizations" class="secondary">刷新</button>
+        <section class="page" data-page="tenant-admins">
+          <div class="page-head"><div><h2>管理员</h2><p>当前后端尚未提供企业管理员列表接口。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>已有登录和角色校验，但缺少企业管理员管理 API。请先补齐后端再开放写操作。</p></article>
+        </section>
+
+        <section class="page" data-page="tenant-audit">
+          <div class="page-head"><div><h2>审计日志</h2><p>当前后端尚未提供后台审计日志查询接口。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>不展示模拟日志；待后端接入脱敏审计查询后再启用。</p></article>
+        </section>
+
+        <section class="page" data-page="platform-dashboard">
+          <div class="page-head">
+            <div><h2>系统总览</h2><p>平台视角聚合企业授权、功能开关和运维风险。</p></div>
+            <button id="loadPlatformDashboard" type="button">刷新总览</button>
+          </div>
+          <div class="metric-grid">
+            <button class="metric" data-go="platform-tenants"><span>授权企业</span><strong id="platformTenantCount">--</strong></button>
+            <button class="metric" data-go="platform-tenants"><span>活跃企业</span><strong id="platformActiveTenantCount">--</strong></button>
+            <button class="metric" data-go="platform-features"><span>视频默认</span><strong id="platformVideoStatus">--</strong></button>
+            <button class="metric" data-go="platform-ops"><span>待迁移</span><strong id="platformPendingMigrations">--</strong></button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>风险队列</h3></div>
+              <div id="platformRiskList" class="task-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>快捷入口</h3></div>
+              <div class="quick-grid">
+                <button data-go="platform-tenants" class="secondary" type="button">企业授权</button>
+                <button data-go="platform-features" class="secondary" type="button">功能开关</button>
+                <button data-go="platform-ops" class="secondary" type="button">数据库迁移</button>
+                <button data-go="platform-commercial" class="secondary" type="button">商业化</button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="page" data-page="platform-tenants">
+          <div class="page-head">
+            <div><h2>企业授权中心</h2><p>只读查看企业安装、授权健康和成员名片规模。</p></div>
+            <button id="loadTenantAuthorizations" type="button">刷新</button>
           </div>
           <article class="panel">
-            <div class="tenant-toolbar">
-              <input id="tenantAuthorizationSearch" placeholder="搜索企业名称或 CorpID" />
+            <div class="toolbar">
+              <input id="tenantAuthorizationSearch" placeholder="搜索企业名称或 OpenCorpID" />
               <select id="tenantAuthorizationStatus">
                 <option value="all">全部状态</option>
                 <option value="active">授权有效</option>
@@ -332,320 +349,144 @@
               </select>
               <button id="searchTenantAuthorizations" type="button">搜索</button>
             </div>
-            <div class="tenant-summary">
-              <strong id="tenantAuthorizationTotal">0</strong>
-              <span>家已安装企业</span>
-            </div>
             <div class="table-wrap">
-              <table class="data-table tenant-table">
-                <thead>
-                  <tr>
-                    <th>企业</th>
-                    <th>授权状态</th>
-                    <th>成员</th>
-                    <th>名片</th>
-                    <th>安装时间</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody id="tenantAuthorizationRows">
-                  <tr><td colspan="6">尚未加载</td></tr>
-                </tbody>
+              <table>
+                <thead><tr><th>企业</th><th>授权状态</th><th>成员</th><th>名片</th><th>安装时间</th><th>操作</th></tr></thead>
+                <tbody id="tenantAuthorizationRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
               </table>
             </div>
-            <div class="tenant-pagination">
+            <div class="table-footer">
               <button id="tenantAuthorizationPrev" type="button" class="secondary">上一页</button>
               <span id="tenantAuthorizationPage">第 1 页</span>
               <button id="tenantAuthorizationNext" type="button" class="secondary">下一页</button>
+              <strong id="tenantAuthorizationTotal">0 家企业</strong>
             </div>
-          </article>
-          <article id="tenantAuthorizationDetailPanel" class="panel hidden">
-            <div class="panel-head">
-              <div>
-                <h3 id="tenantAuthorizationDetailTitle">企业授权详情</h3>
-                <p id="tenantAuthorizationDetailSubtitle" class="muted"></p>
-              </div>
-              <button id="closeTenantAuthorizationDetail" type="button" class="secondary">关闭</button>
-            </div>
-            <div id="tenantAuthorizationDetail" class="tenant-detail-grid"></div>
-            <div class="tenant-scope-block">
-              <h4>授权范围</h4>
-              <pre id="tenantAuthorizationScope" class="output compact-output">尚未加载</pre>
-            </div>
-          </article>
-          <pre id="tenantAuthorizationOutput" class="output compact-output" aria-label="tenant authorization output"></pre>
-        </section>
-
-        <section class="view" data-view="features">
-          <div class="view-head"><div><h2>高级功能</h2><p>平台总管理员控制企业视频授权与上限</p></div><button id="loadVideoFeatures" class="secondary">刷新</button></div>
-          <article class="panel">
-            <div class="form-grid"><label><span>平台视频功能</span><input id="platformVideoEnabled" type="checkbox" /></label><label><span>默认上限（MB）</span><input id="platformVideoLimit" type="number" min="1" max="1024" value="500" /></label></div>
-            <button id="saveVideoFeatures">保存平台设置</button>
-            <div class="editor-head"><h3>企业授权</h3><div class="button-row compact-row"><input id="tenantFeatureSearch" placeholder="企业名称" /><button id="searchTenantFeatures" class="secondary">搜索</button></div></div>
-            <div id="tenantFeatureEditor"></div><pre id="featureOutput" class="output compact-output"></pre>
           </article>
         </section>
 
-        <section class="view" data-view="rules">
-          <div class="view-head">
-            <div>
-              <h2>字段与模板</h2>
-            </div>
-            <div class="button-row compact-row">
-              <button id="loadFieldSettings" class="secondary">字段规则</button>
-              <button id="saveFieldSettings" class="secondary">保存字段</button>
-              <button id="loadTemplates" class="secondary">模板列表</button>
-            </div>
+        <section class="page" data-page="platform-features">
+          <div class="page-head">
+            <div><h2>功能开关</h2><p>平台默认与企业级视频能力 override。</p></div>
+            <button id="saveVideoFeatures" type="button">保存平台设置</button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>平台默认</h3><button id="loadVideoFeatures" type="button" class="secondary">读取</button></div>
+              <form class="form-grid">
+                <label class="check-line"><input id="platformVideoEnabled" type="checkbox" /> 启用企业视频</label>
+                <label><span>默认上限 MB</span><input id="platformVideoLimit" type="number" min="1" max="1024" value="500" /></label>
+              </form>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>企业 override</h3></div>
+              <div class="toolbar"><input id="tenantFeatureSearch" placeholder="搜索企业" /><button id="searchTenantFeatures" type="button">搜索</button></div>
+              <div id="tenantFeatureEditor" class="editor-stack"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="page" data-page="platform-ops">
+          <div class="page-head">
+            <div><h2>运维</h2><p>数据库迁移属于高风险动作，执行前需要二次确认。</p></div>
+            <button id="loadDatabaseMigrations" type="button">检测迁移</button>
           </div>
           <article class="panel">
-            <form id="templateForm" class="template-editor" onsubmit="return false">
-              <label class="stacked">
-                <span>模板 ID</span>
-                <input id="templateId" placeholder="选择模板后填充" readonly />
-              </label>
-              <label class="stacked">
-                <span>模板名称</span>
-                <input id="templateName" value="商务蓝模板" />
-              </label>
-              <label class="stacked">
-                <span>状态</span>
-                <select id="templateStatus">
-                  <option value="active">active</option>
-                  <option value="disabled">disabled</option>
-                </select>
-              </label>
-              <label class="stacked">
-                <span>背景 URL</span>
-                <input id="templateBackgroundUrl" placeholder="https://..." />
-              </label>
-              <label class="stacked">
-                <span>Logo URL</span>
-                <input id="templateLogoUrl" placeholder="https://..." />
-              </label>
-              <label class="stacked">
-                <span>主色</span>
-                <input id="templatePrimaryColor" value="#1677ff" />
-              </label>
-              <label class="stacked">
-                <span>底色</span>
-                <input id="templateSurfaceColor" value="#ffffff" />
-              </label>
-              <label class="stacked">
-                <span>布局</span>
-                <input id="templateLayoutVariant" value="horizontal-business" />
-              </label>
-              <div class="button-row compact-row wide">
-                <button id="createTemplate" type="button">新增模板</button>
-                <button id="updateTemplate" type="button" class="secondary">保存模板</button>
-                <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
-              </div>
-            </form>
-            <div class="split-grid">
-              <div>
-                <h3>字段规则</h3>
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>字段</th>
-                        <th>锁定</th>
-                        <th>员工可编辑</th>
-                        <th>默认展示</th>
-                      </tr>
-                    </thead>
-                    <tbody id="fieldRows">
-                      <tr><td colspan="4">尚未加载</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div>
-                <h3>模板</h3>
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>名称</th>
-                        <th>默认</th>
-                        <th>状态</th>
-                        <th>颜色</th>
-                        <th>操作</th>
-                      </tr>
-                    </thead>
-                    <tbody id="templateRows">
-                      <tr><td colspan="5">尚未加载</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <pre id="configOutput" class="output compact-output" aria-label="config output"></pre>
-          </article>
-        </section>
-
-        <section class="view" data-view="sync">
-          <div class="view-head">
-            <div>
-              <h2>同步与回调</h2>
-            </div>
-            <div class="button-row compact-row">
-              <button id="retrySyncEvents" class="secondary">重试失败</button>
-              <button id="loadSyncEvents">同步日志</button>
-            </div>
-          </div>
-          <article class="panel">
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>事件</th>
-                    <th>变更</th>
-                    <th>状态</th>
-                    <th>重试</th>
-                    <th>时间</th>
-                  </tr>
-                </thead>
-                <tbody id="syncEventRows">
-                  <tr><td colspan="5">尚未加载</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </article>
-        </section>
-
-        <section class="view" data-view="database">
-          <div class="view-head">
-            <div>
-              <h2>数据库迁移</h2>
-              <p>检测 database/migrations 中尚未写入 pgmigrations 的迁移，并由 owner 手动执行。</p>
-            </div>
-            <div class="button-row compact-row">
-              <button id="runDatabaseMigrations" class="secondary">执行迁移</button>
-              <button id="loadDatabaseMigrations">检测迁移</button>
-            </div>
-          </div>
-          <article class="panel">
-            <div class="metric-grid database-metrics">
-              <div class="metric">
-                <span>数据库目录</span>
-                <strong id="databaseDir">--</strong>
-              </div>
-              <div class="metric">
-                <span>迁移文件</span>
-                <strong id="databaseMigrationFiles">--</strong>
-              </div>
-              <div class="metric">
-                <span>待执行</span>
-                <strong id="databasePendingCount">--</strong>
-              </div>
+            <div class="metric-grid three">
+              <article class="metric"><span>数据库目录</span><strong id="databaseDir">--</strong></article>
+              <article class="metric"><span>迁移文件</span><strong id="databaseMigrationFiles">--</strong></article>
+              <article class="metric"><span>待执行</span><strong id="databasePendingCount">--</strong></article>
             </div>
             <div class="table-wrap">
               <table>
-                <thead>
-                  <tr>
-                    <th>迁移</th>
-                    <th>文件</th>
-                    <th>状态</th>
-                  </tr>
-                </thead>
-                <tbody id="databaseMigrationRows">
-                  <tr><td colspan="3">尚未加载</td></tr>
-                </tbody>
+                <thead><tr><th>迁移</th><th>文件</th><th>状态</th></tr></thead>
+                <tbody id="databaseMigrationRows"><tr><td colspan="3">尚未加载</td></tr></tbody>
               </table>
             </div>
-            <pre id="databaseOutput" class="output compact-output" aria-label="database output"></pre>
+            <div class="inline-actions end"><button id="runDatabaseMigrations" type="button" class="secondary danger-lite">执行迁移</button></div>
           </article>
         </section>
 
-        <section class="view" data-view="setup" data-dev-only>
-          <div class="view-head">
-            <div>
-              <h2>授权与联调</h2>
-            </div>
-            <button id="demoLogin" class="secondary">Demo 企微登录</button>
-          </div>
-          <div class="setup-grid">
-            <article class="panel">
-              <div class="panel-head">
-                <h3>管理员会话</h3>
-                <button id="saveAdminToken" class="secondary">保存 Token</button>
-              </div>
-              <label class="stacked">
-                <span>Admin Token</span>
-                <input id="adminToken" autocomplete="off" />
-              </label>
-              <label class="stacked">
-                <span>Admin WeCom Code</span>
-                <input id="adminLoginCode" autocomplete="off" />
-              </label>
-              <label class="stacked">
-                <span>Owner Claim Token</span>
-                <input id="adminClaimToken" autocomplete="off" />
-              </label>
-              <div class="button-row">
-                <button id="adminQyLogin">Admin QY Login</button>
-              </div>
+        <section class="page" data-page="platform-wecom">
+          <div class="page-head"><div><h2>授权与回调</h2><p>平台级回调事件查询接口尚未独立提供。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>企业授权详情已经展示最近回调摘要；全局回调队列需要后端提供平台级只读 API。</p></article>
+        </section>
+
+        <section class="page" data-page="platform-commercial">
+          <div class="page-head"><div><h2>商业化</h2><p>套餐、订单、订阅和额度账本尚未落地。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>不展示设计稿中的示例金额和订单。待商业化模块实现真实数据库表和接口后再开放。</p></article>
+        </section>
+
+        <section class="page" data-page="platform-audit">
+          <div class="page-head"><div><h2>审计</h2><p>平台审计查询接口尚未接入。</p></div></div>
+          <article class="panel empty-state"><h3>后端能力未接入</h3><p>缺少脱敏审计日志 API，暂不渲染模拟记录。</p></article>
+        </section>
+
+        <section class="page" data-page="platform-accounts">
+          <div class="page-head"><div><h2>系统账号</h2><p>保留现有密码登录和改密业务逻辑，不改动管理员密码机制。</p></div></div>
+          <article class="panel empty-state"><h3>密码能力已保留</h3><p>当前可登录、可修改密码；系统账号列表、禁用和 MFA 尚未有后端接口。</p></article>
+        </section>
+
+        <section class="page" data-page="dev-tools" data-dev-only>
+          <div class="page-head"><div><h2>联调工具</h2><p>仅本地或 ?dev 模式可见，生产后台不展示。</p></div></div>
+          <div class="content-grid three">
+            <article class="panel stack-form">
+              <h3>授权链接</h3>
+              <label><span>WeCom Launch Token</span><input id="wecomLaunchToken" autocomplete="off" /></label>
+              <label><span>WeCom Redirect URI</span><input id="wecomRedirectUri" autocomplete="off" /></label>
+              <button id="createWecomAuthorizationLink" type="button">生成授权链接</button>
+            </article>
+            <article class="panel stack-form">
+              <h3>令牌</h3>
+              <label><span>Admin Token</span><input id="adminToken" autocomplete="off" /></label>
+              <button id="saveAdminToken" type="button" class="secondary">保存 Token</button>
+              <label><span>企业微信 Code</span><input id="adminLoginCode" autocomplete="off" /></label>
+              <label><span>Owner Claim Token</span><input id="adminClaimToken" autocomplete="off" /></label>
+              <button id="adminQyLogin" type="button">Code 登录</button>
             </article>
             <article class="panel">
-              <div class="panel-head">
-                <h3>企业授权</h3>
-                <button id="createWecomAuthorizationLink">Create Auth Link</button>
-              </div>
-              <label class="stacked">
-                <span>WeCom Launch Token</span>
-                <input id="wecomLaunchToken" autocomplete="off" />
-              </label>
-              <label class="stacked">
-                <span>WeCom Redirect URI</span>
-                <input id="wecomRedirectUri" autocomplete="off" />
-              </label>
-            </article>
-            <article class="panel">
-              <div class="panel-head">
-                <h3>员工端闭环</h3>
-                <div class="button-row compact-row">
-                  <button id="loadCard" class="secondary">读取名片</button>
-                  <button id="saveCard" class="secondary">保存名片</button>
-                </div>
-              </div>
-              <div class="button-row">
-                <button id="createShare">签发分享</button>
-                <button id="loadPublic" class="secondary">公开预览</button>
-                <button id="createVisit" class="secondary">创建 visit</button>
-                <button id="deriveShare" class="secondary">派生分享</button>
-              </div>
-              <div class="share-box">
-                <code id="sharePath">尚未生成</code>
-              </div>
-              <pre id="sessionOutput" class="output compact-output" aria-label="session output"></pre>
-              <pre id="publicOutput" class="output compact-output" aria-label="public output"></pre>
+              <h3>操作输出</h3>
+              <pre id="adminOutput" class="output">等待操作</pre>
             </article>
           </div>
         </section>
       </section>
     </main>
-    <dialog id="passwordDialog" class="password-dialog">
-      <form id="passwordForm" method="dialog">
-        <h3>修改密码</h3>
-        <label class="stacked">
-          <span>当前密码</span>
-          <input id="pwdOld" type="password" autocomplete="current-password" />
-        </label>
-        <label class="stacked">
-          <span>新密码（至少 8 位）</span>
-          <input id="pwdNew" type="password" autocomplete="new-password" />
-        </label>
-        <label class="stacked">
-          <span>确认新密码</span>
-          <input id="pwdConfirm" type="password" autocomplete="new-password" />
-        </label>
-        <p id="pwdError" class="auth-error" role="alert"></p>
-        <div class="button-row">
-          <button id="pwdSave" type="button">保存</button>
-          <button id="pwdCancel" type="button" class="secondary">取消</button>
+
+    <aside id="detailDrawer" class="drawer hidden" aria-label="详情抽屉">
+      <div class="drawer-head">
+        <div><h2 id="drawerTitle">详情</h2><p id="drawerSubtitle"></p></div>
+        <button id="closeDrawer" type="button" class="ghost">关闭</button>
+      </div>
+      <div id="drawerBody" class="drawer-body"></div>
+      <div id="drawerFooter" class="drawer-footer"></div>
+    </aside>
+
+    <dialog id="confirmDialog" class="confirm-dialog">
+      <form method="dialog">
+        <h3 id="confirmTitle">确认操作</h3>
+        <p id="confirmBody"></p>
+        <label id="confirmReasonLabel" class="hidden"><span>原因</span><textarea id="confirmReason" rows="3"></textarea></label>
+        <div class="dialog-actions">
+          <button id="confirmCancel" value="cancel" type="submit" class="secondary">取消</button>
+          <button id="confirmOk" value="ok" type="submit">确认</button>
         </div>
       </form>
     </dialog>
+
+    <dialog id="passwordDialog" class="confirm-dialog">
+      <form id="passwordForm" method="dialog">
+        <h3>修改密码</h3>
+        <label><span>当前密码</span><input id="pwdOld" type="password" autocomplete="current-password" /></label>
+        <label><span>新密码（至少 8 位）</span><input id="pwdNew" type="password" autocomplete="new-password" /></label>
+        <label><span>确认新密码</span><input id="pwdConfirm" type="password" autocomplete="new-password" /></label>
+        <p id="pwdError" class="form-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="pwdCancel" type="button" class="secondary">取消</button>
+          <button id="pwdSave" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="./config.js"></script>
     <script src="./app.js"></script>
   </body>
