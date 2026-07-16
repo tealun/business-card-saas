@@ -8,7 +8,7 @@
 - `01-specs/`：功能规格文档（用于功能设计与验收口径、开发执行指引）
 - `02-tasks/`：任务执行记录与计划（里程碑拆分、Deferred）
 - `03-compliance/`：合规（PIPL、隐私政策、用户协议、第三方 SDK 清单）
-- `04-launch/`：企业微信上线审核材料、正式协议、免费版定价表与提交流程
+- `04-launch/`：企业微信上线审核材料、正式协议、功能定价表与提交流程
 - `88-planning/`：中长期规划（产品愿景、路线图、商业化、部署与运维、灾备）
 - `99_audits/`：审计记录
 - `design/`：设计交付与素材（原型、图标、切图）
@@ -38,6 +38,7 @@
 | [`01_04_Admin_Web_Guide.md`](01-specs/01_04_Admin_Web_Guide.md) | 管理后台：登录鉴权、RBAC、页面清单、隔离约束（扩展 §12.3/§16/§15.3） |
 | [`01_05_Development_Guide.md`](01-specs/01_05_Development_Guide.md) | 开发执行指引：仓库结构、脚手架习惯、验证命令、部署边界、文档同步规则 |
 | [`01_06_Miniprogram_Config_Guide.md`](01-specs/01_06_Miniprogram_Config_Guide.md) | 小程序配置与后端对接：微信小程序后台、企业微信服务商后台、后端域名、`apiBase`、联调顺序 |
+| [`01_07_Commercialization_And_Quota_Spec.md`](01-specs/01_07_Commercialization_And_Quota_Spec.md) | 企业微信商业化规格：一年期收费版本、企业共享展示额度、订单状态机、原子扣量、通知、数据模型与安全边界 |
 
 ### design（设计交付）
 
@@ -58,6 +59,7 @@
 | [`02_00_M0_Platform_Verification.md`](02-tasks/02_00_M0_Platform_Verification.md) | M0 平台接入 + 企业微信关键接口实测 Spike（M1 开工门槛，扩展 §19；审计 A4-P0-5） |
 | [`02_01_M1_Walking_Skeleton.md`](02-tasks/02_01_M1_Walking_Skeleton.md) | M1 垂直切片阻塞项与验收（扩展 §19/§23） |
 | [`02_02_First_Enterprise_Wecom_Admin_Plan.md`](02-tasks/02_02_First_Enterprise_Wecom_Admin_Plan.md) | 首个真实企业微信接入 + 企业员工配置后台执行计划（从 demo skeleton 到试点企业可配置） |
+| [`02_03_Wecom_Commercialization_Plan.md`](02-tasks/02_03_Wecom_Commercialization_Plan.md) | 服务商收费版本开发计划：M0 平台取证、订单入账、展示额度扣减、管理端、应用通知、合规与生产上线门槛 |
 
 > 后续待建（进入对应线时，不提前、不复制正文）：
 > `88-planning/`（产品愿景/路线图/商业化/部署运维）、
