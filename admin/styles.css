@@ -2957,3 +2957,31 @@ body:not(.dev-mode) [data-dev-only] {
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
+
+/* ---------- 审计：操作日志视图 ---------- */
+
+.audit-view {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-target {
+  overflow-wrap: anywhere;
+}
+
+.audit-kv .kv-row > strong {
+  overflow-wrap: anywhere;
+}
+
+.audit-detail-label {
+  margin: 14px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.audit-detail-json {
+  min-height: 0;
+  max-height: 340px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -70,7 +70,11 @@ const state = {
   wecomSettings: null,
   selectedTemplateId: "",
   tenantFeatures: [],
-  tenantAuthorizations: { items: [], total: 0, page: 1, pageSize: 20 }
+  tenantAuthorizations: { items: [], total: 0, page: 1, pageSize: 20 },
+  auditView: "operations",
+  platformAuditView: "operations",
+  tenantOps: { offset: 0, limit: 50, total: 0 },
+  platformOps: { offset: 0, limit: 50, total: 0 }
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -343,14 +347,14 @@ function loadCurrentPage() {
     "tenant-analytics": loadTenantAnalytics,
     "tenant-billing": loadTenantCommercial,
     "tenant-admins": loadTenantAdmins,
-    "tenant-audit": loadTenantAuditEvents,
+    "tenant-audit": loadTenantAuditPage,
     "platform-dashboard": loadPlatformDashboard,
     "platform-tenants": () => loadTenantAuthorizations(),
     "platform-wecom": loadPlatformWecomEvents,
     "platform-commercial": loadPlatformCommercial,
     "platform-features": loadVideoFeatures,
     "platform-ops": loadDatabaseMigrations,
-    "platform-audit": loadPlatformAuditEvents,
+    "platform-audit": loadPlatformAuditPage,
     "platform-accounts": loadPlatformAccounts
   };
   const loader = loaders[state.page];
@@ -392,13 +396,13 @@ function statusTone(value) {
   return "muted";
 }
 
-function renderRows(tbody, rows, colSpan, render) {
+function renderRows(tbody, rows, colSpan, render, emptyText = "暂无数据") {
   tbody.replaceChildren();
   if (!rows.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = colSpan;
-    td.textContent = "暂无数据";
+    td.textContent = emptyText;
     tr.append(td);
     tbody.append(tr);
     return;
@@ -1586,6 +1590,170 @@ function openTenantAuditDrawer(item) {
   showDrawer();
 }
 
+// ---- 操作审计日志（/admin/operation-logs 与 /admin/platform/operation-logs） ----
+
+// 动作全集与后端写入的 action key 一一对应；下拉选项由映射表生成，避免两处漂移
+const TENANT_OPERATION_ACTIONS = [
+  ["admin.status.update", "变更管理员状态"],
+  ["company.honor.create", "新增荣誉"],
+  ["company.honor.delete", "删除荣誉"],
+  ["company.honor.update", "更新荣誉"],
+  ["company.profile.publish", "发布企业主页"],
+  ["company.profile.update", "保存企业主页"],
+  ["config.fields.update", "保存字段规则"],
+  ["member.card.update", "更新成员名片"],
+  ["member.sync", "同步成员"],
+  ["sync.retry", "重试同步事件"],
+  ["template.create", "新建模板"],
+  ["template.set_default", "设为默认模板"],
+  ["template.update", "更新模板"],
+  ["wecom.settings.update", "更新企微设置"]
+];
+
+const PLATFORM_OPERATION_ACTIONS = [
+  ["platform.account.status.update", "平台账号启停"],
+  ["platform.audit.retry", "重试回调事件"],
+  ["platform.quota.adjust", "额度调整"],
+  ["platform.tenant.sync", "触发租户同步"],
+  ["platform.video_feature.update", "视频功能设置"]
+];
+
+const OPERATION_ACTION_LABELS = new Map([...TENANT_OPERATION_ACTIONS, ...PLATFORM_OPERATION_ACTIONS]);
+
+// 未知 action 原样展示 key，新版本后端动作不会显示成空白
+function operationActionLabel(action) {
+  return OPERATION_ACTION_LABELS.get(action) || action;
+}
+
+function fillOperationActionOptions() {
+  const tenantSelect = $("#tenantOpsAction");
+  TENANT_OPERATION_ACTIONS.forEach(([value, label]) => tenantSelect.append(new Option(label, value)));
+  const platformSelect = $("#platformOpsAction");
+  const platformGroup = document.createElement("optgroup");
+  platformGroup.label = "平台动作";
+  PLATFORM_OPERATION_ACTIONS.forEach(([value, label]) => platformGroup.append(new Option(label, value)));
+  const tenantGroup = document.createElement("optgroup");
+  tenantGroup.label = "企业动作";
+  TENANT_OPERATION_ACTIONS.forEach(([value, label]) => tenantGroup.append(new Option(label, value)));
+  platformSelect.append(platformGroup, tenantGroup);
+}
+
+function operationTargetText(item) {
+  return [item.target_type, item.target_id].filter(Boolean).join(" ");
+}
+
+function operationTargetCell(item) {
+  const text = operationTargetText(item);
+  return text ? `<span class="ops-target">${escapeHtml(text)}</span>` : "—";
+}
+
+async function loadTenantOperationLogs(offset = state.tenantOps.offset) {
+  const params = new URLSearchParams(queryFromControls([
+    ["hours", "#tenantOpsHours"],
+    ["action", "#tenantOpsAction"],
+    ["search", "#tenantOpsSearch"]
+  ]));
+  params.set("limit", String(state.tenantOps.limit));
+  params.set("offset", String(offset));
+  const result = await adminRequest(`/admin/operation-logs?${params.toString()}`);
+  state.tenantOps.offset = offset;
+  state.tenantOps.total = result.total || 0;
+  renderRows($("#tenantOpsRows"), result.items || [], 7, (item) => [
+    formatDate(item.created_at),
+    `<strong>${escapeHtml(item.actor_open_userid || "--")}</strong>`,
+    tag(tenantAdminRoleLabel(item.actor_role), tenantAdminRoleTone(item.actor_role)),
+    `<strong>${escapeHtml(operationActionLabel(item.action))}</strong><br><code>${escapeHtml(item.action)}</code>`,
+    operationTargetCell(item),
+    tag("成功", "success"),
+    linkButton("详情", () => openOperationLogDrawer(item, { platform: false }))
+  ], "暂无操作日志");
+  renderOperationPager("tenantOps", state.tenantOps);
+  return result;
+}
+
+async function loadPlatformOperationLogs(offset = state.platformOps.offset) {
+  const tenantId = $("#platformOpsTenantId").value.trim();
+  if (tenantId && !/^\d+$/.test(tenantId)) throw new Error("租户 ID 需为数字");
+  const params = new URLSearchParams(queryFromControls([
+    ["hours", "#platformOpsHours"],
+    ["action", "#platformOpsAction"],
+    ["search", "#platformOpsSearch"],
+    ["tenant_id", "#platformOpsTenantId"]
+  ]));
+  params.set("limit", String(state.platformOps.limit));
+  params.set("offset", String(offset));
+  const result = await adminRequest(`/admin/platform/operation-logs?${params.toString()}`);
+  state.platformOps.offset = offset;
+  state.platformOps.total = result.total || 0;
+  renderRows($("#platformOpsRows"), result.items || [], 9, (item) => [
+    formatDate(item.created_at),
+    tenantCell(item),
+    `<strong>${escapeHtml(item.actor_open_userid || "--")}</strong>`,
+    tag(tenantAdminRoleLabel(item.actor_role), tenantAdminRoleTone(item.actor_role)),
+    `<strong>${escapeHtml(operationActionLabel(item.action))}</strong><br><code>${escapeHtml(item.action)}</code>`,
+    operationTargetCell(item),
+    escapeHtml(item.ip || "--"),
+    tag("成功", "success"),
+    linkButton("详情", () => openOperationLogDrawer(item, { platform: true }))
+  ], "暂无操作日志");
+  renderOperationPager("platformOps", state.platformOps);
+  return result;
+}
+
+function renderOperationPager(prefix, pager) {
+  const start = pager.total === 0 ? 0 : pager.offset + 1;
+  const end = Math.min(pager.offset + pager.limit, pager.total);
+  $(`#${prefix}PageInfo`).textContent = `第 ${start}–${end} 条 / 共 ${pager.total} 条`;
+  $(`#${prefix}Prev`).disabled = pager.offset <= 0;
+  $(`#${prefix}Next`).disabled = pager.offset + pager.limit >= pager.total;
+}
+
+function openOperationLogDrawer(item, { platform }) {
+  drawerTitle.textContent = "操作详情";
+  drawerSubtitle.textContent = operationActionLabel(item.action);
+  const rows = [
+    ["日志 ID", item.log_id],
+    ["时间", formatDate(item.created_at)],
+    ...(platform ? [["租户", item.tenant_name || item.tenant_id]] : []),
+    ["操作者", item.actor_open_userid || "--"],
+    ["角色", tenantAdminRoleLabel(item.actor_role)],
+    ["动作", `${operationActionLabel(item.action)}（${item.action}）`],
+    ["目标", operationTargetText(item) || "--"],
+    ["IP", item.ip || "--"]
+  ];
+  drawerBody.innerHTML = [
+    `<div class="kv-list audit-kv">${rows.map(([key, value]) => `<div class="kv-row"><span>${escapeHtml(key)}</span><strong>${escapeHtml(String(value ?? "--"))}</strong></div>`).join("")}</div>`,
+    `<p class="audit-detail-label">detail</p>`,
+    `<pre class="output audit-detail-json">${escapeHtml(item.detail ? JSON.stringify(item.detail, null, 2) : "--")}</pre>`
+  ].join("");
+  drawerFooter.replaceChildren();
+  showDrawer();
+}
+
+function applyTenantAuditView(view) {
+  state.auditView = view;
+  $$("#tenantAuditView button").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+  $("#tenantAuditOpsView").classList.toggle("hidden", view !== "operations");
+  $("#tenantAuditEventsView").classList.toggle("hidden", view !== "events");
+}
+
+function loadTenantAuditPage() {
+  applyTenantAuditView(state.auditView);
+  return state.auditView === "operations" ? loadTenantOperationLogs() : loadTenantAuditEvents();
+}
+
+function applyPlatformAuditView(view) {
+  state.platformAuditView = view;
+  $$("#platformAuditView button").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
+  $("#platformAuditOpsView").classList.toggle("hidden", view !== "operations");
+  $("#platformAuditEventsView").classList.toggle("hidden", view !== "events");
+}
+
+function loadPlatformAuditPage() {
+  applyPlatformAuditView(state.platformAuditView);
+  return state.platformAuditView === "operations" ? loadPlatformOperationLogs() : loadPlatformAuditEvents();
+}
+
 async function loadPlatformWecomEvents() {
   const result = await loadPlatformEvents({
     search: "#platformWecomSearch",
@@ -2288,7 +2456,25 @@ $("#tenantAdminSearch").addEventListener("keydown", (event) => {
   }
 });
 $("#tenantAdminStatus").addEventListener("change", () => run("筛选管理员", loadTenantAdmins));
-$("#loadTenantAuditEvents").addEventListener("click", () => run("刷新审计", loadTenantAuditEvents));
+$("#loadTenantAuditEvents").addEventListener("click", () => run("刷新审计", loadTenantAuditPage));
+$$("#tenantAuditView button").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.view === state.auditView) return;
+    state.auditView = button.dataset.view;
+    run("切换审计视图", loadTenantAuditPage);
+  });
+});
+$("#searchTenantOps").addEventListener("click", () => run("搜索操作审计", () => loadTenantOperationLogs(0)));
+$("#tenantOpsSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索操作审计", () => loadTenantOperationLogs(0));
+  }
+});
+$("#tenantOpsHours").addEventListener("change", () => run("筛选操作审计", () => loadTenantOperationLogs(0)));
+$("#tenantOpsAction").addEventListener("change", () => run("筛选操作审计", () => loadTenantOperationLogs(0)));
+$("#tenantOpsPrev").addEventListener("click", () => run("上一页", () => loadTenantOperationLogs(Math.max(0, state.tenantOps.offset - state.tenantOps.limit))));
+$("#tenantOpsNext").addEventListener("click", () => run("下一页", () => loadTenantOperationLogs(state.tenantOps.offset + state.tenantOps.limit)));
 $("#searchTenantAuditEvents").addEventListener("click", () => run("搜索审计", loadTenantAuditEvents));
 $("#tenantAuditSearch").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -2399,7 +2585,31 @@ $("#runDatabaseMigrations").addEventListener("click", async () => {
     await loadDatabaseMigrations();
   }
 });
-$("#loadPlatformAuditEvents").addEventListener("click", () => run("刷新审计", loadPlatformAuditEvents));
+$("#loadPlatformAuditEvents").addEventListener("click", () => run("刷新审计", loadPlatformAuditPage));
+$$("#platformAuditView button").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.view === state.platformAuditView) return;
+    state.platformAuditView = button.dataset.view;
+    run("切换审计视图", loadPlatformAuditPage);
+  });
+});
+$("#searchPlatformOps").addEventListener("click", () => run("搜索操作审计", () => loadPlatformOperationLogs(0)));
+$("#platformOpsSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索操作审计", () => loadPlatformOperationLogs(0));
+  }
+});
+$("#platformOpsTenantId").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("搜索操作审计", () => loadPlatformOperationLogs(0));
+  }
+});
+$("#platformOpsHours").addEventListener("change", () => run("筛选操作审计", () => loadPlatformOperationLogs(0)));
+$("#platformOpsAction").addEventListener("change", () => run("筛选操作审计", () => loadPlatformOperationLogs(0)));
+$("#platformOpsPrev").addEventListener("click", () => run("上一页", () => loadPlatformOperationLogs(Math.max(0, state.platformOps.offset - state.platformOps.limit))));
+$("#platformOpsNext").addEventListener("click", () => run("下一页", () => loadPlatformOperationLogs(state.platformOps.offset + state.platformOps.limit)));
 $("#searchPlatformAuditEvents").addEventListener("click", () => run("搜索审计", loadPlatformAuditEvents));
 $("#platformAuditSearch").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -2464,6 +2674,8 @@ async function boot() {
     expireAdminSession(error && error.status === 401 ? "登录已过期，请重新登录" : "");
   }
 }
+
+fillOperationActionOptions();
 
 void boot();
 
