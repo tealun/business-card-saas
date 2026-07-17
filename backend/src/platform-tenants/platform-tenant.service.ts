@@ -1,14 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
 import { PlatformTenantRepository, type PlatformTenantDetailRecord, type PlatformTenantListRecord } from "./platform-tenant.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 @Injectable()
 export class PlatformTenantService {
   constructor(
     private readonly repository: PlatformTenantRepository,
-    private readonly contactSync: WecomContactSyncService
+    private readonly contactSync: WecomContactSyncService,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
   async list(session: AdminSession, input: { search?: string; status?: string; page?: number; pageSize?: number }) {
@@ -62,6 +64,18 @@ export class PlatformTenantService {
     const result = await this.contactSync.syncTenantMembers({
       tenantId: item.tenantId,
       tenantName: item.name
+    });
+    await this.operationLogs?.record({
+      session,
+      action: "platform.tenant.sync",
+      tenantId: item.tenantId,
+      targetType: "tenant",
+      targetId: item.tenantId,
+      detail: {
+        synced_count: result.syncedCount,
+        skipped_count: result.skippedCount,
+        disabled_count: result.disabledCount
+      }
     });
     return {
       tenant_id: result.tenantId,

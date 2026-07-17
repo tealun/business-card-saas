@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, Optional } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import {
@@ -23,10 +23,15 @@ import {
 } from "../contracts/admin-config.js";
 import { AdminConfigRepository } from "./admin-config.repository.js";
 import { CompanyVideoFeatureService } from "../company-video-feature/company-video-feature.service.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 @Injectable()
 export class AdminConfigService {
-  constructor(private readonly repository: AdminConfigRepository, private readonly videoFeatures?: CompanyVideoFeatureService) {}
+  constructor(
+    private readonly repository: AdminConfigRepository,
+    private readonly videoFeatures?: CompanyVideoFeatureService,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
+  ) {}
 
   async getFieldSettings(session: AdminSession): Promise<AdminFieldSettingsResponse> {
     requireTenantAdminRole(session, "auditor");
@@ -41,10 +46,16 @@ export class AdminConfigService {
     request: UpdateAdminFieldSettingsRequest
   ): Promise<AdminFieldSettingsResponse> {
     requireTenantAdminRole(session, "admin");
-    return adminFieldSettingsResponseSchema.parse({
+    const response = adminFieldSettingsResponseSchema.parse({
       tenant_id: session.tenantId,
       fields: await this.repository.updateFieldSettings(session.tenantId, request)
     });
+    await this.operationLogs?.record({
+      session,
+      action: "config.fields.update",
+      detail: { field_count: request.fields.length }
+    });
+    return response;
   }
 
   async getCompanyProfile(session: AdminSession): Promise<AdminCompanyProfile> {
@@ -68,12 +79,18 @@ export class AdminConfigService {
         }
       }
     }
-    return adminCompanyProfileSchema.parse(
+    const profile = adminCompanyProfileSchema.parse(
       await this.repository.updateCompanyProfile(
         { tenantId: session.tenantId, tenantName: session.tenantName },
         request
       )
     );
+    await this.operationLogs?.record({
+      session,
+      action: request.status === "published" ? "company.profile.publish" : "company.profile.update",
+      detail: request.status ? { status: request.status } : undefined
+    });
+    return profile;
   }
 
   async listCompanyHonors(session: AdminSession): Promise<AdminCompanyHonorListResponse> {
@@ -89,7 +106,14 @@ export class AdminConfigService {
     request: CreateAdminCompanyHonorRequest
   ): Promise<AdminCompanyHonor> {
     requireTenantAdminRole(session, "admin");
-    return adminCompanyHonorSchema.parse(await this.repository.createCompanyHonor(session.tenantId, request));
+    const honor = adminCompanyHonorSchema.parse(await this.repository.createCompanyHonor(session.tenantId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "company.honor.create",
+      targetType: "company_honor",
+      targetId: honor.honor_id
+    });
+    return honor;
   }
 
   async updateCompanyHonor(
@@ -98,12 +122,25 @@ export class AdminConfigService {
     request: UpdateAdminCompanyHonorRequest
   ): Promise<AdminCompanyHonor> {
     requireTenantAdminRole(session, "admin");
-    return adminCompanyHonorSchema.parse(await this.repository.updateCompanyHonor(session.tenantId, honorId, request));
+    const honor = adminCompanyHonorSchema.parse(await this.repository.updateCompanyHonor(session.tenantId, honorId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "company.honor.update",
+      targetType: "company_honor",
+      targetId: honorId
+    });
+    return honor;
   }
 
   async deleteCompanyHonor(session: AdminSession, honorId: string): Promise<void> {
     requireTenantAdminRole(session, "admin");
     await this.repository.deleteCompanyHonor(session.tenantId, honorId);
+    await this.operationLogs?.record({
+      session,
+      action: "company.honor.delete",
+      targetType: "company_honor",
+      targetId: honorId
+    });
   }
 
   async listTemplates(session: AdminSession): Promise<AdminTemplateListResponse> {
@@ -116,7 +153,14 @@ export class AdminConfigService {
 
   async createTemplate(session: AdminSession, request: CreateAdminTemplateRequest): Promise<AdminTemplate> {
     requireTenantAdminRole(session, "admin");
-    return adminTemplateSchema.parse(await this.repository.createTemplate(session.tenantId, request));
+    const template = adminTemplateSchema.parse(await this.repository.createTemplate(session.tenantId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "template.create",
+      targetType: "template",
+      targetId: template.template_id
+    });
+    return template;
   }
 
   async updateTemplate(
@@ -125,11 +169,25 @@ export class AdminConfigService {
     request: UpdateAdminTemplateRequest
   ): Promise<AdminTemplate> {
     requireTenantAdminRole(session, "admin");
-    return adminTemplateSchema.parse(await this.repository.updateTemplate(session.tenantId, templateId, request));
+    const template = adminTemplateSchema.parse(await this.repository.updateTemplate(session.tenantId, templateId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "template.update",
+      targetType: "template",
+      targetId: templateId
+    });
+    return template;
   }
 
   async setDefaultTemplate(session: AdminSession, templateId: string): Promise<AdminTemplate> {
     requireTenantAdminRole(session, "admin");
-    return adminTemplateSchema.parse(await this.repository.setDefaultTemplate(session.tenantId, templateId));
+    const template = adminTemplateSchema.parse(await this.repository.setDefaultTemplate(session.tenantId, templateId));
+    await this.operationLogs?.record({
+      session,
+      action: "template.set_default",
+      targetType: "template",
+      targetId: templateId
+    });
+    return template;
   }
 }

@@ -4,9 +4,10 @@ import { WecomModule } from "../wecom/wecom.module.js";
 import { PlatformTenantController } from "./platform-tenant.controller.js";
 import { PlatformTenantRepository } from "./platform-tenant.repository.js";
 import { PlatformTenantService } from "./platform-tenant.service.js";
+import { AdminOperationLogModule } from "../admin-operation-log/admin-operation-log.module.js";
 
 @Module({
-  imports: [AdminAuthModule, WecomModule],
+  imports: [AdminAuthModule, WecomModule, AdminOperationLogModule],
   controllers: [PlatformTenantController],
   providers: [PlatformTenantRepository, PlatformTenantService]
 })

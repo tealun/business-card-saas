@@ -66,6 +66,19 @@ describe("AdminManagementService", () => {
     });
   });
 
+  it("records an operation log after a successful member sync", async () => {
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = createService(fakeRepository(), fakeDataCallbacks(), fakeAuthorization(), operationLogs);
+
+    await service.syncMembers(ownerSession());
+
+    expect(operationLogs.record).toHaveBeenCalledWith({
+      session: ownerSession(),
+      action: "member.sync",
+      detail: { synced_count: 2, skipped_count: 0, disabled_count: 0 }
+    });
+  });
+
   it("returns an empty sync event list when persistence is not configured", async () => {
     const service = createService();
 
@@ -146,14 +159,16 @@ describe("AdminManagementService", () => {
 function createService(
   repository: AdminManagementRepository = fakeRepository(),
   dataCallbacks = fakeDataCallbacks(),
-  authorization = fakeAuthorization()
+  authorization = fakeAuthorization(),
+  operationLogs?: { record: jest.Mock }
 ): AdminManagementService {
   return new AdminManagementService(
     repository,
     fakeContactSync(),
     dataCallbacks as unknown as WecomDataCallbackService,
     authorization as unknown as WecomAuthorizationService,
-    new WecomTenantSettingsRepository()
+    new WecomTenantSettingsRepository(),
+    operationLogs as never
   );
 }
 

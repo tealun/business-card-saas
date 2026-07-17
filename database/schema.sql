@@ -487,6 +487,25 @@ CREATE TABLE "card_style_overrides" (
     CONSTRAINT "card_style_overrides_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "admin_operation_logs" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "actor_admin_id" BIGINT,
+    "actor_open_userid" VARCHAR(128),
+    "actor_name" VARCHAR(128),
+    "actor_role" VARCHAR(32) NOT NULL,
+    "account_type" VARCHAR(16) NOT NULL DEFAULT 'tenant',
+    "action" VARCHAR(64) NOT NULL,
+    "target_type" VARCHAR(64),
+    "target_id" VARCHAR(128),
+    "detail_json" JSONB,
+    "ip" VARCHAR(64),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    CONSTRAINT "admin_operation_logs_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_accounts_unionid" ON "accounts"("wx_unionid");
 
@@ -645,6 +664,9 @@ CREATE INDEX "idx_card_style_overrides_template" ON "card_style_overrides"("tena
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_card_style_override_active" ON "card_style_overrides"("tenant_id", "card_id") WHERE "deleted_at" IS NULL;
+
+-- CreateIndex
+CREATE INDEX "admin_operation_logs_tenant_created_idx" ON "admin_operation_logs"("tenant_id", "created_at" DESC);
 
 -- AddForeignKey
 ALTER TABLE "member_identities" ADD CONSTRAINT "member_identities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -103,6 +103,28 @@ describe("AdminObservabilityService", () => {
     expect(repository.updateTenantAdminStatus).toHaveBeenCalledWith(tenantOwner, "2", "active");
   });
 
+  it("records an operation log after changing a tenant admin status", async () => {
+    const target = tenantAdminRow();
+    const repository = {
+      getTenantAdmin: jest.fn().mockResolvedValue(target),
+      updateTenantAdminStatus: jest
+        .fn()
+        .mockResolvedValue({ ...target, status: "disabled", updated_at: "2026-07-02T00:00:00.000Z" })
+    };
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = new AdminObservabilityService(repository as never, operationLogs as never);
+
+    await service.updateTenantAdminStatus(tenantOwner, "2", "disabled");
+
+    expect(operationLogs.record).toHaveBeenCalledWith({
+      session: tenantOwner,
+      action: "admin.status.update",
+      targetType: "tenant_admin",
+      targetId: "2",
+      detail: { status: "disabled" }
+    });
+  });
+
   it("rejects admin status updates from non-owners and platform sessions", async () => {
     const repository = {
       getTenantAdmin: jest.fn().mockResolvedValue(tenantAdminRow()),

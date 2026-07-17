@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import {
   adminMemberCardResponseSchema,
   adminMemberListResponseSchema,
@@ -25,6 +25,7 @@ import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.j
 import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
 import { WecomTenantSettingsRepository } from "../wecom/wecom-tenant-settings.repository.js";
 import { AdminManagementRepository } from "./admin-management.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 @Injectable()
 export class AdminManagementService {
@@ -33,7 +34,8 @@ export class AdminManagementService {
     private readonly contactSync: WecomContactSyncService,
     private readonly dataCallbacks: WecomDataCallbackService,
     private readonly authorization: WecomAuthorizationService,
-    private readonly wecomSettings: WecomTenantSettingsRepository
+    private readonly wecomSettings: WecomTenantSettingsRepository,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
@@ -54,12 +56,22 @@ export class AdminManagementService {
       tenantId: session.tenantId,
       tenantName: session.tenantName
     });
-    return adminMemberSyncResponseSchema.parse({
+    const response = adminMemberSyncResponseSchema.parse({
       tenant_id: result.tenantId,
       synced_count: result.syncedCount,
       skipped_count: result.skippedCount,
       disabled_count: result.disabledCount
     });
+    await this.operationLogs?.record({
+      session,
+      action: "member.sync",
+      detail: {
+        synced_count: response.synced_count,
+        skipped_count: response.skipped_count,
+        disabled_count: response.disabled_count
+      }
+    });
+    return response;
   }
 
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse> {
@@ -72,12 +84,23 @@ export class AdminManagementService {
     requireTenantAdminRole(session, "admin");
     const dataResult = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
     const syncResult = await this.authorization.retryFailedContactSyncs({ tenantId: session.tenantId });
-    return adminSyncEventRetryResponseSchema.parse({
+    const response = adminSyncEventRetryResponseSchema.parse({
       retried_count: dataResult.retriedCount + syncResult.retriedCount,
       succeeded_count: dataResult.succeededCount + syncResult.succeededCount,
       failed_count: dataResult.failedCount + syncResult.failedCount,
       dead_count: dataResult.deadCount + syncResult.deadCount
     });
+    await this.operationLogs?.record({
+      session,
+      action: "sync.retry",
+      detail: {
+        retried_count: response.retried_count,
+        succeeded_count: response.succeeded_count,
+        failed_count: response.failed_count,
+        dead_count: response.dead_count
+      }
+    });
+    return response;
   }
 
   async retryPlatformSyncEvents(session: AdminSession, tenantId?: string): Promise<AdminSyncEventRetryResponse> {
@@ -85,12 +108,26 @@ export class AdminManagementService {
     const scoped = tenantId?.trim();
     const dataResult = await this.dataCallbacks.retryFailedEvents(scoped ? { tenantId: scoped } : {});
     const syncResult = await this.authorization.retryFailedContactSyncs(scoped ? { tenantId: scoped } : {});
-    return adminSyncEventRetryResponseSchema.parse({
+    const response = adminSyncEventRetryResponseSchema.parse({
       retried_count: dataResult.retriedCount + syncResult.retriedCount,
       succeeded_count: dataResult.succeededCount + syncResult.succeededCount,
       failed_count: dataResult.failedCount + syncResult.failedCount,
       dead_count: dataResult.deadCount + syncResult.deadCount
     });
+    await this.operationLogs?.record({
+      session,
+      action: "platform.audit.retry",
+      tenantId: scoped,
+      targetType: scoped ? "tenant" : undefined,
+      targetId: scoped,
+      detail: {
+        retried_count: response.retried_count,
+        succeeded_count: response.succeeded_count,
+        failed_count: response.failed_count,
+        dead_count: response.dead_count
+      }
+    });
+    return response;
   }
 
   async getWecomSettings(session: AdminSession): Promise<AdminWecomSettingsResponse> {
@@ -103,7 +140,13 @@ export class AdminManagementService {
     request: UpdateAdminWecomSettingsRequest
   ): Promise<AdminWecomSettingsResponse> {
     requireTenantAdminRole(session, "admin");
-    return adminWecomSettingsResponseSchema.parse(await this.wecomSettings.update(session.tenantId, request));
+    const response = adminWecomSettingsResponseSchema.parse(await this.wecomSettings.update(session.tenantId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "wecom.settings.update",
+      detail: { updated_fields: Object.keys(request) }
+    });
+    return response;
   }
 
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {
@@ -128,6 +171,14 @@ export class AdminManagementService {
     // The repository applies member, card, directory, fields and status updates
     // inside one TenantTx and returns the reloaded card. Do not repeat the
     // status mutation in a second transaction here.
-    return adminMemberCardResponseSchema.parse(persisted);
+    const response = adminMemberCardResponseSchema.parse(persisted);
+    await this.operationLogs?.record({
+      session,
+      action: "member.card.update",
+      targetType: "member_identity",
+      targetId: memberIdentityId,
+      detail: request.status ? { status: request.status } : undefined
+    });
+    return response;
   }
 }

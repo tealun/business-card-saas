@@ -7,4 +7,7 @@ export interface AdminSession {
   openUserid: string;
   role: AdminRole;
   accountType?: "tenant" | "platform";
+  // Attached per request by AdminAuthGuard (never signed into the session token);
+  // only used for admin operation audit logging.
+  requestIp?: string | undefined;
 }

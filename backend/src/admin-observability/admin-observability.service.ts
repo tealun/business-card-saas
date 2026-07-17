@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
@@ -15,12 +15,16 @@ import {
   type TenantAdminSummary
 } from "../contracts/admin-observability.js";
 import { AdminObservabilityRepository } from "./admin-observability.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 const PLATFORM_USER_PREFIX = "platform:";
 
 @Injectable()
 export class AdminObservabilityService {
-  constructor(private readonly repository: AdminObservabilityRepository) {}
+  constructor(
+    private readonly repository: AdminObservabilityRepository,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
+  ) {}
 
   async listTenantAdmins(session: AdminSession, query: AdminListQuery): Promise<TenantAdminListResponse> {
     requireTenantAdminRole(session, "owner");
@@ -46,7 +50,15 @@ export class AdminObservabilityService {
     if (!updated) {
       throw new NotFoundException("tenant admin not found");
     }
-    return tenantAdminSummarySchema.parse(updated);
+    const summary = tenantAdminSummarySchema.parse(updated);
+    await this.operationLogs?.record({
+      session,
+      action: "admin.status.update",
+      targetType: "tenant_admin",
+      targetId: adminId,
+      detail: { status }
+    });
+    return summary;
   }
 
   async listPlatformAdmins(session: AdminSession, query: AdminListQuery): Promise<PlatformAdminListResponse> {
@@ -63,6 +75,13 @@ export class AdminObservabilityService {
     if (!updated) {
       throw new NotFoundException("platform admin not found or cannot change own status");
     }
+    await this.operationLogs?.record({
+      session,
+      action: "platform.account.status.update",
+      targetType: "platform_admin",
+      targetId: adminId,
+      detail: { status }
+    });
     return updated;
   }
 

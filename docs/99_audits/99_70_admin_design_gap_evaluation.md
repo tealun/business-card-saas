@@ -149,3 +149,13 @@
 3. `PATCH /admin/admins/:adminId {status}`：仅 owner，禁改自己、禁改 owner 行。
 4. `requireTenantAdminRole` 覆盖全部租户端点；`/admin/commercial` 拒绝 operator（对齐权限表 owner/admin/auditor）。
 5. 顺手修复数据丢失 bug：admin 名片保存的 `mergeFields/normalizeFields` 之前只保留 5 个字段——admin 保存会把员工自助填写的 `department/company/website` 等从加密 blob 抹掉，且 admin PATCH 这些字段（契约本就继承 employee 全量）被静默丢弃。已改为全量 overlay 合并并保留 blob 中的其它键，名片 GET 响应现在能返回全量字段。
+
+## 附 2：操作审计日志落地（2026-07-17 第二轮）
+
+P1 第一项「操作审计日志」已实施（测试 287 全绿）：
+
+1. 新表 `admin_operation_logs`（migrate_v1_12）：tenant_id、actor（admin_id/open_userid/role/account_type）、action、target_type/target_id、detail_json、ip、created_at；`(tenant_id, created_at DESC)` 索引；无 FK、无 RLS（平台连接统一读写，RLS 会挡平台侧跨租户查询）。
+2. 埋点 15 处（成功才记、日志失败不影响业务）：租户 member.card.update / member.sync / sync.retry / wecom.settings.update / company.profile.update|publish / company.honor.* / config.fields.update / template.* / admin.status.update；平台 platform.account.status.update / platform.tenant.sync / platform.quota.adjust / platform.video_feature.update / platform.audit.retry。平台动作带 tenantId 覆盖，平台侧可按目标租户筛选。
+3. 端点：`GET /admin/operation-logs`（租户，owner/admin/auditor）、`GET /admin/platform/operation-logs`（平台，auditor+，可 tenant_id 过滤、含 tenant_name），均支持 action/search/limit/offset。
+4. IP 经 AdminAuthGuard 挂入 session.requestIp；actor_name 列已预留（session 无 displayName，暂为 null）。
+5. 未做：失败结果记录（需拦截器，后续）；request_id（无请求级 ID 基建，后续）。

@@ -23,6 +23,7 @@ import { CompanyVideoFeatureModule } from "./company-video-feature/company-video
 import { DemoAssetsModule } from "./demo-assets/demo-assets.module.js";
 import { PlatformTenantModule } from "./platform-tenants/platform-tenant.module.js";
 import { AdminObservabilityModule } from "./admin-observability/admin-observability.module.js";
+import { AdminOperationLogModule } from "./admin-operation-log/admin-operation-log.module.js";
 import { AdminAnalyticsModule } from "./admin-analytics/admin-analytics.module.js";
 import { AdminCommercialModule } from "./admin-commercial/admin-commercial.module.js";
 
@@ -81,6 +82,7 @@ import { AdminCommercialModule } from "./admin-commercial/admin-commercial.modul
     AdminAnalyticsModule,
     AdminCommercialModule,
     AdminObservabilityModule,
+    AdminOperationLogModule,
     CompanyVideoFeatureModule,
     PlatformTenantModule
   ],

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, Optional } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
@@ -11,10 +11,14 @@ import {
   type TenantCommercialResponse
 } from "../contracts/admin-commercial.js";
 import { AdminCommercialRepository } from "./admin-commercial.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 @Injectable()
 export class AdminCommercialService {
-  constructor(private readonly repository: AdminCommercialRepository) {}
+  constructor(
+    private readonly repository: AdminCommercialRepository,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
+  ) {}
 
   async tenantCommercial(session: AdminSession): Promise<TenantCommercialResponse> {
     requireTenantAdminRole(session, "auditor");
@@ -29,7 +33,16 @@ export class AdminCommercialService {
 
   async createQuotaAdjustment(session: AdminSession, request: QuotaAdjustmentRequest) {
     requirePlatformAdminRole(session, "owner");
-    return quotaLedgerSchema.parse(await this.repository.createQuotaAdjustment(session, request));
+    const ledger = quotaLedgerSchema.parse(await this.repository.createQuotaAdjustment(session, request));
+    await this.operationLogs?.record({
+      session,
+      action: "platform.quota.adjust",
+      tenantId: request.tenant_id,
+      targetType: "tenant",
+      targetId: request.tenant_id,
+      detail: { quota_type: request.quota_type, delta: request.delta }
+    });
+    return ledger;
   }
 }
 

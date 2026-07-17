@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole } from "../admin-auth/admin-rbac.js";
 import {
@@ -10,10 +10,14 @@ import {
   type VideoCapability
 } from "../contracts/company-video-feature.js";
 import { CompanyVideoFeatureRepository, type TenantFeatureRecord } from "./company-video-feature.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 
 @Injectable()
 export class CompanyVideoFeatureService {
-  constructor(private readonly repository: CompanyVideoFeatureRepository) {}
+  constructor(
+    private readonly repository: CompanyVideoFeatureRepository,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
+  ) {}
 
   async capability(tenantId: string): Promise<VideoCapability> {
     const platform = await this.repository.getPlatform();
@@ -35,7 +39,13 @@ export class CompanyVideoFeatureService {
   async updatePlatform(session: AdminSession, input: PlatformVideoFeatureRequest) {
     this.requirePlatform(session);
     requireAdminRole(session.role, "admin");
-    return this.formatPlatform(await this.repository.updatePlatform(input));
+    const updated = this.formatPlatform(await this.repository.updatePlatform(input));
+    await this.operationLogs?.record({
+      session,
+      action: "platform.video_feature.update",
+      detail: { enabled: input.enabled, default_limit_bytes: input.default_limit_bytes }
+    });
+    return updated;
   }
 
   async listTenants(session: AdminSession, search: string, page: number, pageSize: number) {
@@ -61,11 +71,20 @@ export class CompanyVideoFeatureService {
     if (!current) {
       throw new NotFoundException("tenant not found");
     }
-    return this.formatTenant(
+    const updated = this.formatTenant(
       await this.repository.updateTenant(tenantId, current.tenantName, input),
       platform.enabled,
       platform.defaultLimitBytes
     );
+    await this.operationLogs?.record({
+      session,
+      action: "platform.video_feature.update",
+      tenantId,
+      targetType: "tenant",
+      targetId: tenantId,
+      detail: { enabled: input.enabled, limit_bytes: input.limit_bytes }
+    });
+    return updated;
   }
 
   requirePlatform(session: AdminSession) {

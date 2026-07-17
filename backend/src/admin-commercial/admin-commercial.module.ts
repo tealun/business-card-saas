@@ -4,9 +4,10 @@ import { DatabaseModule } from "../database/database.module.js";
 import { PlatformCommercialController, TenantCommercialController } from "./admin-commercial.controller.js";
 import { AdminCommercialRepository } from "./admin-commercial.repository.js";
 import { AdminCommercialService } from "./admin-commercial.service.js";
+import { AdminOperationLogModule } from "../admin-operation-log/admin-operation-log.module.js";
 
 @Module({
-  imports: [AdminAuthModule, DatabaseModule],
+  imports: [AdminAuthModule, DatabaseModule, AdminOperationLogModule],
   controllers: [TenantCommercialController, PlatformCommercialController],
   providers: [AdminCommercialRepository, AdminCommercialService]
 })

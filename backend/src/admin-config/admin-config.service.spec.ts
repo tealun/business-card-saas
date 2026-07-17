@@ -49,6 +49,34 @@ describe("AdminConfigService", () => {
     expect(templates.filter((template) => template.is_default)).toHaveLength(1);
   });
 
+  it("records an operation log after setting a default template", async () => {
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = createService(operationLogs);
+    const created = await service.createTemplate(adminSession(), { name: "Blue Team" });
+
+    await service.setDefaultTemplate(adminSession(), created.template_id);
+
+    expect(operationLogs.record).toHaveBeenLastCalledWith({
+      session: adminSession(),
+      action: "template.set_default",
+      targetType: "template",
+      targetId: created.template_id
+    });
+  });
+
+  it("distinguishes profile publish from update in the operation log", async () => {
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = createService(operationLogs);
+
+    await service.updateCompanyProfile(adminSession(), { display_name: "Pilot Corp Updated" });
+    await service.updateCompanyProfile(adminSession(), { status: "published" });
+
+    expect(operationLogs.record.mock.calls.map((call) => (call[0] as { action: string }).action)).toEqual([
+      "company.profile.update",
+      "company.profile.publish"
+    ]);
+  });
+
   it("creates and updates company honors with ordered images", async () => {
     const service = createService();
     const created = await service.createCompanyHonor(adminSession(), {
@@ -195,8 +223,8 @@ describe("AdminConfigService", () => {
   });
 });
 
-function createService() {
-  return new AdminConfigService(new AdminConfigRepository());
+function createService(operationLogs?: { record: jest.Mock }) {
+  return new AdminConfigService(new AdminConfigRepository(), undefined, operationLogs as never);
 }
 
 function fakeTenantTx(): TenantTx {
