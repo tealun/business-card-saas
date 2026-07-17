@@ -668,6 +668,9 @@ CREATE UNIQUE INDEX "uk_card_style_override_active" ON "card_style_overrides"("t
 -- CreateIndex
 CREATE INDEX "admin_operation_logs_tenant_created_idx" ON "admin_operation_logs"("tenant_id", "created_at" DESC);
 
+-- CreateIndex
+CREATE INDEX "admin_operation_logs_created_idx" ON "admin_operation_logs"("created_at" DESC);
+
 -- AddForeignKey
 ALTER TABLE "member_identities" ADD CONSTRAINT "member_identities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -750,4 +753,7 @@ ALTER TABLE "card_style_overrides" ADD CONSTRAINT "card_style_overrides_tenant_i
 
 -- AddForeignKey
 ALTER TABLE "card_style_overrides" ADD CONSTRAINT "card_style_overrides_tenant_id_template_id_fkey" FOREIGN KEY ("tenant_id", "template_id") REFERENCES "templates"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "admin_operation_logs" ADD CONSTRAINT "admin_operation_logs_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

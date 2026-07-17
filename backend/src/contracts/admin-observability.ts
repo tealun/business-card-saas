@@ -89,5 +89,4 @@ export type TenantAdminSummary = z.infer<typeof tenantAdminSummarySchema>;
 export type TenantAdminListResponse = z.infer<typeof tenantAdminListResponseSchema>;
 export type PlatformAdminListResponse = z.infer<typeof platformAdminListResponseSchema>;
 export type AdminEventListResponse = z.infer<typeof adminEventListResponseSchema>;
-export type UpdatePlatformAdminStatusRequest = z.infer<typeof updatePlatformAdminStatusRequestSchema>;
-export type UpdateTenantAdminStatusRequest = z.infer<typeof updateTenantAdminStatusRequestSchema>;
+export type PlatformAdminSummary = z.infer<typeof platformAdminSummarySchema>;

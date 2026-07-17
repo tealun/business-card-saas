@@ -9,6 +9,8 @@ import {
   type AdminListQuery,
   platformAdminListResponseSchema,
   type PlatformAdminListResponse,
+  platformAdminSummarySchema,
+  type PlatformAdminSummary,
   tenantAdminListResponseSchema,
   tenantAdminSummarySchema,
   type TenantAdminListResponse,
@@ -66,7 +68,11 @@ export class AdminObservabilityService {
     return platformAdminListResponseSchema.parse(await this.repository.listPlatformAdmins(query));
   }
 
-  async updatePlatformAdminStatus(session: AdminSession, adminId: string, status: "active" | "disabled") {
+  async updatePlatformAdminStatus(
+    session: AdminSession,
+    adminId: string,
+    status: "active" | "disabled"
+  ): Promise<PlatformAdminSummary> {
     requirePlatformAdminRole(session, "owner");
     const currentUsername = session.openUserid.startsWith(PLATFORM_USER_PREFIX)
       ? session.openUserid.slice(PLATFORM_USER_PREFIX.length)
@@ -75,6 +81,7 @@ export class AdminObservabilityService {
     if (!updated) {
       throw new NotFoundException("platform admin not found or cannot change own status");
     }
+    const summary = platformAdminSummarySchema.parse(updated);
     await this.operationLogs?.record({
       session,
       action: "platform.account.status.update",
@@ -82,7 +89,7 @@ export class AdminObservabilityService {
       targetId: adminId,
       detail: { status }
     });
-    return updated;
+    return summary;
   }
 
   async listTenantAuditEvents(session: AdminSession, query: AdminEventQuery): Promise<AdminEventListResponse> {

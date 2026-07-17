@@ -13,7 +13,11 @@ const tenantRlsExceptions = new Set([
   "tenant_feature_settings",
   // OAuth callbacks arrive before tenant context can be established. Access is gated by a
   // high-entropy, single-use state hash; the row contains no raw state, code, or user ticket.
-  "wecom_sensitive_auth_states"
+  "wecom_sensitive_auth_states",
+  // Platform operations table, same shape as callback_events: platform admins need cross-tenant
+  // reads (GET /admin/platform/operation-logs), and the repository is not TenantTx-scoped.
+  // Isolation is enforced at the query layer (tenant_id filter), not via RLS. See 99_71.
+  "admin_operation_logs"
 ]);
 
 function assert(condition, message) {

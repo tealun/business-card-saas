@@ -6,6 +6,22 @@ import { AdminConfigRepository } from "./admin-config.repository.js";
 import { AdminConfigService } from "./admin-config.service.js";
 
 describe("AdminConfigService", () => {
+  // A71-P1-3: requireTenantAdminRole is called at every entry point of this service, but until
+  // now no test asserted a platform-scoped token is actually rejected by any of them.
+  it("rejects a platform-scoped session from every tenant entry point", async () => {
+    const service = createService();
+    const session = platformSession();
+
+    await expect(service.getFieldSettings(session)).rejects.toThrow(ForbiddenException);
+    await expect(service.updateFieldSettings(session, { fields: [] })).rejects.toThrow(ForbiddenException);
+    await expect(service.getCompanyProfile(session)).rejects.toThrow(ForbiddenException);
+    await expect(service.updateCompanyProfile(session, {})).rejects.toThrow(ForbiddenException);
+    await expect(service.listCompanyHonors(session)).rejects.toThrow(ForbiddenException);
+    await expect(service.createCompanyHonor(session, { title: "x" })).rejects.toThrow(ForbiddenException);
+    await expect(service.listTemplates(session)).rejects.toThrow(ForbiddenException);
+    await expect(service.createTemplate(session, { name: "x" })).rejects.toThrow(ForbiddenException);
+  });
+
   it("returns default field settings, company profile, and templates", async () => {
     const service = createService();
 
@@ -310,5 +326,16 @@ function adminSession(): AdminSession {
     memberIdentityId: "member-001",
     openUserid: "ou-owner",
     role: "admin"
+  };
+}
+
+function platformSession(): AdminSession {
+  return {
+    accountType: "platform",
+    tenantId: "0",
+    tenantName: "Platform",
+    memberIdentityId: null,
+    openUserid: "platform:root",
+    role: "owner"
   };
 }

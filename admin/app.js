@@ -87,6 +87,7 @@ const navList = $("#navList");
 const pageTitle = $("#pageTitle");
 const pageSubtitle = $("#pageSubtitle");
 const breadcrumb = $("#breadcrumb");
+const pageLoadError = $("#pageLoadError");
 const topbarAdmin = $("#topbarAdmin");
 const adminStatus = $("#adminStatus");
 const loginStatus = $("#loginStatus");
@@ -358,7 +359,28 @@ function loadCurrentPage() {
     "platform-accounts": loadPlatformAccounts
   };
   const loader = loaders[state.page];
-  if (loader) run("加载页面", loader);
+  if (!loader) return;
+  setPageLoadStatus("加载中…", "pending");
+  run("加载页面", loader)
+    .then(() => setPageLoadStatus(""))
+    .catch((error) => {
+      // A refresh failure must not leave stale table content looking current with only a
+      // 3.2s toast (run() already shows one) as the sole indicator. See 99_71 (A71-P2-6/7).
+      setPageLoadStatus(error.message || "加载失败，请刷新重试", "error");
+    });
+}
+
+function setPageLoadStatus(message, tone = "error") {
+  if (!pageLoadError) return;
+  if (!message) {
+    pageLoadError.classList.add("hidden");
+    pageLoadError.classList.remove("pending");
+    pageLoadError.textContent = "";
+    return;
+  }
+  pageLoadError.textContent = message;
+  pageLoadError.classList.toggle("pending", tone === "pending");
+  pageLoadError.classList.remove("hidden");
 }
 
 function tag(text, tone = "muted") {

@@ -45,6 +45,12 @@ import { AdminCommercialModule } from "./admin-commercial/admin-commercial.modul
             "req.body.email",
             "req.body.wechat_id",
             "req.body.wechatId",
+            // Employee/admin card payloads nest contact fields under `fields.*`
+            // (see contracts/employee-card.ts). See 99_71 (A71-P2-2).
+            "req.body.fields.mobile",
+            "req.body.fields.phone",
+            "req.body.fields.email",
+            "req.body.fields.wechat_id",
             "req.query.code",
             "req.query.mobile",
             "req.query.phone",

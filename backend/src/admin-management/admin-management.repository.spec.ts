@@ -167,6 +167,44 @@ it("updates member, primary card, and public directory status in tenant scope", 
     expect(cipher.decrypt(String(transaction.cardUpdateParams?.[6]))).toContain("configured@example.com");
     expect(transaction.directoryStatusParams).toEqual(["pub_001", "tenant-001", "card-001", "disabled"]);
   });
+
+  // A71-P2-5: regression test for the mergeFields/normalizeFields data-loss bug (99_70 §附1) --
+  // an admin partial-update used to keep only 5 fields, silently dropping employee-self-service
+  // fields like department/company/website that weren't part of the admin's own patch.
+  it("preserves employee-set fields (department/company/website) not touched by an admin's partial update", async () => {
+    const cipher = new FakeCipher();
+    const transaction = new FakeCardTransaction(cipher, {
+      department: "技术部",
+      company: "Acme Corp",
+      website: "https://acme.example.com"
+    });
+    const tenantTx = new FakeTenantTx(transaction);
+    const repository = new AdminManagementRepository(
+      tenantTx as unknown as TenantTx,
+      undefined,
+      cipher as unknown as CardFieldCipherService
+    );
+
+    // Admin only edits title; department/company/website are never mentioned in this patch.
+    const result = await repository.updateMemberCard(
+      {
+        tenantId: "tenant-001",
+        tenantName: "Pilot Corp",
+        memberIdentityId: "member-001",
+        openUserid: "ou-owner",
+        role: "owner"
+      },
+      "member-001",
+      { title: "Admin-edited Title" }
+    );
+
+    expect(result?.title).toBe("Admin-edited Title");
+    expect(result?.fields).toMatchObject({
+      department: "技术部",
+      company: "Acme Corp",
+      website: "https://acme.example.com"
+    });
+  });
 });
 
 class FakeDatabaseService {
@@ -279,7 +317,7 @@ class FakeCardTransaction {
   directoryStatusParams: unknown[] | undefined;
   private row: FakeCardRow;
 
-  constructor(cipher: FakeCipher) {
+  constructor(cipher: FakeCipher, extraFields: Record<string, unknown> = {}) {
     this.row = {
       member_id: "member-001",
       member_name: "Original Name",
@@ -296,7 +334,8 @@ class FakeCardTransaction {
           phone: null,
           email: "original@example.com",
           wechat_id: null,
-          address: null
+          address: null,
+          ...extraFields
         })
       ),
       privacy_json: {

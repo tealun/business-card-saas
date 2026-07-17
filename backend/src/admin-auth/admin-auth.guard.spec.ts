@@ -29,11 +29,11 @@ describe("AdminAuthGuard", () => {
     expect(guard.canActivate(context(`Bearer ${token}`))).toBe(true);
   });
 
-  it("attaches the client ip to the verified session for audit logging", () => {
+  it("attaches Fastify's resolved client ip to the verified session for audit logging", () => {
     const token = service.sign(session);
     const request: AdminRequest & { headers: Record<string, string>; ip: string } = {
-      headers: { authorization: `Bearer ${token}`, "x-forwarded-for": "203.0.113.9, 10.0.0.1" },
-      ip: "127.0.0.1"
+      headers: { authorization: `Bearer ${token}` },
+      ip: "198.51.100.4"
     };
     const context = {
       switchToHttp: () => ({
@@ -42,13 +42,15 @@ describe("AdminAuthGuard", () => {
     } as ExecutionContext;
 
     expect(guard.canActivate(context)).toBe(true);
-    expect(request.adminSession?.requestIp).toBe("203.0.113.9");
+    expect(request.adminSession?.requestIp).toBe("198.51.100.4");
   });
 
-  it("falls back to the socket ip when no forwarding header exists", () => {
+  it("does not trust a client-supplied X-Forwarded-For header directly (only request.ip, Fastify's trust-proxy-resolved value, is used)", () => {
     const token = service.sign(session);
+    // Fastify only folds X-Forwarded-For into request.ip when the peer is a trusted proxy
+    // (trustProxy: "loopback"); a raw header on the request object here must never be read.
     const request: AdminRequest & { headers: Record<string, string>; ip: string } = {
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${token}`, "x-forwarded-for": "203.0.113.9, 10.0.0.1" },
       ip: "198.51.100.4"
     };
     const context = {

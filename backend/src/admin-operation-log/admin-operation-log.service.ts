@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
@@ -25,9 +25,12 @@ export interface AdminOperationLogEntry {
 
 @Injectable()
 export class AdminOperationLogService {
+  private readonly logger = new Logger(AdminOperationLogService.name);
+
   constructor(private readonly repository: AdminOperationLogRepository) {}
 
-  // Best-effort audit write: failures are swallowed so logging never breaks the business operation.
+  // Best-effort audit write: failures never break the business operation, but they are logged
+  // (not silently swallowed) so a broken audit trail is observable. See 99_71 (A71-P1-5).
   async record(entry: AdminOperationLogEntry): Promise<void> {
     try {
       const { session } = entry;
@@ -47,8 +50,8 @@ export class AdminOperationLogService {
         detail: entry.detail ?? null,
         ip: session.requestIp ?? null
       });
-    } catch {
-      // Intentionally ignored: an audit failure must not fail the business write.
+    } catch (error) {
+      this.logger.warn({ action: entry.action, err: error instanceof Error ? error.message : error }, "admin operation log write failed");
     }
   }
 

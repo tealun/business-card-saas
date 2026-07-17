@@ -1,4 +1,4 @@
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, Logger } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { AdminOperationLogService } from "./admin-operation-log.service.js";
 
@@ -73,11 +73,18 @@ describe("AdminOperationLogService", () => {
     );
   });
 
-  it("swallows repository failures so business writes are unaffected", async () => {
+  it("does not throw on repository failure, but logs it so a broken audit trail is observable", async () => {
     const repository = { insert: jest.fn().mockRejectedValue(new Error("db down")) };
     const service = new AdminOperationLogService(repository as never);
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
 
     await expect(service.record({ session: tenantOwner, action: "member.sync" })).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "member.sync", err: "db down" }),
+      "admin operation log write failed"
+    );
+    warnSpy.mockRestore();
   });
 
   it("lets tenant owners, admins and auditors read tenant logs", async () => {

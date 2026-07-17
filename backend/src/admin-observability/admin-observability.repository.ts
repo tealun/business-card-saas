@@ -108,14 +108,20 @@ export class AdminObservabilityRepository {
   ): Promise<TenantAdminSummary | null> {
     if (!this.hasTenantDatabase()) return null;
     return this.tenantTx!.run(session.tenantId, async (tx) => {
+      // Self-modify and owner-row protection are re-asserted here, atomically with the write, not
+      // only in the service's pre-check -- a check-then-act gap would otherwise let a concurrent
+      // request slip through between the read and this UPDATE. See 99_71 (A71-P1-6).
       const updated = await tx.query(
         `
           UPDATE tenant_admins
           SET status = $3, updated_at = now()
           WHERE tenant_id = $1 AND id = $2
+            AND role <> 'owner'
+            AND open_userid IS DISTINCT FROM $4
+            AND member_identity_id::text IS DISTINCT FROM $5
           RETURNING id
         `,
-        [session.tenantId, adminId, status]
+        [session.tenantId, adminId, status, session.openUserid, session.memberIdentityId]
       );
       if (!updated.rows[0]) {
         return null;

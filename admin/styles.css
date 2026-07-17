@@ -1180,6 +1180,23 @@ label span,
   text-overflow: ellipsis;
 }
 
+.page-load-error {
+  margin: 4px 0 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 12px;
+  white-space: normal;
+}
+
+.page-load-error.pending {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--faint);
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;

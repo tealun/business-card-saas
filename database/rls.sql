@@ -129,3 +129,11 @@ DROP POLICY IF EXISTS tenant_isolation_callback_events ON callback_events;
 -- known. The table stores only hashes and binding metadata, never raw state/code/user_ticket.
 ALTER TABLE wecom_sensitive_auth_states DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_wecom_sensitive_auth_states ON wecom_sensitive_auth_states;
+
+-- admin_operation_logs is a platform operations table, same shape as callback_events: platform
+-- admins need cross-tenant reads (GET /admin/platform/operation-logs) and the repository queries
+-- the pool directly rather than through TenantTx. It intentionally does not use tenant RLS;
+-- isolation for the tenant-scoped endpoint is enforced by a session-derived tenant_id filter in
+-- the query layer. See 99_71.
+ALTER TABLE admin_operation_logs DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_admin_operation_logs ON admin_operation_logs;
