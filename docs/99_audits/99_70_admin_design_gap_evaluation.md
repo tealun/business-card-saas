@@ -8,9 +8,9 @@
 
 | 优先级 | 含义 | 条目 |
 |--------|------|------|
-| P0 本轮实现 | 数据已在库中或可由真实数据计算，改动小 | 租户成员部门/职位/联系方式/名片状态/最近访问、部门筛选、管理员停用、analytics 30 天趋势、资料完整度（前端计算）、租户侧 accountType 鉴权 |
+| P0 本轮实现 | 数据已在库中或可由真实数据计算，改动小 | 租户成员部门（名片字段）/职位/联系方式/名片状态/最近访问、管理员停用、analytics 30 天趋势、资料完整度（前端计算）、租户侧 accountType 鉴权 |
 | P1 近期迭代 | 价值高但需要新建表/埋点，独立排期 | 操作审计日志（平台+租户共用）、平均停留时长埋点 |
-| P2 中期规划 | 依赖产品决策或外部接入 | 平台 MFA、订单处理写端点、平台视角额度账本、审计分页、转化率/留资漏斗、成员最近同步时间 |
+| P2 中期规划 | 依赖产品决策或外部接入 | 平台 MFA、订单处理写端点、平台视角额度账本、审计分页、转化率/留资漏斗、成员最近同步时间、部门筛选与企微部门名称映射 |
 | P3 暂缓 | 依赖未发生的前提（企微上架、队列/缓存基建） | 套餐企微版本 ID、迁移完整执行日志、健康检查分项探针、额度用量趋势快照 |
 
 ---
@@ -66,11 +66,10 @@
 
 ## 二、企业后台（tenant）降级项
 
-### 1. 成员部门 + 部门筛选 —— P0
+### 1. 成员部门列 + 部门筛选 —— 拆分
 - 设计稿：成员表有部门列与「全部部门」下拉。
-- 现状：`member_identities.department_json`（企微同步写入）已在库中，API 未暴露。
-- 价值：高。工作量：小（解析 jsonb 首部门 + distinct 列表 + query 参数）。
-- 结论：**P0 本轮实现**：列表行加 `department`，响应加 `departments` 去重列表，支持 `department` 过滤。
+- 现状（代码核实）：`member_identities.department_json` 存的是企微**部门 ID**（`JSON.stringify(user.departmentIds)`，见 `wecom-contact-sync.repository.ts`），全库从未调用企微部门列表接口，ID 无法映射成名称；唯一人类可读的部门数据在名片加密字段 `fields.department`（员工自助/管理员编辑写入）。
+- 结论：**P0 本轮实现部门列**——取名片 `fields.department` 真实值，未填写显示 —；**部门筛选与企微部门名称映射降级为 P2**——需接入企微部门列表接口（ID→名称）或新增明文部门列（加密字段无法做 SQL 过滤与 distinct）。
 
 ### 2. 成员职位/手机/邮箱 + 名片状态 —— P0
 - 设计稿：姓名粗体 + 职位 + 手机/邮箱掩码 + 名片状态 tag（已启用/已停用/同步失败）。
@@ -138,3 +137,15 @@
 3. `/admin/commercial` 补角色检查：拒绝 `operator`（对齐权限表）。
 4. 前端已按登录响应 `account_type` 分流 system/enterprise 两种控制台模式，无需改动。
 5. 联调验证：平台 token 调租户接口 403；租户 token 调平台接口 403；旧 token 租户功能正常。
+
+---
+
+## 附：本轮实施记录
+
+后端已落地（测试 270 全绿）：
+
+1. `GET /admin/members` 行扩展：`department`（名片加密字段真实值）、`title`、`mobile`、`email`、`card_status(none|active|disabled)`、`last_visit_at`（card_visits 聚合）。
+2. `GET /admin/analytics?days=7|30`：趋势窗口可选。
+3. `PATCH /admin/admins/:adminId {status}`：仅 owner，禁改自己、禁改 owner 行。
+4. `requireTenantAdminRole` 覆盖全部租户端点；`/admin/commercial` 拒绝 operator（对齐权限表 owner/admin/auditor）。
+5. 顺手修复数据丢失 bug：admin 名片保存的 `mergeFields/normalizeFields` 之前只保留 5 个字段——admin 保存会把员工自助填写的 `department/company/website` 等从加密 blob 抹掉，且 admin PATCH 这些字段（契约本就继承 employee 全量）被静默丢弃。已改为全量 overlay 合并并保留 blob 中的其它键，名片 GET 响应现在能返回全量字段。

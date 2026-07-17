@@ -2,13 +2,14 @@ import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { DatabaseService } from "../database/database.service.js";
-import { TenantTx } from "../database/tenant-tx.service.js";
+import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import type {
   AdminEventListResponse,
   AdminEventQuery,
   AdminListQuery,
   PlatformAdminListResponse,
-  TenantAdminListResponse
+  TenantAdminListResponse,
+  TenantAdminSummary
 } from "../contracts/admin-observability.js";
 
 interface TenantAdminRow extends QueryResultRow {
@@ -90,19 +91,66 @@ export class AdminObservabilityRepository {
       );
     });
     return {
-      items: result.rows.map((row) => ({
-        admin_id: String(row.admin_id),
-        member_identity_id: row.member_identity_id === null ? null : String(row.member_identity_id),
-        display_name: row.display_name,
-        open_userid: row.open_userid,
-        userid: row.userid,
-        role: row.role,
-        status: row.status,
-        created_at: iso(row.created_at),
-        updated_at: iso(row.updated_at)
-      })),
+      items: result.rows.map(toTenantAdminSummary),
       total: Number(result.rows[0]?.total_count ?? 0)
     };
+  }
+
+  async getTenantAdmin(session: AdminSession, adminId: string): Promise<TenantAdminSummary | null> {
+    if (!this.hasTenantDatabase()) return null;
+    return this.tenantTx!.run(session.tenantId, (tx) => this.findTenantAdmin(tx, session.tenantId, adminId));
+  }
+
+  async updateTenantAdminStatus(
+    session: AdminSession,
+    adminId: string,
+    status: "active" | "disabled"
+  ): Promise<TenantAdminSummary | null> {
+    if (!this.hasTenantDatabase()) return null;
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const updated = await tx.query(
+        `
+          UPDATE tenant_admins
+          SET status = $3, updated_at = now()
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING id
+        `,
+        [session.tenantId, adminId, status]
+      );
+      if (!updated.rows[0]) {
+        return null;
+      }
+      return this.findTenantAdmin(tx, session.tenantId, adminId);
+    });
+  }
+
+  private async findTenantAdmin(
+    tx: TenantTransactionClient,
+    tenantId: string,
+    adminId: string
+  ): Promise<TenantAdminSummary | null> {
+    const result = await tx.query<TenantAdminRow>(
+      `
+        SELECT
+          a.id AS admin_id,
+          a.member_identity_id,
+          m.name AS display_name,
+          a.open_userid,
+          m.userid,
+          a.role,
+          a.status,
+          a.created_at,
+          a.updated_at
+        FROM tenant_admins a
+        LEFT JOIN member_identities m
+          ON m.tenant_id = a.tenant_id AND m.id = a.member_identity_id
+        WHERE a.tenant_id = $1 AND a.id = $2
+        LIMIT 1
+      `,
+      [tenantId, adminId]
+    );
+    const row = result.rows[0];
+    return row ? toTenantAdminSummary(row) : null;
   }
 
   async listPlatformAdmins(query: AdminListQuery): Promise<PlatformAdminListResponse> {
@@ -265,6 +313,20 @@ export class AdminObservabilityRepository {
   private hasPlatformDatabase(): boolean {
     return Boolean(this.database && process.env.DATABASE_URL?.trim());
   }
+}
+
+function toTenantAdminSummary(row: TenantAdminRow): TenantAdminSummary {
+  return {
+    admin_id: String(row.admin_id),
+    member_identity_id: row.member_identity_id === null ? null : String(row.member_identity_id),
+    display_name: row.display_name,
+    open_userid: row.open_userid,
+    userid: row.userid,
+    role: row.role,
+    status: row.status,
+    created_at: iso(row.created_at),
+    updated_at: iso(row.updated_at)
+  };
 }
 
 function tenantAdminFilters(query: AdminListQuery): { whereSql: string; values: unknown[] } {

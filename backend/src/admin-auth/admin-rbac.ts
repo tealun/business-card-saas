@@ -25,3 +25,12 @@ export function requirePlatformAdminRole(session: AdminSession, required: AdminR
   }
   requireAdminRole(session.role, required);
 }
+
+export function requireTenantAdminRole(session: AdminSession, required: AdminRole): void {
+  // accountType is optional for backwards compatibility with pre-platform tokens;
+  // a missing value is treated as "tenant" (see AdminSessionTokenService.verify).
+  if ((session.accountType ?? "tenant") !== "tenant") {
+    throw new ForbiddenException("tenant administrator required");
+  }
+  requireAdminRole(session.role, required);
+}

@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { TenantTx } from "../database/tenant-tx.service.js";
-import type { AdminAnalyticsResponse } from "../contracts/admin-analytics.js";
+import type { AdminAnalyticsQuery, AdminAnalyticsResponse } from "../contracts/admin-analytics.js";
 
 interface OverviewRow extends QueryResultRow {
   visit_count: string | number | bigint;
@@ -36,7 +36,7 @@ interface ActionTypeRow extends QueryResultRow {
 export class AdminAnalyticsRepository {
   constructor(@Optional() private readonly tenantTx?: TenantTx) {}
 
-  async getTenantAnalytics(session: AdminSession): Promise<AdminAnalyticsResponse> {
+  async getTenantAnalytics(session: AdminSession, query: AdminAnalyticsQuery): Promise<AdminAnalyticsResponse> {
     if (!this.hasDatabase()) {
       return emptyAnalytics();
     }
@@ -57,18 +57,18 @@ export class AdminAnalyticsRepository {
         tx.query<TrendRow>(
           `
             WITH days AS (
-              SELECT generate_series(current_date - interval '6 days', current_date, interval '1 day')::date AS day
+              SELECT generate_series(current_date - ($2::int - 1), current_date, interval '1 day')::date AS day
             ),
             visits AS (
               SELECT created_at::date AS day, count(*) AS visit_count
               FROM card_visits
-              WHERE tenant_id = $1 AND created_at >= current_date - interval '6 days'
+              WHERE tenant_id = $1 AND created_at >= current_date - ($2::int - 1)
               GROUP BY created_at::date
             ),
             actions AS (
               SELECT created_at::date AS day, count(*) AS action_count
               FROM card_actions
-              WHERE tenant_id = $1 AND created_at >= current_date - interval '6 days'
+              WHERE tenant_id = $1 AND created_at >= current_date - ($2::int - 1)
               GROUP BY created_at::date
             )
             SELECT
@@ -80,7 +80,7 @@ export class AdminAnalyticsRepository {
             LEFT JOIN actions ON actions.day = days.day
             ORDER BY days.day ASC
           `,
-          [session.tenantId]
+          [session.tenantId, query.days]
         ),
         tx.query<MemberRankRow>(
           `

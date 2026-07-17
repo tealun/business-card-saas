@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
+import { requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
 import { platformVideoFeatureRequestSchema, tenantVideoFeatureRequestSchema } from "../contracts/company-video-feature.js";
 import { CompanyVideoFeatureService } from "./company-video-feature.service.js";
@@ -11,7 +12,9 @@ export class CompanyVideoFeatureController {
 
   @Get()
   get(@Req() req: AdminRequest) {
-    return this.service.capability(requireAdminSession(req).tenantId);
+    const session = requireAdminSession(req);
+    requireTenantAdminRole(session, "auditor");
+    return this.service.capability(session.tenantId);
   }
 }
 

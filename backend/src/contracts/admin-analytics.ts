@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const adminAnalyticsQuerySchema = z.object({
+  days: z.coerce
+    .number()
+    .int()
+    .refine((value) => value === 7 || value === 30, { message: "days must be 7 or 30" })
+    .optional()
+    .default(7)
+});
+
 export const adminAnalyticsOverviewSchema = z.object({
   visit_count: z.number().int().nonnegative(),
   visitor_count: z.number().int().nonnegative(),
@@ -36,3 +45,4 @@ export const adminAnalyticsResponseSchema = z.object({
 });
 
 export type AdminAnalyticsResponse = z.infer<typeof adminAnalyticsResponseSchema>;
+export type AdminAnalyticsQuery = z.infer<typeof adminAnalyticsQuerySchema>;

@@ -16,7 +16,13 @@ export const adminMemberSummarySchema = z.object({
   open_userid: z.string().nullable(),
   display_name: z.string(),
   status: z.enum(["active", "disabled"]),
-  public_id: z.string()
+  public_id: z.string(),
+  department: z.string().nullable(),
+  title: z.string().nullable(),
+  mobile: z.string().nullable(),
+  email: z.string().nullable(),
+  card_status: z.enum(["none", "active", "disabled"]),
+  last_visit_at: z.string().nullable()
 });
 
 export const adminMemberListResponseSchema = z.object({

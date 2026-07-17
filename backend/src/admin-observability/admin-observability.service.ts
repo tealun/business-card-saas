@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import { requireAdminRole, requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
+import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import {
   adminEventListResponseSchema,
   type AdminEventListResponse,
@@ -10,7 +10,9 @@ import {
   platformAdminListResponseSchema,
   type PlatformAdminListResponse,
   tenantAdminListResponseSchema,
-  type TenantAdminListResponse
+  tenantAdminSummarySchema,
+  type TenantAdminListResponse,
+  type TenantAdminSummary
 } from "../contracts/admin-observability.js";
 import { AdminObservabilityRepository } from "./admin-observability.repository.js";
 
@@ -21,8 +23,30 @@ export class AdminObservabilityService {
   constructor(private readonly repository: AdminObservabilityRepository) {}
 
   async listTenantAdmins(session: AdminSession, query: AdminListQuery): Promise<TenantAdminListResponse> {
-    requireAdminRole(session.role, "owner");
+    requireTenantAdminRole(session, "owner");
     return tenantAdminListResponseSchema.parse(await this.repository.listTenantAdmins(session, query));
+  }
+
+  async updateTenantAdminStatus(session: AdminSession, adminId: string, status: "active" | "disabled"): Promise<TenantAdminSummary> {
+    requireTenantAdminRole(session, "owner");
+    const target = await this.repository.getTenantAdmin(session, adminId);
+    if (!target) {
+      throw new NotFoundException("tenant admin not found");
+    }
+    if (
+      target.open_userid === session.openUserid ||
+      (target.member_identity_id !== null && target.member_identity_id === session.memberIdentityId)
+    ) {
+      throw new ForbiddenException("cannot change own admin status");
+    }
+    if (target.role === "owner") {
+      throw new ForbiddenException("cannot change owner admin status");
+    }
+    const updated = await this.repository.updateTenantAdminStatus(session, adminId, status);
+    if (!updated) {
+      throw new NotFoundException("tenant admin not found");
+    }
+    return tenantAdminSummarySchema.parse(updated);
   }
 
   async listPlatformAdmins(session: AdminSession, query: AdminListQuery): Promise<PlatformAdminListResponse> {
@@ -43,6 +67,7 @@ export class AdminObservabilityService {
   }
 
   async listTenantAuditEvents(session: AdminSession, query: AdminEventQuery): Promise<AdminEventListResponse> {
+    requireTenantAdminRole(session, "auditor");
     requireTenantAuditRead(session.role);
     return adminEventListResponseSchema.parse(await this.repository.listTenantEvents(session, query));
   }

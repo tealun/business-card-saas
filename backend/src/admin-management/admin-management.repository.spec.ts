@@ -48,7 +48,11 @@ describe("AdminManagementRepository", () => {
 
   it("lists members with tenant-scoped filters and pagination parameters", async () => {
     const transaction = new FakeMemberListTransaction();
-    const repository = new AdminManagementRepository(new FakeTenantTx(transaction) as unknown as TenantTx);
+    const repository = new AdminManagementRepository(
+      new FakeTenantTx(transaction) as unknown as TenantTx,
+      undefined,
+      new FakeCipher() as unknown as CardFieldCipherService
+    );
 
     const result = await repository.listMembers(
       {
@@ -65,6 +69,12 @@ describe("AdminManagementRepository", () => {
     expect(result?.items[0]).toMatchObject({
       member_identity_id: "101",
       display_name: "Alice",
+      department: "技术部",
+      title: "Engineer",
+      mobile: null,
+      email: null,
+      card_status: "active",
+      last_visit_at: "2026-07-10T08:00:00.000Z",
       status: "active"
     });
     expect(transaction.queries).toHaveLength(1);
@@ -76,7 +86,7 @@ describe("AdminManagementRepository", () => {
     expect(transaction.queries[0]?.text).toContain("OFFSET $5");
   });
 
-  it("updates member, primary card, and public directory status in tenant scope", async () => {
+it("updates member, primary card, and public directory status in tenant scope", async () => {
     const tenantTx = new FakeTenantTx();
     const repository = new AdminManagementRepository(tenantTx as unknown as TenantTx);
 
@@ -239,6 +249,12 @@ class FakeMemberListTransaction {
           name: "Alice",
           status: "active",
           public_id: "pub_alice",
+          fields_encrypted: new FakeCipher().encrypt(JSON.stringify({ department: "技术部" })),
+          title: "Engineer",
+          email_encrypted: null,
+          phone_encrypted: null,
+          card_status: "active",
+          last_visit_at: new Date("2026-07-10T08:00:00.000Z"),
           total_count: "12"
         } as T
       ]

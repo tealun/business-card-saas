@@ -19,7 +19,7 @@ import {
   type UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import { requireAdminRole, requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
+import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
 import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
@@ -37,17 +37,19 @@ export class AdminManagementService {
   ) {}
 
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
+    requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.getOverview(session);
     return adminOverviewResponseSchema.parse(persisted);
   }
 
   async listMembers(session: AdminSession, input: AdminMemberListQuery): Promise<AdminMemberListResponse> {
+    requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.listMembers(session, input);
     return adminMemberListResponseSchema.parse(persisted);
   }
 
   async syncMembers(session: AdminSession): Promise<AdminMemberSyncResponse> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     const result = await this.contactSync.syncTenantMembers({
       tenantId: session.tenantId,
       tenantName: session.tenantName
@@ -61,12 +63,13 @@ export class AdminManagementService {
   }
 
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse> {
+    requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.listSyncEvents(session);
     return adminSyncEventListResponseSchema.parse(persisted ?? { items: [], total: 0 });
   }
 
   async retryFailedSyncEvents(session: AdminSession): Promise<AdminSyncEventRetryResponse> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     const dataResult = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
     const syncResult = await this.authorization.retryFailedContactSyncs({ tenantId: session.tenantId });
     return adminSyncEventRetryResponseSchema.parse({
@@ -91,6 +94,7 @@ export class AdminManagementService {
   }
 
   async getWecomSettings(session: AdminSession): Promise<AdminWecomSettingsResponse> {
+    requireTenantAdminRole(session, "auditor");
     return adminWecomSettingsResponseSchema.parse(await this.wecomSettings.get(session.tenantId));
   }
 
@@ -98,11 +102,12 @@ export class AdminManagementService {
     session: AdminSession,
     request: UpdateAdminWecomSettingsRequest
   ): Promise<AdminWecomSettingsResponse> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminWecomSettingsResponseSchema.parse(await this.wecomSettings.update(session.tenantId, request));
   }
 
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {
+    requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.getMemberCard(session, memberIdentityId);
     if (!persisted) {
       throw new NotFoundException("tenant member not found");
@@ -115,7 +120,7 @@ export class AdminManagementService {
     memberIdentityId: string,
     request: UpdateAdminMemberCardRequest
   ): Promise<AdminMemberCardResponse> {
-    requireAdminRole(session.role, "operator");
+    requireTenantAdminRole(session, "operator");
     const persisted = await this.repository.updateMemberCard(session, memberIdentityId, request);
     if (!persisted) {
       throw new NotFoundException("tenant member not found");

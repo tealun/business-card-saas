@@ -28,6 +28,13 @@ interface MemberSummaryRow extends QueryResultRow {
   name: string;
   status: "active" | "disabled";
   public_id: string | null;
+  department?: string | null;
+  title?: string | null;
+  email_encrypted?: string | null;
+  phone_encrypted?: string | null;
+  fields_encrypted?: string | null;
+  card_status?: "active" | "disabled" | null;
+  last_visit_at?: Date | string | null;
   total_count?: string;
 }
 
@@ -120,10 +127,21 @@ export class AdminManagementRepository {
             member_identities.name,
             member_identities.status,
             cards.public_id,
+            cards.title,
+            cards.email_encrypted,
+            cards.phone_encrypted,
+            cards.fields_encrypted,
+            cards.status AS card_status,
+            (
+              SELECT max(card_visits.created_at)
+              FROM card_visits
+              WHERE card_visits.tenant_id = member_identities.tenant_id
+                AND card_visits.member_identity_id = member_identities.id
+            ) AS last_visit_at,
             count(*) OVER()::text AS total_count
           FROM member_identities
           LEFT JOIN LATERAL (
-            SELECT public_id
+            SELECT public_id, title, email_encrypted, phone_encrypted, fields_encrypted, status
             FROM cards
             WHERE cards.tenant_id = member_identities.tenant_id
               AND cards.member_identity_id = member_identities.id
@@ -151,7 +169,16 @@ export class AdminManagementRepository {
             defaultEmployeePublicId({
               tenantId: session.tenantId,
               memberIdentityId: String(row.id)
-            })
+            }),
+          // department lives in the encrypted card fields blob (employee module
+          // schema); department_json on member_identities holds raw WeCom
+          // department ids which are not displayable names.
+          department: this.readCardDepartment(row.fields_encrypted ?? null),
+          title: row.title ?? null,
+          mobile: this.decryptOptional(row.phone_encrypted ?? null),
+          email: this.decryptOptional(row.email_encrypted ?? null),
+          card_status: row.card_status ? normalizeStatus(row.card_status) : "none",
+          last_visit_at: row.last_visit_at ? new Date(row.last_visit_at).toISOString() : null
         })),
         total: Number(result.rows[0]?.total_count ?? "0")
       };
@@ -564,6 +591,23 @@ export class AdminManagementRepository {
     }
   }
 
+  private readCardDepartment(value: string | null): string | null {
+    const plaintext = this.decryptOptional(value);
+    if (!plaintext) {
+      return null;
+    }
+    try {
+      const record: unknown = JSON.parse(plaintext);
+      if (record && typeof record === "object") {
+        const department = (record as Record<string, unknown>).department;
+        return typeof department === "string" && department.trim() ? department : null;
+      }
+    } catch {
+      // fall through
+    }
+    return null;
+  }
+
   private async upsertPublicDirectory(
     tx: TenantTransactionClient,
     input: {
@@ -628,25 +672,31 @@ function escapeLike(value: string): string {
 
 function defaultFields(): CardFields {
   return {
+    company: null,
+    company_short_name: null,
+    department: null,
     mobile: null,
     phone: null,
     email: null,
     wechat_id: null,
-    address: null
+    address: null,
+    website: null
   };
 }
 
 function mergeFields(current: CardFields, patch: UpdateAdminMemberCardRequest["fields"]): CardFields {
+  // Overlay every patched key onto the current blob so admin saves preserve
+  // fields managed by other modules (department, company, website, ...).
+  const base: Record<string, unknown> = { ...current };
   if (!patch) {
-    return { ...current };
+    return base as CardFields;
   }
-  return {
-    mobile: patch.mobile !== undefined ? patch.mobile : current.mobile,
-    phone: patch.phone !== undefined ? patch.phone : current.phone ?? null,
-    email: patch.email !== undefined ? patch.email : current.email,
-    wechat_id: patch.wechat_id !== undefined ? patch.wechat_id : current.wechat_id,
-    address: patch.address !== undefined ? patch.address : current.address ?? null
-  };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) {
+      base[key] = value;
+    }
+  }
+  return base as CardFields;
 }
 
 function normalizeFields(value: unknown): CardFields {
@@ -654,13 +704,20 @@ function normalizeFields(value: unknown): CardFields {
     return defaultFields();
   }
   const record = value as Record<string, unknown>;
+  // Preserve unknown keys (e.g. qrcode image sources) from the shared blob;
+  // normalize only the string fields.
   return {
+    ...record,
+    company: nullableString(record.company),
+    company_short_name: nullableString(record.company_short_name),
+    department: nullableString(record.department),
     mobile: nullableString(record.mobile),
     phone: nullableString(record.phone),
     email: nullableString(record.email),
     wechat_id: nullableString(record.wechat_id),
-    address: nullableString(record.address)
-  };
+    address: nullableString(record.address),
+    website: nullableString(record.website)
+  } as CardFields;
 }
 
 function mergePrivacy(current: CardPrivacy, patch: UpdateAdminMemberCardRequest["privacy"]): CardPrivacy {

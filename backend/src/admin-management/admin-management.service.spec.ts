@@ -30,6 +30,7 @@ describe("AdminManagementService", () => {
     });
     expect(members.total).toBe(1);
     expect(members.items[0]?.member_identity_id).toBe("member-001");
+    expect(members.items[0]?.department).toBe("技术部");
   });
 
   it("filters member summaries with the shared list query contract", async () => {
@@ -41,6 +42,15 @@ describe("AdminManagementService", () => {
     await expect(
       service.listMembers(ownerSession(), { search: "owner", status: "disabled", limit: 50, offset: 0 })
     ).resolves.toEqual({ items: [], total: 0 });
+  });
+
+  it("rejects platform sessions on tenant member endpoints while legacy tokens still work", async () => {
+    const service = createService();
+    const platformSession: AdminSession = { ...ownerSession(), openUserid: "platform:root", accountType: "platform" };
+
+    await expect(service.listMembers(platformSession, defaultQuery())).rejects.toThrow(ForbiddenException);
+    await expect(service.getOverview(platformSession)).rejects.toThrow(ForbiddenException);
+    await expect(service.listMembers(ownerSession(), defaultQuery())).resolves.toMatchObject({ total: 1 });
   });
 
   it("syncs members when the admin has admin or higher permission", async () => {
@@ -165,7 +175,13 @@ function fakeRepository(): AdminManagementRepository {
     open_userid: "ou-owner",
     display_name: "Owner Name",
     status: "active" as const,
-    public_id: "pub_owner001"
+    public_id: "pub_owner001",
+    department: "技术部",
+    title: "Sales Lead",
+    mobile: null,
+    email: null,
+    card_status: "active" as const,
+    last_visit_at: null
   };
   const card: AdminMemberCardResponse = {
     card_id: "card-001",

@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import { requireAdminRole } from "../admin-auth/admin-rbac.js";
+import { requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import {
   adminCompanyProfileSchema,
   adminCompanyHonorListResponseSchema,
@@ -29,6 +29,7 @@ export class AdminConfigService {
   constructor(private readonly repository: AdminConfigRepository, private readonly videoFeatures?: CompanyVideoFeatureService) {}
 
   async getFieldSettings(session: AdminSession): Promise<AdminFieldSettingsResponse> {
+    requireTenantAdminRole(session, "auditor");
     return adminFieldSettingsResponseSchema.parse({
       tenant_id: session.tenantId,
       fields: await this.repository.getFieldSettings(session.tenantId)
@@ -39,7 +40,7 @@ export class AdminConfigService {
     session: AdminSession,
     request: UpdateAdminFieldSettingsRequest
   ): Promise<AdminFieldSettingsResponse> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminFieldSettingsResponseSchema.parse({
       tenant_id: session.tenantId,
       fields: await this.repository.updateFieldSettings(session.tenantId, request)
@@ -47,6 +48,7 @@ export class AdminConfigService {
   }
 
   async getCompanyProfile(session: AdminSession): Promise<AdminCompanyProfile> {
+    requireTenantAdminRole(session, "auditor");
     return adminCompanyProfileSchema.parse(
       await this.repository.getCompanyProfile({ tenantId: session.tenantId, tenantName: session.tenantName })
     );
@@ -56,7 +58,7 @@ export class AdminConfigService {
     session: AdminSession,
     request: UpdateAdminCompanyProfileRequest
   ): Promise<AdminCompanyProfile> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     if (request.intro_blocks?.some((block) => block.type === "video")) {
       const capability = await this.videoFeatures?.capability(session.tenantId);
       if (!capability?.enabled) throw new ForbiddenException("company video feature is not enabled");
@@ -75,6 +77,7 @@ export class AdminConfigService {
   }
 
   async listCompanyHonors(session: AdminSession): Promise<AdminCompanyHonorListResponse> {
+    requireTenantAdminRole(session, "auditor");
     return adminCompanyHonorListResponseSchema.parse({
       tenant_id: session.tenantId,
       items: await this.repository.listCompanyHonors(session.tenantId)
@@ -85,7 +88,7 @@ export class AdminConfigService {
     session: AdminSession,
     request: CreateAdminCompanyHonorRequest
   ): Promise<AdminCompanyHonor> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminCompanyHonorSchema.parse(await this.repository.createCompanyHonor(session.tenantId, request));
   }
 
@@ -94,16 +97,17 @@ export class AdminConfigService {
     honorId: string,
     request: UpdateAdminCompanyHonorRequest
   ): Promise<AdminCompanyHonor> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminCompanyHonorSchema.parse(await this.repository.updateCompanyHonor(session.tenantId, honorId, request));
   }
 
   async deleteCompanyHonor(session: AdminSession, honorId: string): Promise<void> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     await this.repository.deleteCompanyHonor(session.tenantId, honorId);
   }
 
   async listTemplates(session: AdminSession): Promise<AdminTemplateListResponse> {
+    requireTenantAdminRole(session, "auditor");
     return adminTemplateListResponseSchema.parse({
       tenant_id: session.tenantId,
       items: await this.repository.listTemplates(session.tenantId)
@@ -111,7 +115,7 @@ export class AdminConfigService {
   }
 
   async createTemplate(session: AdminSession, request: CreateAdminTemplateRequest): Promise<AdminTemplate> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminTemplateSchema.parse(await this.repository.createTemplate(session.tenantId, request));
   }
 
@@ -120,12 +124,12 @@ export class AdminConfigService {
     templateId: string,
     request: UpdateAdminTemplateRequest
   ): Promise<AdminTemplate> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminTemplateSchema.parse(await this.repository.updateTemplate(session.tenantId, templateId, request));
   }
 
   async setDefaultTemplate(session: AdminSession, templateId: string): Promise<AdminTemplate> {
-    requireAdminRole(session.role, "admin");
+    requireTenantAdminRole(session, "admin");
     return adminTemplateSchema.parse(await this.repository.setDefaultTemplate(session.tenantId, templateId));
   }
 }
