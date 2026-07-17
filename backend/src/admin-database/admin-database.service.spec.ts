@@ -70,7 +70,7 @@ describe("AdminDatabaseService", () => {
         if (sql.includes("to_regclass")) {
           return { rows: [{ table_name: options.tableExists === false ? null : "pgmigrations" }] };
         }
-        return { rows: (options.applied ?? []).map((name) => ({ name })) };
+        return { rows: (options.applied ?? []).map((name) => ({ name, run_on: new Date("2026-07-16T01:00:00.000Z") })) };
       })
     } as unknown as DatabaseService;
     return { service: new AdminDatabaseService(config, database), database };

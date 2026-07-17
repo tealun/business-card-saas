@@ -8,7 +8,7 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     />
     <title>智云名片 · 管理后台</title>
-    <link rel="stylesheet" href="./styles.css?v=20260717-aurora" />
+    <link rel="stylesheet" href="./styles.css?v=20260717-platform" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -151,7 +151,7 @@
           </div>
         </header>
 
-        <section class="status-strip" aria-live="polite">
+        <section class="status-strip" aria-live="polite" data-dev-only>
           <div><span>API</span><strong id="apiStatus">未检查</strong></div>
           <div><span>登录身份</span><strong id="loginStatus">未登录</strong></div>
           <div><span>企业</span><strong id="tenantStatus">未加载</strong></div>
@@ -474,14 +474,15 @@
 
         <section class="page" data-page="platform-dashboard">
           <div class="page-head">
-            <div><h2>系统总览</h2><p>平台视角聚合企业授权、功能开关和运维风险。</p></div>
-            <button id="loadPlatformDashboard" type="button">刷新总览</button>
+            <div><h2>系统总览</h2><p>平台授权健康、回调质量和待处理风险的实时聚合。</p></div>
+            <button id="loadPlatformDashboard" type="button" class="secondary">刷新</button>
           </div>
-          <div class="metric-grid">
-            <button class="metric" data-go="platform-tenants"><span>授权企业</span><strong id="platformTenantCount">--</strong></button>
-            <button class="metric" data-go="platform-tenants"><span>活跃企业</span><strong id="platformActiveTenantCount">--</strong></button>
-            <button class="metric" data-go="platform-features"><span>视频默认</span><strong id="platformVideoStatus">--</strong></button>
-            <button class="metric" data-go="platform-ops"><span>待迁移</span><strong id="platformPendingMigrations">--</strong></button>
+          <div class="metric-grid five">
+            <button class="metric" data-go="platform-tenants"><span>授权企业数</span><strong id="platformTenantCount">--</strong></button>
+            <button class="metric" data-go="platform-tenants"><span>异常授权数</span><strong id="platformUnhealthyCount" class="warning">--</strong></button>
+            <button class="metric" data-go="platform-wecom"><span>今日回调失败</span><strong id="platformTodayFailed" class="danger">--</strong></button>
+            <button class="metric" data-go="platform-commercial"><span>订单待处理</span><strong id="platformPendingOrders">--</strong></button>
+            <button class="metric" data-go="platform-commercial"><span>额度风险企业</span><strong id="platformQuotaRisk" class="warning">--</strong></button>
           </div>
           <div class="content-grid two">
             <article class="panel">
@@ -491,19 +492,26 @@
             <article class="panel">
               <div class="panel-head"><h3>快捷入口</h3></div>
               <div class="quick-grid">
-                <button data-go="platform-tenants" class="secondary" type="button">企业授权</button>
-                <button data-go="platform-features" class="secondary" type="button">功能开关</button>
-                <button data-go="platform-ops" class="secondary" type="button">数据库迁移</button>
-                <button data-go="platform-commercial" class="secondary" type="button">商业化</button>
+                <button data-go="platform-tenants" class="secondary quick-entry" type="button"><strong>企业授权</strong><span>查看企业授权状态</span></button>
+                <button data-go="platform-commercial" class="secondary quick-entry" type="button"><strong>异常订单</strong><span>处理待处理订单</span></button>
+                <button data-go="platform-ops" class="secondary quick-entry" type="button"><strong>数据库迁移</strong><span>执行与查看迁移</span></button>
+                <button data-go="platform-features" class="secondary quick-entry" type="button"><strong>功能开关</strong><span>管理平台能力</span></button>
               </div>
             </article>
           </div>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>最近 24 小时回调</h3>
+              <span class="chart-legend"><i class="legend-dot ok"></i>成功<i class="legend-dot bad"></i>失败</span>
+            </div>
+            <div id="platformCallbackChart" class="callback-chart"></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-tenants">
           <div class="page-head">
-            <div><h2>企业授权中心</h2><p>只读查看企业安装、授权健康和成员名片规模。</p></div>
-            <button id="loadTenantAuthorizations" type="button">刷新</button>
+            <div><h2>企业授权中心</h2><p>查看企业安装、授权健康和成员名片规模。</p></div>
+            <button id="loadTenantAuthorizations" type="button" class="secondary icon-btn" aria-label="刷新">&#x21bb; 刷新</button>
           </div>
           <article class="panel">
             <div class="toolbar">
@@ -517,8 +525,8 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>企业</th><th>授权状态</th><th>成员</th><th>名片</th><th>安装时间</th><th>操作</th></tr></thead>
-                <tbody id="tenantAuthorizationRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+                <thead><tr><th>企业名称</th><th>OpenCorpID</th><th>授权状态</th><th>授权健康</th><th>成员</th><th>名片</th><th>安装时间</th><th>操作</th></tr></thead>
+                <tbody id="tenantAuthorizationRows"><tr><td colspan="8">尚未加载</td></tr></tbody>
               </table>
             </div>
             <div class="table-footer">
@@ -533,49 +541,72 @@
         <section class="page" data-page="platform-features">
           <div class="page-head">
             <div><h2>功能开关</h2><p>平台默认与企业级视频能力 override。</p></div>
-            <button id="saveVideoFeatures" type="button">保存平台设置</button>
+            <div class="page-head-actions">
+              <button id="loadVideoFeatures" type="button" class="secondary">刷新</button>
+              <button id="saveVideoFeatures" type="button">保存平台设置</button>
+            </div>
           </div>
-          <div class="content-grid two">
-            <article class="panel">
-              <div class="panel-head"><h3>平台默认</h3><button id="loadVideoFeatures" type="button" class="secondary">读取</button></div>
-              <form class="form-grid">
-                <label class="check-line"><input id="platformVideoEnabled" type="checkbox" /> 启用企业视频</label>
-                <label><span>默认上限 MB</span><input id="platformVideoLimit" type="number" min="1" max="1024" value="500" /></label>
-              </form>
-            </article>
-            <article class="panel">
-              <div class="panel-head"><h3>企业 override</h3></div>
-              <div class="toolbar"><input id="tenantFeatureSearch" placeholder="搜索企业" /><button id="searchTenantFeatures" type="button">搜索</button></div>
-              <div id="tenantFeatureEditor" class="editor-stack"></div>
-            </article>
-          </div>
+          <article class="panel">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>功能</th><th>平台默认</th><th>企业 override</th><th>默认上限</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><strong>企业视频</strong><br><code>company-video</code></td>
+                    <td><label class="switch"><input id="platformVideoEnabled" type="checkbox" /><span class="switch-track"></span></label></td>
+                    <td><strong id="platformVideoOverrideCount">--</strong> 家</td>
+                    <td><span class="limit-field"><input id="platformVideoLimit" type="number" min="1" max="1024" value="500" /> MB</span></td>
+                    <td class="muted-cell">企业主页与名片可上传展示视频</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h3>企业 override</h3></div>
+            <div class="toolbar"><input id="tenantFeatureSearch" placeholder="搜索企业" /><button id="searchTenantFeatures" type="button">搜索</button></div>
+            <div id="tenantFeatureEditor" class="editor-stack"></div>
+          </article>
         </section>
 
         <section class="page" data-page="platform-ops">
           <div class="page-head">
             <div><h2>运维</h2><p>数据库迁移属于高风险动作，执行前需要二次确认。</p></div>
-            <button id="loadDatabaseMigrations" type="button">检测迁移</button>
+            <button id="loadDatabaseMigrations" type="button" class="secondary">检测迁移</button>
+          </div>
+          <div class="metric-grid four">
+            <article class="metric health-card"><span>数据库</span><strong id="healthDatabase">--</strong></article>
+            <article class="metric health-card"><span>消息队列</span><strong id="healthQueue">--</strong></article>
+            <article class="metric health-card"><span>缓存</span><strong id="healthCache">--</strong></article>
+            <article class="metric health-card"><span>企业微信 API</span><strong id="healthWecomApi">--</strong></article>
           </div>
           <article class="panel">
-            <div class="metric-grid three">
-              <article class="metric"><span>数据库目录</span><strong id="databaseDir">--</strong></article>
-              <article class="metric"><span>迁移文件</span><strong id="databaseMigrationFiles">--</strong></article>
-              <article class="metric"><span>待执行</span><strong id="databasePendingCount">--</strong></article>
-            </div>
+            <div class="panel-head"><h3>迁移任务</h3><span class="hint" id="databaseDir">--</span></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>迁移</th><th>文件</th><th>状态</th></tr></thead>
-                <tbody id="databaseMigrationRows"><tr><td colspan="3">尚未加载</td></tr></tbody>
+                <thead><tr><th>任务名</th><th>状态</th><th>执行时间</th><th>操作</th></tr></thead>
+                <tbody id="databaseMigrationRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
               </table>
             </div>
-            <div class="inline-actions end"><button id="runDatabaseMigrations" type="button" class="secondary danger-lite">执行迁移</button></div>
+            <div class="table-footer">
+              <span class="hint">迁移文件 <strong id="databaseMigrationFiles">--</strong> 个 · 待执行 <strong id="databasePendingCount">--</strong> 个</span>
+              <button id="runDatabaseMigrations" type="button" class="secondary danger-lite">执行迁移</button>
+            </div>
           </article>
         </section>
 
         <section class="page" data-page="platform-wecom">
           <div class="page-head">
             <div><h2>授权与回调</h2><p>平台级回调事件队列，只显示脱敏摘要。</p></div>
-            <button id="loadPlatformWecomEvents" type="button">刷新</button>
+            <div class="page-head-actions">
+              <button id="retryPlatformEvents" type="button" class="secondary danger-lite">重试失败事件</button>
+              <button id="loadPlatformWecomEvents" type="button" class="secondary">刷新</button>
+            </div>
+          </div>
+          <div class="metric-grid three">
+            <article class="metric"><span>今日成功</span><strong id="platformWecomTodaySuccess">--</strong></article>
+            <article class="metric"><span>今日失败</span><strong id="platformWecomTodayFailed" class="danger">--</strong></article>
+            <article class="metric"><span>待重试</span><strong id="platformWecomTodayRetry" class="warning">--</strong></article>
           </div>
           <article class="panel">
             <div class="toolbar">
@@ -586,7 +617,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>企业</th><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>时间</th></tr></thead>
+                <thead><tr><th>类型</th><th>企业</th><th>状态</th><th>时间</th><th>错误摘要</th><th>操作</th></tr></thead>
                 <tbody id="platformWecomRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
               </table>
             </div>
@@ -596,22 +627,20 @@
 
         <section class="page" data-page="platform-commercial">
           <div class="page-head">
-            <div><h2>商业化</h2><p>套餐目录、企业订阅、订单和额度调整。</p></div>
-            <button id="loadPlatformCommercial" type="button">刷新</button>
+            <div><h2>商业化</h2><p>套餐目录、企业订阅、订单异常和人工额度调整。</p></div>
+            <div class="page-head-actions">
+              <button id="loadPlatformCommercial" type="button" class="secondary">刷新</button>
+              <button id="openQuotaDialog" type="button">人工调整额度</button>
+            </div>
           </div>
           <div class="content-grid two">
             <article class="panel">
               <div class="panel-head"><h3>套餐目录</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>套餐</th><th>价格</th><th>成员</th><th>名片</th></tr></thead><tbody id="platformPlanRows"><tr><td colspan="4">尚未加载</td></tr></tbody></table></div>
+              <div class="table-wrap"><table><thead><tr><th>套餐名称</th><th>版本标识</th><th>月价</th><th>状态</th></tr></thead><tbody id="platformPlanRows"><tr><td colspan="4">尚未加载</td></tr></tbody></table></div>
             </article>
-            <article class="panel stack-form">
-              <h3>额度调整</h3>
-              <label><span>企业 ID</span><input id="quotaTenantId" /></label>
-              <label><span>类型</span><select id="quotaType"><option value="member">成员</option><option value="card">名片</option><option value="video_mb">视频 MB</option></select></label>
-              <label><span>变化量</span><input id="quotaDelta" type="number" value="0" /></label>
-              <label><span>原因</span><input id="quotaReason" /></label>
-              <label><span>幂等键</span><input id="quotaIdempotencyKey" /></label>
-              <button id="createQuotaAdjustment" type="button" class="secondary danger-lite">写入调整</button>
+            <article class="panel">
+              <div class="panel-head"><h3>订单异常队列</h3></div>
+              <div id="platformOrderExceptionList" class="task-list"><p class="hint">暂无异常订单</p></div>
             </article>
           </div>
           <article class="panel">
@@ -619,8 +648,8 @@
             <div class="table-wrap"><table><thead><tr><th>企业</th><th>套餐</th><th>状态</th><th>成员</th><th>名片</th></tr></thead><tbody id="platformSubscriptionRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
           </article>
           <article class="panel">
-            <div class="panel-head"><h3>订单</h3></div>
-            <div class="table-wrap"><table><thead><tr><th>企业</th><th>订单</th><th>套餐</th><th>金额</th><th>状态</th></tr></thead><tbody id="platformOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
+            <div class="panel-head"><h3>全部订单</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>企业</th><th>订单</th><th>套餐</th><th>金额</th><th>状态</th><th>时间</th></tr></thead><tbody id="platformOrderRows"><tr><td colspan="6">尚未加载</td></tr></tbody></table></div>
           </article>
         </section>
 
@@ -638,7 +667,7 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>企业</th><th>事件</th><th>状态</th><th>错误摘要</th><th>接收时间</th><th>处理时间</th></tr></thead>
+                <thead><tr><th>时间</th><th>企业</th><th>事件</th><th>状态</th><th>错误摘要</th><th>处理时间</th></tr></thead>
                 <tbody id="platformAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
               </table>
             </div>
@@ -648,8 +677,8 @@
 
         <section class="page" data-page="platform-accounts">
           <div class="page-head">
-            <div><h2>系统账号</h2><p>保留现有密码登录和改密业务逻辑；列表不返回密码哈希。</p></div>
-            <button id="loadPlatformAccounts" type="button">刷新</button>
+            <div><h2>系统账号</h2><p>平台账号清单与启停管理；列表不返回密码哈希。</p></div>
+            <button id="loadPlatformAccounts" type="button" class="secondary">刷新</button>
           </div>
           <article class="panel">
             <div class="toolbar">
@@ -659,8 +688,8 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>用户名</th><th>角色</th><th>状态</th><th>密码更新时间</th><th>创建时间</th><th>更新时间</th></tr></thead>
-                <tbody id="platformAccountRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+                <thead><tr><th>账号</th><th>角色</th><th>状态</th><th>密码更新时间</th><th>操作</th></tr></thead>
+                <tbody id="platformAccountRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
               </table>
             </div>
             <div class="table-footer"><strong id="platformAccountTotal">0 个账号</strong></div>
@@ -693,10 +722,11 @@
       </section>
     </main>
 
+    <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
     <aside id="detailDrawer" class="drawer hidden" aria-label="详情抽屉">
       <div class="drawer-head">
         <div><h2 id="drawerTitle">详情</h2><p id="drawerSubtitle"></p></div>
-        <button id="closeDrawer" type="button" class="ghost">关闭</button>
+        <button id="closeDrawer" type="button" class="ghost drawer-close" aria-label="关闭">&times;</button>
       </div>
       <div id="drawerBody" class="drawer-body"></div>
       <div id="drawerFooter" class="drawer-footer"></div>
@@ -724,6 +754,22 @@
         <div class="dialog-actions">
           <button id="pwdCancel" type="button" class="secondary">取消</button>
           <button id="pwdSave" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="quotaDialog" class="confirm-dialog">
+      <form method="dialog" class="stack-form">
+        <h3>人工调整额度</h3>
+        <p class="hint">调整会写入真实额度账本并立即影响企业配额。</p>
+        <label><span>企业 ID</span><input id="quotaTenantId" placeholder="数字租户 ID" /></label>
+        <label><span>类型</span><select id="quotaType"><option value="member">成员</option><option value="card">名片</option><option value="video_mb">视频 MB</option></select></label>
+        <label><span>变化量（正数增加 / 负数扣减）</span><input id="quotaDelta" type="number" value="0" /></label>
+        <label><span>原因</span><input id="quotaReason" placeholder="例如：客户成功部申请临时扩容" /></label>
+        <label><span>幂等键</span><input id="quotaIdempotencyKey" placeholder="留空自动生成" /></label>
+        <div class="dialog-actions">
+          <button id="quotaCancel" type="button" class="secondary">取消</button>
+          <button id="createQuotaAdjustment" type="button" class="danger-lite secondary">写入调整</button>
         </div>
       </form>
     </dialog>

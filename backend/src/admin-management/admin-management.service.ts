@@ -19,7 +19,7 @@ import {
   type UpdateAdminMemberCardRequest
 } from "../contracts/admin-management.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import { requireAdminRole } from "../admin-auth/admin-rbac.js";
+import { requireAdminRole, requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
 import { WecomDataCallbackService } from "../wecom/wecom-data-callback.service.js";
 import { WecomAuthorizationService } from "../wecom/wecom-authorization.service.js";
@@ -69,6 +69,19 @@ export class AdminManagementService {
     requireAdminRole(session.role, "admin");
     const dataResult = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
     const syncResult = await this.authorization.retryFailedContactSyncs({ tenantId: session.tenantId });
+    return adminSyncEventRetryResponseSchema.parse({
+      retried_count: dataResult.retriedCount + syncResult.retriedCount,
+      succeeded_count: dataResult.succeededCount + syncResult.succeededCount,
+      failed_count: dataResult.failedCount + syncResult.failedCount,
+      dead_count: dataResult.deadCount + syncResult.deadCount
+    });
+  }
+
+  async retryPlatformSyncEvents(session: AdminSession, tenantId?: string): Promise<AdminSyncEventRetryResponse> {
+    requirePlatformAdminRole(session, "operator");
+    const scoped = tenantId?.trim();
+    const dataResult = await this.dataCallbacks.retryFailedEvents(scoped ? { tenantId: scoped } : {});
+    const syncResult = await this.authorization.retryFailedContactSyncs(scoped ? { tenantId: scoped } : {});
     return adminSyncEventRetryResponseSchema.parse({
       retried_count: dataResult.retriedCount + syncResult.retriedCount,
       succeeded_count: dataResult.succeededCount + syncResult.succeededCount,

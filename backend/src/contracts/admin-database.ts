@@ -6,6 +6,11 @@ export const databaseMigrationItemSchema = z.object({
   applied: z.boolean()
 });
 
+export const databaseMigrationAppliedDetailSchema = z.object({
+  name: z.string().min(1),
+  run_on: z.string()
+});
+
 export const databaseMigrationStatusSchema = z.object({
   database_dir: z.string(),
   configured: z.boolean(),
@@ -14,6 +19,7 @@ export const databaseMigrationStatusSchema = z.object({
   migration_table_exists: z.boolean(),
   migration_files: z.array(z.string()),
   applied_migrations: z.array(z.string()),
+  applied_details: z.array(databaseMigrationAppliedDetailSchema),
   pending_migrations: z.array(databaseMigrationItemSchema),
   pending_count: z.number().int().nonnegative(),
   errors: z.array(z.string()),

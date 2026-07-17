@@ -1,26 +1,39 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
+import { requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
+import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
 import { PlatformTenantRepository, type PlatformTenantDetailRecord, type PlatformTenantListRecord } from "./platform-tenant.repository.js";
 
 @Injectable()
 export class PlatformTenantService {
-  constructor(private readonly repository: PlatformTenantRepository) {}
+  constructor(
+    private readonly repository: PlatformTenantRepository,
+    private readonly contactSync: WecomContactSyncService
+  ) {}
 
   async list(session: AdminSession, input: { search?: string; status?: string; page?: number; pageSize?: number }) {
     this.requirePlatform(session);
     const page = Math.max(1, Math.trunc(input.page ?? 1));
     const pageSize = Math.min(100, Math.max(1, Math.trunc(input.pageSize ?? 20)));
     const status = ["active", "cancelled", "all"].includes(input.status ?? "") ? input.status! : "all";
-    const result = await this.repository.list({
-      search: input.search?.trim() ?? "",
-      status,
-      limit: pageSize,
-      offset: (page - 1) * pageSize
-    });
+    const [result, summary] = await Promise.all([
+      this.repository.list({
+        search: input.search?.trim() ?? "",
+        status,
+        limit: pageSize,
+        offset: (page - 1) * pageSize
+      }),
+      this.repository.summary()
+    ]);
     return {
       page,
       page_size: pageSize,
       total: result.total,
+      summary: {
+        active_count: summary.activeCount,
+        cancelled_count: summary.cancelledCount,
+        unhealthy_count: summary.unhealthyCount
+      },
       items: result.items.map((item) => this.formatListItem(item))
     };
   }
@@ -35,6 +48,27 @@ export class PlatformTenantService {
       throw new NotFoundException("enterprise authorization not found");
     }
     return this.formatDetail(item);
+  }
+
+  async syncTenantMembers(session: AdminSession, tenantId: string) {
+    requirePlatformAdminRole(session, "operator");
+    if (!/^\d+$/.test(tenantId)) {
+      throw new NotFoundException("enterprise authorization not found");
+    }
+    const item = await this.repository.getById(tenantId);
+    if (!item) {
+      throw new NotFoundException("enterprise authorization not found");
+    }
+    const result = await this.contactSync.syncTenantMembers({
+      tenantId: item.tenantId,
+      tenantName: item.name
+    });
+    return {
+      tenant_id: result.tenantId,
+      synced_count: result.syncedCount,
+      skipped_count: result.skippedCount,
+      disabled_count: result.disabledCount
+    };
   }
 
   private requirePlatform(session: AdminSession): void {
@@ -55,7 +89,8 @@ export class PlatformTenantService {
       member_count: item.memberCount,
       active_member_count: item.activeMemberCount,
       card_count: item.cardCount,
-      active_card_count: item.activeCardCount
+      active_card_count: item.activeCardCount,
+      authorization_healthy: item.authStatus === "active" && item.permanentCodeConfigured
     };
   }
 

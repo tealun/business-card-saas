@@ -41,6 +41,16 @@ export class AdminManagementController {
     return this.management.retryFailedSyncEvents(requireAdminSession(request));
   }
 
+  @Post("platform/audit-events/retry")
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  retryPlatformSyncEvents(@Req() request: AdminRequest, @Body() body: unknown) {
+    const tenantId =
+      body && typeof body === "object" && typeof (body as { tenant_id?: unknown }).tenant_id === "string"
+        ? (body as { tenant_id: string }).tenant_id
+        : undefined;
+    return this.management.retryPlatformSyncEvents(requireAdminSession(request), tenantId);
+  }
+
   @Get("wecom/settings")
   wecomSettings(@Req() request: AdminRequest) {
     return this.management.getWecomSettings(requireAdminSession(request));

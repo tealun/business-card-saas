@@ -29,6 +29,7 @@ function compareMigrationFileNames(left: string, right: string): number {
 
 interface MigrationTableRow {
   name: string;
+  run_on: Date | string;
 }
 
 @Injectable()
@@ -150,6 +151,7 @@ export class AdminDatabaseService {
       migration_table_exists: table.exists,
       migration_files: migrationFiles,
       applied_migrations: table.applied,
+      applied_details: table.appliedDetails,
       pending_migrations: pendingMigrations,
       pending_count: pendingMigrations.length,
       errors,
@@ -186,16 +188,21 @@ export class AdminDatabaseService {
     }
   }
 
-  private async readAppliedMigrations(): Promise<{ exists: boolean; applied: string[]; errors: string[] }> {
+  private async readAppliedMigrations(): Promise<{ exists: boolean; applied: string[]; appliedDetails: { name: string; run_on: string }[]; errors: string[] }> {
     try {
       const tableResult = await this.database.query<{ table_name: string | null }>("SELECT to_regclass('pgmigrations') AS table_name");
       if (!tableResult.rows[0]?.table_name) {
-        return { exists: false, applied: [], errors: [] };
+        return { exists: false, applied: [], appliedDetails: [], errors: [] };
       }
-      const result = await this.database.query<MigrationTableRow>("SELECT name FROM pgmigrations ORDER BY run_on ASC, name ASC");
-      return { exists: true, applied: result.rows.map((row) => row.name), errors: [] };
+      const result = await this.database.query<MigrationTableRow>("SELECT name, run_on FROM pgmigrations ORDER BY run_on ASC, name ASC");
+      return {
+        exists: true,
+        applied: result.rows.map((row) => row.name),
+        appliedDetails: result.rows.map((row) => ({ name: row.name, run_on: new Date(row.run_on).toISOString() })),
+        errors: []
+      };
     } catch (error) {
-      return { exists: false, applied: [], errors: [`cannot read migration table: ${errorMessage(error)}`] };
+      return { exists: false, applied: [], appliedDetails: [], errors: [`cannot read migration table: ${errorMessage(error)}`] };
     }
   }
 
@@ -213,6 +220,7 @@ export class AdminDatabaseService {
       migration_table_exists: false,
       migration_files: [],
       applied_migrations: [],
+      applied_details: [],
       pending_migrations: [],
       pending_count: 0,
       errors: input.errors,

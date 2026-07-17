@@ -290,6 +290,8 @@ function refreshPermissionControls() {
   applyPermissionState("#retrySyncEvents", "tenant.sync.retry");
   applyPermissionState("#saveVideoFeatures", "platform.feature.write");
   applyPermissionState("#createQuotaAdjustment", "platform.commercial.write");
+  applyPermissionState("#openQuotaDialog", "platform.commercial.write");
+  applyPermissionState("#retryPlatformEvents", "platform.sync.retry");
   applyPermissionState("#loadDatabaseMigrations", "platform.database.read");
   applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
 }
@@ -464,12 +466,15 @@ function taskItem(item) {
   dot.className = `risk-dot ${item.tone}`;
   const title = document.createElement("strong");
   title.textContent = item.title;
+  const time = document.createElement("span");
+  time.className = "task-time";
+  time.textContent = item.time || "";
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "secondary";
+  button.className = "link-btn";
   button.textContent = item.action;
   button.addEventListener("click", () => showPage(item.page));
-  row.append(dot, title, button);
+  row.append(dot, title, time, button);
   return row;
 }
 
@@ -539,7 +544,7 @@ async function openMemberDrawer(item) {
   form.show_wechat.checked = Boolean(card.privacy?.show_wechat);
   form.allow_forward.checked = card.privacy?.allow_forward !== false;
   drawerFooter.replaceChildren(actionButton("保存名片", saveMemberCard, "secondary", "tenant.member.card.write"));
-  drawer.classList.remove("hidden");
+  showDrawer();
 }
 
 function escapeAttr(value) {
@@ -1038,10 +1043,10 @@ async function loadTenantCommercial() {
 async function loadPlatformCommercial() {
   const result = await adminRequest("/admin/platform/commercial");
   renderRows($("#platformPlanRows"), result.plans || [], 4, (item) => [
-    `<strong>${escapeHtml(item.name)}</strong><br><code>${escapeHtml(item.plan_key)}</code>`,
-    moneyText(item.price_cents, item.currency),
-    String(item.member_limit),
-    String(item.card_limit)
+    `<strong>${escapeHtml(item.name)}</strong>`,
+    `<code>${escapeHtml(item.plan_key)}</code>`,
+    `${moneyText(item.price_cents, item.currency)}${item.billing_period === "yearly" ? " / 年" : " / 月"}`,
+    tag("启用", "success")
   ]);
   renderRows($("#platformSubscriptionRows"), result.subscriptions || [], 5, (item) => [
     `<strong>${escapeHtml(item.tenant_name)}</strong><br><code>${escapeHtml(item.tenant_id)}</code>`,
@@ -1050,13 +1055,27 @@ async function loadPlatformCommercial() {
     quotaText(item.usage.member_count, item.plan.member_limit + item.quota_adjustments.member),
     quotaText(item.usage.active_card_count, item.plan.card_limit + item.quota_adjustments.card)
   ]);
-  renderRows($("#platformOrderRows"), result.orders || [], 5, (item) => [
+  const orders = result.orders || [];
+  renderRows($("#platformOrderRows"), orders, 6, (item) => [
     `<strong>${escapeHtml(item.tenant_name || "--")}</strong><br><code>${escapeHtml(item.tenant_id)}</code>`,
     `<code>${escapeHtml(item.order_no)}</code>`,
     escapeHtml(item.plan_key),
     moneyText(item.amount_cents, item.currency),
-    tag(item.status, statusTone(item.status))
+    tag(item.status, statusTone(item.status)),
+    formatDate(item.created_at)
   ]);
+  const exceptions = orders.filter((order) => !["paid", "success", "closed"].includes(String(order.status)));
+  const exceptionRoot = $("#platformOrderExceptionList");
+  if (!exceptions.length) {
+    exceptionRoot.innerHTML = `<p class="hint">暂无异常订单</p>`;
+  } else {
+    exceptionRoot.replaceChildren(...exceptions.slice(0, 8).map((order) => {
+      const row = document.createElement("div");
+      row.className = "task-item";
+      row.innerHTML = `<span class="risk-dot warning"></span><strong>${escapeHtml(order.tenant_name || order.tenant_id)} · ${escapeHtml(order.order_no)}（${escapeHtml(moneyText(order.amount_cents, order.currency))}）</strong><span class="task-time">${escapeHtml(formatDate(order.created_at))}</span>`;
+      return row;
+    }));
+  }
   return result;
 }
 
@@ -1126,16 +1145,31 @@ async function loadPlatformWecomEvents() {
     source: "#platformWecomSource",
     status: "#platformWecomStatus"
   });
+  const today = result.today || null;
+  $("#platformWecomTodaySuccess").textContent = today ? today.succeeded : "--";
+  $("#platformWecomTodayFailed").textContent = today ? today.failed : "--";
+  $("#platformWecomTodayRetry").textContent = today ? today.retryable : "--";
   renderRows($("#platformWecomRows"), result.items || [], 6, (item) => [
+    `<strong>${escapeHtml(item.event_type)}</strong><br><code>${escapeHtml(sourceLabel(item.source))}</code>`,
     tenantCell(item),
-    eventCell(item),
-    sourceLabel(item.source),
-    tag(item.status, statusTone(item.status)),
-    String(item.retry_count),
-    formatDate(item.received_at)
+    tag(item.status === "failed" && item.retry_count < 5 ? "可重试失败" : item.status, item.status === "failed" && item.retry_count < 5 ? "warning" : statusTone(item.status)),
+    formatDate(item.received_at),
+    `<span class="error-cell">${escapeHtml(item.last_error || "--")}</span>`,
+    ["failed", "dead"].includes(item.status) && item.tenant_id
+      ? linkButton("重试", () => retryTenantEvents(item.tenant_id))
+      : ""
   ]);
   $("#platformWecomTotal").textContent = `${result.total || 0} 条事件`;
   return result;
+}
+
+async function retryTenantEvents(tenantId) {
+  if (!requirePermission("platform.sync.retry")) return;
+  const ok = await confirmAction({ title: "确认重试", body: "将重新处理该企业可重试的失败回调事件。", danger: true });
+  if (!ok) return;
+  const result = await run("重试失败事件", () => adminRequest("/admin/platform/audit-events/retry", { method: "POST", body: { tenant_id: String(tenantId) } }));
+  notify(`重试 ${result.retried_count} 条 · 成功 ${result.succeeded_count} · 失败 ${result.failed_count}`);
+  await loadPlatformWecomEvents();
 }
 
 async function loadPlatformAuditEvents() {
@@ -1145,11 +1179,11 @@ async function loadPlatformAuditEvents() {
     status: "#platformAuditStatus"
   });
   renderRows($("#platformAuditRows"), result.items || [], 6, (item) => [
+    formatDate(item.received_at),
     tenantCell(item),
     eventCell(item),
     tag(item.status, statusTone(item.status)),
-    escapeHtml(item.last_error || "--"),
-    formatDate(item.received_at),
+    `<span class="error-cell">${escapeHtml(item.last_error || "--")}</span>`,
     formatDate(item.processed_at)
   ]);
   $("#platformAuditTotal").textContent = `${result.total || 0} 条事件`;
@@ -1171,16 +1205,31 @@ async function loadPlatformAccounts() {
     ["status", "#platformAccountStatus"]
   ]);
   const result = await adminRequest(`/admin/platform/accounts?${query}`);
-  renderRows($("#platformAccountRows"), result.items || [], 6, (item) => [
+  renderRows($("#platformAccountRows"), result.items || [], 5, (item) => [
     `<strong>${escapeHtml(item.username)}</strong><br><code>${escapeHtml(item.admin_id)}</code>`,
     tag(roleLabel(item.role), roleTone(item.role)),
-    tag(item.status === "active" ? "启用" : item.status, statusTone(item.status)),
+    tag(item.status === "active" ? "启用" : "已禁用", statusTone(item.status)),
     formatDate(item.password_updated_at),
-    formatDate(item.created_at),
-    formatDate(item.updated_at)
+    item.status === "active"
+      ? linkButton("禁用", () => updateAccountStatus(item, "disabled"), "link-btn danger-link")
+      : linkButton("启用", () => updateAccountStatus(item, "active"))
   ]);
   $("#platformAccountTotal").textContent = `${result.total || 0} 个账号`;
   return result;
+}
+
+async function updateAccountStatus(item, status) {
+  if (!requirePermission("platform.account.write")) return;
+  const label = status === "disabled" ? "禁用" : "启用";
+  const ok = await confirmAction({
+    title: `确认${label}账号`,
+    body: `将${label}平台账号「${item.username}」。${status === "disabled" ? "禁用后该账号将无法登录系统后台。" : ""}`,
+    danger: status === "disabled"
+  });
+  if (!ok) return;
+  await run(`${label}账号`, () => adminRequest(`/admin/platform/accounts/${encodeURIComponent(item.admin_id)}`, { method: "PATCH", body: { status } }));
+  notify(`账号已${label}`);
+  await loadPlatformAccounts();
 }
 
 function roleLabel(role) {
@@ -1204,28 +1253,111 @@ function eventCell(item) {
 }
 
 async function loadPlatformDashboard() {
-  const [tenants, video, migrations] = await Promise.all([
+  const [tenants, events, commercial, video, migrations] = await Promise.all([
     adminRequest("/admin/platform/tenants?page=1&page_size=20&status=all"),
+    adminRequest("/admin/platform/audit-events?status=all&source=all&search=").catch(() => null),
+    adminRequest("/admin/platform/commercial").catch(() => null),
     adminRequest("/admin/platform/features/company-video").catch(() => null),
     adminRequest("/admin/database/migrations").catch(() => null)
   ]);
-  const active = (tenants.items || []).filter((item) => item.auth_status === "active").length;
-  $("#platformTenantCount").textContent = tenants.total || 0;
-  $("#platformActiveTenantCount").textContent = active;
-  $("#platformVideoStatus").textContent = video?.enabled ? "已启用" : "未启用";
-  $("#platformPendingMigrations").textContent = migrations?.pending?.length ?? "--";
-  renderPlatformRisks(tenants, video, migrations);
-  return { tenants, video, migrations };
+  const summary = tenants.summary || {};
+  const unhealthy = summary.unhealthy_count ?? (tenants.items || []).filter((item) => item.authorization_healthy === false).length;
+  const today = events?.today || null;
+  const failedToday = today ? today.failed : (events?.items || []).filter((item) => ["failed", "dead"].includes(item.status)).length;
+  const pendingOrders = (commercial?.orders || []).filter((order) => !["paid", "success", "closed"].includes(String(order.status))).length;
+  const quotaRisk = (commercial?.subscriptions || []).filter((sub) => {
+    const memberLimit = sub.plan.member_limit + sub.quota_adjustments.member;
+    const cardLimit = sub.plan.card_limit + sub.quota_adjustments.card;
+    return (memberLimit > 0 && sub.usage.member_count / memberLimit >= 0.9) || (cardLimit > 0 && sub.usage.active_card_count / cardLimit >= 0.9);
+  }).length;
+  $("#platformTenantCount").textContent = tenants.total ?? 0;
+  $("#platformUnhealthyCount").textContent = unhealthy;
+  $("#platformTodayFailed").textContent = failedToday;
+  $("#platformPendingOrders").textContent = pendingOrders;
+  $("#platformQuotaRisk").textContent = quotaRisk;
+  renderPlatformRisks({ tenants, events, commercial, video, migrations, unhealthy, failedToday, pendingOrders, quotaRisk });
+  renderCallbackChart(events?.items || []);
+  return { tenants, events, commercial, video, migrations };
 }
 
-function renderPlatformRisks(tenants, video, migrations) {
+function renderPlatformRisks(context) {
   const risks = [];
-  const cancelled = (tenants.items || []).filter((item) => item.auth_status !== "active").length;
-  risks.push({ tone: cancelled > 0 ? "warning" : "success", title: cancelled > 0 ? `${cancelled} 家企业授权需检查` : "授权企业状态正常", action: "企业授权", page: "platform-tenants" });
-  risks.push({ tone: video?.enabled ? "success" : "muted", title: video?.enabled ? "平台视频能力已启用" : "平台视频能力未启用", action: "功能开关", page: "platform-features" });
-  const pending = migrations?.pending?.length ?? 0;
-  risks.push({ tone: pending > 0 ? "danger" : "success", title: pending > 0 ? `${pending} 个数据库迁移待执行` : "数据库迁移已同步", action: "运维", page: "platform-ops" });
+  const pendingMigrations = context.migrations?.pending_count ?? context.migrations?.pending?.length ?? 0;
+  const lastEvent = (context.events?.items || [])[0];
+  risks.push({
+    tone: context.unhealthy > 0 ? "warning" : "success",
+    title: context.unhealthy > 0 ? `${context.unhealthy} 家企业授权异常，需要检查` : "授权企业状态正常",
+    time: "",
+    action: "企业授权",
+    page: "platform-tenants"
+  });
+  risks.push({
+    tone: context.failedToday > 0 ? "danger" : "success",
+    title: context.failedToday > 0 ? `今日 ${context.failedToday} 条回调失败` : "今日回调全部成功",
+    time: lastEvent ? formatDate(lastEvent.received_at) : "",
+    action: "授权与回调",
+    page: "platform-wecom"
+  });
+  risks.push({
+    tone: context.pendingOrders > 0 ? "warning" : "success",
+    title: context.pendingOrders > 0 ? `${context.pendingOrders} 笔订单待处理` : "订单处理正常",
+    time: "",
+    action: "商业化",
+    page: "platform-commercial"
+  });
+  risks.push({
+    tone: pendingMigrations > 0 ? "danger" : "success",
+    title: pendingMigrations > 0 ? `${pendingMigrations} 个数据库迁移待执行` : "数据库迁移已同步",
+    time: "",
+    action: "运维",
+    page: "platform-ops"
+  });
+  risks.push({
+    tone: context.video?.enabled ? "success" : "muted",
+    title: context.video?.enabled ? "平台视频能力已启用" : "平台视频能力未启用",
+    time: "",
+    action: "功能开关",
+    page: "platform-features"
+  });
   $("#platformRiskList").replaceChildren(...risks.map(taskItem));
+}
+
+function renderCallbackChart(items) {
+  const root = $("#platformCallbackChart");
+  const buckets = [];
+  const now = Date.now();
+  for (let index = 23; index >= 0; index -= 1) {
+    const start = new Date(now - index * 3600000);
+    buckets.push({ hour: start.getHours(), key: `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}-${start.getHours()}`, ok: 0, bad: 0 });
+  }
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  items.forEach((item) => {
+    const date = new Date(item.received_at);
+    if (Number.isNaN(date.getTime()) || now - date.getTime() > 24 * 3600000) return;
+    const bucket = byKey.get(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`);
+    if (!bucket) return;
+    if (["failed", "dead"].includes(item.status)) bucket.bad += 1;
+    else bucket.ok += 1;
+  });
+  const max = Math.max(1, ...buckets.map((bucket) => Math.max(bucket.ok, bucket.bad)));
+  root.replaceChildren(...buckets.map((bucket) => {
+    const column = document.createElement("div");
+    column.className = "chart-col";
+    column.title = `${bucket.hour}:00 · 成功 ${bucket.ok} · 失败 ${bucket.bad}`;
+    const bars = document.createElement("div");
+    bars.className = "chart-bars";
+    const ok = document.createElement("i");
+    ok.className = "bar ok";
+    ok.style.height = `${Math.max(2, Math.round((bucket.ok / max) * 100))}%`;
+    const bad = document.createElement("i");
+    bad.className = "bar bad";
+    bad.style.height = `${Math.max(2, Math.round((bucket.bad / max) * 100))}%`;
+    bars.append(ok, bad);
+    const label = document.createElement("span");
+    label.textContent = bucket.hour % 4 === 0 ? `${bucket.hour}时` : "";
+    column.append(bars, label);
+    return column;
+  }));
 }
 
 async function loadTenantAuthorizations(page = state.tenantAuthorizations.page) {
@@ -1248,13 +1380,19 @@ async function loadTenantAuthorizations(page = state.tenantAuthorizations.page) 
 
 function renderTenantAuthorizations() {
   const current = state.tenantAuthorizations;
-  renderRows($("#tenantAuthorizationRows"), current.items, 6, (item) => [
-    `<strong>${escapeHtml(item.tenant_name)}</strong><br><code>${escapeHtml(item.open_corpid)}</code>`,
-    tag(item.auth_status === "active" ? "授权有效" : item.auth_status, statusTone(item.auth_status)),
+  renderRows($("#tenantAuthorizationRows"), current.items, 8, (item) => [
+    `<strong>${escapeHtml(item.tenant_name)}</strong>`,
+    `<code>${escapeHtml(item.open_corpid)}</code>`,
+    tag(item.auth_status === "active" ? "授权有效" : "已取消授权", statusTone(item.auth_status)),
+    item.authorization_healthy === undefined
+      ? tag("未知", "muted")
+      : item.authorization_healthy
+        ? tag("正常", "success")
+        : tag("需检查", "warning"),
     `${item.active_member_count} / ${item.member_count}`,
     `${item.active_card_count} / ${item.card_count}`,
     formatDate(item.authorized_at),
-    actionButton("查看详情", () => openTenantDetail(item.tenant_id), "secondary")
+    linkButton("查看详情", () => openTenantDetail(item.tenant_id))
   ]);
   const totalPages = Math.max(1, Math.ceil(current.total / current.pageSize));
   $("#tenantAuthorizationPage").textContent = `第 ${current.page} / ${totalPages} 页`;
@@ -1263,29 +1401,94 @@ function renderTenantAuthorizations() {
   $("#tenantAuthorizationTotal").textContent = `${current.total} 家企业`;
 }
 
+function linkButton(label, handler, className = "link-btn") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.textContent = label;
+  button.addEventListener("click", handler);
+  return button;
+}
+
+function maskAgentId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "--";
+  if (text.length <= 3) return `${text[0]}**`;
+  return `${text.slice(0, 2)}****${text.slice(-2)}`;
+}
+
 async function openTenantDetail(tenantId) {
   const item = await run("读取企业授权详情", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}`));
   drawerTitle.textContent = item.tenant_name;
   drawerSubtitle.textContent = item.open_corpid;
-  const fields = [
-    ["授权健康", item.authorization_healthy ? "正常" : "需要检查"],
-    ["授权状态", item.auth_status],
-    ["AgentID", item.agent_id || "--"],
-    ["安装时间", formatDate(item.authorized_at)],
-    ["取消时间", formatDate(item.cancel_auth_time)],
-    ["成员", `${item.active_member_count} 活跃 / ${item.member_count} 总数`],
-    ["管理员", `${item.active_admin_count} 活跃 / ${item.admin_count} 总数`],
-    ["名片", `${item.active_card_count} 启用 / ${item.card_count} 总数`],
-    ["永久授权码", item.permanent_code_configured ? "已安全保存" : "未配置"],
-    ["企业 Token", item.corp_token_cached ? `已缓存，${formatDate(item.corp_token_expires_at)} 到期` : "未缓存"],
-    ["最近回调", item.last_callback ? `${item.last_callback.event_type} · ${item.last_callback.status}` : "暂无"],
-    ["回调时间", formatDate(item.last_callback?.received_at)]
-  ];
-  drawerBody.innerHTML = `<div class="detail-grid">${fields.map(([label, value]) => `
-    <div class="detail-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
-  `).join("")}</div><h3 style="margin-top:16px">授权范围</h3><pre class="output">${escapeHtml(JSON.stringify(item.auth_scope || {}, null, 2))}</pre>`;
-  drawerFooter.replaceChildren();
-  drawer.classList.remove("hidden");
+  drawerBody.innerHTML = `
+    <section class="drawer-section">
+      <h3>授权状态</h3>
+      <div class="kv-list">
+        <div class="kv-row"><span>状态</span><strong>${item.auth_status === "active" ? tag("授权有效", "success") : tag("已取消授权", "danger")}</strong></div>
+        <div class="kv-row"><span>授权健康</span><strong>${item.authorization_healthy ? tag("正常", "success") : tag("需检查", "warning")}</strong></div>
+        <div class="kv-row"><span>安装时间</span><strong>${escapeHtml(formatDate(item.authorized_at))}</strong></div>
+        <div class="kv-row"><span>AgentID</span><strong><code>${escapeHtml(maskAgentId(item.agent_id))}</code></strong></div>
+      </div>
+    </section>
+    <section class="drawer-section">
+      <h3>安全凭据</h3>
+      <div class="kv-list">
+        <div class="kv-row"><span>凭据已配置</span><strong>${item.permanent_code_configured ? "是" : tag("未配置", "warning")}</strong></div>
+        <div class="kv-row"><span>凭据已缓存</span><strong>${item.corp_token_cached ? "是" : "否"}</strong></div>
+        <div class="kv-row"><span>到期时间</span><strong>${escapeHtml(formatDate(item.corp_token_expires_at))}</strong></div>
+      </div>
+    </section>
+    <section class="drawer-section">
+      <h3>企业规模</h3>
+      <div class="drawer-metrics">
+        <div class="drawer-metric"><span>成员</span><strong>${item.active_member_count}<small> / ${item.member_count}</small></strong></div>
+        <div class="drawer-metric"><span>名片</span><strong>${item.active_card_count}<small> / ${item.card_count}</small></strong></div>
+        <div class="drawer-metric"><span>管理员</span><strong>${item.active_admin_count}<small> / ${item.admin_count}</small></strong></div>
+      </div>
+    </section>
+    <section class="drawer-section">
+      <h3>最近回调</h3>
+      <div id="drawerCallbackList" class="drawer-callbacks"><p class="hint">加载中...</p></div>
+    </section>
+  `;
+  drawerFooter.replaceChildren(
+    actionButton("重新同步", async () => {
+      const ok = await confirmAction({ title: "确认重新同步", body: `将从企业微信重新拉取「${item.tenant_name}」的通讯录并更新成员状态。`, danger: true });
+      if (!ok) return;
+      await run("重新同步", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}/sync`, { method: "POST", timeoutMs: 60000 }));
+      notify("重新同步已完成");
+      await openTenantDetail(tenantId);
+    }, "secondary"),
+    actionButton("重试失败事件", async () => {
+      const ok = await confirmAction({ title: "确认重试失败事件", body: `将重新处理「${item.tenant_name}」可重试的失败回调事件。`, danger: true });
+      if (!ok) return;
+      const result = await run("重试失败事件", () => adminRequest("/admin/platform/audit-events/retry", { method: "POST", body: { tenant_id: String(tenantId) } }));
+      notify(`重试 ${result.retried_count} 条 · 成功 ${result.succeeded_count} · 失败 ${result.failed_count}`);
+      await openTenantDetail(tenantId);
+    }, "secondary danger-lite")
+  );
+  showDrawer();
+  const events = await adminRequest(`/admin/platform/audit-events?search=${encodeURIComponent(item.tenant_name)}&status=all&source=all`).catch(() => null);
+  const list = $("#drawerCallbackList", drawerBody);
+  if (!list) return;
+  const recent = (events?.items || []).slice(0, 5);
+  if (!recent.length) {
+    list.innerHTML = `<p class="hint">暂无回调记录</p>`;
+    return;
+  }
+  list.replaceChildren(...recent.map((event) => {
+    const row = document.createElement("div");
+    row.className = "callback-row";
+    const main = document.createElement("div");
+    main.className = "callback-main";
+    main.innerHTML = `<strong>${escapeHtml(event.event_type)}</strong><span>${escapeHtml(sourceLabel(event.source))}</span>`;
+    const side = document.createElement("div");
+    side.className = "callback-side";
+    side.innerHTML = `${tag(event.status, statusTone(event.status))}<span>${escapeHtml(formatDate(event.received_at))}</span>`;
+    row.append(main, side);
+    return row;
+  }));
 }
 
 async function loadVideoFeatures() {
@@ -1297,6 +1500,8 @@ async function loadVideoFeatures() {
   $("#platformVideoEnabled").checked = platform.enabled;
   $("#platformVideoLimit").value = platform.default_limit_mb;
   state.tenantFeatures = tenants.items || [];
+  const overrideCount = state.tenantFeatures.filter((item) => item.source === "tenant_override").length;
+  $("#platformVideoOverrideCount").textContent = search.trim() ? `${overrideCount}+` : String(overrideCount);
   renderTenantFeatures();
   return { platform, tenants };
 }
@@ -1337,10 +1542,16 @@ function renderTenantFeatures() {
 }
 
 async function loadDatabaseMigrations() {
-  const result = await adminRequest("/admin/database/migrations");
+  const [result, ready] = await Promise.all([
+    adminRequest("/admin/database/migrations"),
+    request("/health/ready", { auth: false, timeoutMs: 5000 }).catch(() => null)
+  ]);
+  renderHealthCards(result, ready);
   const pending = result.pending_migrations || [];
   const files = result.migration_files || [];
-  $("#databaseDir").textContent = result.database_dir || result.databaseDir || "--";
+  const appliedDetails = result.applied_details || [];
+  const runOnByName = new Map(appliedDetails.map((item) => [item.name, item.run_on]));
+  $("#databaseDir").textContent = result.database_dir || "--";
   $("#databaseMigrationFiles").textContent = String(files.length);
   $("#databasePendingCount").textContent = String(result.pending_count ?? pending.length);
   const rows = files.length ? files.map((file) => ({
@@ -1348,16 +1559,31 @@ async function loadDatabaseMigrations() {
     file: String(file),
     status: pending.some((p) => p.file_name === file || p.name === String(file).replace(/\.sql$/, "")) ? "pending" : "applied"
   })) : pending.map((item) => ({ name: item.name, file: item.file_name, status: "pending" }));
-  renderRows($("#databaseMigrationRows"), rows, 3, (item) => [
-    escapeHtml(item.name),
-    `<code>${escapeHtml(item.file)}</code>`,
-    tag(item.status === "pending" ? "待执行" : "已执行", item.status === "pending" ? "warning" : "success")
+  renderRows($("#databaseMigrationRows"), rows, 4, (item) => [
+    `<strong>${escapeHtml(item.name)}</strong><br><code>${escapeHtml(item.file)}</code>`,
+    tag(item.status === "pending" ? "待执行" : "已完成", item.status === "pending" ? "warning" : "success"),
+    item.status === "pending" ? "--" : formatDate(runOnByName.get(item.name)),
+    item.status === "pending" ? tag("等待执行", "muted") : ""
   ]);
   return result;
 }
 
+function renderHealthCards(migrations, ready) {
+  const databaseOk = Boolean(ready?.database?.ok) || (migrations?.configured && !(migrations?.errors || []).length);
+  $("#healthDatabase").innerHTML = databaseOk ? tag("正常", "success") : tag("需检查", "warning");
+  $("#healthQueue").innerHTML = tag("未接入", "muted");
+  $("#healthCache").innerHTML = tag("未接入", "muted");
+  $("#healthWecomApi").innerHTML = tag("未监控", "muted");
+}
+
+function showDrawer() {
+  drawer.classList.remove("hidden");
+  $("#drawerBackdrop").classList.remove("hidden");
+}
+
 function closeDrawer() {
   drawer.classList.add("hidden");
+  $("#drawerBackdrop").classList.add("hidden");
   drawerBody.replaceChildren();
   drawerFooter.replaceChildren();
 }
@@ -1626,6 +1852,14 @@ $("#tenantAuthorizationStatus").addEventListener("change", () => run("筛选企�
 $("#tenantAuthorizationPrev").addEventListener("click", () => run("上一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page - 1)));
 $("#tenantAuthorizationNext").addEventListener("click", () => run("下一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page + 1)));
 $("#loadPlatformWecomEvents").addEventListener("click", () => run("刷新回调", loadPlatformWecomEvents));
+$("#retryPlatformEvents").addEventListener("click", async () => {
+  if (!requirePermission("platform.sync.retry")) return;
+  const ok = await confirmAction({ title: "确认重试失败事件", body: "将重新处理全平台可重试的失败回调事件。", danger: true });
+  if (!ok) return;
+  const result = await run("重试失败事件", () => adminRequest("/admin/platform/audit-events/retry", { method: "POST", body: {} }));
+  notify(`重试 ${result.retried_count} 条 · 成功 ${result.succeeded_count} · 失败 ${result.failed_count}`);
+  await loadPlatformWecomEvents();
+});
 $("#searchPlatformWecomEvents").addEventListener("click", () => run("搜索回调", loadPlatformWecomEvents));
 $("#platformWecomSearch").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -1636,6 +1870,12 @@ $("#platformWecomSearch").addEventListener("keydown", (event) => {
 $("#platformWecomSource").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
 $("#platformWecomStatus").addEventListener("change", () => run("筛选回调", loadPlatformWecomEvents));
 $("#loadPlatformCommercial").addEventListener("click", () => run("刷新商业化", loadPlatformCommercial));
+$("#openQuotaDialog").addEventListener("click", () => {
+  if (!requirePermission("platform.commercial.write")) return;
+  $("#quotaIdempotencyKey").value = `quota-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  $("#quotaDialog").showModal();
+});
+$("#quotaCancel").addEventListener("click", () => $("#quotaDialog").close());
 $("#createQuotaAdjustment").addEventListener("click", async () => {
   if (!requirePermission("platform.commercial.write")) return;
   const body = {
@@ -1643,8 +1883,12 @@ $("#createQuotaAdjustment").addEventListener("click", async () => {
     quota_type: $("#quotaType").value,
     delta: Number($("#quotaDelta").value),
     reason: $("#quotaReason").value.trim(),
-    idempotency_key: $("#quotaIdempotencyKey").value.trim()
+    idempotency_key: $("#quotaIdempotencyKey").value.trim() || `quota-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   };
+  if (!body.tenant_id || !body.reason || !Number.isFinite(body.delta) || body.delta === 0) {
+    notify("请完整填写企业 ID、非零变化量和原因", "danger");
+    return;
+  }
   const ok = await confirmAction({
     title: "确认写入额度调整",
     body: "额度调整会写入真实账本并影响企业额度展示，请确认企业 ID、变化量和原因。",
@@ -1652,6 +1896,8 @@ $("#createQuotaAdjustment").addEventListener("click", async () => {
   });
   if (ok) {
     await run("写入额度调整", () => adminRequest("/admin/platform/commercial/quota-adjustments", { method: "POST", body }));
+    $("#quotaDialog").close();
+    notify("额度调整已写入");
     await loadPlatformCommercial();
   }
 });
@@ -1682,7 +1928,14 @@ $("#runDatabaseMigrations").addEventListener("click", async () => {
     danger: true
   });
   if (ok) {
-    await run("执行迁移", () => adminRequest("/admin/database/migrations/run", { method: "POST", timeoutMs: 130000 }));
+    const result = await run("执行迁移", () => adminRequest("/admin/database/migrations/run", { method: "POST", timeoutMs: 130000 }));
+    if (result) {
+      drawerTitle.textContent = "迁移执行日志";
+      drawerSubtitle.textContent = result.ran ? "迁移已执行" : "没有待执行的迁移";
+      drawerBody.innerHTML = `<pre class="output">${escapeHtml([result.stdout, result.stderr].filter(Boolean).join("\n\n") || "（无输出）")}</pre>`;
+      drawerFooter.replaceChildren();
+      showDrawer();
+    }
     await loadDatabaseMigrations();
   }
 });
@@ -1706,6 +1959,7 @@ $("#platformAccountSearch").addEventListener("keydown", (event) => {
 });
 $("#platformAccountStatus").addEventListener("change", () => run("筛选系统账号", loadPlatformAccounts));
 $("#closeDrawer").addEventListener("click", closeDrawer);
+$("#drawerBackdrop").addEventListener("click", closeDrawer);
 $$("[data-go]").forEach((node) => node.addEventListener("click", () => showPage(node.dataset.go)));
 
 if (DEV_MODE) {

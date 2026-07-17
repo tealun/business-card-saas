@@ -64,7 +64,19 @@ export const adminEventSummarySchema = z.object({
 
 export const adminEventListResponseSchema = z.object({
   items: z.array(adminEventSummarySchema),
-  total: z.number().int().nonnegative()
+  total: z.number().int().nonnegative(),
+  today: z
+    .object({
+      received: z.number().int().nonnegative(),
+      succeeded: z.number().int().nonnegative(),
+      failed: z.number().int().nonnegative(),
+      retryable: z.number().int().nonnegative()
+    })
+    .optional()
+});
+
+export const updatePlatformAdminStatusRequestSchema = z.object({
+  status: z.enum(["active", "disabled"])
 });
 
 export type AdminListQuery = z.infer<typeof adminListQuerySchema>;
@@ -72,3 +84,4 @@ export type AdminEventQuery = z.infer<typeof adminEventQuerySchema>;
 export type TenantAdminListResponse = z.infer<typeof tenantAdminListResponseSchema>;
 export type PlatformAdminListResponse = z.infer<typeof platformAdminListResponseSchema>;
 export type AdminEventListResponse = z.infer<typeof adminEventListResponseSchema>;
+export type UpdatePlatformAdminStatusRequest = z.infer<typeof updatePlatformAdminStatusRequestSchema>;

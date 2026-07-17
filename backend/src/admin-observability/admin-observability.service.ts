@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { AdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requireAdminRole, requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
@@ -14,6 +14,8 @@ import {
 } from "../contracts/admin-observability.js";
 import { AdminObservabilityRepository } from "./admin-observability.repository.js";
 
+const PLATFORM_USER_PREFIX = "platform:";
+
 @Injectable()
 export class AdminObservabilityService {
   constructor(private readonly repository: AdminObservabilityRepository) {}
@@ -26,6 +28,18 @@ export class AdminObservabilityService {
   async listPlatformAdmins(session: AdminSession, query: AdminListQuery): Promise<PlatformAdminListResponse> {
     requirePlatformAdminRole(session, "owner");
     return platformAdminListResponseSchema.parse(await this.repository.listPlatformAdmins(query));
+  }
+
+  async updatePlatformAdminStatus(session: AdminSession, adminId: string, status: "active" | "disabled") {
+    requirePlatformAdminRole(session, "owner");
+    const currentUsername = session.openUserid.startsWith(PLATFORM_USER_PREFIX)
+      ? session.openUserid.slice(PLATFORM_USER_PREFIX.length)
+      : session.openUserid;
+    const updated = await this.repository.updatePlatformAdminStatus(adminId, status, currentUsername);
+    if (!updated) {
+      throw new NotFoundException("platform admin not found or cannot change own status");
+    }
+    return updated;
   }
 
   async listTenantAuditEvents(session: AdminSession, query: AdminEventQuery): Promise<AdminEventListResponse> {

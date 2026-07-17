@@ -14,6 +14,7 @@ export interface PlatformTenantListRecord {
   activeMemberCount: number;
   cardCount: number;
   activeCardCount: number;
+  permanentCodeConfigured: boolean;
 }
 
 export interface PlatformTenantDetailRecord extends PlatformTenantListRecord {
@@ -47,7 +48,14 @@ interface TenantListRow extends QueryResultRow {
   active_member_count: string | number | bigint;
   card_count: string | number | bigint;
   active_card_count: string | number | bigint;
+  permanent_code_configured: boolean;
   total_count?: string | number | bigint;
+}
+
+interface TenantSummaryRow extends QueryResultRow {
+  active_count: string | number | bigint;
+  cancelled_count: string | number | bigint;
+  unhealthy_count: string | number | bigint;
 }
 
 interface TenantDetailRow extends TenantListRow {
@@ -87,6 +95,7 @@ export class PlatformTenantRepository {
           t.agent_id,
           t.authorized_at,
           t.updated_at,
+          (t.permanent_code_encrypted IS NOT NULL) AS permanent_code_configured,
           (SELECT count(*) FROM member_identities m WHERE m.tenant_id = t.id) AS member_count,
           (SELECT count(*) FROM member_identities m WHERE m.tenant_id = t.id AND m.status = 'active') AS active_member_count,
           (SELECT count(*) FROM cards c WHERE c.tenant_id = t.id) AS card_count,
@@ -104,6 +113,25 @@ export class PlatformTenantRepository {
     return {
       items: result.rows.map((row) => this.toListRecord(row)),
       total: Number(result.rows[0]?.total_count ?? 0)
+    };
+  }
+
+  async summary(): Promise<{ activeCount: number; cancelledCount: number; unhealthyCount: number }> {
+    const result = await this.database.query<TenantSummaryRow>(
+      `
+        SELECT
+          count(*) FILTER (WHERE auth_status = 'active') AS active_count,
+          count(*) FILTER (WHERE auth_status <> 'active') AS cancelled_count,
+          count(*) FILTER (WHERE auth_status <> 'active' OR permanent_code_encrypted IS NULL) AS unhealthy_count
+        FROM tenants
+        WHERE tenant_type = 'enterprise'
+      `
+    );
+    const row = result.rows[0];
+    return {
+      activeCount: Number(row?.active_count ?? 0),
+      cancelledCount: Number(row?.cancelled_count ?? 0),
+      unhealthyCount: Number(row?.unhealthy_count ?? 0)
     };
   }
 
@@ -188,7 +216,8 @@ export class PlatformTenantRepository {
       memberCount: Number(row.member_count),
       activeMemberCount: Number(row.active_member_count),
       cardCount: Number(row.card_count),
-      activeCardCount: Number(row.active_card_count)
+      activeCardCount: Number(row.active_card_count),
+      permanentCodeConfigured: row.permanent_code_configured === true
     };
   }
 }

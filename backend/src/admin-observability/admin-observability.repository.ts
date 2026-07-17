@@ -179,6 +179,7 @@ export class AdminObservabilityRepository {
       `,
       filters.values
     );
+    const today = await this.eventTodayStats(tenantId);
     return {
       items: result.rows.map((row) => ({
         event_id: String(row.event_id),
@@ -194,7 +195,66 @@ export class AdminObservabilityRepository {
         processed_at: row.processed_at ? iso(row.processed_at) : null,
         last_error: row.last_error ? row.last_error.slice(0, 240) : null
       })),
-      total: Number(result.rows[0]?.total_count ?? 0)
+      total: Number(result.rows[0]?.total_count ?? 0),
+      today
+    };
+  }
+
+  private async eventTodayStats(tenantId: string | null): Promise<{ received: number; succeeded: number; failed: number; retryable: number }> {
+    const values: unknown[] = [];
+    let tenantClause = "";
+    if (tenantId !== null) {
+      values.push(tenantId);
+      tenantClause = "AND tenant_id = $1";
+    }
+    const result = await this.database!.query<{
+      received: string | number | bigint;
+      succeeded: string | number | bigint;
+      failed: string | number | bigint;
+      retryable: string | number | bigint;
+    }>(
+      `
+        SELECT
+          count(*) AS received,
+          count(*) FILTER (WHERE status = 'done') AS succeeded,
+          count(*) FILTER (WHERE status IN ('failed', 'dead')) AS failed,
+          count(*) FILTER (WHERE status = 'failed' AND retry_count < 5) AS retryable
+        FROM callback_events
+        WHERE received_at >= now() - interval '24 hours'
+          ${tenantClause}
+      `,
+      values
+    );
+    const row = result.rows[0];
+    return {
+      received: Number(row?.received ?? 0),
+      succeeded: Number(row?.succeeded ?? 0),
+      failed: Number(row?.failed ?? 0),
+      retryable: Number(row?.retryable ?? 0)
+    };
+  }
+
+  async updatePlatformAdminStatus(adminId: string, status: "active" | "disabled", currentUsername: string): Promise<PlatformAdminListResponse["items"][number] | null> {
+    if (!this.hasPlatformDatabase()) return null;
+    const result = await this.database!.query<PlatformAdminRow>(
+      `
+        UPDATE platform_admins
+        SET status = $2, updated_at = now()
+        WHERE id = $1 AND username <> $3
+        RETURNING id AS admin_id, username, role, status, password_updated_at, created_at, updated_at
+      `,
+      [adminId, status, currentUsername]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      admin_id: String(row.admin_id),
+      username: row.username,
+      role: row.role,
+      status: row.status,
+      password_updated_at: row.password_updated_at ? iso(row.password_updated_at) : null,
+      created_at: iso(row.created_at),
+      updated_at: iso(row.updated_at)
     };
   }
 

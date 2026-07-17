@@ -1,7 +1,7 @@
-import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from "@nestjs/common";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
-import { adminEventQuerySchema, adminListQuerySchema } from "../contracts/admin-observability.js";
+import { adminEventQuerySchema, adminListQuerySchema, updatePlatformAdminStatusRequestSchema } from "../contracts/admin-observability.js";
 import { AdminObservabilityService } from "./admin-observability.service.js";
 
 @Controller("admin")
@@ -22,6 +22,12 @@ export class AdminObservabilityController {
   @Get("platform/accounts")
   platformAccounts(@Req() request: AdminRequest, @Query() query: unknown) {
     return this.observability.listPlatformAdmins(requireAdminSession(request), adminListQuerySchema.parse(query));
+  }
+
+  @Patch("platform/accounts/:adminId")
+  updatePlatformAccountStatus(@Req() request: AdminRequest, @Param("adminId") adminId: string, @Body() body: unknown) {
+    const input = updatePlatformAdminStatusRequestSchema.parse(body);
+    return this.observability.updatePlatformAdminStatus(requireAdminSession(request), adminId, input.status);
   }
 
   @Get("platform/audit-events")

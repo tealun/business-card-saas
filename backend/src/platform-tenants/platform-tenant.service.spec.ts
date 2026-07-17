@@ -24,12 +24,14 @@ const listItem = {
   memberCount: 3,
   activeMemberCount: 2,
   cardCount: 3,
-  activeCardCount: 2
+  activeCardCount: 2,
+  permanentCodeConfigured: true
 };
 
 function createRepository() {
   return {
     list: jest.fn(async () => ({ items: [listItem], total: 1 })),
+    summary: jest.fn(async () => ({ activeCount: 1, cancelledCount: 0, unhealthyCount: 0 })),
     getById: jest.fn(async (tenantId: string) => tenantId === "2" ? {
       ...listItem,
       authScope: { auth_user: ["ou001"] },
@@ -52,19 +54,33 @@ function createRepository() {
   };
 }
 
+function createContactSync() {
+  return {
+    syncTenantMembers: jest.fn(async () => ({ tenantId: "2", syncedCount: 5, skippedCount: 1, disabledCount: 0 }))
+  };
+}
+
+function createService(repository = createRepository(), contactSync = createContactSync()) {
+  return {
+    service: new PlatformTenantService(repository as never, contactSync as never),
+    repository,
+    contactSync
+  };
+}
+
 describe("PlatformTenantService", () => {
   it("lists enterprise authorization details for platform administrators", async () => {
-    const repository = createRepository();
-    const service = new PlatformTenantService(repository as never);
+    const { service, repository } = createService();
     await expect(service.list(platformSession, { search: "测试", status: "active" })).resolves.toMatchObject({
       total: 1,
-      items: [{ tenant_id: "2", tenant_name: "测试企业", member_count: 3 }]
+      summary: { active_count: 1, cancelled_count: 0, unhealthy_count: 0 },
+      items: [{ tenant_id: "2", tenant_name: "测试企业", member_count: 3, authorization_healthy: true }]
     });
     expect(repository.list).toHaveBeenCalledWith({ search: "测试", status: "active", limit: 20, offset: 0 });
   });
 
   it("returns a sanitized detail without encrypted credentials", async () => {
-    const service = new PlatformTenantService(createRepository() as never);
+    const { service } = createService();
     const result = await service.get(platformSession, "2");
     expect(result).toMatchObject({
       tenant_id: "2",
@@ -77,13 +93,28 @@ describe("PlatformTenantService", () => {
   });
 
   it("rejects tenant administrators", async () => {
-    const service = new PlatformTenantService(createRepository() as never);
+    const { service } = createService();
     await expect(service.list(tenantSession, {})).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("returns not found for an unknown enterprise", async () => {
-    const service = new PlatformTenantService(createRepository() as never);
+    const { service } = createService();
     await expect(service.get(platformSession, "999")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("triggers a contact sync for an authorized enterprise", async () => {
+    const { service, contactSync } = createService();
+    await expect(service.syncTenantMembers(platformSession, "2")).resolves.toMatchObject({
+      tenant_id: "2",
+      synced_count: 5
+    });
+    expect(contactSync.syncTenantMembers).toHaveBeenCalledWith({ tenantId: "2", tenantName: "测试企业" });
+  });
+
+  it("rejects resync from tenant administrators", async () => {
+    const { service, contactSync } = createService();
+    await expect(service.syncTenantMembers(tenantSession, "2")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
   });
 });
 
