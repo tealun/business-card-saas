@@ -1752,3 +1752,69 @@ async function boot() {
 }
 
 void boot();
+
+/* ---- UI enhancement bindings (additive only) ---- */
+(() => {
+  const loginForm = $(".login-form");
+  const accountLabel = $("#gateAccountLabel");
+  const usernameInput = $("#gateUsername");
+  const roleCopy = {
+    tenant: { label: "企业管理员账号", placeholder: "请输入手机号/邮箱" },
+    platform: { label: "平台账号", placeholder: "请输入平台账号" }
+  };
+  $$("[data-login-role]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      $$("[data-login-role]").forEach((node) => {
+        const active = node === tab;
+        node.classList.toggle("active", active);
+        node.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      const copy = roleCopy[tab.dataset.loginRole] || roleCopy.tenant;
+      if (accountLabel) accountLabel.textContent = copy.label;
+      if (usernameInput) usernameInput.placeholder = copy.placeholder;
+    });
+  });
+
+  const pwdInput = $("#gatePassword");
+  const pwdToggle = $("#gatePasswordToggle");
+  if (pwdInput && pwdToggle) {
+    pwdToggle.addEventListener("click", () => {
+      const visible = pwdInput.type === "password";
+      pwdInput.type = visible ? "text" : "password";
+      pwdToggle.setAttribute("aria-label", visible ? "隐藏密码" : "显示密码");
+      $("#gatePwdEyeOpen")?.classList.toggle("hidden", visible);
+      $("#gatePwdEyeClosed")?.classList.toggle("hidden", !visible);
+    });
+  }
+
+  const remember = $("#gateRemember");
+  if (remember) {
+    remember.addEventListener("click", () => {
+      remember.setAttribute("aria-pressed", remember.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    });
+  }
+
+  const submitButton = $("#gatePasswordLogin");
+  if (submitButton) {
+    const label = submitButton.querySelector("span:last-child");
+    new MutationObserver(() => {
+      if (label) label.textContent = submitButton.disabled ? "登录中…" : "登录";
+    }).observe(submitButton, { attributes: true, attributeFilter: ["disabled"] });
+  }
+
+  if (loginForm && gateError) {
+    new MutationObserver(() => {
+      loginForm.classList.toggle("has-error", Boolean(gateError.textContent.trim()));
+    }).observe(gateError, { childList: true, characterData: true, subtree: true });
+  }
+
+  const avatar = $("#accountAvatar");
+  if (avatar) {
+    const render = () => {
+      const text = (topbarAdmin.textContent || "").trim();
+      avatar.textContent = text && text !== "未登录" ? text.charAt(0) : "·";
+    };
+    new MutationObserver(render).observe(topbarAdmin, { childList: true, characterData: true, subtree: true });
+    render();
+  }
+})();
