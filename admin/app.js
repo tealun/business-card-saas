@@ -58,6 +58,7 @@ const state = {
   mode: "tenant",
   page: "tenant-dashboard",
   members: [],
+  analyticsDays: 7,
   selectedMemberId: "",
   memberCard: null,
   companyProfile: null,
@@ -282,6 +283,7 @@ function applyPermissionState(selector, permission) {
 function refreshPermissionControls() {
   applyPermissionState("#syncMembers", "tenant.member.sync");
   applyPermissionState("#saveCompanyProfile", "tenant.company.write");
+  applyPermissionState("#publishCompanyProfile", "tenant.company.write");
   applyPermissionState("#saveFieldSettings", "tenant.config.write");
   applyPermissionState("#createTemplate", "tenant.template.write");
   applyPermissionState("#updateTemplate", "tenant.template.write");
@@ -414,48 +416,142 @@ function renderRows(tbody, rows, colSpan, render) {
 }
 
 async function loadTenantDashboard() {
-  const [overview, capability, analytics] = await Promise.all([
+  // commercial 对 operator 角色返回 403（权限表不含 operator），全部并发请求单独降级，
+  // 单个失败只让对应卡片显示 “—”，不阻塞整页。
+  const [overview, analytics, commercial, profile, video, syncEvents] = await Promise.all([
     adminRequest("/admin/overview"),
+    adminRequest("/admin/analytics?days=7").catch(() => null),
+    adminRequest("/admin/commercial").catch(() => null),
+    adminRequest("/admin/company-profile").catch(() => null),
     adminRequest("/admin/features/company-video").catch(() => null),
-    adminRequest("/admin/analytics").catch(() => null)
+    adminRequest("/admin/sync-events").catch(() => null)
   ]);
-  $("#metricMembers").textContent = overview.member_count;
-  $("#metricCards").textContent = overview.card_count;
-  $("#metricActiveCards").textContent = overview.active_card_count;
-  $("#metricVideo").textContent = capability?.enabled ? `${capability.effective_limit_mb} MB` : "未开通";
-  state.videoCapability = capability;
-  renderTenantTodos(overview, capability, analytics);
-  return { overview, capability, analytics };
+  state.videoCapability = video;
+  const sync = syncEvents ? summarizeSyncEvents(syncEvents.items || []) : null;
+  const quota = summarizeMemberQuota(commercial);
+  const completeness = profileCompleteness(profile);
+  renderDashboardStatusCards({ sync, quota, completeness, video });
+  const trend = analytics?.trend || [];
+  $("#metricMembers").textContent = formatCount(overview.member_count);
+  $("#metricActiveCards").textContent = formatCount(overview.active_card_count);
+  // analytics overview 为全时段口径，近 7 日访问用 trend 求和，保证卡片文案与数据一致
+  $("#metricWeekVisits").textContent = analytics ? formatCount(sumBy(trend, "visit_count")) : "—";
+  $("#metricMemberQuotaLeft").textContent = quota?.subscribed ? formatCount(quota.remaining) : "—";
+  renderVisitChart($("#dashboardVisitChart"), trend, { showActions: false });
+  renderTenantTodos({ overview, sync, quota, completeness });
+  return { overview, analytics, commercial, profile, video, syncEvents };
 }
 
-function renderTenantTodos(overview, capability, analytics) {
-  const root = $("#tenantTodoList");
-  const todos = [
-    {
-      tone: overview.member_count > 0 ? "success" : "warning",
-      title: overview.member_count > 0 ? "成员已同步" : "尚未同步成员",
-      action: "成员与名片",
-      page: "tenant-members"
-    },
-    {
-      tone: overview.active_card_count > 0 ? "success" : "warning",
-      title: overview.active_card_count > 0 ? "已有启用名片" : "尚无启用名片",
-      action: "编辑名片",
-      page: "tenant-members"
-    },
-    {
-      tone: capability?.enabled ? "success" : "muted",
-      title: capability?.enabled ? "企业视频能力已启用" : "企业视频能力未开通",
-      action: "查看主页",
-      page: "tenant-company"
-    },
-    {
-      tone: analytics?.overview?.visit_count > 0 ? "success" : "muted",
-      title: analytics?.overview?.visit_count > 0 ? `已有 ${analytics.overview.visit_count} 次访问` : "暂无访问数据",
-      action: "数据分析",
-      page: "tenant-analytics"
-    }
+function formatCount(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  return number.toLocaleString("en-US");
+}
+
+function sumBy(rows, key) {
+  return rows.reduce((total, row) => total + (Number(row?.[key]) || 0), 0);
+}
+
+function summarizeSyncEvents(items) {
+  const now = Date.now();
+  const failed = items.filter((item) => ["failed", "dead"].includes(item.status));
+  const recentFailure = failed.some((item) => {
+    const time = new Date(item.received_at).getTime();
+    return Number.isFinite(time) && now - time <= 24 * 3600000;
+  });
+  const lastDone = items.find((item) => item.status === "done");
+  return {
+    hasIssue: recentFailure,
+    failedCount: failed.length,
+    lastDoneAt: lastDone ? lastDone.processed_at || lastDone.received_at : null
+  };
+}
+
+function summarizeMemberQuota(commercial) {
+  if (!commercial || !commercial.subscription) return null;
+  const subscription = commercial.subscription;
+  if (!subscription.subscription_id) return { subscribed: false };
+  const limit = Number(subscription.plan?.member_limit || 0) + Number(subscription.quota_adjustments?.member || 0);
+  const remaining = Math.max(0, limit - Number(subscription.usage?.member_count || 0));
+  return { subscribed: true, limit, remaining, ratio: limit > 0 ? remaining / limit : 0 };
+}
+
+// 资料完整度：基于 company-profile 的 6 项确定性检查（名称 / Logo / 官网 / 地址 / 简介 / 服务），
+// 后端无评分字段，规则透明可复算（见 docs/99_audits/99_70 评估 P0-7）。
+function profileCompleteness(profile) {
+  if (!profile) return null;
+  const checks = [
+    Boolean(profile.display_name),
+    Boolean(profile.logo_url),
+    Boolean(profile.website_url),
+    Boolean(profile.address),
+    (profile.intro_blocks || []).length > 0,
+    (profile.service_items || []).length > 0
   ];
+  const done = checks.filter(Boolean).length;
+  return {
+    done,
+    total: checks.length,
+    percent: Math.round((done / checks.length) * 100),
+    published: profile.status === "published"
+  };
+}
+
+function setStatusCard(valueSelector, subSelector, [text, tone, sub]) {
+  $(valueSelector).innerHTML = tag(text, tone);
+  $(subSelector).textContent = sub;
+}
+
+function renderDashboardStatusCards({ sync, quota, completeness, video }) {
+  setStatusCard("#dashSyncStatus", "#dashSyncSub", !sync
+    ? ["—", "muted", "同步事件不可用"]
+    : sync.hasIssue
+      ? ["异常", "warning", "近 24 小时存在失败事件"]
+      : ["正常", "success", sync.lastDoneAt ? `最近同步 ${formatDate(sync.lastDoneAt)}` : "暂无同步记录"]);
+  setStatusCard("#dashQuotaStatus", "#dashQuotaSub", !quota
+    ? ["—", "muted", "当前角色不可见"]
+    : !quota.subscribed
+      ? ["未开通", "muted", "未开通付费版本"]
+      : quota.ratio > 0.2
+        ? ["正常", "success", `成员额度剩余 ${formatCount(quota.remaining)} 个`]
+        : ["剩余不足", "warning", `成员额度仅剩 ${formatCount(quota.remaining)} 个`]);
+  setStatusCard("#dashProfileStatus", "#dashProfileSub", !completeness
+    ? ["—", "muted", "资料读取失败"]
+    : completeness.percent >= 80
+      ? ["正常", "success", `完整度 ${completeness.percent}%`]
+      : ["待完善", "warning", `完整度 ${completeness.percent}%（${completeness.done}/${completeness.total} 项）`]);
+  setStatusCard("#dashVideoStatus", "#dashVideoSub", !video
+    ? ["—", "muted", "能力状态不可用"]
+    : video.enabled
+      ? ["已开启", "success", `限额 ${video.effective_limit_mb} MB`]
+      : ["未开启", "muted", `限额 ${video.effective_limit_mb} MB`]);
+}
+
+function renderTenantTodos({ overview, sync, quota, completeness }) {
+  const todos = [];
+  if (quota?.subscribed && quota.ratio <= 0.2) {
+    todos.push({ tone: "warning", title: `成员额度仅剩 ${formatCount(quota.remaining)} 个，请及时扩容`, action: "版本与额度", page: "tenant-billing" });
+  }
+  if (completeness && (!completeness.published || completeness.percent < 80)) {
+    todos.push({
+      tone: "warning",
+      title: !completeness.published ? "企业主页资料未发布" : `企业主页资料完整度 ${completeness.percent}%，待完善`,
+      action: "企业主页",
+      page: "tenant-company"
+    });
+  }
+  const disabledCards = Math.max(0, Number(overview.card_count || 0) - Number(overview.active_card_count || 0));
+  if (disabledCards > 0) {
+    todos.push({ tone: "warning", title: `${formatCount(disabledCards)} 张成员名片已停用`, action: "成员与名片", page: "tenant-members" });
+  }
+  if (sync?.failedCount > 0) {
+    todos.push({ tone: "danger", title: `${formatCount(sync.failedCount)} 条同步事件失败待处理`, time: sync.lastDoneAt ? formatDate(sync.lastDoneAt) : "", action: "同步与回调", page: "tenant-sync" });
+  }
+  const root = $("#tenantTodoList");
+  if (!todos.length) {
+    root.innerHTML = `<p class="hint">暂无待办事项</p>`;
+    return;
+  }
   root.replaceChildren(...todos.map(taskItem));
 }
 
@@ -492,16 +588,40 @@ async function loadMembers() {
   const result = await adminRequest(adminMemberListPath());
   state.members = result.items || [];
   $("#membersTotal").textContent = `${result.total || 0} 个成员`;
-  renderRows($("#membersRows"), state.members, 5, (item) => [
-    `<strong>${escapeHtml(item.display_name)}</strong><br><code>${escapeHtml(item.member_identity_id)}</code>`,
-    tag(item.status === "active" ? "启用" : "停用", statusTone(item.status)),
-    `<code>${escapeHtml(item.public_id)}</code>`,
-    `${escapeHtml(item.userid || "--")}<br><code>${escapeHtml(item.open_userid || "--")}</code>`,
-    actionButton("编辑名片", () => openMemberDrawer(item))
+  renderRows($("#membersRows"), state.members, 8, (item) => [
+    `<strong>${escapeHtml(item.display_name)}</strong>`,
+    escapeHtml(item.title || "—"),
+    escapeHtml(item.department || "—"),
+    escapeHtml(maskMobile(item.mobile)),
+    escapeHtml(maskEmail(item.email)),
+    cardStatusTag(item.card_status),
+    item.last_visit_at ? formatDate(item.last_visit_at) : "—",
+    linkButton("编辑", () => openMemberDrawer(item))
   ]);
   return result;
 }
 
+function cardStatusTag(status) {
+  if (status === "active") return tag("已启用", "success");
+  if (status === "disabled") return tag("已停用", "muted");
+  return tag("未创建", "warning");
+}
+
+// 展示层掩码：手机保留前 3 后 4，邮箱保留首字符与域名；空值显示 —
+function maskMobile(value) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  if (text.length <= 7) return `${text.slice(0, 2)}****`;
+  return `${text.slice(0, 3)}****${text.slice(-4)}`;
+}
+
+function maskEmail(value) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  const at = text.indexOf("@");
+  if (at <= 0) return `${text[0]}***`;
+  return `${text[0]}***${text.slice(at)}`;
+}
 function actionButton(label, handler, className = "secondary", permission = "") {
   const button = document.createElement("button");
   button.type = "button";
@@ -614,6 +734,9 @@ function fillCompany(profile) {
   form.visible.checked = Boolean(profile.visible);
   renderCompanyEditors();
   renderCompanyPreview();
+  renderCompanyCompleteness();
+  applyCompanyPermission();
+  $("#companyStatusTag").innerHTML = profile.status === "published" ? tag("已发布", "success") : tag("草稿", "warning");
 }
 
 function input(value, key, index, group, placeholder = "", type = "text") {
@@ -681,6 +804,10 @@ function renderCompanyEditors() {
   videoHint.textContent = state.videoCapability?.enabled
     ? `视频能力已开通，上限 ${state.videoCapability.effective_limit_mb} MB`
     : "视频是高级功能，当前企业未开通时不会提交视频模块。";
+  renderVideoPanel();
+  renderCompanyPreview();
+  renderCompanyCompleteness();
+  applyCompanyPermission();
 }
 
 function syncCompanyEditors() {
@@ -725,15 +852,105 @@ function companyPayloadFromForm() {
 
 function renderCompanyPreview() {
   const form = $("#companyForm");
-  $("#previewCompanyName").textContent = form.display_name.value || "企业名称";
-  $("#previewCompanyIntro").textContent = form.short_name.value || form.address.value || "主页资料读取后展示预览。";
+  const name = form.display_name.value.trim();
+  $("#previewCompanyName").textContent = name || "企业名称";
+  $("#previewCompanyShort").textContent = form.short_name.value.trim() || form.website_url.value.trim() || "--";
+  const logo = $("#previewCompanyLogo");
+  const logoUrl = form.logo_url.value.trim();
+  if (logoUrl) {
+    logo.src = logoUrl;
+    logo.classList.remove("hidden");
+  } else {
+    logo.removeAttribute("src");
+    logo.classList.add("hidden");
+  }
+  $("#previewCompanyInitial").textContent = (name || "企").charAt(0);
+  const profile = state.companyProfile || {};
+  const textBlock = (profile.intro_blocks || []).find((block) => ["heading", "paragraph", "quote"].includes(block.type) && String(block.text || "").trim());
+  $("#previewCompanyIntro").textContent = textBlock ? String(textBlock.text).slice(0, 80) : form.address.value.trim() || "主页资料读取后展示预览。";
+  $("#previewServiceCount").textContent = String((profile.service_items || []).length);
+  $("#previewHonorCount").textContent = String((state.companyHonors || []).length);
   const root = $("#previewModules");
-  const modules = [...(state.companyProfile?.display_modules || [])].sort((a, b) => a.sort_order - b.sort_order);
+  const modules = [...(profile.display_modules || [])].sort((a, b) => a.sort_order - b.sort_order);
   root.replaceChildren(...modules.filter((item) => item.visible).map((item) => {
     const div = document.createElement("div");
     div.textContent = item.title;
     return div;
   }));
+}
+
+// 完整度条：复用 profileCompleteness 的确定性规则，缺失项补充视频与荣誉图片检查。
+function currentCompanySnapshot() {
+  const form = $("#companyForm");
+  const base = state.companyProfile || {};
+  return {
+    display_name: form.display_name.value.trim(),
+    logo_url: form.logo_url.value.trim(),
+    website_url: form.website_url.value.trim(),
+    address: form.address.value.trim(),
+    status: form.status.value,
+    intro_blocks: base.intro_blocks || [],
+    service_items: base.service_items || []
+  };
+}
+
+function companyMissingItems(profile) {
+  const missing = [];
+  if (!profile.display_name) missing.push("企业名称未填写");
+  if (!profile.logo_url) missing.push("Logo 未上传");
+  if (!profile.website_url) missing.push("官网未填写");
+  if (!profile.address) missing.push("地址未填写");
+  if (!(profile.intro_blocks || []).length) missing.push("企业介绍未配置");
+  if (!(profile.service_items || []).length) missing.push("服务未配置");
+  const hasVideo = (profile.intro_blocks || []).some((block) => block.type === "video" && String(block.video_id || "").trim());
+  if (state.videoCapability?.enabled && !hasVideo) missing.push("视频介绍未配置");
+  const honors = state.companyHonors || [];
+  if (!honors.length) missing.push("荣誉资质未配置");
+  else if (!honors.some((honor) => (honor.images || []).length)) missing.push("荣誉资质图片未上传");
+  return missing;
+}
+
+function renderCompanyCompleteness() {
+  const result = profileCompleteness(currentCompanySnapshot());
+  if (!result) return;
+  $("#companyCompletenessValue").textContent = `${result.percent}%`;
+  const bar = $("#companyCompletenessBar");
+  bar.style.width = `${result.percent}%`;
+  bar.classList.toggle("warn", result.percent < 80);
+  const missing = companyMissingItems(currentCompanySnapshot());
+  $("#companyCompletenessHint").textContent = missing.length ? `待完善：${missing.join(" · ")}` : "资料已完善，可以发布。";
+}
+
+function renderVideoPanel() {
+  const root = $("#videoPanel");
+  if (!root) return;
+  const capability = state.videoCapability;
+  if (!capability) {
+    root.innerHTML = `<p class="hint">视频能力状态读取失败，请重新读取主页。</p>`;
+    return;
+  }
+  if (!capability.enabled) {
+    root.innerHTML = `
+      <div class="video-status">${tag("未开启", "muted")}</div>
+      <p>企业视频是高级功能，当前企业未开通。开通后可在「介绍」标签页添加视频块，并展示在企业主页。</p>
+      <p class="hint">如需开通，请联系平台或服务商升级版本。</p>`;
+    return;
+  }
+  const videoBlocks = (state.companyProfile?.intro_blocks || []).filter((block) => block.type === "video");
+  root.innerHTML = `
+    <div class="video-status">${tag("已开启", "success")}<span class="hint">单视频上限 ${escapeHtml(String(capability.effective_limit_mb))} MB</span></div>
+    <p>当前已在「介绍」中配置 <strong>${videoBlocks.length}</strong> 个视频块。</p>
+    <p class="hint">视频块在「介绍」标签页中添加与排序；未填写视频 ID 的块不会展示在主页。</p>`;
+}
+
+function applyCompanyPermission() {
+  const writable = hasPermission("tenant.company.write");
+  ["#saveCompanyProfile", "#publishCompanyProfile", "#addService", "#addHeading", "#addParagraph", "#addImage", "#addGallery", "#addVideo", "#loadHonors", "#addHonor", "#saveHonors"].forEach((selector) => {
+    const node = $(selector);
+    if (node) node.classList.toggle("hidden", !writable);
+  });
+  $$("#companyForm input, #companyForm select, #companyForm textarea").forEach((node) => { node.disabled = !writable; });
+  $$(".company-editor .editor-row input, .company-editor .editor-row textarea, .company-editor .editor-row button").forEach((node) => { node.disabled = !writable; });
 }
 
 function renderHonorEditors() {
@@ -758,6 +975,9 @@ function renderHonorEditors() {
     );
     return row;
   }));
+  renderCompanyPreview();
+  renderCompanyCompleteness();
+  applyCompanyPermission();
 }
 
 function syncHonorEditors() {
@@ -802,24 +1022,44 @@ async function loadDesignBundle() {
 async function loadFieldSettings() {
   const result = await adminRequest("/admin/settings/fields");
   state.fieldSettings = result.fields || [];
-  renderRows($("#fieldRows"), state.fieldSettings, 4, (field) => [
+  const writable = hasPermission("tenant.config.write");
+  renderRows($("#fieldRows"), state.fieldSettings, 5, (field) => [
     `<strong>${escapeHtml(field.label)}</strong><br><code>${escapeHtml(field.field_key)}</code>`,
-    checkboxCell(field.locked, field.field_key, "locked"),
-    checkboxCell(field.employee_editable, field.field_key, "employee_editable"),
-    checkboxCell(field.default_visible, field.field_key, "default_visible")
+    checkboxCell(field.locked, field.field_key, "locked", writable),
+    checkboxCell(field.employee_editable, field.field_key, "employee_editable", writable),
+    checkboxCell(field.default_visible, field.field_key, "default_visible", writable),
+    `<span class="muted-cell field-note">${escapeHtml(fieldRuleNote(field))}</span>`
   ]);
   return result;
 }
 
-function checkboxCell(checked, key, prop) {
+function fieldRuleNote(field) {
+  return [
+    field.locked ? "管理员锁定" : "未锁定",
+    field.employee_editable ? "员工可修改" : "员工不可修改",
+    field.default_visible ? "默认展示" : "默认隐藏"
+  ].join("，");
+}
+
+function checkboxCell(checked, key, prop, writable = true) {
   const label = document.createElement("label");
-  label.className = "check-line";
+  label.className = "switch";
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = checked;
+  input.disabled = !writable;
   input.dataset.fieldKey = key;
   input.dataset.fieldProp = prop;
-  label.append(input);
+  input.addEventListener("change", () => {
+    const row = input.closest("tr");
+    const note = row?.querySelector(".field-note");
+    if (!note) return;
+    const val = (name) => row.querySelector(`[data-field-prop="${name}"]`).checked;
+    note.textContent = fieldRuleNote({ locked: val("locked"), employee_editable: val("employee_editable"), default_visible: val("default_visible") });
+  });
+  const track = document.createElement("span");
+  track.className = "switch-track";
+  label.append(input, track);
   return label;
 }
 
@@ -840,27 +1080,54 @@ async function loadTemplates() {
 }
 
 function renderTemplates() {
-  renderRows($("#templateRows"), state.templates, 4, (item) => [
-    `<strong>${escapeHtml(item.name)}</strong><br><code>${escapeHtml(item.template_id)}</code>`,
-    item.is_default ? tag("默认", "brand") : tag("可选", "muted"),
-    tag(item.status === "active" ? "启用" : "停用", statusTone(item.status)),
-    templateActions(item)
-  ]);
+  const root = $("#templateCards");
+  if (!state.templates.length) {
+    root.innerHTML = `<p class="hint">暂无模板，请在下方新建。</p>`;
+    return;
+  }
+  root.replaceChildren(...state.templates.map((item) => {
+    const card = document.createElement("article");
+    card.className = "template-card";
+    const primary = item.color_scheme?.primary || "#2563eb";
+    const surface = item.color_scheme?.surface || "#ffffff";
+    const swatch = document.createElement("div");
+    swatch.className = "template-swatch";
+    swatch.style.background = `linear-gradient(135deg, ${primary}, ${surface})`;
+    if (item.logo_url || item.background_url) {
+      const thumbs = document.createElement("div");
+      thumbs.className = "template-thumbs";
+      [item.logo_url, item.background_url].filter(Boolean).forEach((url) => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "";
+        img.loading = "lazy";
+        thumbs.append(img);
+      });
+      swatch.append(thumbs);
+    }
+    const body = document.createElement("div");
+    body.className = "template-card-body";
+    const title = document.createElement("strong");
+    title.textContent = item.name;
+    const meta = document.createElement("div");
+    meta.className = "template-card-meta";
+    meta.innerHTML = `${item.is_default ? tag("当前默认", "brand") : ""}${tag(item.status === "active" ? "启用" : "停用", statusTone(item.status))}`;
+    const actions = document.createElement("div");
+    actions.className = "inline-actions";
+    actions.append(actionButton("编辑", () => fillTemplateForm(item), "secondary"));
+    if (!item.is_default) {
+      actions.append(actionButton("设为默认", async () => {
+        if (!requirePermission("tenant.template.write")) return;
+        await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(item.template_id)}/default`, { method: "PUT" }));
+        await loadTemplates();
+      }, "secondary", "tenant.template.write"));
+    }
+    body.append(title, meta, actions);
+    card.append(swatch, body);
+    return card;
+  }));
 }
 
-function templateActions(item) {
-  const wrap = document.createElement("div");
-  wrap.className = "inline-actions";
-  wrap.append(
-    actionButton("选择", () => fillTemplateForm(item), "secondary"),
-    actionButton("设默认", async () => {
-      if (!requirePermission("tenant.template.write")) return;
-      await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(item.template_id)}/default`, { method: "PUT" }));
-      await loadTemplates();
-    }, "secondary", "tenant.template.write")
-  );
-  return wrap;
-}
 
 function fillTemplateForm(template) {
   state.selectedTemplateId = template.template_id;
@@ -957,55 +1224,95 @@ function qrSourceLabel(value) {
   })[value] || value || "--";
 }
 
-async function loadTenantAnalytics() {
-  const result = await adminRequest("/admin/analytics");
+async function loadTenantAnalytics(days = state.analyticsDays) {
+  state.analyticsDays = days;
+  const result = await adminRequest(`/admin/analytics?days=${days}`);
   const overview = result.overview || {};
-  $("#analyticsVisits").textContent = overview.visit_count ?? 0;
-  $("#analyticsVisitors").textContent = overview.visitor_count ?? 0;
-  $("#analyticsActions").textContent = overview.action_count ?? 0;
-  $("#analyticsShares").textContent = overview.share_count ?? 0;
-  renderTrendBars($("#analyticsTrend"), result.trend || []);
-  renderRows($("#analyticsMemberRows"), result.member_rank || [], 5, (item) => [
-    `<strong>${escapeHtml(item.display_name)}</strong><br><code>${escapeHtml(item.public_id || item.member_identity_id)}</code>`,
-    String(item.visit_count),
-    String(item.visitor_count),
-    String(item.action_count),
-    conversionText(item.action_count, item.visit_count)
+  // overview / member_rank / action_types 均为全时段口径，仅 trend 随 days 窗口变化
+  $("#analyticsVisits").textContent = formatCount(overview.visit_count ?? 0);
+  $("#analyticsVisitors").textContent = formatCount(overview.visitor_count ?? 0);
+  $("#analyticsActions").textContent = formatCount(overview.action_count ?? 0);
+  $("#analyticsShares").textContent = formatCount(overview.share_count ?? 0);
+  $$("#analyticsRange button").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.days) === days);
+  });
+  renderVisitChart($("#analyticsTrend"), result.trend || [], { showActions: true });
+  renderAnalyticsFunnel(overview);
+  const ranked = (result.member_rank || []).slice(0, 20).map((item, index) => ({ ...item, rank: index + 1 }));
+  renderRows($("#analyticsMemberRows"), ranked, 5, (item) => [
+    String(item.rank),
+    `<strong>${escapeHtml(item.display_name)}</strong>`,
+    formatCount(item.visit_count),
+    formatCount(item.visitor_count),
+    formatCount(item.action_count)
   ]);
-  renderRows($("#analyticsActionRows"), result.action_types || [], 2, (item) => [
+  const actionTypes = result.action_types || [];
+  $("#analyticsActionPanel").classList.toggle("hidden", !actionTypes.length);
+  renderRows($("#analyticsActionRows"), actionTypes, 2, (item) => [
     escapeHtml(actionTypeLabel(item.action_type)),
-    String(item.action_count)
+    formatCount(item.action_count)
   ]);
   return result;
 }
 
-function renderTrendBars(root, rows) {
+// 互动漏斗：访问 → 互动 → 分享，占比以第一级（访问）为基准
+function renderAnalyticsFunnel(overview) {
+  const root = $("#analyticsFunnel");
+  const visits = Number(overview.visit_count || 0);
+  const stages = [
+    ["访问", visits],
+    ["互动", Number(overview.action_count || 0)],
+    ["分享", Number(overview.share_count || 0)]
+  ];
+  root.replaceChildren(...stages.map(([label, value]) => {
+    const ratio = visits > 0 ? value / visits : 0;
+    const row = document.createElement("div");
+    row.className = "funnel-row";
+    const name = document.createElement("span");
+    name.className = "funnel-label";
+    name.textContent = label;
+    const track = document.createElement("div");
+    track.className = "funnel-track";
+    const bar = document.createElement("i");
+    bar.style.width = `${value > 0 ? Math.max(3, Math.round(ratio * 100)) : 0}%`;
+    track.append(bar);
+    const stat = document.createElement("strong");
+    stat.textContent = `${formatCount(value)} · ${Math.round(ratio * 100)}%`;
+    row.append(name, track, stat);
+    return row;
+  }));
+}
+
+// 访问趋势柱状图：复用 .callback-chart 结构，visit 主柱 + 可选 action 次柱，企业总览与数据分析共用
+function renderVisitChart(root, rows, { showActions = true } = {}) {
   if (!rows.length) {
     root.innerHTML = `<p class="hint">暂无趋势数据</p>`;
     return;
   }
-  const max = Math.max(...rows.map((row) => Math.max(row.visit_count, row.action_count)), 1);
-  root.replaceChildren(...rows.map((row) => {
-    const item = document.createElement("div");
-    item.className = "trend-item";
-    const visit = document.createElement("span");
-    visit.style.height = `${Math.max(6, Math.round((row.visit_count / max) * 90))}%`;
-    const action = document.createElement("span");
-    action.className = "accent";
-    action.style.height = `${Math.max(6, Math.round((row.action_count / max) * 90))}%`;
-    const label = document.createElement("small");
-    label.textContent = row.date.slice(5);
-    item.title = `${row.date} · 访问 ${row.visit_count} · 互动 ${row.action_count}`;
-    item.append(visit, action, label);
-    return item;
+  const max = Math.max(1, ...rows.map((row) => Math.max(Number(row.visit_count || 0), Number(row.action_count || 0))));
+  const step = rows.length > 10 ? Math.ceil(rows.length / 6) : 1;
+  root.replaceChildren(...rows.map((row, index) => {
+    const column = document.createElement("div");
+    column.className = "chart-col";
+    column.title = `${row.date} · 访问 ${row.visit_count} · 互动 ${row.action_count}`;
+    const bars = document.createElement("div");
+    bars.className = "chart-bars";
+    const visit = document.createElement("i");
+    visit.className = "bar visit";
+    visit.style.height = `${Math.max(2, Math.round((Number(row.visit_count || 0) / max) * 100))}%`;
+    bars.append(visit);
+    if (showActions) {
+      const action = document.createElement("i");
+      action.className = "bar action";
+      action.style.height = `${Math.max(2, Math.round((Number(row.action_count || 0) / max) * 100))}%`;
+      bars.append(action);
+    }
+    const label = document.createElement("span");
+    label.textContent = index % step === 0 ? String(row.date).slice(5) : "";
+    column.append(bars, label);
+    return column;
   }));
 }
-
-function conversionText(actions, visits) {
-  if (!visits) return "0%";
-  return `${Math.round((actions / visits) * 1000) / 10}%`;
-}
-
 function actionTypeLabel(type) {
   return ({
     like_card: "点赞名片",
@@ -1018,28 +1325,100 @@ function actionTypeLabel(type) {
 
 async function loadTenantCommercial() {
   const result = await adminRequest("/admin/commercial");
-  const subscription = result.subscription;
-  const plan = subscription.plan;
-  $("#tenantPlanName").textContent = `${plan.name} · ${subscription.status}`;
-  $("#tenantMemberQuota").textContent = quotaText(subscription.usage.member_count, plan.member_limit + subscription.quota_adjustments.member);
-  $("#tenantCardQuota").textContent = quotaText(subscription.usage.active_card_count, plan.card_limit + subscription.quota_adjustments.card);
-  $("#tenantVideoQuota").textContent = `${Math.round((plan.video_limit_bytes / 1048576) + subscription.quota_adjustments.video_mb)} MB`;
-  renderRows($("#tenantOrderRows"), result.orders || [], 5, (item) => [
-    `<code>${escapeHtml(item.order_no)}</code>`,
-    escapeHtml(item.plan_key),
-    moneyText(item.amount_cents, item.currency),
-    tag(item.status, statusTone(item.status)),
-    formatDate(item.created_at)
-  ]);
-  renderRows($("#tenantQuotaRows"), result.quota_ledger || [], 4, (item) => [
+  const subscription = result.subscription || null;
+  // 后端在无订阅时返回 fallback 套餐且 subscription_id 为 null，以此判断是否开通
+  const subscribed = Boolean(subscription?.subscription_id);
+  const plan = subscription?.plan || null;
+  $("#billingPlanName").textContent = subscribed ? plan.name : "未开通付费版本";
+  $("#billingPlanStatus").innerHTML = !subscribed
+    ? tag("未开通", "muted")
+    : subscription.status === "active"
+      ? tag("生效中", "success")
+      : tag(subscription.status || "未知", "warning");
+  $("#billingExpires").textContent = subscribed && subscription.expires_at ? formatDate(subscription.expires_at) : "—";
+  $("#billingPeriod").textContent = subscribed ? billingPeriodLabel(plan.billing_period) : "—";
+  $("#billingPrice").textContent = subscribed
+    ? `${moneyText(plan.price_cents, plan.currency)}${plan.billing_period === "yearly" ? " / 年" : " / 月"}`
+    : "—";
+  renderQuotaBar({
+    text: "#billingMemberQuotaText",
+    bar: "#billingMemberQuotaBar",
+    left: "#billingMemberQuotaLeft",
+    used: subscription?.usage?.member_count,
+    limit: subscribed ? Number(plan.member_limit || 0) + Number(subscription.quota_adjustments?.member || 0) : null
+  });
+  renderQuotaBar({
+    text: "#billingCardQuotaText",
+    bar: "#billingCardQuotaBar",
+    left: "#billingCardQuotaLeft",
+    used: subscription?.usage?.active_card_count,
+    limit: subscribed ? Number(plan.card_limit || 0) + Number(subscription.quota_adjustments?.card || 0) : null
+  });
+  const orders = result.orders || [];
+  if (!orders.length) {
+    $("#tenantOrderRows").innerHTML = `<tr><td colspan="5">暂无订单</td></tr>`;
+  } else {
+    renderRows($("#tenantOrderRows"), orders, 5, (item) => [
+      `<code>${escapeHtml(maskOrderNo(item.order_no))}</code>`,
+      escapeHtml(item.plan_key),
+      moneyText(item.amount_cents, item.currency),
+      orderStatusTag(item.status),
+      formatDate(item.paid_at || item.created_at)
+    ]);
+  }
+  const ledger = result.quota_ledger || [];
+  $("#tenantQuotaCount").textContent = `${ledger.length} 条`;
+  renderRows($("#tenantQuotaRows"), ledger, 5, (item) => [
+    formatDate(item.created_at),
     quotaTypeLabel(item.quota_type),
-    String(item.delta),
+    deltaText(item.delta),
     escapeHtml(item.reason),
-    formatDate(item.created_at)
+    escapeHtml(item.created_by || "—")
   ]);
   return result;
 }
 
+function billingPeriodLabel(period) {
+  return ({ monthly: "按月付费", yearly: "按年付费" })[period] || period || "—";
+}
+
+function orderStatusTag(status) {
+  if (status === "paid") return tag("已支付", "success");
+  if (status === "pending") return tag("处理中", "warning");
+  return tag(status || "未知", "muted");
+}
+
+// 订单号掩码：保留前 3 后 4，中间以 **** 代替
+function maskOrderNo(value) {
+  const text = String(value || "");
+  if (!text) return "--";
+  if (text.length <= 7) return `${text.slice(0, 2)}****`;
+  return `${text.slice(0, 3)}****${text.slice(-4)}`;
+}
+
+function deltaText(delta) {
+  const value = Number(delta || 0);
+  const sign = value > 0 ? "+" : "";
+  return `<span class="${value >= 0 ? "delta-pos" : "delta-neg"}">${sign}${formatCount(value)}</span>`;
+}
+
+// 额度进度条：limit 为 null（未开通）时整条显示 —；使用率 > 85% 切换 warning 色
+function renderQuotaBar({ text, bar, left, used, limit }) {
+  const barNode = $(bar);
+  if (limit === null || limit === undefined) {
+    $(text).textContent = "—";
+    barNode.style.width = "0%";
+    barNode.classList.remove("warn");
+    $(left).textContent = "未开通付费版本";
+    return;
+  }
+  const usedCount = Number(used || 0);
+  const ratio = limit > 0 ? Math.min(1, usedCount / limit) : 0;
+  $(text).textContent = `${formatCount(usedCount)} / ${formatCount(limit)}`;
+  barNode.style.width = `${Math.round(ratio * 100)}%`;
+  barNode.classList.toggle("warn", ratio > 0.85);
+  $(left).textContent = `剩余 ${formatCount(Math.max(0, limit - usedCount))} · 已用 ${Math.round(ratio * 100)}%`;
+}
 async function loadPlatformCommercial() {
   const result = await adminRequest("/admin/platform/commercial");
   renderRows($("#platformPlanRows"), result.plans || [], 4, (item) => [
@@ -1108,16 +1487,47 @@ async function loadTenantAdmins() {
     ["status", "#tenantAdminStatus"]
   ]);
   const result = await adminRequest(`/admin/admins?${query}`);
-  renderRows($("#tenantAdminRows"), result.items || [], 6, (item) => [
-    `<strong>${escapeHtml(item.display_name || item.open_userid || "--")}</strong><br><code>${escapeHtml(item.open_userid || "--")}</code>`,
-    tag(roleLabel(item.role), roleTone(item.role)),
-    tag(item.status === "active" ? "启用" : item.status, statusTone(item.status)),
-    `${escapeHtml(item.userid || "--")}<br><code>${escapeHtml(item.member_identity_id || "--")}</code>`,
+  renderRows($("#tenantAdminRows"), result.items || [], 5, (item) => [
+    `<strong>${escapeHtml(item.display_name || item.open_userid || item.userid || "--")}</strong>`,
+    tag(tenantAdminRoleLabel(item.role), tenantAdminRoleTone(item.role)),
+    item.status === "active" ? tag("正常", "success") : tag("已停用", "danger"),
     formatDate(item.created_at),
-    formatDate(item.updated_at)
+    tenantAdminActionCell(item)
   ]);
   $("#tenantAdminTotal").textContent = `${result.total || 0} 个管理员`;
   return result;
+}
+
+function tenantAdminRoleLabel(role) {
+  return ({ owner: "Owner", admin: "管理员", operator: "运营", auditor: "审计" })[role] || role;
+}
+
+function tenantAdminRoleTone(role) {
+  return ({ owner: "brand", admin: "success", operator: "muted", auditor: "muted" })[role] || "muted";
+}
+
+// owner 行与当前登录人自己的行不显示启停操作（后端同样会拒绝）。
+function tenantAdminActionCell(item) {
+  if (item.role === "owner") return "";
+  const self = state.admin;
+  const isSelf = self && ((self.member_identity_id && item.member_identity_id === self.member_identity_id) || (self.open_userid && item.open_userid === self.open_userid));
+  if (isSelf) return "";
+  const next = item.status === "active" ? "disabled" : "active";
+  return linkButton(item.status === "active" ? "停用" : "恢复", () => updateTenantAdminStatus(item, next), item.status === "active" ? "link-btn danger-link" : "link-btn");
+}
+
+async function updateTenantAdminStatus(item, status) {
+  const label = status === "disabled" ? "停用" : "恢复";
+  const name = item.display_name || item.open_userid || item.userid || item.admin_id;
+  const ok = await confirmAction({
+    title: `确认${label}管理员`,
+    body: `将${label}管理员「${name}」。${status === "disabled" ? "停用后该成员将无法登录企业后台。" : "恢复后该成员可重新登录企业后台。"}`,
+    danger: status === "disabled"
+  });
+  if (!ok) return;
+  await run(`${label}管理员`, () => adminRequest(`/admin/admins/${encodeURIComponent(item.admin_id)}`, { method: "PATCH", body: { status } }));
+  notify(`管理员已${label}`);
+  await loadTenantAdmins();
 }
 
 async function loadTenantAuditEvents() {
@@ -1127,16 +1537,53 @@ async function loadTenantAuditEvents() {
     ["status", "#tenantAuditStatus"]
   ]);
   const result = await adminRequest(`/admin/audit-events?${query}`);
+  const today = result.today || null;
+  $("#auditTodayReceived").textContent = today ? formatCount(today.received) : "--";
+  $("#auditTodaySucceeded").textContent = today ? formatCount(today.succeeded) : "--";
+  $("#auditTodayFailed").textContent = today ? formatCount(today.failed) : "--";
+  $("#auditTodayRetryable").textContent = today ? formatCount(today.retryable) : "--";
   renderRows($("#tenantAuditRows"), result.items || [], 6, (item) => [
-    eventCell(item),
-    sourceLabel(item.source),
-    tag(item.status, statusTone(item.status)),
+    formatDate(item.received_at),
+    escapeHtml(sourceLabel(item.source)),
+    `<strong>${escapeHtml(item.event_type)}</strong>${item.change_type ? `<br><code>${escapeHtml(item.change_type)}</code>` : ""}`,
+    auditStatusTag(item.status),
     String(item.retry_count),
-    escapeHtml(item.last_error || "--"),
-    formatDate(item.received_at)
+    linkButton("详情", () => openTenantAuditDrawer(item))
   ]);
   $("#tenantAuditTotal").textContent = `${result.total || 0} 条事件`;
   return result;
+}
+
+function auditStatusTag(status) {
+  const map = {
+    done: ["完成", "success"],
+    failed: ["失败", "danger"],
+    dead: ["死信", "muted"],
+    processing: ["处理中", "warning"],
+    received: ["已接收", "muted"]
+  };
+  const [label, tone] = map[status] || [status, "muted"];
+  return tag(label, tone);
+}
+
+function openTenantAuditDrawer(item) {
+  drawerTitle.textContent = item.event_type || "事件详情";
+  drawerSubtitle.textContent = item.event_key || "";
+  const rows = [
+    ["事件 Key", item.event_key],
+    ["事件类型", item.event_type],
+    ["变更类型", item.change_type],
+    ["来源", sourceLabel(item.source)],
+    ["状态", item.status],
+    ["重试次数", item.retry_count],
+    ["企业", item.tenant_name || item.tenant_id],
+    ["接收时间", formatDate(item.received_at)],
+    ["处理时间", formatDate(item.processed_at)],
+    ["最近错误", item.last_error || "--"]
+  ];
+  drawerBody.innerHTML = `<div class="kv-list">${rows.map(([key, value]) => `<div class="kv-row"><span>${escapeHtml(key)}</span><strong>${escapeHtml(String(value ?? "--"))}</strong></div>`).join("")}</div>`;
+  drawerFooter.replaceChildren();
+  showDrawer();
 }
 
 async function loadPlatformWecomEvents() {
@@ -1733,7 +2180,17 @@ $("#saveCompanyProfile").addEventListener("click", async () => {
   fillCompany(profile);
   notify("企业主页已保存");
 });
-$("#companyForm").addEventListener("input", renderCompanyPreview);
+$("#publishCompanyProfile").addEventListener("click", async () => {
+  if (!requirePermission("tenant.company.write")) return;
+  if (!state.companyProfile) await loadCompanyProfileOnly();
+  const profile = await run("发布主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: { ...companyPayloadFromForm(), status: "published" } }));
+  fillCompany(profile);
+  notify("企业主页已发布");
+});
+$("#companyForm").addEventListener("input", () => {
+  renderCompanyPreview();
+  renderCompanyCompleteness();
+});
 $$("[data-company-tab]").forEach((button) => {
   button.addEventListener("click", () => {
     $$("[data-company-tab]").forEach((node) => node.classList.toggle("active", node === button));
@@ -1816,9 +2273,12 @@ $("#retrySyncEvents").addEventListener("click", async () => {
     await loadSyncEvents();
   }
 });
-$("#loadTenantAnalytics").addEventListener("click", () => run("刷新数据分析", loadTenantAnalytics));
+$("#loadTenantAnalytics").addEventListener("click", () => run("刷新数据分析", () => loadTenantAnalytics()));
+$$("#analyticsRange button").forEach((button) => {
+  button.addEventListener("click", () => run("切换趋势窗口", () => loadTenantAnalytics(Number(button.dataset.days))));
+});
 $("#loadTenantCommercial").addEventListener("click", () => run("刷新版本额度", loadTenantCommercial));
-
+$("#billingRenew").addEventListener("click", () => notify("请通过企业微信服务商后台完成购买或续费", "warning"));
 $("#loadTenantAdmins").addEventListener("click", () => run("刷新管理员", loadTenantAdmins));
 $("#searchTenantAdmins").addEventListener("click", () => run("搜索管理员", loadTenantAdmins));
 $("#tenantAdminSearch").addEventListener("keydown", (event) => {

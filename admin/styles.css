@@ -2443,3 +2443,517 @@ body:not(.dev-mode) [data-dev-only] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* ---------- 企业后台：状态卡 ---------- */
+
+.status-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.status-card-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.status-card-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.status-card-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status-card-value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.status-card-sub {
+  color: var(--faint);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 企业后台：访问趋势图 ---------- */
+
+.visit-chart .bar.visit {
+  background: var(--brand-bright);
+}
+
+.visit-chart .bar.action {
+  background: var(--success);
+}
+
+.chart-col:hover .bar.visit {
+  background: var(--brand);
+}
+
+.visit-chart .hint {
+  margin: auto;
+}
+
+.legend-dot.visit {
+  background: var(--brand-bright);
+}
+
+.legend-dot.action {
+  background: var(--success);
+}
+
+.trend-legend {
+  margin-top: 10px;
+}
+
+/* ---------- 企业后台：互动漏斗 ---------- */
+
+.funnel {
+  display: grid;
+  gap: 14px;
+  padding: 6px 0 2px;
+}
+
+.funnel-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.funnel-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.funnel-track {
+  height: 22px;
+  border-radius: var(--radius-control);
+  background: var(--neutral-soft);
+  overflow: hidden;
+}
+
+.funnel-track i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-control);
+  background: linear-gradient(90deg, var(--brand-bright), var(--brand));
+  transition: width 0.3s ease;
+}
+
+.funnel-row:nth-child(2) .funnel-track i {
+  background: linear-gradient(90deg, #8b97ea, var(--brand-bright));
+}
+
+.funnel-row:nth-child(3) .funnel-track i {
+  background: linear-gradient(90deg, #b9c0ee, #9aa5ec);
+}
+
+.funnel-row strong {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.funnel-note {
+  margin-top: 14px;
+}
+
+/* ---------- 企业后台：segmented 切换 ---------- */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--neutral-soft);
+}
+
+.segmented button {
+  min-height: 26px;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.segmented button:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.segmented button.active {
+  background: var(--surface);
+  color: var(--brand);
+  box-shadow: 0 1px 4px rgba(17, 24, 39, 0.12);
+}
+
+/* ---------- 企业后台：版本与额度 ---------- */
+
+.plan-hero {
+  display: grid;
+  gap: 14px;
+}
+
+.plan-name {
+  font-size: 24px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.plan-actions {
+  margin-top: 14px;
+}
+
+.quota-bars {
+  display: grid;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.quota-bar {
+  display: grid;
+  gap: 8px;
+}
+
+.quota-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quota-bar-head span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quota-bar-head strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--neutral-soft);
+  overflow: hidden;
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-bright);
+  transition: width 0.3s ease;
+}
+
+.progress i.warn {
+  background: var(--warning);
+}
+
+.delta-pos {
+  color: var(--success-text);
+  font-weight: 600;
+}
+
+.delta-neg {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+/* ---------- 企业后台：可折叠额度账本 ---------- */
+
+.ledger-details summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.ledger-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.ledger-details summary::before {
+  content: "›";
+  color: var(--faint);
+  font-size: 14px;
+  transition: transform 0.15s ease;
+}
+
+.ledger-details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.ledger-details .ledger-title {
+  margin-right: auto;
+}
+
+.ledger-details .table-wrap {
+  margin-top: 14px;
+}
+
+@media (max-width: 1180px) {
+  .status-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .status-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 企业后台：企业主页完整度条 ---------- */
+
+.completeness-bar {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.completeness-info {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.completeness-info strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.completeness-info .hint {
+  margin: 0;
+}
+
+/* ---------- 企业后台：企业主页编辑器 ---------- */
+
+.editor-subhead {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.module-config {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.video-panel {
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.video-panel p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.video-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- 企业后台：企业主页实时预览卡 ---------- */
+
+.company-preview {
+  min-height: 0;
+}
+
+.preview-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(160deg, var(--brand-soft), var(--surface) 55%);
+}
+
+.preview-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.preview-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--brand);
+  color: #fff;
+  overflow: hidden;
+}
+
+.preview-logo b {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.preview-logo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.preview-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.preview-title strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.preview-title small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-stats {
+  display: flex;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-stats strong {
+  color: var(--brand);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ---------- 企业后台：说明条 ---------- */
+
+.info-banner {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.info-banner.brand {
+  border-color: transparent;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+/* ---------- 企业后台：模板卡片网格 ---------- */
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.template-card {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.template-swatch {
+  position: relative;
+  height: 92px;
+}
+
+.template-thumbs {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.template-thumbs img {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.template-card-body {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.template-card-body > strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.template-card-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.template-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}

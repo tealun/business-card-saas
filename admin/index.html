@@ -8,7 +8,7 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     />
     <title>智云名片 · 管理后台</title>
-    <link rel="stylesheet" href="./styles.css?v=20260717-platform" />
+    <link rel="stylesheet" href="./styles.css?v=20260717-tenant2" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -166,28 +166,67 @@
               <h2>企业总览</h2>
               <p>企业授权、成员名片、主页资料和功能能力的实时状态。</p>
             </div>
-            <button id="loadTenantDashboard" type="button">刷新总览</button>
+            <button id="loadTenantDashboard" type="button" class="secondary icon-btn">&#x21bb; 刷新</button>
+          </div>
+          <div class="status-card-grid">
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">成员同步</span>
+                <strong class="status-card-value" id="dashSyncStatus">--</strong>
+                <span class="status-card-sub" id="dashSyncSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">版本额度</span>
+                <strong class="status-card-value" id="dashQuotaStatus">--</strong>
+                <span class="status-card-sub" id="dashQuotaSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">资料完整度</span>
+                <strong class="status-card-value" id="dashProfileStatus">--</strong>
+                <span class="status-card-sub" id="dashProfileSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">企业视频</span>
+                <strong class="status-card-value" id="dashVideoStatus">--</strong>
+                <span class="status-card-sub" id="dashVideoSub">--</span>
+              </div>
+            </article>
           </div>
           <div class="metric-grid">
-            <button class="metric" data-go="tenant-members"><span>成员数</span><strong id="metricMembers">--</strong></button>
-            <button class="metric" data-go="tenant-members"><span>名片数</span><strong id="metricCards">--</strong></button>
+            <button class="metric" data-go="tenant-members"><span>成员总数</span><strong id="metricMembers">--</strong></button>
             <button class="metric" data-go="tenant-members"><span>启用名片</span><strong id="metricActiveCards">--</strong></button>
-            <article class="metric"><span>视频能力</span><strong id="metricVideo">--</strong></article>
+            <button class="metric" data-go="tenant-analytics"><span>近 7 日访问</span><strong id="metricWeekVisits">--</strong></button>
+            <button class="metric" data-go="tenant-billing"><span>剩余成员额度</span><strong id="metricMemberQuotaLeft">--</strong></button>
           </div>
           <div class="content-grid two">
             <article class="panel">
-              <div class="panel-head"><h3>待办</h3><span class="status-chip brand">真实接口</span></div>
+              <div class="panel-head"><h3>待办事项</h3></div>
               <div id="tenantTodoList" class="task-list"></div>
             </article>
             <article class="panel">
-              <div class="panel-head"><h3>后台能力矩阵</h3></div>
-              <div class="capability-list">
-                <span>成员与名片</span><strong>已接入</strong>
-                <span>企业主页</span><strong>已接入</strong>
-                <span>字段与模板</span><strong>已接入</strong>
-                <span>数据分析</span><strong>已接入</strong>
-                <span>版本与额度</span><strong>已接入</strong>
+              <div class="panel-head">
+                <h3>近 7 日访问趋势</h3>
+                <span class="chart-legend"><i class="legend-dot visit"></i>访问量</span>
               </div>
+              <div id="dashboardVisitChart" class="callback-chart visit-chart"></div>
             </article>
           </div>
         </section>
@@ -195,30 +234,33 @@
         <section class="page" data-page="tenant-members">
           <div class="page-head">
             <div><h2>成员与名片</h2><p>成员来自企业微信同步，名片资料通过后台接口保存。</p></div>
-            <button id="syncMembers" type="button" class="secondary danger-lite">同步成员</button>
+            <button id="syncMembers" type="button">同步成员</button>
           </div>
           <article class="panel">
             <div class="toolbar">
               <input id="memberSearch" placeholder="搜索姓名 / userid / open_userid" />
               <select id="memberStatusFilter">
                 <option value="all">全部状态</option>
-                <option value="active">启用</option>
-                <option value="disabled">停用</option>
+                <option value="active">已启用</option>
+                <option value="disabled">已停用</option>
               </select>
-              <button id="loadMembers" type="button">刷新</button>
+              <button id="loadMembers" type="button" class="secondary">刷新</button>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>成员</th>
-                    <th>状态</th>
-                    <th>公开 ID</th>
-                    <th>企业微信身份</th>
+                    <th>姓名</th>
+                    <th>职位</th>
+                    <th>部门</th>
+                    <th>手机</th>
+                    <th>邮箱</th>
+                    <th>名片状态</th>
+                    <th>最近访问</th>
                     <th>操作</th>
                   </tr>
                 </thead>
-                <tbody id="membersRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+                <tbody id="membersRows"><tr><td colspan="8">尚未加载</td></tr></tbody>
               </table>
             </div>
             <div class="table-footer"><span id="membersTotal">0 个成员</span></div>
@@ -228,31 +270,47 @@
         <section class="page" data-page="tenant-company">
           <div class="page-head">
             <div><h2>企业主页</h2><p>编辑企业资料、产品服务、简介、荣誉与视频模块。</p></div>
-            <button id="saveCompanyProfile" type="button">保存主页</button>
+            <div class="page-head-actions">
+              <span id="companyStatusTag"></span>
+              <button id="saveCompanyProfile" type="button" class="secondary">保存草稿</button>
+              <button id="publishCompanyProfile" type="button">发布</button>
+            </div>
+          </div>
+          <div class="completeness-bar">
+            <div class="completeness-info">
+              <strong id="companyCompletenessValue">--</strong>
+              <span class="hint" id="companyCompletenessHint">读取主页资料后计算完整度。</span>
+            </div>
+            <div class="progress"><i id="companyCompletenessBar"></i></div>
           </div>
           <div class="company-layout">
             <aside class="module-tabs">
               <button data-company-tab="profile" class="active" type="button">基础资料</button>
-              <button data-company-tab="modules" type="button">模块</button>
               <button data-company-tab="services" type="button">服务</button>
-              <button data-company-tab="intro" type="button">简介</button>
+              <button data-company-tab="intro" type="button">介绍</button>
               <button data-company-tab="honors" type="button">荣誉</button>
+              <button data-company-tab="video" type="button">视频</button>
             </aside>
             <article class="panel company-editor">
               <div class="panel-head">
                 <h3 id="companyTabTitle">基础资料</h3>
                 <button id="loadCompanyProfile" type="button" class="secondary">读取主页</button>
               </div>
-              <form id="companyForm" class="form-grid company-tab active" data-company-panel="profile">
-                <label><span>企业名称</span><input name="display_name" required /></label>
-                <label><span>企业简称</span><input name="short_name" /></label>
-                <label><span>Logo URL</span><input name="logo_url" /></label>
-                <label><span>官网</span><input name="website_url" /></label>
-                <label><span>状态</span><select name="status"><option value="draft">草稿</option><option value="published">已发布</option></select></label>
-                <label class="check-line"><input name="visible" type="checkbox" /> 公开可见</label>
-                <label class="wide"><span>地址</span><input name="address" /></label>
-              </form>
-              <div id="moduleEditor" class="company-tab editor-stack" data-company-panel="modules"></div>
+              <div class="company-tab active" data-company-panel="profile">
+                <form id="companyForm" class="form-grid">
+                  <label><span>企业名称</span><input name="display_name" required /></label>
+                  <label><span>企业简称</span><input name="short_name" /></label>
+                  <label><span>Logo URL</span><input name="logo_url" /></label>
+                  <label><span>官网</span><input name="website_url" /></label>
+                  <label><span>状态</span><select name="status"><option value="draft">草稿</option><option value="published">已发布</option></select></label>
+                  <label class="check-line"><input name="visible" type="checkbox" /> 公开可见</label>
+                  <label class="wide"><span>地址</span><input name="address" /></label>
+                </form>
+                <div class="editor-stack module-config">
+                  <h4 class="editor-subhead">主页模块展示</h4>
+                  <div id="moduleEditor" class="editor-stack"></div>
+                </div>
+              </div>
               <div class="company-tab editor-stack" data-company-panel="services">
                 <div class="inline-actions"><button id="addService" type="button" class="secondary">新增服务</button></div>
                 <div id="serviceEditor"></div>
@@ -276,12 +334,27 @@
                 </div>
                 <div id="honorEditor"></div>
               </div>
+              <div class="company-tab editor-stack" data-company-panel="video">
+                <div id="videoPanel" class="video-panel"></div>
+              </div>
             </article>
-            <aside class="phone-preview">
+            <aside class="phone-preview company-preview">
               <span>实时预览</span>
-              <strong id="previewCompanyName">企业名称</strong>
-              <p id="previewCompanyIntro">主页资料读取后展示预览。</p>
-              <div id="previewModules" class="preview-modules"></div>
+              <div class="preview-card">
+                <div class="preview-card-head">
+                  <span class="preview-logo"><img id="previewCompanyLogo" class="hidden" alt="" /><b id="previewCompanyInitial">企</b></span>
+                  <div class="preview-title">
+                    <strong id="previewCompanyName">企业名称</strong>
+                    <small id="previewCompanyShort">--</small>
+                  </div>
+                </div>
+                <p id="previewCompanyIntro">主页资料读取后展示预览。</p>
+                <div class="preview-stats">
+                  <span><strong id="previewServiceCount">0</strong> 项服务</span>
+                  <span><strong id="previewHonorCount">0</strong> 项荣誉</span>
+                </div>
+                <div id="previewModules" class="preview-modules"></div>
+              </div>
             </aside>
           </div>
         </section>
@@ -291,41 +364,35 @@
             <div><h2>字段与模板</h2><p>统一成员名片字段规则和企业默认模板。</p></div>
             <button id="saveFieldSettings" type="button">保存字段规则</button>
           </div>
-          <div class="content-grid two">
-            <article class="panel">
-              <div class="panel-head"><h3>字段规则</h3><button id="loadFieldSettings" type="button" class="secondary">读取字段</button></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>字段</th><th>锁定</th><th>员工可编辑</th><th>默认展示</th></tr></thead>
-                  <tbody id="fieldRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
-                </table>
+          <article class="panel">
+            <div class="panel-head"><h3>字段规则</h3><button id="loadFieldSettings" type="button" class="secondary">读取字段</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>字段</th><th>锁定</th><th>员工可编辑</th><th>默认展示</th><th>说明</th></tr></thead>
+                <tbody id="fieldRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h3>模板</h3><button id="loadTemplates" type="button" class="secondary">读取模板</button></div>
+            <div id="templateCards" class="template-grid"></div>
+            <form id="templateForm" class="stack-form compact-form template-form">
+              <h4 class="editor-subhead">新建 / 编辑模板</h4>
+              <input id="templateId" type="hidden" />
+              <label><span>模板名称</span><input id="templateName" required /></label>
+              <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
+              <label><span>背景 URL</span><input id="templateBackgroundUrl" /></label>
+              <label><span>Logo URL</span><input id="templateLogoUrl" /></label>
+              <label><span>主色</span><input id="templatePrimaryColor" value="#2563eb" /></label>
+              <label><span>底色</span><input id="templateSurfaceColor" value="#ffffff" /></label>
+              <label><span>布局</span><input id="templateLayoutVariant" value="horizontal-business" /></label>
+              <div class="inline-actions">
+                <button id="createTemplate" type="button">新增</button>
+                <button id="updateTemplate" type="button" class="secondary">保存</button>
+                <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
               </div>
-            </article>
-            <article class="panel">
-              <div class="panel-head"><h3>模板</h3><button id="loadTemplates" type="button" class="secondary">读取模板</button></div>
-              <form id="templateForm" class="stack-form compact-form">
-                <input id="templateId" type="hidden" />
-                <label><span>模板名称</span><input id="templateName" required /></label>
-                <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
-                <label><span>背景 URL</span><input id="templateBackgroundUrl" /></label>
-                <label><span>Logo URL</span><input id="templateLogoUrl" /></label>
-                <label><span>主色</span><input id="templatePrimaryColor" value="#2563eb" /></label>
-                <label><span>底色</span><input id="templateSurfaceColor" value="#ffffff" /></label>
-                <label><span>布局</span><input id="templateLayoutVariant" value="horizontal-business" /></label>
-                <div class="inline-actions">
-                  <button id="createTemplate" type="button">新增</button>
-                  <button id="updateTemplate" type="button" class="secondary">保存</button>
-                  <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
-                </div>
-              </form>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>名称</th><th>默认</th><th>状态</th><th>操作</th></tr></thead>
-                  <tbody id="templateRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
-                </table>
-              </div>
-            </article>
-          </div>
+            </form>
+          </article>
         </section>
 
         <section class="page" data-page="tenant-sync">
@@ -372,35 +439,47 @@
         <section class="page" data-page="tenant-analytics">
           <div class="page-head">
             <div><h2>数据分析</h2><p>基于真实访问、互动和分享记录的企业级只读分析。</p></div>
-            <button id="loadTenantAnalytics" type="button">刷新</button>
+            <button id="loadTenantAnalytics" type="button" class="secondary icon-btn">&#x21bb; 刷新</button>
           </div>
           <div class="metric-grid">
-            <article class="metric"><span>访问次数</span><strong id="analyticsVisits">--</strong></article>
+            <article class="metric"><span>访问总数</span><strong id="analyticsVisits">--</strong></article>
             <article class="metric"><span>独立访客</span><strong id="analyticsVisitors">--</strong></article>
-            <article class="metric"><span>互动次数</span><strong id="analyticsActions">--</strong></article>
-            <article class="metric"><span>分享数</span><strong id="analyticsShares">--</strong></article>
+            <article class="metric"><span>互动总数</span><strong id="analyticsActions">--</strong></article>
+            <article class="metric"><span>分享次数</span><strong id="analyticsShares">--</strong></article>
           </div>
           <div class="content-grid two">
             <article class="panel">
-              <div class="panel-head"><h3>近 7 日趋势</h3><span class="status-chip muted">访问 / 互动</span></div>
-              <div id="analyticsTrend" class="trend-bars"></div>
+              <div class="panel-head"><h3>互动漏斗</h3><span class="status-chip muted">全时段</span></div>
+              <div id="analyticsFunnel" class="funnel"></div>
+              <p class="hint funnel-note">口径：访问=名片浏览，互动=名片内行为，分享=转发次数</p>
             </article>
             <article class="panel">
-              <div class="panel-head"><h3>互动类型</h3></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>类型</th><th>次数</th></tr></thead>
-                  <tbody id="analyticsActionRows"><tr><td colspan="2">尚未加载</td></tr></tbody>
-                </table>
+              <div class="panel-head">
+                <h3>访问趋势</h3>
+                <div id="analyticsRange" class="segmented" role="group" aria-label="趋势窗口">
+                  <button type="button" data-days="7" class="active">7 天</button>
+                  <button type="button" data-days="30">30 天</button>
+                </div>
               </div>
+              <div id="analyticsTrend" class="callback-chart visit-chart"></div>
+              <span class="chart-legend trend-legend"><i class="legend-dot visit"></i>访问<i class="legend-dot action"></i>互动</span>
             </article>
           </div>
           <article class="panel">
-            <div class="panel-head"><h3>成员排行</h3></div>
+            <div class="panel-head"><h3>成员排行</h3><span class="status-chip muted">TOP 20 · 全时段</span></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>成员</th><th>访问</th><th>访客</th><th>互动</th><th>互动率</th></tr></thead>
+                <thead><tr><th>排名</th><th>姓名</th><th>访问量</th><th>独立访客</th><th>互动</th></tr></thead>
                 <tbody id="analyticsMemberRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel hidden" id="analyticsActionPanel">
+            <div class="panel-head"><h3>互动类型分布</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>类型</th><th>次数</th></tr></thead>
+                <tbody id="analyticsActionRows"><tr><td colspan="2">尚未加载</td></tr></tbody>
               </table>
             </div>
           </article>
@@ -409,31 +488,67 @@
         <section class="page" data-page="tenant-billing">
           <div class="page-head">
             <div><h2>版本与额度</h2><p>当前订阅、真实用量、订单和额度调整账本。</p></div>
-            <button id="loadTenantCommercial" type="button">刷新</button>
-          </div>
-          <div class="metric-grid">
-            <article class="metric"><span>当前版本</span><strong id="tenantPlanName">--</strong></article>
-            <article class="metric"><span>成员额度</span><strong id="tenantMemberQuota">--</strong></article>
-            <article class="metric"><span>名片额度</span><strong id="tenantCardQuota">--</strong></article>
-            <article class="metric"><span>视频额度</span><strong id="tenantVideoQuota">--</strong></article>
+            <button id="loadTenantCommercial" type="button" class="secondary icon-btn">&#x21bb; 刷新</button>
           </div>
           <div class="content-grid two">
-            <article class="panel">
-              <div class="panel-head"><h3>订单</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>订单</th><th>套餐</th><th>金额</th><th>状态</th><th>时间</th></tr></thead><tbody id="tenantOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody></table></div>
+            <article class="panel plan-panel">
+              <div class="panel-head"><h3>当前版本</h3><span id="billingPlanStatus"></span></div>
+              <div class="plan-hero">
+                <strong id="billingPlanName" class="plan-name">--</strong>
+                <div class="kv-list">
+                  <div class="kv-row"><span>有效期至</span><strong id="billingExpires">--</strong></div>
+                  <div class="kv-row"><span>计费周期</span><strong id="billingPeriod">--</strong></div>
+                  <div class="kv-row"><span>价格</span><strong id="billingPrice">--</strong></div>
+                </div>
+              </div>
+              <div class="inline-actions plan-actions">
+                <button id="billingRenew" type="button">续费 / 购买</button>
+              </div>
             </article>
             <article class="panel">
-              <div class="panel-head"><h3>额度账本</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>类型</th><th>变化</th><th>原因</th><th>时间</th></tr></thead><tbody id="tenantQuotaRows"><tr><td colspan="4">尚未加载</td></tr></tbody></table></div>
+              <div class="panel-head"><h3>额度使用</h3></div>
+              <div class="quota-bars">
+                <div class="quota-bar">
+                  <div class="quota-bar-head"><span>成员额度</span><strong id="billingMemberQuotaText">--</strong></div>
+                  <div class="progress"><i id="billingMemberQuotaBar"></i></div>
+                  <span class="hint" id="billingMemberQuotaLeft">--</span>
+                </div>
+                <div class="quota-bar">
+                  <div class="quota-bar-head"><span>名片额度</span><strong id="billingCardQuotaText">--</strong></div>
+                  <div class="progress"><i id="billingCardQuotaBar"></i></div>
+                  <span class="hint" id="billingCardQuotaLeft">--</span>
+                </div>
+              </div>
             </article>
           </div>
+          <article class="panel">
+            <div class="panel-head"><h3>订单记录</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>订单号</th><th>版本</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+                <tbody id="tenantOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <details class="ledger-details">
+              <summary><span class="ledger-title">额度调整记录</span><span id="tenantQuotaCount" class="status-chip muted">0 条</span></summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>类型</th><th>调整量</th><th>原因</th><th>操作人</th></tr></thead>
+                  <tbody id="tenantQuotaRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+          </article>
         </section>
 
         <section class="page" data-page="tenant-admins">
           <div class="page-head">
-            <div><h2>管理员</h2><p>来自 tenant_admins 的企业管理员只读清单。</p></div>
+            <div><h2>管理员</h2><p>来自 tenant_admins 的企业管理员清单。</p></div>
             <button id="loadTenantAdmins" type="button">刷新</button>
           </div>
+          <p class="info-banner">管理员通过企业微信扫码登录；新增管理员需在企微侧添加后由 Owner 确认身份。</p>
           <article class="panel">
             <div class="toolbar">
               <input id="tenantAdminSearch" placeholder="搜索姓名、Userid 或 OpenUserID" />
@@ -442,8 +557,8 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>管理员</th><th>角色</th><th>状态</th><th>成员</th><th>创建时间</th><th>更新时间</th></tr></thead>
-                <tbody id="tenantAdminRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+                <thead><tr><th>姓名</th><th>角色</th><th>状态</th><th>加入时间</th><th>操作</th></tr></thead>
+                <tbody id="tenantAdminRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
               </table>
             </div>
             <div class="table-footer"><strong id="tenantAdminTotal">0 个管理员</strong></div>
@@ -455,16 +570,23 @@
             <div><h2>审计日志</h2><p>本企业回调、同步和处理事件，不展示 payload 明文。</p></div>
             <button id="loadTenantAuditEvents" type="button">刷新</button>
           </div>
+          <p class="info-banner brand">当前展示企业微信回调事件流水；操作审计日志（操作者 / 动作 / 结果）已在迭代计划中。</p>
+          <div class="metric-grid">
+            <article class="metric"><span>近 24h 接收</span><strong id="auditTodayReceived">--</strong></article>
+            <article class="metric"><span>近 24h 成功</span><strong id="auditTodaySucceeded">--</strong></article>
+            <article class="metric"><span>近 24h 失败</span><strong id="auditTodayFailed" class="danger">--</strong></article>
+            <article class="metric"><span>可重试</span><strong id="auditTodayRetryable" class="warning">--</strong></article>
+          </div>
           <article class="panel">
             <div class="toolbar">
               <input id="tenantAuditSearch" placeholder="搜索事件 Key 或类型" />
               <select id="tenantAuditSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
-              <select id="tenantAuditStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+              <select id="tenantAuditStatus"><option value="all">全部状态</option><option value="received">已接收</option><option value="processing">处理中</option><option value="done">完成</option><option value="failed">失败</option><option value="dead">死信</option></select>
               <button id="searchTenantAuditEvents" type="button">搜索</button>
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>错误摘要</th><th>时间</th></tr></thead>
+                <thead><tr><th>时间</th><th>来源</th><th>事件</th><th>状态</th><th>重试</th><th>操作</th></tr></thead>
                 <tbody id="tenantAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
               </table>
             </div>
@@ -775,6 +897,6 @@
     </dialog>
 
     <script src="./config.js"></script>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260717-tenant2"></script>
   </body>
 </html>
