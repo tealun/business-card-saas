@@ -96,6 +96,17 @@ describe("AdminOperationLogRepository", () => {
     expect(result.items[0]).toMatchObject({ tenant_id: "7", tenant_name: "Pilot Corp" });
   });
 
+  it("applies the hours time window filter", async () => {
+    const database = fakeDatabase([]);
+    const repository = new AdminOperationLogRepository(database as unknown as DatabaseService);
+
+    await repository.listTenantLogs("7", { action: "", search: "", hours: 24, limit: 50, offset: 0 });
+
+    const [sql, values] = database.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain("l.created_at >= now()");
+    expect(values).toEqual(["7", 24, 50, 0]);
+  });
+
   it("applies no tenant filter for unscoped platform queries", async () => {
     const database = fakeDatabase([]);
     const repository = new AdminOperationLogRepository(database as unknown as DatabaseService);

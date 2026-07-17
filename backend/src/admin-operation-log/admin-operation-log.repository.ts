@@ -145,6 +145,10 @@ function operationLogFilters(
     values.push(query.action);
     conditions.push(`l.action = $${values.length}`);
   }
+  if (query.hours) {
+    values.push(query.hours);
+    conditions.push(`l.created_at >= now() - ($${values.length}::int * interval '1 hour')`);
+  }
   if (query.search) {
     values.push(`%${escapeLike(query.search)}%`);
     const index = values.length;

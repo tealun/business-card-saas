@@ -3,6 +3,12 @@ import { z } from "zod";
 export const adminOperationLogQuerySchema = z.object({
   action: z.string().trim().max(64).catch("").default(""),
   search: z.string().trim().max(128).catch("").default(""),
+  // Time window in hours (24 = last 24h, 168 = last 7d); omitted = all time.
+  hours: z.coerce
+    .number()
+    .int()
+    .refine((value) => value === 24 || value === 168, { message: "hours must be 24 or 168" })
+    .optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0)
 });
