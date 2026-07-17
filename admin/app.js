@@ -1818,3 +1818,25 @@ void boot();
     render();
   }
 })();
+
+/* ---- Login hero tilt (additive only) ---- */
+(() => {
+  const visual = $(".login-visual");
+  const card = $("#loginTiltCard");
+  if (!visual || !card) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let raf = 0;
+  visual.addEventListener("mousemove", (event) => {
+    const rect = visual.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      card.style.transform = `rotateY(${(x * 10).toFixed(2)}deg) rotateX(${(-y * 8).toFixed(2)}deg)`;
+    });
+  });
+  visual.addEventListener("mouseleave", () => {
+    cancelAnimationFrame(raf);
+    card.style.transform = "";
+  });
+})();
