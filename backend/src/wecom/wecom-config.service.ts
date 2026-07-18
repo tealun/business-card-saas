@@ -8,6 +8,8 @@ export interface WecomSuiteConfig {
   callbackAesKey: string;
   dataCallbackToken: string;
   dataCallbackAesKey: string;
+  loginSuiteId: string;
+  loginSuiteSecret: string;
   loginCallbackToken: string;
   loginCallbackAesKey: string;
 }
@@ -25,6 +27,8 @@ export class WecomConfigService {
       callbackAesKey,
       dataCallbackToken: readRequired("WECOM_DATA_CALLBACK_TOKEN"),
       dataCallbackAesKey: readRequired("WECOM_DATA_CALLBACK_AES_KEY"),
+      loginSuiteId: readRequired("WECOM_LOGIN_SUITE_ID"),
+      loginSuiteSecret: readRequired("WECOM_LOGIN_SUITE_SECRET"),
       loginCallbackToken: readRequired("WECOM_LOGIN_CALLBACK_TOKEN"),
       loginCallbackAesKey: readRequired("WECOM_LOGIN_CALLBACK_AES_KEY")
     };
@@ -42,6 +46,10 @@ export class WecomConfigService {
 
   get suiteId(): string {
     return readRequired("WECOM_SUITE_ID");
+  }
+
+  get loginSuiteId(): string {
+    return readRequired("WECOM_LOGIN_SUITE_ID");
   }
 
   get providerCorpId(): string {

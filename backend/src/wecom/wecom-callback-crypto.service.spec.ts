@@ -11,6 +11,8 @@ const suite: WecomSuiteConfig = {
   callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
   dataCallbackToken: "data-callback-token",
   dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+  loginSuiteId: "wwloginsuite0001",
+  loginSuiteSecret: "login-suite-secret",
   loginCallbackToken: "login-callback-token",
   loginCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 };

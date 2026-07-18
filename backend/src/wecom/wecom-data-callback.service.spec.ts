@@ -185,6 +185,8 @@ class FakeConfigService {
     callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
     dataCallbackToken: "data-token",
     dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+    loginSuiteId: "wwloginsuite0001",
+    loginSuiteSecret: "login-suite-secret",
     loginCallbackToken: "login-token",
     loginCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
   };

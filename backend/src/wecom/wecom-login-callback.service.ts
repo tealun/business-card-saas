@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { WecomCallbackCryptoService } from "./wecom-callback-crypto.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
+import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 import type { WecomCallbackQuery, WecomCallbackQueryInput } from "./wecom-command-callback.service.js";
 
 export interface WecomLoginCallbackResult {
@@ -13,7 +14,8 @@ export interface WecomLoginCallbackResult {
 export class WecomLoginCallbackService {
   constructor(
     private readonly config: WecomConfigService,
-    private readonly crypto: WecomCallbackCryptoService
+    private readonly crypto: WecomCallbackCryptoService,
+    private readonly suiteState: WecomSuiteStateRepository
   ) {}
 
   verifyUrl(query: WecomCallbackQueryInput, echoStr?: string): string {
@@ -34,7 +36,7 @@ export class WecomLoginCallbackService {
     return decrypted.message;
   }
 
-  receive(query: WecomCallbackQueryInput, body: unknown): WecomLoginCallbackResult {
+  async receive(query: WecomCallbackQueryInput, body: unknown): Promise<WecomLoginCallbackResult> {
     const normalizedQuery = normalizeQuery(query);
     const encryptedXml = bodyAsXml(body);
     const encrypt = readXmlText(encryptedXml, "Encrypt");
@@ -53,9 +55,16 @@ export class WecomLoginCallbackService {
     );
     this.assertAllowedReceiveId(decrypted.receiveId);
     const infoType = readXmlText(decrypted.message, "InfoType") ?? "unknown";
-    const suiteId = readXmlText(decrypted.message, "SuiteId") ?? this.config.suite.suiteId;
-    if (suiteId !== this.config.suite.suiteId) {
+    const suiteId = readXmlText(decrypted.message, "SuiteId") ?? this.config.suite.loginSuiteId;
+    if (suiteId !== this.config.suite.loginSuiteId) {
       throw new BadRequestException("WeCom login callback suite mismatch");
+    }
+    if (infoType === "suite_ticket") {
+      const suiteTicket = readXmlText(decrypted.message, "SuiteTicket");
+      if (!suiteTicket) {
+        throw new BadRequestException("missing WeCom login SuiteTicket");
+      }
+      await this.suiteState.saveSuiteTicket(suiteId, suiteTicket, eventTime(decrypted.message));
     }
     return { infoType, suiteId, handled: true };
   }
@@ -71,7 +80,7 @@ export class WecomLoginCallbackService {
 
   private assertAllowedReceiveId(receiveId: string): void {
     const suite = this.config.suite;
-    if (receiveId !== suite.suiteId && receiveId !== suite.providerCorpId) {
+    if (receiveId !== suite.loginSuiteId && receiveId !== suite.providerCorpId) {
       throw new UnauthorizedException("invalid WeCom login callback receiver");
     }
   }
@@ -101,4 +110,12 @@ function readXmlText(xml: string, tag: string): string | null {
   const match = xml.match(new RegExp(`<${tag}>\\s*(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))\\s*</${tag}>`, "i"));
   const value = match?.[1] ?? match?.[2];
   return value?.trim() || null;
+}
+
+function eventTime(messageXml: string): Date {
+  const timestamp = Number(readXmlText(messageXml, "TimeStamp"));
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    return new Date();
+  }
+  return new Date(timestamp * 1000);
 }

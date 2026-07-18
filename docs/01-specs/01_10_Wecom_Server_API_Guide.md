@@ -104,10 +104,13 @@
 
 Service provider login authorization console settings:
 
+- SuiteID and Secret from this page map to `WECOM_LOGIN_SUITE_ID` and `WECOM_LOGIN_SUITE_SECRET`.
 - Trusted domain: admin web domain, for example `biz.yuanyin.design`.
 - Instruction callback URL: `https://wecomcard.yuanyin.design/api/v1/wecom/callbacks/login`.
 - Token and EncodingAESKey from this page map to `WECOM_LOGIN_CALLBACK_TOKEN` and `WECOM_LOGIN_CALLBACK_AES_KEY`.
 - Do not reuse the third-party app command callback secrets; `/api/v1/wecom/callbacks/command` still owns suite_ticket/create_auth/change_auth/cancel_auth, and `/api/v1/wecom/callbacks/data` still owns contact data callbacks.
+
+Important: `ServiceApp` login uses `WECOM_LOGIN_SUITE_ID` as `appid` and uses the login authorization suite token for `getuserinfo3rd`. The original third-party app `WECOM_SUITE_ID/SECRET` remains required for install authorization, ordinary command callbacks, enterprise API calls, and `get_admin_list`.
 4. 企业微信回跳 `code/state`。
 5. 后端消费 `state`，用 `suite_access_token + code` 调 `getuserinfo3rd`。
 6. 用返回的 `open_corpid` 定位 tenant，并读取该 tenant 的 `agentid`。

@@ -48,6 +48,29 @@ describe("WecomSuiteTokenService", () => {
     expect(api.lastRequest?.suiteTicket).toBe("ticket-001");
   });
 
+  it("refreshes login authorization suite_access_token with login SuiteID and Secret", async () => {
+    const { service, api, state, config } = createService();
+    await state.saveSuiteTicket(config.suite.loginSuiteId, "login-ticket-001", new Date("2026-07-06T10:00:00.000Z"));
+    api.nextResponse = { suiteAccessToken: "login-token", expiresIn: 7200 };
+
+    const result = await service.getLoginSuiteAccessToken(new Date("2026-07-06T10:00:00.000Z"));
+
+    expect(result.accessToken).toBe("login-token");
+    expect(api.lastRequest).toEqual({
+      suiteId: config.suite.loginSuiteId,
+      suiteSecret: config.suite.loginSuiteSecret,
+      suiteTicket: "login-ticket-001"
+    });
+  });
+
+  it("fails clearly when login authorization suite_ticket has not arrived yet", async () => {
+    const { service } = createService();
+
+    await expect(service.getLoginSuiteAccessToken()).rejects.toThrow(
+      "WeCom login authorization suite_ticket is not available"
+    );
+  });
+
   it("fails clearly when suite_ticket has not arrived yet", async () => {
     const { service } = createService();
 

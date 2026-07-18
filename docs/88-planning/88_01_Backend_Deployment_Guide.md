@@ -100,6 +100,8 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_CALLBACK_AES_KEY`
 - `WECOM_DATA_CALLBACK_TOKEN`
 - `WECOM_DATA_CALLBACK_AES_KEY`
+- `WECOM_LOGIN_SUITE_ID`
+- `WECOM_LOGIN_SUITE_SECRET`
 - `WECOM_LOGIN_CALLBACK_TOKEN`
 - `WECOM_LOGIN_CALLBACK_AES_KEY`
 - `WECOM_AUTH_LAUNCH_TOKEN`
@@ -252,6 +254,8 @@ WECOM_CALLBACK_TOKEN=real_command_callback_token
 WECOM_CALLBACK_AES_KEY=real_43_character_command_encoding_aes_key
 WECOM_DATA_CALLBACK_TOKEN=real_data_callback_token
 WECOM_DATA_CALLBACK_AES_KEY=real_43_character_data_encoding_aes_key
+WECOM_LOGIN_SUITE_ID=ww_login_authorization_suite_id
+WECOM_LOGIN_SUITE_SECRET=real_login_authorization_suite_secret
 WECOM_LOGIN_CALLBACK_TOKEN=real_login_authorization_callback_token
 WECOM_LOGIN_CALLBACK_AES_KEY=real_43_character_login_authorization_encoding_aes_key
 ```

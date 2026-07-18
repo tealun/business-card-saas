@@ -12,7 +12,7 @@ describe("AdminWecomScanAuthService", () => {
     });
 
     expect(result).toEqual({
-      appid: "wwsuite",
+      appid: "wwloginsuite",
       redirect_uri: "https://admin.example.com/",
       login_url: expect.stringContaining("https://login.work.weixin.qq.com/wwlogin/sso/login?"),
       state: expect.stringMatching(/^[a-f0-9]{48}$/),
@@ -20,7 +20,7 @@ describe("AdminWecomScanAuthService", () => {
     });
     const loginUrl = new URL(result.login_url);
     expect(loginUrl.searchParams.get("login_type")).toBe("ServiceApp");
-    expect(loginUrl.searchParams.get("appid")).toBe("wwsuite");
+    expect(loginUrl.searchParams.get("appid")).toBe("wwloginsuite");
     expect(loginUrl.searchParams.get("redirect_uri")).toBe("https://admin.example.com/");
     expect(loginUrl.searchParams.get("state")).toBe(result.state);
     expect(fixture.states.create).toHaveBeenCalledWith(
@@ -48,7 +48,7 @@ describe("AdminWecomScanAuthService", () => {
         redirectPath: "/"
       })
     ).resolves.toMatchObject({
-      appid: "wwsuite",
+      appid: "wwloginsuite",
       redirect_uri: "https://admin.example.com/"
     });
   });
@@ -56,7 +56,7 @@ describe("AdminWecomScanAuthService", () => {
   it("returns an actionable service unavailable error when scan login env is incomplete", async () => {
     const fixture = createFixture({
       config: {
-        suiteId: "",
+        loginSuiteId: "",
         adminLoginRedirectUri: ""
       }
     });
@@ -87,7 +87,7 @@ describe("AdminWecomScanAuthService", () => {
     });
 
     expect(fixture.states.consume).toHaveBeenCalledWith("state-token-00000000000000000000000000000001");
-    expect(fixture.api.fetchThirdPartyUserInfo).toHaveBeenCalledWith("suite-token", "oauth-code", {
+    expect(fixture.api.fetchThirdPartyUserInfo).toHaveBeenCalledWith("login-suite-token", "oauth-code", {
       requireUserTicket: false
     });
     expect(fixture.api.fetchCorpAdminList).toHaveBeenCalledWith({
@@ -235,11 +235,11 @@ describe("AdminWecomScanAuthService", () => {
   });
 });
 
-function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLoginRedirectUri: string }> } = {}) {
+function createFixture(overrides: { config?: Partial<{ loginSuiteId: string; adminLoginRedirectUri: string }> } = {}) {
   const config = {
-    suiteId: overrides.config?.suiteId ?? "wwsuite",
+    loginSuiteId: overrides.config?.loginSuiteId ?? "wwloginsuite",
     providerCorpId: "wwprovider",
-    suite: { providerCorpId: "wwprovider", suiteId: "wwsuite" },
+    suite: { providerCorpId: "wwprovider", suiteId: "wwsuite", loginSuiteId: "wwloginsuite" },
     adminLoginRedirectUri: overrides.config?.adminLoginRedirectUri ?? "https://admin.example.com/"
   };
   const states = {
@@ -248,7 +248,10 @@ function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLog
       async () => ({ accountType: "tenant", redirectPath: null })
     )
   };
-  const suiteTokens = { getSuiteAccessToken: jest.fn(async () => ({ accessToken: "suite-token" })) };
+  const suiteTokens = {
+    getSuiteAccessToken: jest.fn(async () => ({ accessToken: "suite-token" })),
+    getLoginSuiteAccessToken: jest.fn(async () => ({ accessToken: "login-suite-token" }))
+  };
   const api = {
     fetchThirdPartyUserInfo: jest.fn<
       Promise<{

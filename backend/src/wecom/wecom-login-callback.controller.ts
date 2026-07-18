@@ -21,14 +21,14 @@ export class WecomLoginCallbackController {
   }
 
   @Post()
-  receive(
+  async receive(
     @Query("msg_signature") msgSignature: string | undefined,
     @Query("timestamp") timestamp: string | undefined,
     @Query("nonce") nonce: string | undefined,
     @Body() body: unknown,
     @Res() reply: FastifyReply
   ) {
-    this.callbacks.receive({ msgSignature, timestamp, nonce }, body);
+    await this.callbacks.receive({ msgSignature, timestamp, nonce }, body);
     return reply.status(200).type("text/plain").send("success");
   }
 }

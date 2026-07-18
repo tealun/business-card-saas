@@ -63,6 +63,8 @@ const appConfigSchema = z
     WECOM_CALLBACK_AES_KEY: z.string().length(43),
     WECOM_DATA_CALLBACK_TOKEN: z.string().min(1),
     WECOM_DATA_CALLBACK_AES_KEY: z.string().length(43),
+    WECOM_LOGIN_SUITE_ID: z.string().regex(/^ww[A-Za-z0-9_-]+$/, "must be a WeCom login authorization SuiteID"),
+    WECOM_LOGIN_SUITE_SECRET: z.string().min(1),
     WECOM_LOGIN_CALLBACK_TOKEN: z.string().min(1),
     WECOM_LOGIN_CALLBACK_AES_KEY: z.string().length(43),
     WECOM_API_BASE_URL: z.string().url(),

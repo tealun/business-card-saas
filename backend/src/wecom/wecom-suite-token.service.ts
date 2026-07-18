@@ -21,6 +21,32 @@ export class WecomSuiteTokenService {
 
   async getSuiteAccessToken(now = new Date()): Promise<WecomSuiteAccessTokenResult> {
     const suite = this.config.suite;
+    return this.getSuiteAccessTokenFor(
+      {
+        suiteId: suite.suiteId,
+        suiteSecret: suite.suiteSecret,
+        missingTicketMessage: "WeCom suite_ticket is not available"
+      },
+      now
+    );
+  }
+
+  async getLoginSuiteAccessToken(now = new Date()): Promise<WecomSuiteAccessTokenResult> {
+    const suite = this.config.suite;
+    return this.getSuiteAccessTokenFor(
+      {
+        suiteId: suite.loginSuiteId,
+        suiteSecret: suite.loginSuiteSecret,
+        missingTicketMessage: "WeCom login authorization suite_ticket is not available"
+      },
+      now
+    );
+  }
+
+  private async getSuiteAccessTokenFor(
+    suite: { suiteId: string; suiteSecret: string; missingTicketMessage: string },
+    now: Date
+  ): Promise<WecomSuiteAccessTokenResult> {
     const cached = await this.suiteState.getSuiteAccessToken(suite.suiteId);
     if (cached && this.isFresh(cached, now)) {
       return { ...cached, fromCache: true };
@@ -31,18 +57,20 @@ export class WecomSuiteTokenService {
       return { ...(await currentInflight), fromCache: false };
     }
 
-    const refresh = this.refreshSuiteAccessToken(now).finally(() => {
+    const refresh = this.refreshSuiteAccessToken(suite, now).finally(() => {
       this.inflight.delete(suite.suiteId);
     });
     this.inflight.set(suite.suiteId, refresh);
     return { ...(await refresh), fromCache: false };
   }
 
-  private async refreshSuiteAccessToken(now: Date): Promise<WecomSuiteAccessTokenSnapshot> {
-    const suite = this.config.suite;
+  private async refreshSuiteAccessToken(
+    suite: { suiteId: string; suiteSecret: string; missingTicketMessage: string },
+    now: Date
+  ): Promise<WecomSuiteAccessTokenSnapshot> {
     const ticket = await this.suiteState.getSuiteTicket(suite.suiteId);
     if (!ticket) {
-      throw new ServiceUnavailableException("WeCom suite_ticket is not available");
+      throw new ServiceUnavailableException(suite.missingTicketMessage);
     }
 
     const response = await this.api.fetchSuiteAccessToken({

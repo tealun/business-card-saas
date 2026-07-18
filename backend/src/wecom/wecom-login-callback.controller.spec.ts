@@ -3,10 +3,12 @@ import { Test } from "@nestjs/testing";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "../app.module.js";
 import { registerXmlBodyParser } from "../common/xml-body-parser.js";
+import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 
 const suite = {
   providerCorpId: process.env.WECOM_PROVIDER_CORP_ID ?? "wwtestproviderid",
   suiteId: process.env.WECOM_SUITE_ID ?? "wwtestsuiteid",
+  loginSuiteId: process.env.WECOM_LOGIN_SUITE_ID ?? "wwtestloginsuiteid",
   commandCallbackToken: process.env.WECOM_CALLBACK_TOKEN ?? "test-callback-token",
   loginCallbackToken: process.env.WECOM_LOGIN_CALLBACK_TOKEN ?? "test-login-callback-token",
   loginCallbackAesKey: process.env.WECOM_LOGIN_CALLBACK_AES_KEY ?? "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
@@ -51,7 +53,7 @@ describe("WecomLoginCallbackController", () => {
   it("returns the decrypted echo string for login authorization URL verification", async () => {
     const timestamp = String(freshTimestamp());
     const nonce = freshNonce();
-    const encrypt = encryptFixture("login-verify-ok", suite.suiteId);
+    const encrypt = encryptFixture("login-verify-ok", suite.loginSuiteId);
     const msgSignature = signFixture(encrypt, timestamp, nonce, suite.loginCallbackToken);
 
     const response = await app.inject({
@@ -68,7 +70,7 @@ describe("WecomLoginCallbackController", () => {
   it("rejects login authorization verification signed with the command callback token", async () => {
     const timestamp = String(freshTimestamp());
     const nonce = freshNonce();
-    const encrypt = encryptFixture("login-verify-ok", suite.suiteId);
+    const encrypt = encryptFixture("login-verify-ok", suite.loginSuiteId);
     const msgSignature = signFixture(encrypt, timestamp, nonce, suite.commandCallbackToken);
 
     const response = await app.inject({
@@ -119,11 +121,12 @@ describe("WecomLoginCallbackController", () => {
     const nonce = freshNonce();
     const message =
       "<xml>" +
-      `<SuiteId><![CDATA[${suite.suiteId}]]></SuiteId>` +
-      "<InfoType><![CDATA[login_auth]]></InfoType>" +
+      `<SuiteId><![CDATA[${suite.loginSuiteId}]]></SuiteId>` +
+      "<InfoType><![CDATA[suite_ticket]]></InfoType>" +
       `<TimeStamp>${timestamp}</TimeStamp>` +
+      "<SuiteTicket><![CDATA[login-ticket-001]]></SuiteTicket>" +
       "</xml>";
-    const encrypt = encryptFixture(message, suite.suiteId);
+    const encrypt = encryptFixture(message, suite.loginSuiteId);
     const msgSignature = signFixture(encrypt, timestamp, nonce, suite.loginCallbackToken);
 
     const response = await app.inject({
@@ -135,6 +138,10 @@ describe("WecomLoginCallbackController", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toBe("success");
+
+    const repository = app.get(WecomSuiteStateRepository);
+    const stored = await repository.getSuiteTicket(suite.loginSuiteId);
+    expect(stored?.suiteTicket).toBe("login-ticket-001");
   });
 });
 

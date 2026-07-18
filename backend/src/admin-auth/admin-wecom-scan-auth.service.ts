@@ -64,7 +64,7 @@ export class AdminWecomScanAuthService {
   private readLoginConfig(): { suiteId: string; redirectUri: string } {
     try {
       const config = {
-        suiteId: this.config.suiteId,
+        suiteId: this.config.loginSuiteId,
         redirectUri: this.config.adminLoginRedirectUri
       };
       if (!config.suiteId.trim() || !config.redirectUri.trim()) {
@@ -84,8 +84,8 @@ export class AdminWecomScanAuthService {
       throw new BadRequestException("WeCom scan login state is invalid or expired");
     }
 
-    const suiteToken = await this.suiteTokens.getSuiteAccessToken();
-    const identity = await this.api.fetchThirdPartyUserInfo(suiteToken.accessToken, input.code.trim(), {
+    const loginSuiteToken = await this.suiteTokens.getLoginSuiteAccessToken();
+    const identity = await this.api.fetchThirdPartyUserInfo(loginSuiteToken.accessToken, input.code.trim(), {
       requireUserTicket: false
     });
     const userid = identity.userid?.trim() || identity.openUserid;
@@ -107,6 +107,7 @@ export class AdminWecomScanAuthService {
       throw new ForbiddenException("WeCom did not return an administrator userid");
     }
 
+    const suiteToken = await this.suiteTokens.getSuiteAccessToken();
     const adminList = await this.api.fetchCorpAdminList({
       suiteAccessToken: suiteToken.accessToken,
       openCorpid: identity.openCorpid,
