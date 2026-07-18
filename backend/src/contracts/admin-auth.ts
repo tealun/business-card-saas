@@ -69,10 +69,22 @@ export const adminWecomLoginConfigResponseSchema = z.object({
   expires_in: z.number().int().positive()
 });
 
-export const adminWecomScanCallbackQuerySchema = z.object({
-  code: z.string().min(1).max(256),
-  state: z.string().min(32).max(160)
-});
+export const adminWecomScanCallbackQuerySchema = z.preprocess(
+  (value) => {
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+    const query = value as Record<string, unknown>;
+    return {
+      ...query,
+      code: query.code ?? query.auth_code
+    };
+  },
+  z.object({
+    code: z.string().min(1).max(256),
+    state: z.string().min(32).max(160)
+  })
+);
 
 export type AdminRole = z.infer<typeof adminRoleSchema>;
 export type PlatformAdminRole = z.infer<typeof platformAdminRoleSchema>;

@@ -113,7 +113,8 @@
       passwordForm?.classList.toggle("hidden", !isPlatform);
       wecomScanLoginBox?.classList.toggle("hidden", isPlatform);
       loginAlt?.classList.toggle("hidden", isPlatform);
-      if (gateError) gateError.textContent = "";
+      if (gateError && gateError.dataset.preserve !== "true") gateError.textContent = "";
+      if (gateError) delete gateError.dataset.preserve;
     }
 
     $$("[data-login-role]").forEach((tab) => {

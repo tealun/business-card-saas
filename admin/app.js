@@ -201,6 +201,7 @@ function notify(message, tone = "success") {
 function showGate(message = "") {
   authGate.classList.remove("hidden");
   adminShell.classList.add("hidden");
+  if (message) gateError.dataset.preserve = "true";
   gateError.textContent = message;
 }
 
@@ -250,13 +251,14 @@ function applyAdminIdentity(admin) {
 function cleanWecomScanQuery() {
   const url = new URL(window.location.href);
   url.searchParams.delete("code");
+  url.searchParams.delete("auth_code");
   url.searchParams.delete("state");
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
 }
 
 async function completeWecomScanFromLocation() {
   const params = new URLSearchParams(window.location.search);
-  const code = params.get("code");
+  const code = params.get("code") || params.get("auth_code");
   const scanState = params.get("state");
   if (!code || !scanState) return false;
 
@@ -267,8 +269,10 @@ async function completeWecomScanFromLocation() {
     cleanWecomScanQuery();
     completeLogin(result.access_token, result.admin);
   } catch (error) {
+    const message = error.message || "企业微信扫码登录失败，请重新扫码";
+    sessionStorage.setItem("bc_admin_login_error", message);
     cleanWecomScanQuery();
-    expireAdminSession(error.message || "企业微信扫码登录失败，请重新扫码");
+    expireAdminSession(message);
   }
   return true;
 }
@@ -2766,8 +2770,10 @@ if (DEV_MODE) {
 async function boot() {
   void checkApiHealth();
   if (await completeWecomScanFromLocation()) return;
+  const pendingLoginError = sessionStorage.getItem("bc_admin_login_error") || "";
+  if (pendingLoginError) sessionStorage.removeItem("bc_admin_login_error");
   if (!state.adminToken) {
-    showGate("");
+    showGate(pendingLoginError);
     return;
   }
   try {
