@@ -70,6 +70,9 @@ export class WecomSensitiveService {
     ) {
       throw new ForbiddenException("authorized WeCom member does not match the current card identity");
     }
+    if (!identity.userTicket) {
+      throw new ForbiddenException("WeCom did not grant sensitive profile access");
+    }
     const detail = await this.api.fetchThirdPartyUserDetail(suiteToken.accessToken, identity.userTicket);
     if (detail.openCorpid && detail.openCorpid !== context.openCorpid) {
       throw new ForbiddenException("sensitive profile enterprise identity mismatch");

@@ -103,6 +103,7 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_AUTH_LAUNCH_TOKEN`
 - `WECOM_INSTALL_REDIRECT_URI`
 - `WECOM_SENSITIVE_REDIRECT_URI`
+- `WECOM_ADMIN_LOGIN_REDIRECT_URI`
 - `CORS_ORIGINS`
 
 ### Required env reconciliation gate
@@ -211,6 +212,7 @@ HOST=0.0.0.0
 PORT=3000
 WECOM_INSTALL_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/authorization-complete
 WECOM_SENSITIVE_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/member-sensitive/callback
+WECOM_ADMIN_LOGIN_REDIRECT_URI=https://your-backend-domain.example/api/v1/admin/auth/wecom/scan-callback
 WECOM_INSTALL_BASE_URL=https://open.work.weixin.qq.com/3rdapp/install
 ```
 

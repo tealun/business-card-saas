@@ -1,0 +1,190 @@
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { AdminWecomScanAuthService } from "./admin-wecom-scan-auth.service.js";
+
+describe("AdminWecomScanAuthService", () => {
+  it("creates scan login config with a one-time state and sanitized redirect path", async () => {
+    const fixture = createFixture();
+
+    const result = await fixture.service.loginConfig({
+      clientIp: "127.0.0.1",
+      userAgent: "jest",
+      redirectPath: "/admin/members"
+    });
+
+    expect(result).toEqual({
+      appid: "wwprovider",
+      redirect_uri: "https://admin.example.com/api/v1/admin/auth/wecom/scan-callback",
+      state: expect.stringMatching(/^[a-f0-9]{48}$/),
+      expires_in: 600
+    });
+    expect(fixture.states.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: result.state,
+        context: { accountType: "tenant", redirectPath: "/admin/members" },
+        clientIp: "127.0.0.1",
+        userAgent: "jest"
+      })
+    );
+  });
+
+  it("exchanges a WeCom scan callback for a tenant admin session", async () => {
+    const fixture = createFixture();
+
+    const result = await fixture.service.completeScan({
+      code: " oauth-code ",
+      state: "state-token-00000000000000000000000000000001"
+    });
+
+    expect(fixture.states.consume).toHaveBeenCalledWith("state-token-00000000000000000000000000000001");
+    expect(fixture.api.fetchThirdPartyUserInfo).toHaveBeenCalledWith("suite-token", "oauth-code", {
+      requireUserTicket: false
+    });
+    expect(fixture.api.fetchCorpAdminList).toHaveBeenCalledWith({ accessToken: "corp-token" });
+    expect(fixture.scanAdmins.upsertFromScan).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      tenantName: "Pilot Corp",
+      userid: "zhangsan",
+      openUserid: "open-zhangsan"
+    });
+    expect(result).toEqual({
+      access_token: "x".repeat(40),
+      token_type: "Bearer",
+      expires_in: 28800,
+      admin: expect.objectContaining({
+        tenant_id: "tenant-1",
+        tenant_name: "Pilot Corp",
+        member_identity_id: "member-1",
+        open_userid: "open-zhangsan",
+        role: "owner",
+        account_type: "tenant"
+      })
+    });
+  });
+
+  it("rejects invalid or reused scan login state before calling WeCom", async () => {
+    const fixture = createFixture();
+    fixture.states.consume.mockResolvedValueOnce(null);
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow(BadRequestException);
+    expect(fixture.api.fetchThirdPartyUserInfo).not.toHaveBeenCalled();
+  });
+
+  it("rejects scanned users who are not enterprise administrators", async () => {
+    const fixture = createFixture();
+    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "lisi", authType: 1 }] });
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow(ForbiddenException);
+    expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+  });
+
+  it("rejects scanned administrators without management permission", async () => {
+    const fixture = createFixture();
+    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "zhangsan", authType: 0 }] });
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow(ForbiddenException);
+    expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+  });
+
+  it("lets the local disabled admin status override WeCom administrator status", async () => {
+    const fixture = createFixture();
+    fixture.scanAdmins.upsertFromScan.mockResolvedValueOnce({
+      tenantId: "tenant-1",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-1",
+      openUserid: "open-zhangsan",
+      role: "owner",
+      status: "disabled"
+    });
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow(ForbiddenException);
+    expect(fixture.sessionTokens.sign).not.toHaveBeenCalled();
+  });
+});
+
+function createFixture() {
+  const config = {
+    suite: { providerCorpId: "wwprovider" },
+    adminLoginRedirectUri: "https://admin.example.com/api/v1/admin/auth/wecom/scan-callback"
+  };
+  const states = {
+    create: jest.fn(async () => undefined),
+    consume: jest.fn<Promise<{ accountType: "tenant"; redirectPath: string | null } | null>, [string]>(
+      async () => ({ accountType: "tenant", redirectPath: null })
+    )
+  };
+  const suiteTokens = { getSuiteAccessToken: jest.fn(async () => ({ accessToken: "suite-token" })) };
+  const corpTokens = { getCorpAccessToken: jest.fn(async () => ({ accessToken: "corp-token" })) };
+  const api = {
+    fetchThirdPartyUserInfo: jest.fn(async () => ({
+      openCorpid: "corp-1",
+      userid: "zhangsan",
+      openUserid: "open-zhangsan",
+      userTicket: null,
+      expiresIn: 300
+    })),
+    fetchCorpAdminList: jest.fn<Promise<{ admins: Array<{ userid: string; authType: 0 | 1 }> }>, [{ accessToken: string }]>(
+      async () => ({ admins: [{ userid: "zhangsan", authType: 1 }] })
+    )
+  };
+  const tenants = {
+    getByOpenCorpid: jest.fn(async () => ({
+      tenantId: "tenant-1",
+      corpName: "Pilot Corp",
+      openCorpid: "corp-1",
+      permanentCode: "permanent-code",
+      agentId: null,
+      authStatus: "active"
+    }))
+  };
+  const scanAdmins = {
+    upsertFromScan: jest.fn<
+      Promise<{
+        tenantId: string;
+        tenantName: string;
+        memberIdentityId: string | null;
+        openUserid: string;
+        role: "owner" | "admin" | "operator" | "auditor";
+        status: "active" | "disabled";
+      }>,
+      [
+        {
+          tenantId: string;
+          tenantName: string;
+          userid: string;
+          openUserid: string;
+        }
+      ]
+    >(async () => ({
+      tenantId: "tenant-1",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-1",
+      openUserid: "open-zhangsan",
+      role: "owner",
+      status: "active"
+    }))
+  };
+  const sessionTokens = {
+    expiresIn: 28800,
+    sign: jest.fn(() => "x".repeat(40))
+  };
+  const service = new AdminWecomScanAuthService(
+    config as never,
+    states as never,
+    suiteTokens as never,
+    corpTokens as never,
+    api as never,
+    tenants as never,
+    scanAdmins as never,
+    sessionTokens as never
+  );
+
+  return { service, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens };
+}

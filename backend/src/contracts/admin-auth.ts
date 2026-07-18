@@ -61,11 +61,25 @@ export const adminChangePasswordResponseSchema = z.object({
   changed: z.literal(true)
 });
 
+export const adminWecomLoginConfigResponseSchema = z.object({
+  appid: z.string().min(1),
+  redirect_uri: z.string().url(),
+  state: z.string().min(32),
+  expires_in: z.number().int().positive()
+});
+
+export const adminWecomScanCallbackQuerySchema = z.object({
+  code: z.string().min(1).max(256),
+  state: z.string().min(32).max(160)
+});
+
 export type AdminRole = z.infer<typeof adminRoleSchema>;
 export type PlatformAdminRole = z.infer<typeof platformAdminRoleSchema>;
 export type AdminPasswordLoginRequest = z.infer<typeof adminPasswordLoginRequestSchema>;
 export type AdminChangePasswordRequest = z.infer<typeof adminChangePasswordRequestSchema>;
 export type AdminAuthCodeRequest = z.infer<typeof adminAuthCodeRequestSchema>;
+export type AdminWecomLoginConfigResponse = z.infer<typeof adminWecomLoginConfigResponseSchema>;
+export type AdminWecomScanCallbackQuery = z.infer<typeof adminWecomScanCallbackQuerySchema>;
 export type AdminIdentity = z.infer<typeof adminIdentitySchema>;
 export type AdminLoginResponse = z.infer<typeof adminLoginResponseSchema>;
 export type AdminSessionMeResponse = z.infer<typeof adminSessionMeResponseSchema>;

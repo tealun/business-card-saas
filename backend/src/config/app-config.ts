@@ -68,6 +68,7 @@ const appConfigSchema = z
     WECOM_INSTALL_BASE_URL: z.string().url(),
     WECOM_INSTALL_REDIRECT_URI: z.string().url(),
     WECOM_SENSITIVE_REDIRECT_URI: z.string().url(),
+    WECOM_ADMIN_LOGIN_REDIRECT_URI: z.string().url().optional().or(z.literal("")),
     WECOM_AUTH_LAUNCH_TOKEN: z.string().min(1),
 
     WECOM_CALLBACK_ALERT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
@@ -240,6 +241,10 @@ export class AppConfig {
 
   get adminBootstrapPassword(): string {
     return this.values.ADMIN_BOOTSTRAP_PASSWORD ?? "";
+  }
+
+  get wecomAdminLoginRedirectUri(): string {
+    return this.values.WECOM_ADMIN_LOGIN_REDIRECT_URI ?? "";
   }
 
   get demoAuthEnabled(): boolean {

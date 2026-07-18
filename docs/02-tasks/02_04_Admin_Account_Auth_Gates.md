@@ -12,7 +12,7 @@
 | # | Item | Owner | Status | Evidence |
 |---|------|-------|--------|----------|
 | M0-1 | 扫码链路选型与构造方式 | — | ☑ 文档取证 | 官方 98170《单点登录》：**新版企业微信登录组件**（内嵌 / 新窗口登录页），回调 `redirect_uri?code=xxx`；"新版是对原扫码登录的能力升级，建议升级接入"——旧 `3rd_qrConnect` + `get_login_info` 不采用。组件嵌入参数在 M1 前端联调按 98170 子页面定稿 |
-| M0-2 | `getuserinfo3rd` 换取身份 | — | ☑ 文档+代码取证 | 官方 91121：`GET /cgi-bin/service/auth/getuserinfo3rd?suite_access_token&code`，返回 `corpid / userid / open_userid`（`user_ticket` 仅 snsapi_privateinfo）；code 一次性、5 分钟过期；跳转域名不匹配报 50001。仓库 `wecom-api-client.service.ts:390` 已实现同路径（现强依赖 user_ticket，扫码链路需宽松变体） |
+| M0-2 | `getuserinfo3rd` 换取身份 | — | ☑ 文档+代码取证 | 官方 91121：`GET /cgi-bin/service/auth/getuserinfo3rd?suite_access_token&code`，返回 `corpid / userid / open_userid`（`user_ticket` 仅 snsapi_privateinfo）；code 一次性、5 分钟过期；跳转域名不匹配报 50001。仓库 `wecom-api-client.service.ts` 已支持敏感资料链路强制 `user_ticket` 与扫码登录宽松变体（`requireUserTicket:false`）。 |
 | M0-3 | `get_admin_list` 判定管理员 | — | ☑ 文档取证 | 官方 100073：`POST /cgi-bin/agent/get_admin_list?access_token=ACCESS_TOKEN`，token = **第三方应用企业凭证**（`get_corp_token`，复用 `wecom-corp-token.service.ts`）；返回 `admin:[{userid, auth_type}]`（0=发消息/1=管理）；**成员授权模式下不返回**；旧 suite_access_token 方式已不再维护。匹配字段 = `userid`（与 M0-2 同 corp 同应用取值一致） |
 | M0-4 | redirect 域名与服务商后台配置 | 用户（ops） | ☑ 文档取证 / ☐ 配置截图 | 官方 98170「开启网页授权登录」：服务商后台配置**登录授权** + 品牌名称；91121：回调域名须与第三方应用**可信域名**完全一致。配置执行与截图 = 用户侧 ops 项 |
 | M0-5 | 复用点走查 | — | ☑ 代码走查（2026-07-17） | `wecom-api-client.service.ts`：`:288 fetchPermanentCode`、`:316 fetchCorpAccessToken`、`:390 fetchThirdPartyUserInfo`（`/auth/` 变体，已核实）；`wecom-corp-token.service.ts` 企业凭证加密缓存；`wecom-suite-token.service.ts` singleflight 刷新 |
@@ -33,9 +33,9 @@
 
 | # | Item | Owner | Status | Evidence |
 |---|------|-------|--------|----------|
-| M1-S1 | 扫码全链路：管理员扫码 → 实时 `get_admin_list` 命中 → 自动建档 → 进入后台首页（`session/me` 返回 `account_type=tenant`） | | ☐ | 录屏或端到端日志（依赖 D-1/D-2） |
-| M1-S2 | 非管理员扫码 → 403 中文提示，不建档不发会话 | | ☐ | 测试记录（依赖扫码链路实现） |
-| M1-S3 | 本地 `disabled` 管理员扫码被拒（本地管控优先） | | ☐ | 测试记录（依赖扫码链路实现） |
+| M1-S1 | 扫码全链路：管理员扫码 → 实时 `get_admin_list` 命中 → 自动建档 → 进入后台首页（`session/me` 返回 `account_type=tenant`） | | ◐ 后端 mock 通过 / 真实联调待 D-1/D-2 | `AdminWecomScanAuthService` 覆盖 `getuserinfo3rd` → `get_admin_list` → `AdminWecomScanRepository.upsertFromScan` → 发放 tenant admin session；`AdminWecomScanRepository` 覆盖首个扫码管理员为 owner、后续为 admin；真实扫码录屏/端到端日志仍依赖 D-1/D-2。 |
+| M1-S2 | 非管理员扫码 → 403 中文提示，不建档不发会话 | | ☑ 单测通过 | `AdminWecomScanAuthService` 覆盖 `get_admin_list` 未命中与 `auth_type=0` 均 403，且不调用 `upsertFromScan`。 |
+| M1-S3 | 本地 `disabled` 管理员扫码被拒（本地管控优先） | | ☑ 单测通过 | `AdminWecomScanAuthService` 覆盖本地 `status='disabled'` 优先拒绝，且不签发 session token。 |
 | M1-S4 | owner 创建/改角色/禁用/删除平台账号；禁止操作自己与内建 owner | | ☑ 单测通过 | `PlatformAdminService account management (M1-S4)`、`AdminObservabilityService platform account management (M1-S4)`；`cmd /c npm run test -- admin-auth admin-observability admin-database`（2026-07-18，73 passed） |
 | M1-S5 | 登录成功/失败 + 账号管理操作全部落 `admin_operation_logs` | | ◐ 部分通过 | 账号创建/改角色/删除已在 `AdminObservabilityService platform account management (M1-S4)` 断言 `operationLogs.record`；登录成功/失败日志待扫码链路落地后补 |
 | M1-S6 | 隔离回归：tenant 会话访问 platform 端点 403；反之亦然 | | ☑ 单测通过 | `admin-rbac.spec.ts` 覆盖 platform/tenant role 互斥；`admin-observability.service.spec.ts`、`admin-database.service.spec.ts` 覆盖非 platform owner 访问拒绝；同批测试 73 passed |

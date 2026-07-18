@@ -62,6 +62,10 @@ export class WecomConfigService {
     return readRequired("WECOM_SENSITIVE_REDIRECT_URI");
   }
 
+  get adminLoginRedirectUri(): string {
+    return readRequired("WECOM_ADMIN_LOGIN_REDIRECT_URI");
+  }
+
   get callbackAlertWebhookUrl(): string | null {
     return readOptional("WECOM_CALLBACK_ALERT_WEBHOOK_URL");
   }

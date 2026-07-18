@@ -96,9 +96,23 @@ export interface FetchContactUserIdsResponse {
 
 export interface FetchThirdPartyUserInfoResponse {
   openCorpid: string;
+  userid: string | null;
   openUserid: string;
-  userTicket: string;
+  userTicket: string | null;
   expiresIn: number;
+}
+
+export interface FetchCorpAdminListRequest {
+  accessToken: string;
+}
+
+export interface WecomCorpAdminIdentity {
+  userid: string;
+  authType: 0 | 1;
+}
+
+export interface FetchCorpAdminListResponse {
+  admins: WecomCorpAdminIdentity[];
 }
 
 export interface FetchThirdPartyUserDetailResponse {
@@ -180,10 +194,21 @@ interface WecomThirdPartyUserInfoPayload {
   errcode?: number;
   errmsg?: string;
   CorpId?: string;
+  corpid?: string;
   UserId?: string;
+  userid?: string;
   open_userid?: string;
   user_ticket?: string;
   expires_in?: number;
+}
+
+interface WecomCorpAdminListPayload {
+  errcode?: number;
+  errmsg?: string;
+  admin?: Array<{
+    userid?: string;
+    auth_type?: number;
+  }>;
 }
 
 interface WecomThirdPartyUserDetailPayload {
@@ -389,7 +414,8 @@ export class WecomApiClientService {
 
   async fetchThirdPartyUserInfo(
     suiteAccessToken: string,
-    code: string
+    code: string,
+    options: { requireUserTicket?: boolean } = {}
   ): Promise<FetchThirdPartyUserInfoResponse> {
     const payload = await this.getJson<WecomThirdPartyUserInfoPayload>(
       "getuserinfo3rd",
@@ -398,13 +424,33 @@ export class WecomApiClientService {
     if (payload.errcode && payload.errcode !== 0) {
       throw new BadGatewayException(`WeCom getuserinfo3rd failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
     }
-    const openCorpid = payload.CorpId?.trim();
-    const openUserid = (payload.open_userid ?? payload.UserId)?.trim();
-    const userTicket = payload.user_ticket?.trim();
-    if (!openCorpid || !openUserid || !userTicket) {
+    const openCorpid = (payload.CorpId ?? payload.corpid)?.trim();
+    const userid = (payload.UserId ?? payload.userid)?.trim() || null;
+    const openUserid = (payload.open_userid ?? userid ?? "").trim();
+    const userTicket = payload.user_ticket?.trim() || null;
+    if (!openCorpid || !openUserid || (options.requireUserTicket !== false && !userTicket)) {
       throw new BadGatewayException("WeCom getuserinfo3rd did not return member-sensitive authorization");
     }
-    return { openCorpid, openUserid, userTicket, expiresIn: payload.expires_in ?? 0 };
+    return { openCorpid, userid, openUserid, userTicket, expiresIn: payload.expires_in ?? 0 };
+  }
+
+  async fetchCorpAdminList(request: FetchCorpAdminListRequest): Promise<FetchCorpAdminListResponse> {
+    const payload = await this.postJson<WecomCorpAdminListPayload>(
+      "get_admin_list",
+      `/cgi-bin/agent/get_admin_list?access_token=${encodeURIComponent(request.accessToken)}`,
+      {}
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      throw new BadGatewayException(`WeCom get_admin_list failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+    return {
+      admins: (payload.admin ?? [])
+        .map((admin) => ({
+          userid: admin.userid?.trim() ?? "",
+          authType: admin.auth_type === 1 ? (1 as const) : (0 as const)
+        }))
+        .filter((admin) => admin.userid)
+    };
   }
 
   async fetchThirdPartyUserDetail(

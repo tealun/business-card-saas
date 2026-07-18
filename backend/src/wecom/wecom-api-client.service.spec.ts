@@ -272,9 +272,17 @@ describe("WecomApiClientService", () => {
     const service = new WecomApiClientService(new WecomConfigService());
 
     const identity = await service.fetchThirdPartyUserInfo("suite-token", "oauth-code");
+    if (!identity.userTicket) {
+      throw new Error("expected user ticket");
+    }
     const detail = await service.fetchThirdPartyUserDetail("suite-token", identity.userTicket);
 
-    expect(identity).toMatchObject({ openCorpid: "corp-1", openUserid: "open-user-1", userTicket: "ticket" });
+    expect(identity).toMatchObject({
+      openCorpid: "corp-1",
+      userid: null,
+      openUserid: "open-user-1",
+      userTicket: "ticket"
+    });
     expect(detail).toEqual({
       openCorpid: "corp-1",
       openUserid: "internal-user-1",
@@ -283,5 +291,55 @@ describe("WecomApiClientService", () => {
     });
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/cgi-bin/service/auth/getuserinfo3rd");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/cgi-bin/service/getuserdetail3rd");
+  });
+
+  it("allows third-party OAuth user info without user ticket for scan login", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ errcode: 0, corpid: "corp-1", userid: "zhangsan", expires_in: 300 }), {
+        status: 200
+      })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchThirdPartyUserInfo(
+      "suite-token",
+      "oauth-code",
+      { requireUserTicket: false }
+    );
+
+    expect(result).toEqual({
+      openCorpid: "corp-1",
+      userid: "zhangsan",
+      openUserid: "zhangsan",
+      userTicket: null,
+      expiresIn: 300
+    });
+  });
+
+  it("posts get_admin_list and maps admin management permissions", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          admin: [{ userid: "zhangsan", auth_type: 1 }, { userid: "lisi", auth_type: 0 }, { auth_type: 1 }]
+        }),
+        { status: 200 }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchCorpAdminList({
+      accessToken: "corp-token"
+    });
+
+    expect(result).toEqual({
+      admins: [
+        { userid: "zhangsan", authType: 1 },
+        { userid: "lisi", authType: 0 }
+      ]
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/cgi-bin/agent/get_admin_list?access_token=corp-token");
+    expect(JSON.parse(String(init.body))).toEqual({});
   });
 });
