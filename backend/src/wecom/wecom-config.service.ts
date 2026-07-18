@@ -37,6 +37,10 @@ export class WecomConfigService {
     return readRequired("WECOM_SUITE_ID");
   }
 
+  get providerCorpId(): string {
+    return readRequired("WECOM_PROVIDER_CORP_ID");
+  }
+
   get apiBaseUrl(): string {
     return readRequired("WECOM_API_BASE_URL").replace(/\/+$/, "");
   }

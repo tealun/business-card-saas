@@ -103,11 +103,14 @@ export interface FetchThirdPartyUserInfoResponse {
 }
 
 export interface FetchCorpAdminListRequest {
-  accessToken: string;
+  suiteAccessToken: string;
+  openCorpid: string;
+  agentId: string;
 }
 
 export interface WecomCorpAdminIdentity {
-  userid: string;
+  userid: string | null;
+  openUserid: string | null;
   authType: 0 | 1;
 }
 
@@ -207,6 +210,7 @@ interface WecomCorpAdminListPayload {
   errmsg?: string;
   admin?: Array<{
     userid?: string;
+    open_userid?: string;
     auth_type?: number;
   }>;
 }
@@ -444,8 +448,11 @@ export class WecomApiClientService {
   async fetchCorpAdminList(request: FetchCorpAdminListRequest): Promise<FetchCorpAdminListResponse> {
     const payload = await this.postJson<WecomCorpAdminListPayload>(
       "get_admin_list",
-      `/cgi-bin/agent/get_admin_list?access_token=${encodeURIComponent(request.accessToken)}`,
-      {}
+      `/cgi-bin/service/get_admin_list?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
+      {
+        auth_corpid: request.openCorpid,
+        agentid: request.agentId
+      }
     );
     if (payload.errcode && payload.errcode !== 0) {
       throw new BadGatewayException(`WeCom get_admin_list failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
@@ -453,10 +460,11 @@ export class WecomApiClientService {
     return {
       admins: (payload.admin ?? [])
         .map((admin) => ({
-          userid: admin.userid?.trim() ?? "",
+          userid: normalizeOptionalString(admin.userid),
+          openUserid: normalizeOptionalString(admin.open_userid),
           authType: admin.auth_type === 1 ? (1 as const) : (0 as const)
         }))
-        .filter((admin) => admin.userid)
+        .filter((admin) => admin.userid || admin.openUserid)
     };
   }
 

@@ -5,7 +5,7 @@
 
 目的: 企业微信扫码鉴权是身份级外部依赖，未验证即编码 = 返工风险。本文件把全部未知隔离为可验收的 M0 证据项，并定义 M1 walking skeleton 的 Done/Fail。规划契约：done = M0 证据回填 + M1 S1–S6 全过；验证 = 每项证据落档；fail = 任一 P0 事实与假设冲突即停。
 
-> v2 变更：M0 文档/代码取证已于 2026-07-17 完成，链路选型更正（新版登录组件 + 企业凭证 get_admin_list），01_09 已同步修订为 v2。真实回调样例与服务端配置截图转为**部署联调门槛**（需用户配合，见文末）。
+> v2 变更：M0 文档/代码取证已于 2026-07-17 完成，链路选型更正（新版登录组件 + 服务商 get_admin_list），01_09 已同步修订为 v2。真实回调样例与服务端配置截图转为**部署联调门槛**（需用户配合，见文末）。
 
 ## M0 Checklist（文档与代码取证 ✅ / 真实环境样例 = 部署联调门槛）
 
@@ -13,9 +13,9 @@
 |---|------|-------|--------|----------|
 | M0-1 | 扫码链路选型与构造方式 | — | ☑ 文档取证 | 官方 98170《单点登录》：**新版企业微信登录组件**（内嵌 / 新窗口登录页），回调 `redirect_uri?code=xxx`；"新版是对原扫码登录的能力升级，建议升级接入"——旧 `3rd_qrConnect` + `get_login_info` 不采用。组件嵌入参数在 M1 前端联调按 98170 子页面定稿 |
 | M0-2 | `getuserinfo3rd` 换取身份 | — | ☑ 文档+代码取证 | 官方 91121：`GET /cgi-bin/service/auth/getuserinfo3rd?suite_access_token&code`，返回 `corpid / userid / open_userid`（`user_ticket` 仅 snsapi_privateinfo）；code 一次性、5 分钟过期；跳转域名不匹配报 50001。仓库 `wecom-api-client.service.ts` 已支持敏感资料链路强制 `user_ticket` 与扫码登录宽松变体（`requireUserTicket:false`）。 |
-| M0-3 | `get_admin_list` 判定管理员 | — | ☑ 文档取证 | 官方 100073：`POST /cgi-bin/agent/get_admin_list?access_token=ACCESS_TOKEN`，token = **第三方应用企业凭证**（`get_corp_token`，复用 `wecom-corp-token.service.ts`）；返回 `admin:[{userid, auth_type}]`（0=发消息/1=管理）；**成员授权模式下不返回**；旧 suite_access_token 方式已不再维护。匹配字段 = `userid`（与 M0-2 同 corp 同应用取值一致） |
+| M0-3 | `get_admin_list` 判定管理员 | — | ☑ 文档取证 | 官方 100073：`POST /cgi-bin/service/get_admin_list?suite_access_token=SUITE_ACCESS_TOKEN`，请求体 `{auth_corpid, agentid}`；返回 `admin:[{userid/open_userid, auth_type}]`（0=发消息/1=管理）。匹配字段优先 `userid`，并兼容 `open_userid`（与 M0-2 同 corp 同应用取值一致）。 |
 | M0-4 | redirect 域名与服务商后台配置 | 用户（ops） | ☑ 文档取证 / ☐ 配置截图 | 官方 98170「开启网页授权登录」：服务商后台配置**登录授权** + 品牌名称；91121：回调域名须与第三方应用**可信域名**完全一致。配置执行与截图 = 用户侧 ops 项 |
-| M0-5 | 复用点走查 | — | ☑ 代码走查（2026-07-17） | `wecom-api-client.service.ts`：`:288 fetchPermanentCode`、`:316 fetchCorpAccessToken`、`:390 fetchThirdPartyUserInfo`（`/auth/` 变体，已核实）；`wecom-corp-token.service.ts` 企业凭证加密缓存；`wecom-suite-token.service.ts` singleflight 刷新 |
+| M0-5 | 复用点走查 | — | ☑ 代码走查（2026-07-17） | `wecom-api-client.service.ts`：`fetchPermanentCode`、`fetchThirdPartyUserInfo`（`/auth/` 变体）、`fetchCorpAdminList`（服务商接口，`suite_access_token` + `auth_corpid` + `agentid`）；`wecom-suite-token.service.ts` singleflight 刷新 |
 
 ### M0 Done（已达成：文档+代码层面）
 

@@ -12,7 +12,7 @@ describe("AdminWecomScanAuthService", () => {
     });
 
     expect(result).toEqual({
-      appid: "wwsuite",
+      appid: "wwprovider",
       redirect_uri: "https://admin.example.com/",
       login_url: expect.stringContaining("https://login.work.weixin.qq.com/wwlogin/sso/login?"),
       state: expect.stringMatching(/^[a-f0-9]{48}$/),
@@ -20,7 +20,7 @@ describe("AdminWecomScanAuthService", () => {
     });
     const loginUrl = new URL(result.login_url);
     expect(loginUrl.searchParams.get("login_type")).toBe("ServiceApp");
-    expect(loginUrl.searchParams.get("appid")).toBe("wwsuite");
+    expect(loginUrl.searchParams.get("appid")).toBe("wwprovider");
     expect(loginUrl.searchParams.get("redirect_uri")).toBe("https://admin.example.com/");
     expect(loginUrl.searchParams.get("state")).toBe(result.state);
     expect(fixture.states.create).toHaveBeenCalledWith(
@@ -48,7 +48,7 @@ describe("AdminWecomScanAuthService", () => {
         redirectPath: "/"
       })
     ).resolves.toMatchObject({
-      appid: "wwsuite",
+      appid: "wwprovider",
       redirect_uri: "https://admin.example.com/"
     });
   });
@@ -56,7 +56,7 @@ describe("AdminWecomScanAuthService", () => {
   it("returns an actionable service unavailable error when scan login env is incomplete", async () => {
     const fixture = createFixture({
       config: {
-        suiteId: "",
+        providerCorpId: "",
         adminLoginRedirectUri: ""
       }
     });
@@ -90,7 +90,11 @@ describe("AdminWecomScanAuthService", () => {
     expect(fixture.api.fetchThirdPartyUserInfo).toHaveBeenCalledWith("suite-token", "oauth-code", {
       requireUserTicket: false
     });
-    expect(fixture.api.fetchCorpAdminList).toHaveBeenCalledWith({ accessToken: "corp-token" });
+    expect(fixture.api.fetchCorpAdminList).toHaveBeenCalledWith({
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-1",
+      agentId: "100001"
+    });
     expect(fixture.scanAdmins.upsertFromScan).toHaveBeenCalledWith({
       tenantId: "tenant-1",
       tenantName: "Pilot Corp",
@@ -124,6 +128,35 @@ describe("AdminWecomScanAuthService", () => {
     });
   });
 
+  it("matches scanned administrators by open userid when userid is not returned consistently", async () => {
+    const fixture = createFixture();
+    fixture.api.fetchThirdPartyUserInfo.mockResolvedValueOnce({
+      openCorpid: "corp-1",
+      userid: null,
+      openUserid: "open-zhangsan",
+      userTicket: null,
+      expiresIn: 300
+    });
+    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({
+      admins: [{ userid: null, openUserid: "open-zhangsan", authType: 1 }]
+    });
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).resolves.toMatchObject({
+      admin: expect.objectContaining({
+        open_userid: "open-zhangsan",
+        account_type: "tenant"
+      })
+    });
+    expect(fixture.scanAdmins.upsertFromScan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userid: "open-zhangsan",
+        openUserid: "open-zhangsan"
+      })
+    );
+  });
+
   it("rejects invalid or reused scan login state before calling WeCom", async () => {
     const fixture = createFixture();
     fixture.states.consume.mockResolvedValueOnce(null);
@@ -138,7 +171,7 @@ describe("AdminWecomScanAuthService", () => {
 
   it("rejects scanned users who are not enterprise administrators", async () => {
     const fixture = createFixture();
-    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "lisi", authType: 1 }] });
+    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "lisi", openUserid: null, authType: 1 }] });
 
     await expect(
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
@@ -157,7 +190,9 @@ describe("AdminWecomScanAuthService", () => {
 
   it("rejects scanned administrators without management permission", async () => {
     const fixture = createFixture();
-    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "zhangsan", authType: 0 }] });
+    fixture.api.fetchCorpAdminList.mockResolvedValueOnce({
+      admins: [{ userid: "zhangsan", openUserid: "open-zhangsan", authType: 0 }]
+    });
 
     await expect(
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
@@ -200,9 +235,9 @@ describe("AdminWecomScanAuthService", () => {
   });
 });
 
-function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLoginRedirectUri: string }> } = {}) {
+function createFixture(overrides: { config?: Partial<{ providerCorpId: string; adminLoginRedirectUri: string }> } = {}) {
   const config = {
-    suiteId: overrides.config?.suiteId ?? "wwsuite",
+    providerCorpId: overrides.config?.providerCorpId ?? "wwprovider",
     suite: { providerCorpId: "wwprovider", suiteId: "wwsuite" },
     adminLoginRedirectUri: overrides.config?.adminLoginRedirectUri ?? "https://admin.example.com/"
   };
@@ -213,18 +248,27 @@ function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLog
     )
   };
   const suiteTokens = { getSuiteAccessToken: jest.fn(async () => ({ accessToken: "suite-token" })) };
-  const corpTokens = { getCorpAccessToken: jest.fn(async () => ({ accessToken: "corp-token" })) };
   const api = {
-    fetchThirdPartyUserInfo: jest.fn(async () => ({
+    fetchThirdPartyUserInfo: jest.fn<
+      Promise<{
+        openCorpid: string;
+        userid: string | null;
+        openUserid: string;
+        userTicket: string | null;
+        expiresIn: number;
+      }>,
+      [string, string, { requireUserTicket?: boolean }]
+    >(async () => ({
       openCorpid: "corp-1",
       userid: "zhangsan",
       openUserid: "open-zhangsan",
       userTicket: null,
       expiresIn: 300
     })),
-    fetchCorpAdminList: jest.fn<Promise<{ admins: Array<{ userid: string; authType: 0 | 1 }> }>, [{ accessToken: string }]>(
-      async () => ({ admins: [{ userid: "zhangsan", authType: 1 }] })
-    )
+    fetchCorpAdminList: jest.fn<
+      Promise<{ admins: Array<{ userid: string | null; openUserid: string | null; authType: 0 | 1 }> }>,
+      [{ suiteAccessToken: string; openCorpid: string; agentId: string }]
+    >(async () => ({ admins: [{ userid: "zhangsan", openUserid: "open-zhangsan", authType: 1 }] }))
   };
   const tenants = {
     getByOpenCorpid: jest.fn(async () => ({
@@ -232,7 +276,7 @@ function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLog
       corpName: "Pilot Corp",
       openCorpid: "corp-1",
       permanentCode: "permanent-code",
-      agentId: null,
+      agentId: "100001",
       authStatus: "active"
     }))
   };
@@ -275,7 +319,6 @@ function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLog
     config as never,
     states as never,
     suiteTokens as never,
-    corpTokens as never,
     api as never,
     tenants as never,
     scanAdmins as never,
@@ -283,5 +326,5 @@ function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLog
     operationLogs as never
   );
 
-  return { service, config, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens, operationLogs };
+  return { service, config, states, suiteTokens, api, tenants, scanAdmins, sessionTokens, operationLogs };
 }

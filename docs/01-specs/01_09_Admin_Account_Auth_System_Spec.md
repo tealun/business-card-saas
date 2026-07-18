@@ -3,7 +3,7 @@
 版本: v2 · 日期: 2026-07-17 · 归属: admin/auth
 关联: `01_08_Admin_Backoffice_Architecture_Guide.md`（双身份域基线）、`01_04_Admin_Web_Guide.md`、`02_02_First_Enterprise_Wecom_Admin_Plan.md`、`02_04_Admin_Account_Auth_Gates.md`、`99_72_admin_account_auth_readiness.md`
 
-> v2 变更（M0 取证修订）：扫码链路从旧 `3rd_qrConnect` + `get_login_info` 更正为**新版企业微信登录组件** + `getuserinfo3rd`；`get_admin_list` 更正为**企业凭证**调用。证据见 02_04 M0 表。
+> v2 变更（M0 取证修订）：扫码链路从旧 `3rd_qrConnect` + `get_login_info` 更正为**新版企业微信登录组件** + `getuserinfo3rd`；`get_admin_list` 采用第三方应用服务商接口（`suite_access_token` + `auth_corpid` + `agentid`）调用。证据见 02_04 M0 表。
 
 ## 1. 背景与目标
 
@@ -44,7 +44,7 @@ M1 补齐（均仅 `platform_owner`，全部落审计）：
 
 ### 4.2 企业管理员扫码登录（新建，核心链路）
 
-> 链路选型（M0 取证结论）：采用**新版企业微信登录**——官方文档 98170《单点登录》明确"新版企业微信登录是对原扫码登录的能力升级"，旧 `3rd_qrConnect` + `get_login_info`（provider_access_token）为旧链路，不采用。授权码经 `getuserinfo3rd`（官方 91121，`suite_access_token`）换取身份；管理员判定经 `get_admin_list`（官方 100073，**企业凭证**，非 suite token）。
+> 链路选型（M0 取证结论）：采用**新版企业微信登录**——官方文档 98170《单点登录》明确"新版企业微信登录是对原扫码登录的能力升级"，旧 `3rd_qrConnect` + `get_login_info`（provider_access_token）为旧链路，不采用。授权码经 `getuserinfo3rd`（官方 91121，`suite_access_token`）换取身份；管理员判定经服务商 `get_admin_list`（官方 100073，`suite_access_token` + `auth_corpid` + `agentid`）。
 
 **前置配置（运维项，证据要求见 02_04 M0-4）**：
 1. 服务商后台开启「登录授权」（网页授权登录）并配置品牌名称（官方 98170）。
@@ -58,7 +58,7 @@ M1 补齐（均仅 `platform_owner`，全部落审计）：
 3. 企微回跳 `GET /api/v1/admin/auth/wecom/scan-callback?code=...&state=...`（授权码参数名为 `code`，98170）：校验 state（存在、未过期、未使用 → 立即标记 `used_at`）。
 4. `getuserinfo3rd(suite_access_token, code)` → `{corpid, userid, open_userid}`（官方 91121；`user_ticket` 仅 snsapi_privateinfo 场景返回，本链路不依赖；响应字段大小写差异以部署联调真实回调为准）。
 5. 以 `corpid` 查 `tenants`（`open_corpid` 匹配且 `auth_status` 为已授权）→ 未安装 / 已取消授权 → 拒绝并提示"企业未安装或已取消授权，请先完成安装"。
-6. `get_admin_list`（**企业凭证**：以该 corp 的 `permanent_code` 经 `get_corp_token` 获取，复用 `wecom-corp-token.service.ts`）→ `admin:[{userid, auth_type}]`（官方 100073）：
+6. 服务商 `get_admin_list`（`POST /cgi-bin/service/get_admin_list?suite_access_token=...`，请求体 `{auth_corpid, agentid}`；`agentid` 来自企业授权保存的应用 id）→ `admin:[{userid/open_userid, auth_type}]`（官方 100073）：
    - 扫码人 `userid` 命中且 `auth_type=1`（管理权限）→ 通过；
    - 命中但 `auth_type=0`（仅发消息权限）→ 拒绝"无管理权限"；
    - 未命中 → 拒绝"你不是该企业的企业微信管理员"；

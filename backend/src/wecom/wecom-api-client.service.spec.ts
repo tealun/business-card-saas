@@ -344,12 +344,17 @@ describe("WecomApiClientService", () => {
     });
   });
 
-  it("posts get_admin_list and maps admin management permissions", async () => {
+  it("posts service get_admin_list and maps admin management permissions", async () => {
     const fetchMock = jest.fn(async () =>
       new Response(
         JSON.stringify({
           errcode: 0,
-          admin: [{ userid: "zhangsan", auth_type: 1 }, { userid: "lisi", auth_type: 0 }, { auth_type: 1 }]
+          admin: [
+            { userid: "zhangsan", open_userid: "open-zhangsan", auth_type: 1 },
+            { userid: "lisi", auth_type: 0 },
+            { open_userid: "open-wangwu", auth_type: 1 },
+            { auth_type: 1 }
+          ]
         }),
         { status: 200 }
       )
@@ -357,17 +362,20 @@ describe("WecomApiClientService", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await new WecomApiClientService(new WecomConfigService()).fetchCorpAdminList({
-      accessToken: "corp-token"
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-1",
+      agentId: "100001"
     });
 
     expect(result).toEqual({
       admins: [
-        { userid: "zhangsan", authType: 1 },
-        { userid: "lisi", authType: 0 }
+        { userid: "zhangsan", openUserid: "open-zhangsan", authType: 1 },
+        { userid: "lisi", openUserid: null, authType: 0 },
+        { userid: null, openUserid: "open-wangwu", authType: 1 }
       ]
     });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toContain("/cgi-bin/agent/get_admin_list?access_token=corp-token");
-    expect(JSON.parse(String(init.body))).toEqual({});
+    expect(url).toContain("/cgi-bin/service/get_admin_list?suite_access_token=suite-token");
+    expect(JSON.parse(String(init.body))).toEqual({ auth_corpid: "corp-1", agentid: "100001" });
   });
 });

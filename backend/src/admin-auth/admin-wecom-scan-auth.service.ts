@@ -11,7 +11,6 @@ import {
 } from "../contracts/admin-auth.js";
 import { WecomApiClientService } from "../wecom/wecom-api-client.service.js";
 import { WecomConfigService } from "../wecom/wecom-config.service.js";
-import { WecomCorpTokenService } from "../wecom/wecom-corp-token.service.js";
 import { WecomSuiteTokenService } from "../wecom/wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "../wecom/wecom-tenant-auth.repository.js";
 import { adminCapabilities } from "./admin-permissions.js";
@@ -28,7 +27,6 @@ export class AdminWecomScanAuthService {
     private readonly config: WecomConfigService,
     private readonly states: AdminWecomAuthStateRepository,
     private readonly suiteTokens: WecomSuiteTokenService,
-    private readonly corpTokens: WecomCorpTokenService,
     private readonly api: WecomApiClientService,
     private readonly tenants: WecomTenantAuthRepository,
     private readonly scanAdmins: AdminWecomScanRepository,
@@ -51,10 +49,10 @@ export class AdminWecomScanAuthService {
       userAgent: input.userAgent
     });
     return adminWecomLoginConfigResponseSchema.parse({
-      appid: loginConfig.suiteId,
+      appid: loginConfig.providerCorpId,
       redirect_uri: loginConfig.redirectUri,
       login_url: buildWecomLoginUrl({
-        suiteId: loginConfig.suiteId,
+        providerCorpId: loginConfig.providerCorpId,
         redirectUri: loginConfig.redirectUri,
         state
       }),
@@ -63,19 +61,19 @@ export class AdminWecomScanAuthService {
     });
   }
 
-  private readLoginConfig(): { suiteId: string; redirectUri: string } {
+  private readLoginConfig(): { providerCorpId: string; redirectUri: string } {
     try {
       const config = {
-        suiteId: this.config.suiteId,
+        providerCorpId: this.config.providerCorpId,
         redirectUri: this.config.adminLoginRedirectUri
       };
-      if (!config.suiteId.trim() || !config.redirectUri.trim()) {
+      if (!config.providerCorpId.trim() || !config.redirectUri.trim()) {
         throw new Error("missing scan login config");
       }
       return config;
     } catch {
       throw new ServiceUnavailableException(
-        "企业微信扫码登录配置未完成，请检查 WECOM_SUITE_ID 和 WECOM_ADMIN_LOGIN_REDIRECT_URI"
+        "企业微信扫码登录配置未完成，请检查 WECOM_PROVIDER_CORP_ID 和 WECOM_ADMIN_LOGIN_REDIRECT_URI"
       );
     }
   }
@@ -90,10 +88,13 @@ export class AdminWecomScanAuthService {
     const identity = await this.api.fetchThirdPartyUserInfo(suiteToken.accessToken, input.code.trim(), {
       requireUserTicket: false
     });
-    const userid = identity.userid?.trim();
+    const userid = identity.userid?.trim() || identity.openUserid;
     const tenant = await this.tenants.getByOpenCorpid(identity.openCorpid);
     if (!tenant) {
       throw new ForbiddenException("WeCom enterprise is not installed or authorization was cancelled");
+    }
+    if (!tenant.agentId) {
+      throw new ServiceUnavailableException("WeCom tenant authorization is missing an agent id");
     }
     if (!userid) {
       await this.recordScanLoginFailure({
@@ -106,9 +107,14 @@ export class AdminWecomScanAuthService {
       throw new ForbiddenException("WeCom did not return an administrator userid");
     }
 
-    const corpToken = await this.corpTokens.getCorpAccessToken(identity.openCorpid);
-    const adminList = await this.api.fetchCorpAdminList({ accessToken: corpToken.accessToken });
-    const matched = adminList.admins.find((admin) => admin.userid === userid);
+    const adminList = await this.api.fetchCorpAdminList({
+      suiteAccessToken: suiteToken.accessToken,
+      openCorpid: identity.openCorpid,
+      agentId: tenant.agentId
+    });
+    const matched = adminList.admins.find(
+      (admin) => admin.userid === userid || (!!admin.openUserid && admin.openUserid === identity.openUserid)
+    );
     if (!matched) {
       await this.recordScanLoginFailure({
         tenantId: tenant.tenantId,
@@ -222,10 +228,10 @@ function sanitizeRedirectPath(value?: string | null): string | null {
   return trimmed.startsWith("/") && !trimmed.startsWith("//") ? trimmed.slice(0, 256) : null;
 }
 
-function buildWecomLoginUrl(input: { suiteId: string; redirectUri: string; state: string }): string {
+function buildWecomLoginUrl(input: { providerCorpId: string; redirectUri: string; state: string }): string {
   const url = new URL("https://login.work.weixin.qq.com/wwlogin/sso/login");
   url.searchParams.set("login_type", "ServiceApp");
-  url.searchParams.set("appid", input.suiteId);
+  url.searchParams.set("appid", input.providerCorpId);
   url.searchParams.set("redirect_uri", input.redirectUri);
   url.searchParams.set("state", input.state);
   url.searchParams.set("lang", "zh");
