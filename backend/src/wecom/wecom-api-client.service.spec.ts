@@ -1,4 +1,4 @@
-import { BadGatewayException, ServiceUnavailableException } from "@nestjs/common";
+import { BadGatewayException, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
 import { WecomApiClientService } from "./wecom-api-client.service.js";
 import { WecomConfigService } from "./wecom-config.service.js";
 
@@ -245,6 +245,34 @@ describe("WecomApiClientService", () => {
     const [url, init] = firstCall;
     expect(url).toContain("access_token=corp-token");
     expect(JSON.parse(String(init.body))).toEqual({ cursor: "cursor-1", limit: 500 });
+  });
+
+  it("maps contact API permission denial to an actionable forbidden error", async () => {
+    global.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 48002,
+          errmsg: "api forbidden, hint: [1784337086555210389202947], from ip: 211.149.165.251"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    ) as unknown as typeof fetch;
+
+    try {
+      await new WecomApiClientService(new WecomConfigService()).fetchContactUserIds({
+        accessToken: "corp-token"
+      });
+      throw new Error("expected fetchContactUserIds to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect((error as Error).message).toContain("通讯录读取接口");
+      expect((error as Error).message).toContain("user/list_id");
+      expect((error as Error).message).not.toContain("211.149.165.251");
+      expect((error as Error).message).not.toContain("1784337086555210389202947");
+    }
   });
 
   it("exchanges third-party OAuth code and user ticket for avatar and QR code", async () => {

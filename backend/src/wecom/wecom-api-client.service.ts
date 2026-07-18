@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadGatewayException, ForbiddenException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { WecomConfigService } from "./wecom-config.service.js";
 
 export interface FetchSuiteTokenRequest {
@@ -221,6 +221,8 @@ interface WecomThirdPartyUserDetailPayload {
   qr_code?: string;
 }
 
+const WECOM_API_FORBIDDEN = 48002;
+
 @Injectable()
 export class WecomApiClientService {
   constructor(private readonly config: WecomConfigService) {}
@@ -397,6 +399,11 @@ export class WecomApiClientService {
       }
     );
     if (payload.errcode && payload.errcode !== 0) {
+      if (payload.errcode === WECOM_API_FORBIDDEN) {
+        throw new ForbiddenException(
+          "企业微信未授权通讯录读取接口（user/list_id），请在服务商后台确认通讯录读取范围并让企业重新授权；无通讯录权限时仅支持管理员扫码按需建档。"
+        );
+      }
       throw new BadGatewayException(`WeCom user/list_id failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
     }
 
