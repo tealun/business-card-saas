@@ -49,10 +49,10 @@ export class AdminWecomScanAuthService {
       userAgent: input.userAgent
     });
     return adminWecomLoginConfigResponseSchema.parse({
-      appid: loginConfig.providerCorpId,
+      appid: loginConfig.suiteId,
       redirect_uri: loginConfig.redirectUri,
       login_url: buildWecomLoginUrl({
-        providerCorpId: loginConfig.providerCorpId,
+        suiteId: loginConfig.suiteId,
         redirectUri: loginConfig.redirectUri,
         state
       }),
@@ -61,19 +61,19 @@ export class AdminWecomScanAuthService {
     });
   }
 
-  private readLoginConfig(): { providerCorpId: string; redirectUri: string } {
+  private readLoginConfig(): { suiteId: string; redirectUri: string } {
     try {
       const config = {
-        providerCorpId: this.config.providerCorpId,
+        suiteId: this.config.suiteId,
         redirectUri: this.config.adminLoginRedirectUri
       };
-      if (!config.providerCorpId.trim() || !config.redirectUri.trim()) {
+      if (!config.suiteId.trim() || !config.redirectUri.trim()) {
         throw new Error("missing scan login config");
       }
       return config;
     } catch {
       throw new ServiceUnavailableException(
-        "企业微信扫码登录配置未完成，请检查 WECOM_PROVIDER_CORP_ID 和 WECOM_ADMIN_LOGIN_REDIRECT_URI"
+        "企业微信扫码登录配置未完成，请检查 WECOM_SUITE_ID 和 WECOM_ADMIN_LOGIN_REDIRECT_URI"
       );
     }
   }
@@ -228,10 +228,10 @@ function sanitizeRedirectPath(value?: string | null): string | null {
   return trimmed.startsWith("/") && !trimmed.startsWith("//") ? trimmed.slice(0, 256) : null;
 }
 
-function buildWecomLoginUrl(input: { providerCorpId: string; redirectUri: string; state: string }): string {
+function buildWecomLoginUrl(input: { suiteId: string; redirectUri: string; state: string }): string {
   const url = new URL("https://login.work.weixin.qq.com/wwlogin/sso/login");
   url.searchParams.set("login_type", "ServiceApp");
-  url.searchParams.set("appid", input.providerCorpId);
+  url.searchParams.set("appid", input.suiteId);
   url.searchParams.set("redirect_uri", input.redirectUri);
   url.searchParams.set("state", input.state);
   url.searchParams.set("lang", "zh");

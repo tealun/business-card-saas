@@ -8,6 +8,7 @@ describe("WecomCommandCallbackService", () => {
       infoType: "change_auth",
       handled: true
     });
+    await flushDeferredWork();
     expect(authorization.refreshAuthorization).toHaveBeenCalledWith("corp-001", expect.any(Date));
     expect(events.markDone).toHaveBeenCalledTimes(1);
   });
@@ -16,6 +17,7 @@ describe("WecomCommandCallbackService", () => {
     const { service, authorization } = createService(commandXml("cancel_auth", "<AuthCorpId>corp-001</AuthCorpId>"));
 
     await service.receive(callbackQuery(), encryptedBody());
+    await flushDeferredWork();
 
     expect(authorization.cancelAuthorization).toHaveBeenCalledWith("corp-001", expect.any(Date));
   });
@@ -30,11 +32,40 @@ describe("WecomCommandCallbackService", () => {
     expect(fixture.authorization.handleAuthCode).not.toHaveBeenCalled();
   });
 
-  it("marks failed command events so an authenticated platform retry can process them", async () => {
+  it("acknowledges authorization callbacks before asynchronous WeCom API work completes", async () => {
+    const fixture = createService(commandXml("create_auth", "<AuthCode>auth-code-001</AuthCode>"));
+    let finishAuthorization: (() => void) | undefined;
+    fixture.authorization.handleAuthCode.mockImplementationOnce(
+      () =>
+        new Promise<undefined>((resolve) => {
+          finishAuthorization = () => resolve(undefined);
+        })
+    );
+
+    await expect(fixture.service.receive(callbackQuery(), encryptedBody())).resolves.toMatchObject({
+      infoType: "create_auth",
+      handled: true
+    });
+    expect(fixture.events.markDone).not.toHaveBeenCalled();
+    await runImmediateTurn();
+    expect(fixture.authorization.handleAuthCode).toHaveBeenCalledWith("auth-code-001", expect.any(Date));
+
+    finishAuthorization?.();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fixture.events.markDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks failed asynchronous command events so an authenticated platform retry can process them", async () => {
     const fixture = createService(commandXml("create_auth", "<AuthCode>auth-code-001</AuthCode>"));
     fixture.authorization.handleAuthCode.mockRejectedValueOnce(new Error("temporary upstream failure"));
 
-    await expect(fixture.service.receive(callbackQuery(), encryptedBody())).rejects.toThrow("temporary upstream failure");
+    await expect(fixture.service.receive(callbackQuery(), encryptedBody())).resolves.toMatchObject({
+      infoType: "create_auth",
+      handled: true
+    });
+    await flushDeferredWork();
     expect(fixture.events.markFailed).toHaveBeenCalledTimes(1);
   });
 });
@@ -73,4 +104,13 @@ function callbackQuery() {
 
 function encryptedBody(): string {
   return "<xml><Encrypt>encrypted-payload</Encrypt></xml>";
+}
+
+async function flushDeferredWork(): Promise<void> {
+  await runImmediateTurn();
+  await Promise.resolve();
+}
+
+async function runImmediateTurn(): Promise<void> {
+  await new Promise((resolve) => setImmediate(resolve));
 }

@@ -22,6 +22,7 @@ export interface WecomCommandCallbackResult {
   infoType: string;
   suiteId: string;
   handled: boolean;
+  deferred?: boolean;
 }
 
 @Injectable()
@@ -78,8 +79,10 @@ export class WecomCommandCallbackService {
       return { infoType, suiteId: readXmlText(decrypted.message, "SuiteId") ?? decrypted.receiveId, handled: true };
     }
     try {
-      const result = await this.handleCommandMessage(decrypted.message, decrypted.receiveId);
-      await this.events.markDone(eventKey, null);
+      const result = await this.handleCommandMessage(decrypted.message, decrypted.receiveId, eventKey);
+      if (!result.deferred) {
+        await this.events.markDone(eventKey, null);
+      }
       return result;
     } catch (error) {
       try {
@@ -91,7 +94,11 @@ export class WecomCommandCallbackService {
     }
   }
 
-  private async handleCommandMessage(messageXml: string, receiveId: string): Promise<WecomCommandCallbackResult> {
+  private async handleCommandMessage(
+    messageXml: string,
+    receiveId: string,
+    eventKey: string
+  ): Promise<WecomCommandCallbackResult> {
     const infoType = readXmlText(messageXml, "InfoType");
     const suiteId = readXmlText(messageXml, "SuiteId") ?? receiveId;
     if (!infoType) {
@@ -114,8 +121,8 @@ export class WecomCommandCallbackService {
       if (!authCode) {
         throw new BadRequestException("missing WeCom AuthCode");
       }
-      await this.authorization.handleAuthCode(authCode, eventTime(messageXml));
-      return { infoType, suiteId, handled: true };
+      this.deferAuthorizationEvent(eventKey, () => this.authorization.handleAuthCode(authCode, eventTime(messageXml)));
+      return { infoType, suiteId, handled: true, deferred: true };
     }
 
     if (infoType === "change_auth") {
@@ -123,8 +130,8 @@ export class WecomCommandCallbackService {
       if (!openCorpid) {
         throw new BadRequestException("missing WeCom AuthCorpId");
       }
-      await this.authorization.refreshAuthorization(openCorpid, eventTime(messageXml));
-      return { infoType, suiteId, handled: true };
+      this.deferAuthorizationEvent(eventKey, () => this.authorization.refreshAuthorization(openCorpid, eventTime(messageXml)));
+      return { infoType, suiteId, handled: true, deferred: true };
     }
 
     if (infoType === "cancel_auth") {
@@ -132,11 +139,24 @@ export class WecomCommandCallbackService {
       if (!openCorpid) {
         throw new BadRequestException("missing WeCom AuthCorpId");
       }
-      await this.authorization.cancelAuthorization(openCorpid, eventTime(messageXml));
-      return { infoType, suiteId, handled: true };
+      this.deferAuthorizationEvent(eventKey, () => this.authorization.cancelAuthorization(openCorpid, eventTime(messageXml)));
+      return { infoType, suiteId, handled: true, deferred: true };
     }
 
     return { infoType, suiteId, handled: false };
+  }
+
+  private deferAuthorizationEvent(eventKey: string, work: () => Promise<unknown>): void {
+    setImmediate(() => {
+      void (async () => {
+        try {
+          await work();
+          await this.events.markDone(eventKey, null);
+        } catch (error) {
+          await this.events.markFailed(eventKey, error, null);
+        }
+      })();
+    });
   }
 }
 

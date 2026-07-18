@@ -58,7 +58,7 @@ describe("WecomApiClientService", () => {
     );
   });
 
-  it("posts get_pre_auth_code and maps successful payloads", async () => {
+  it("gets get_pre_auth_code and maps successful payloads", async () => {
     const fetchMock = jest.fn(async () =>
       new Response(JSON.stringify({ errcode: 0, pre_auth_code: "pre-auth-code", expires_in: 600 }), {
         status: 200,
@@ -80,7 +80,8 @@ describe("WecomApiClientService", () => {
     const [url, init] = firstCall;
     expect(url).toContain("get_pre_auth_code");
     expect(url).toContain("suite_access_token=suite-token");
-    expect(JSON.parse(String(init.body))).toEqual({});
+    expect(init.method).toBeUndefined();
+    expect(init.body).toBeUndefined();
   });
 
   it("posts set_session_info with auth type and optional app ids", async () => {
@@ -110,7 +111,7 @@ describe("WecomApiClientService", () => {
       pre_auth_code: "pre-auth-code",
       session_info: {
         auth_type: 1,
-        appid: ["100001"]
+        appid: [100001]
       }
     });
   });

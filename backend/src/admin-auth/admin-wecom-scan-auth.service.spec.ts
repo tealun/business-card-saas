@@ -12,7 +12,7 @@ describe("AdminWecomScanAuthService", () => {
     });
 
     expect(result).toEqual({
-      appid: "wwprovider",
+      appid: "wwsuite",
       redirect_uri: "https://admin.example.com/",
       login_url: expect.stringContaining("https://login.work.weixin.qq.com/wwlogin/sso/login?"),
       state: expect.stringMatching(/^[a-f0-9]{48}$/),
@@ -20,7 +20,7 @@ describe("AdminWecomScanAuthService", () => {
     });
     const loginUrl = new URL(result.login_url);
     expect(loginUrl.searchParams.get("login_type")).toBe("ServiceApp");
-    expect(loginUrl.searchParams.get("appid")).toBe("wwprovider");
+    expect(loginUrl.searchParams.get("appid")).toBe("wwsuite");
     expect(loginUrl.searchParams.get("redirect_uri")).toBe("https://admin.example.com/");
     expect(loginUrl.searchParams.get("state")).toBe(result.state);
     expect(fixture.states.create).toHaveBeenCalledWith(
@@ -48,7 +48,7 @@ describe("AdminWecomScanAuthService", () => {
         redirectPath: "/"
       })
     ).resolves.toMatchObject({
-      appid: "wwprovider",
+      appid: "wwsuite",
       redirect_uri: "https://admin.example.com/"
     });
   });
@@ -56,7 +56,7 @@ describe("AdminWecomScanAuthService", () => {
   it("returns an actionable service unavailable error when scan login env is incomplete", async () => {
     const fixture = createFixture({
       config: {
-        providerCorpId: "",
+        suiteId: "",
         adminLoginRedirectUri: ""
       }
     });
@@ -235,9 +235,10 @@ describe("AdminWecomScanAuthService", () => {
   });
 });
 
-function createFixture(overrides: { config?: Partial<{ providerCorpId: string; adminLoginRedirectUri: string }> } = {}) {
+function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLoginRedirectUri: string }> } = {}) {
   const config = {
-    providerCorpId: overrides.config?.providerCorpId ?? "wwprovider",
+    suiteId: overrides.config?.suiteId ?? "wwsuite",
+    providerCorpId: "wwprovider",
     suite: { providerCorpId: "wwprovider", suiteId: "wwsuite" },
     adminLoginRedirectUri: overrides.config?.adminLoginRedirectUri ?? "https://admin.example.com/"
   };

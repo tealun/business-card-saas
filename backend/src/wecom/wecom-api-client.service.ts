@@ -30,7 +30,7 @@ export interface SetSessionInfoRequest {
   suiteAccessToken: string;
   preAuthCode: string;
   authType: 0 | 1;
-  appIds?: string[];
+  appIds?: Array<string | number>;
 }
 
 export interface FetchPermanentCodeResponse {
@@ -251,10 +251,9 @@ export class WecomApiClientService {
   }
 
   async fetchPreAuthCode(request: FetchPreAuthCodeRequest): Promise<FetchPreAuthCodeResponse> {
-    const payload = await this.postJson<WecomPreAuthCodePayload>(
+    const payload = await this.getJson<WecomPreAuthCodePayload>(
       "get_pre_auth_code",
-      `/cgi-bin/service/get_pre_auth_code?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`,
-      {}
+      `/cgi-bin/service/get_pre_auth_code?suite_access_token=${encodeURIComponent(request.suiteAccessToken)}`
     );
     if (payload.errcode && payload.errcode !== 0) {
       throw new BadGatewayException(
@@ -295,11 +294,11 @@ export class WecomApiClientService {
   }
 
   async setSessionInfo(request: SetSessionInfoRequest): Promise<void> {
-    const sessionInfo: { auth_type: 0 | 1; appid?: string[] } = {
+    const sessionInfo: { auth_type: 0 | 1; appid?: Array<string | number> } = {
       auth_type: request.authType
     };
     if (request.appIds?.length) {
-      sessionInfo.appid = request.appIds;
+      sessionInfo.appid = request.appIds.map(normalizeAppId);
     }
     const payload = await this.postJson<WecomSetSessionInfoPayload>(
       "set_session_info",
@@ -597,6 +596,14 @@ function delay(ms: number): Promise<void> {
 function normalizeOptionalString(value: string | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeAppId(value: string | number): string | number {
+  if (typeof value === "number") {
+    return value;
+  }
+  const normalized = value.trim();
+  return /^\d+$/.test(normalized) ? Number(normalized) : normalized;
 }
 
 function secureImageUrl(value: string | undefined): string | null {

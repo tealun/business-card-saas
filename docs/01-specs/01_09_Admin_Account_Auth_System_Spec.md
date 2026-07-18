@@ -53,7 +53,7 @@ M1 补齐（均仅 `platform_owner`，全部落审计）：
 
 **时序**：
 
-1. 登录页「企业管理员」Tab → 前端请求 `GET /api/v1/admin/auth/wecom/login-config` → 后端生成一次性 state（随机串，库中只存 SHA-256；TTL 10 分钟；绑定 client_ip/user_agent）→ 返回企业微信登录组件初始化参数（appid = 服务商 CorpID，即 `WECOM_PROVIDER_CORP_ID`；redirect_uri；state；组件其余参数以官方 98170 子页面为准）。
+1. 登录页「企业管理员」Tab → 前端请求 `GET /api/v1/admin/auth/wecom/login-config` → 后端生成一次性 state（随机串，库中只存 SHA-256；TTL 10 分钟；绑定 client_ip/user_agent）→ 返回企业微信新版服务商登录参数（`login_type=ServiceApp`，`appid` = 登录授权 SuiteID，即 `WECOM_SUITE_ID`；`redirect_uri`；`state`；组件其余参数以官方 98170/98171 子页面为准）。
 2. 前端内嵌企业微信登录组件（或新窗口登录页）→ 用户用企业微信扫码 / 桌面端确认授权。
 3. 企微回跳 `GET /api/v1/admin/auth/wecom/scan-callback?code=...&state=...`（授权码参数名为 `code`，98170）：校验 state（存在、未过期、未使用 → 立即标记 `used_at`）。
 4. `getuserinfo3rd(suite_access_token, code)` → `{corpid, userid, open_userid}`（官方 91121；`user_ticket` 仅 snsapi_privateinfo 场景返回，本链路不依赖；响应字段大小写差异以部署联调真实回调为准）。
