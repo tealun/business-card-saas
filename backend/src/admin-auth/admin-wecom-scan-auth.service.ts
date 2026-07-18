@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { BadRequestException, ForbiddenException, Injectable, Optional } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import {
   adminIdentitySchema,
@@ -42,6 +42,7 @@ export class AdminWecomScanAuthService {
     redirectPath?: string | null;
   }): Promise<AdminWecomLoginConfigResponse> {
     const state = randomBytes(24).toString("hex");
+    const loginConfig = this.readLoginConfig();
     await this.states.create({
       state,
       context: { accountType: "tenant", redirectPath: sanitizeRedirectPath(input.redirectPath) },
@@ -50,16 +51,33 @@ export class AdminWecomScanAuthService {
       userAgent: input.userAgent
     });
     return adminWecomLoginConfigResponseSchema.parse({
-      appid: this.config.suite.suiteId,
-      redirect_uri: this.config.adminLoginRedirectUri,
+      appid: loginConfig.suiteId,
+      redirect_uri: loginConfig.redirectUri,
       login_url: buildWecomLoginUrl({
-        suiteId: this.config.suite.suiteId,
-        redirectUri: this.config.adminLoginRedirectUri,
+        suiteId: loginConfig.suiteId,
+        redirectUri: loginConfig.redirectUri,
         state
       }),
       state,
       expires_in: STATE_EXPIRES_IN_SECONDS
     });
+  }
+
+  private readLoginConfig(): { suiteId: string; redirectUri: string } {
+    try {
+      const config = {
+        suiteId: this.config.suiteId,
+        redirectUri: this.config.adminLoginRedirectUri
+      };
+      if (!config.suiteId.trim() || !config.redirectUri.trim()) {
+        throw new Error("missing scan login config");
+      }
+      return config;
+    } catch {
+      throw new ServiceUnavailableException(
+        "企业微信扫码登录配置未完成，请检查 WECOM_SUITE_ID 和 WECOM_ADMIN_LOGIN_REDIRECT_URI"
+      );
+    }
   }
 
   async completeScan(input: { code: string; state: string; clientIp?: string | null }): Promise<AdminLoginResponse> {

@@ -33,6 +33,10 @@ export class WecomConfigService {
     return suite;
   }
 
+  get suiteId(): string {
+    return readRequired("WECOM_SUITE_ID");
+  }
+
   get apiBaseUrl(): string {
     return readRequired("WECOM_API_BASE_URL").replace(/\/+$/, "");
   }

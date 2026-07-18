@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
 import { AdminWecomScanAuthService } from "./admin-wecom-scan-auth.service.js";
 
 describe("AdminWecomScanAuthService", () => {
@@ -31,6 +31,51 @@ describe("AdminWecomScanAuthService", () => {
         userAgent: "jest"
       })
     );
+  });
+
+  it("does not require full WeCom suite secrets when creating scan login config", async () => {
+    const fixture = createFixture();
+    Object.defineProperty(fixture.config, "suite", {
+      get: () => {
+        throw new Error("full suite config should not be read");
+      }
+    });
+
+    await expect(
+      fixture.service.loginConfig({
+        clientIp: "127.0.0.1",
+        userAgent: "jest",
+        redirectPath: "/"
+      })
+    ).resolves.toMatchObject({
+      appid: "wwsuite",
+      redirect_uri: "https://admin.example.com/"
+    });
+  });
+
+  it("returns an actionable service unavailable error when scan login env is incomplete", async () => {
+    const fixture = createFixture({
+      config: {
+        suiteId: "",
+        adminLoginRedirectUri: ""
+      }
+    });
+
+    await expect(
+      fixture.service.loginConfig({
+        clientIp: "127.0.0.1",
+        userAgent: "jest",
+        redirectPath: "/"
+      })
+    ).rejects.toThrow(ServiceUnavailableException);
+    await expect(
+      fixture.service.loginConfig({
+        clientIp: "127.0.0.1",
+        userAgent: "jest",
+        redirectPath: "/"
+      })
+    ).rejects.toThrow("企业微信扫码登录配置未完成");
+    expect(fixture.states.create).not.toHaveBeenCalled();
   });
 
   it("exchanges a WeCom scan callback for a tenant admin session", async () => {
@@ -155,10 +200,11 @@ describe("AdminWecomScanAuthService", () => {
   });
 });
 
-function createFixture() {
+function createFixture(overrides: { config?: Partial<{ suiteId: string; adminLoginRedirectUri: string }> } = {}) {
   const config = {
+    suiteId: overrides.config?.suiteId ?? "wwsuite",
     suite: { providerCorpId: "wwprovider", suiteId: "wwsuite" },
-    adminLoginRedirectUri: "https://admin.example.com/"
+    adminLoginRedirectUri: overrides.config?.adminLoginRedirectUri ?? "https://admin.example.com/"
   };
   const states = {
     create: jest.fn(async () => undefined),
@@ -237,5 +283,5 @@ function createFixture() {
     operationLogs as never
   );
 
-  return { service, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens, operationLogs };
+  return { service, config, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens, operationLogs };
 }
