@@ -2158,6 +2158,13 @@ body:not(.dev-mode) [data-dev-only] {
   color: var(--danger-text);
 }
 
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
 .icon-btn {
   display: inline-flex;
   align-items: center;

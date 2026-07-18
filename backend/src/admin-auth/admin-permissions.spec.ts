@@ -55,3 +55,58 @@ describe("adminCapabilities", () => {
     expect(capabilities.menuScopes).toEqual(expect.arrayContaining(["platform.ops", "platform.accounts"]));
   });
 });
+
+
+describe("platform role capabilities (01_08 matrix, M1 subset)", () => {
+  const basePlatform: AdminSession = {
+    tenantId: "platform-tenant",
+    tenantName: "Platform Ops",
+    memberIdentityId: null,
+    openUserid: "platform:root",
+    role: "platform_owner",
+    accountType: "platform"
+  };
+
+  it("treats legacy 'owner' exactly like platform_owner", () => {
+    const legacy = adminCapabilities({ ...basePlatform, role: "owner" as AdminSession["role"] });
+    const current = adminCapabilities(basePlatform);
+    expect(legacy).toEqual(current);
+    expect(current.permissions).toEqual(
+      expect.arrayContaining(["platform.account.read", "platform.account.write", "platform.database.migrate"])
+    );
+    expect(current.menuScopes).toEqual(expect.arrayContaining(["platform.accounts", "platform.commercial", "platform.ops"]));
+  });
+
+  it("gives ops feature writes and the ops console without account management", () => {
+    const capabilities = adminCapabilities({ ...basePlatform, role: "ops" });
+
+    expect(capabilities.permissions).toEqual(
+      expect.arrayContaining(["platform.feature.write", "platform.ops.read", "platform.database.read"])
+    );
+    expect(capabilities.permissions).not.toContain("platform.account.write");
+    expect(capabilities.permissions).not.toContain("platform.database.migrate");
+    expect(capabilities.permissions).not.toContain("platform.commercial.read");
+    expect(capabilities.menuScopes).toContain("platform.ops");
+    expect(capabilities.menuScopes).not.toContain("platform.accounts");
+  });
+
+  it("keeps support read-oriented with commercial read only", () => {
+    const capabilities = adminCapabilities({ ...basePlatform, role: "support" });
+
+    expect(capabilities.permissions).toContain("platform.commercial.read");
+    expect(capabilities.permissions).not.toContain("platform.commercial.write");
+    expect(capabilities.permissions).not.toContain("platform.feature.write");
+    expect(capabilities.permissions).not.toContain("platform.account.write");
+    expect(capabilities.menuScopes).toContain("platform.commercial");
+    expect(capabilities.menuScopes).not.toContain("platform.ops");
+  });
+
+  it("fails closed to the read-only base set for unknown role strings", () => {
+    const capabilities = adminCapabilities({ ...basePlatform, role: "garbage" as AdminSession["role"] });
+
+    expect(capabilities.permissions).not.toContain("platform.feature.write");
+    expect(capabilities.permissions).not.toContain("platform.account.write");
+    expect(capabilities.menuScopes).not.toContain("platform.accounts");
+    expect(capabilities.menuScopes).toEqual(expect.arrayContaining(["platform.dashboard", "platform.audit"]));
+  });
+});

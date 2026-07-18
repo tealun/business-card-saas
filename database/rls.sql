@@ -130,6 +130,11 @@ DROP POLICY IF EXISTS tenant_isolation_callback_events ON callback_events;
 ALTER TABLE wecom_sensitive_auth_states DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_wecom_sensitive_auth_states ON wecom_sensitive_auth_states;
 
+-- Admin OAuth/scan login consumes one-time state before tenant/platform identity has been
+-- established. It stores only the state hash and binding metadata, never raw code/user identity.
+ALTER TABLE admin_auth_states DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_admin_auth_states ON admin_auth_states;
+
 -- admin_operation_logs is a platform operations table, same shape as callback_events: platform
 -- admins need cross-tenant reads (GET /admin/platform/operation-logs) and the repository queries
 -- the pool directly rather than through TenantTx. It intentionally does not use tenant RLS;

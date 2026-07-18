@@ -214,9 +214,12 @@ CREATE TABLE "tenant_admins" (
     "open_userid" VARCHAR(128),
     "role" VARCHAR(32) NOT NULL,
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "last_login_at" TIMESTAMPTZ(6),
+    "auth_source" VARCHAR(32),
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
+    CONSTRAINT "tenant_admins_auth_source_check" CHECK ("auth_source" IN ('claim_token','wecom_scan')),
     CONSTRAINT "tenant_admins_pkey" PRIMARY KEY ("id")
 );
 
@@ -228,12 +231,14 @@ CREATE TABLE "platform_admins" (
     "username" VARCHAR(64) NOT NULL,
     "password_hash" VARCHAR(255) NOT NULL,
     "tenant_id" BIGINT NOT NULL,
-    "role" VARCHAR(32) NOT NULL DEFAULT 'owner',
+    "role" VARCHAR(32) NOT NULL DEFAULT 'platform_owner',
     "status" VARCHAR(32) NOT NULL DEFAULT 'active',
     "password_updated_at" TIMESTAMPTZ(6),
+    "created_by" VARCHAR(64),
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
+    CONSTRAINT "platform_admins_role_check" CHECK ("role" IN ('platform_owner','ops','support','finance','engineer','auditor')),
     CONSTRAINT "platform_admins_pkey" PRIMARY KEY ("id")
 );
 
@@ -247,6 +252,24 @@ CREATE TABLE "admin_claim_tokens" (
     "created_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "admin_claim_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+-- admin_auth_states is a platform-level one-time OAuth state store used before
+-- tenant context exists. It intentionally has no tenant RLS, like
+-- wecom_sensitive_auth_states.
+CREATE TABLE "admin_auth_states" (
+    "state_hash" VARCHAR(64) NOT NULL,
+    "account_type" VARCHAR(16) NOT NULL DEFAULT 'tenant',
+    "redirect_path" VARCHAR(256),
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "used_at" TIMESTAMPTZ(6),
+    "client_ip" VARCHAR(64),
+    "user_agent" VARCHAR(256),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    CONSTRAINT "admin_auth_states_account_type_check" CHECK ("account_type" IN ('tenant','platform')),
+    CONSTRAINT "admin_auth_states_pkey" PRIMARY KEY ("state_hash")
 );
 
 -- CreateTable
@@ -613,6 +636,9 @@ CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_admin_claim_token" ON "admin_claim_tokens"("token_hash");
+
+-- CreateIndex
+CREATE INDEX "idx_admin_auth_states_expires" ON "admin_auth_states"("expires_at");
 
 CREATE INDEX "idx_tenant_subscriptions_tenant" ON "tenant_subscriptions"("tenant_id");
 

@@ -18,7 +18,9 @@ const ownerSession: AdminSession = {
 
 const adminSession: AdminSession = {
   ...ownerSession,
-  role: "admin"
+  // Admin-level platform operator per the 01_08 M1 mapping (legacy transition-era
+  // 'admin' is no longer a valid platform role; ops sits at the same rank).
+  role: "ops"
 };
 
 const tenantOwnerSession: AdminSession = {

@@ -34,18 +34,18 @@
 | # | Item | Owner | Status | Evidence |
 |---|------|-------|--------|----------|
 | M1-S1 | 扫码全链路：管理员扫码 → 实时 `get_admin_list` 命中 → 自动建档 → 进入后台首页（`session/me` 返回 `account_type=tenant`） | | ☐ | 录屏或端到端日志（依赖 D-1/D-2） |
-| M1-S2 | 非管理员扫码 → 403 中文提示，不建档不发会话 | | ☐ | 测试记录 |
-| M1-S3 | 本地 `disabled` 管理员扫码被拒（本地管控优先） | | ☐ | 测试记录 |
-| M1-S4 | owner 创建/改角色/禁用/删除平台账号；禁止操作自己与内建 owner | | ☐ | API 测试记录 |
-| M1-S5 | 登录成功/失败 + 账号管理操作全部落 `admin_operation_logs` | | ☐ | 日志查询截图 |
-| M1-S6 | 隔离回归：tenant 会话访问 platform 端点 403；反之亦然 | | ☐ | 测试记录 |
-| M1-S7 | 禁用/删除后存量会话行为明确：`AdminAuthGuard` 每次查库校验 status，或接受 8h 窗口并记录决策 | | ☐ | `admin-auth.guard.ts` 行为确认 + 决策记录 |
+| M1-S2 | 非管理员扫码 → 403 中文提示，不建档不发会话 | | ☐ | 测试记录（依赖扫码链路实现） |
+| M1-S3 | 本地 `disabled` 管理员扫码被拒（本地管控优先） | | ☐ | 测试记录（依赖扫码链路实现） |
+| M1-S4 | owner 创建/改角色/禁用/删除平台账号；禁止操作自己与内建 owner | | ☑ 单测通过 | `PlatformAdminService account management (M1-S4)`、`AdminObservabilityService platform account management (M1-S4)`；`cmd /c npm run test -- admin-auth admin-observability admin-database`（2026-07-18，73 passed） |
+| M1-S5 | 登录成功/失败 + 账号管理操作全部落 `admin_operation_logs` | | ◐ 部分通过 | 账号创建/改角色/删除已在 `AdminObservabilityService platform account management (M1-S4)` 断言 `operationLogs.record`；登录成功/失败日志待扫码链路落地后补 |
+| M1-S6 | 隔离回归：tenant 会话访问 platform 端点 403；反之亦然 | | ☑ 单测通过 | `admin-rbac.spec.ts` 覆盖 platform/tenant role 互斥；`admin-observability.service.spec.ts`、`admin-database.service.spec.ts` 覆盖非 platform owner 访问拒绝；同批测试 73 passed |
+| M1-S7 | 禁用/删除后存量会话行为明确：`AdminAuthGuard` 每次查库校验 status，或接受 8h 窗口并记录决策 | | ☑ 决策落地 | 采用“每次 platform 请求查库校验 status/存在性”；`admin-auth.guard.ts` 调用 `PlatformAdminService.assertActiveSessionAccount`；`admin-auth.guard.spec.ts` 覆盖 active/disabled/deleted platform session 与 tenant session 不查平台账号 |
 
 说明：M1-S4 不依赖任何外部事实，先行实现；S2/S3/S6/S7 可用 mock 企微客户端的单测先行验证，S1 完整链路以 D-1/D-2 联调收尾。
 
 ### M1 Done
 
-- S1–S6 全过；`migrate_v1_14` 前滚执行成功；审计日志可查；01_09 验收标准 AC1–AC8 满足。
+- S1–S7 全过；`migrate_v1_14` 前滚执行成功；审计日志可查；01_09 验收标准 AC1–AC8 满足。
 
 ### M1 Fail
 

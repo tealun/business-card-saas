@@ -50,3 +50,45 @@ describe("admin RBAC helpers", () => {
     expect(() => requireTenantAdminRole(platformOwner, "owner")).toThrow("tenant administrator required");
   });
 });
+
+
+describe("platform role mapping (01_08 matrix, migrate_v1_14 compat)", () => {
+  const base = {
+    tenantId: "1",
+    tenantName: "平台",
+    memberIdentityId: null,
+    openUserid: "platform:root",
+    accountType: "platform"
+  } satisfies Omit<AdminSession, "role">;
+
+  it("treats legacy 'owner' platform sessions as platform_owner", () => {
+    expect(() => requirePlatformAdminRole({ ...base, role: "owner" }, "owner")).not.toThrow();
+    expect(() => requirePlatformAdminRole({ ...base, role: "platform_owner" }, "owner")).not.toThrow();
+  });
+
+  it("ranks ops at admin level but below platform_owner", () => {
+    expect(() => requirePlatformAdminRole({ ...base, role: "ops" }, "admin")).not.toThrow();
+    expect(() => requirePlatformAdminRole({ ...base, role: "ops" }, "owner")).toThrow(ForbiddenException);
+  });
+
+  it("ranks support at operator level and auditor at read-only level", () => {
+    expect(() => requirePlatformAdminRole({ ...base, role: "support" }, "operator")).not.toThrow();
+    expect(() => requirePlatformAdminRole({ ...base, role: "support" }, "admin")).toThrow(ForbiddenException);
+    expect(() => requirePlatformAdminRole({ ...base, role: "auditor" }, "auditor")).not.toThrow();
+    expect(() => requirePlatformAdminRole({ ...base, role: "auditor" }, "operator")).toThrow(ForbiddenException);
+  });
+
+  it("rejects unknown or tenant-only role strings on platform sessions", () => {
+    expect(() => requirePlatformAdminRole({ ...base, role: "admin" }, "auditor")).toThrow(ForbiddenException);
+    expect(() => requirePlatformAdminRole({ ...base, role: "garbage" as never }, "auditor")).toThrow(ForbiddenException);
+  });
+
+  it("rejects platform role strings on tenant sessions", () => {
+    const tenantBase = { ...base, openUserid: "ou-owner", accountType: "tenant" } satisfies Omit<AdminSession, "role">;
+    expect(() => requireTenantAdminRole({ ...tenantBase, role: "platform_owner" }, "auditor")).toThrow(
+      ForbiddenException
+    );
+    expect(() => requireTenantAdminRole({ ...tenantBase, role: "ops" }, "auditor")).toThrow(ForbiddenException);
+    expect(() => requireTenantAdminRole({ ...tenantBase, role: "owner" }, "owner")).not.toThrow();
+  });
+});

@@ -858,6 +858,13 @@
             <div><h2>系统账号</h2><p>平台账号清单与启停管理；列表不返回密码哈希。</p></div>
             <button id="loadPlatformAccounts" type="button" class="secondary">刷新</button>
           </div>
+          <article class="panel stack-form">
+            <h3>创建平台账号</h3>
+            <label><span>用户名</span><input id="platformAccountCreateUsername" autocomplete="off" placeholder="3-64 位字母、数字或 _ . -" /></label>
+            <label><span>初始密码</span><input id="platformAccountCreatePassword" type="password" autocomplete="new-password" placeholder="至少 10 位，需含字母和数字" /></label>
+            <label><span>角色</span><select id="platformAccountCreateRole"><option value="ops">Ops（运营）</option><option value="support">Support（客服）</option></select></label>
+            <button id="createPlatformAccount" type="button">创建账号</button>
+          </article>
           <article class="panel">
             <div class="toolbar">
               <input id="platformAccountSearch" placeholder="搜索用户名" />

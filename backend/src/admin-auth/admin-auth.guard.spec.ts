@@ -2,13 +2,33 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { ExecutionContext } from "@nestjs/common";
 import { AdminAuthGuard, type AdminRequest } from "./admin-auth.guard.js";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
+import { PlatformAdminRepository } from "./platform-admin.repository.js";
+import { PlatformAdminService } from "./platform-admin.service.js";
+import { hashPassword } from "./password.util.js";
 import type { AdminSession } from "./admin-session.js";
 
 describe("AdminAuthGuard", () => {
-  const service = new AdminSessionTokenService();
-  const guard = new AdminAuthGuard(service);
+  const originalDatabaseUrl = process.env.DATABASE_URL;
 
-  const session: AdminSession = {
+  beforeEach(() => {
+    delete process.env.DATABASE_URL;
+  });
+
+  afterAll(() => {
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+  });
+
+  function createGuard() {
+    const repository = new PlatformAdminRepository();
+    const tokens = new AdminSessionTokenService();
+    const platformAdmins = new PlatformAdminService(repository, tokens);
+    const guard = new AdminAuthGuard(tokens, platformAdmins);
+    return { repository, tokens, platformAdmins, guard };
+  }
+
+  const tenantSession: AdminSession = {
     tenantId: "tenant-001",
     tenantName: "Pilot Corp",
     memberIdentityId: "member-001",
@@ -24,13 +44,31 @@ describe("AdminAuthGuard", () => {
     } as ExecutionContext;
   }
 
-  it("allows requests with a valid bearer token", () => {
-    const token = service.sign(session);
-    expect(guard.canActivate(context(`Bearer ${token}`))).toBe(true);
+  async function createPlatformAccount(guard_context: ReturnType<typeof createGuard>, username = "root") {
+    await guard_context.repository.createWithBootstrapTenant({
+      username,
+      passwordHash: hashPassword("initial-password-1"),
+      tenantName: "平台运营"
+    });
+    return {
+      tenantId: "platform-1",
+      tenantName: "平台运营",
+      memberIdentityId: null,
+      openUserid: `platform:${username}`,
+      role: "platform_owner",
+      accountType: "platform"
+    } satisfies AdminSession;
+  }
+
+  it("allows tenant-session requests with a valid bearer token without a platform account lookup", async () => {
+    const { tokens, guard } = createGuard();
+    const token = tokens.sign(tenantSession);
+    await expect(guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
   });
 
-  it("attaches Fastify's resolved client ip to the verified session for audit logging", () => {
-    const token = service.sign(session);
+  it("attaches Fastify's resolved client ip to the verified session for audit logging", async () => {
+    const { tokens, guard } = createGuard();
+    const token = tokens.sign(tenantSession);
     const request: AdminRequest & { headers: Record<string, string>; ip: string } = {
       headers: { authorization: `Bearer ${token}` },
       ip: "198.51.100.4"
@@ -41,12 +79,13 @@ describe("AdminAuthGuard", () => {
       })
     } as ExecutionContext;
 
-    expect(guard.canActivate(context)).toBe(true);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.adminSession?.requestIp).toBe("198.51.100.4");
   });
 
-  it("does not trust a client-supplied X-Forwarded-For header directly (only request.ip, Fastify's trust-proxy-resolved value, is used)", () => {
-    const token = service.sign(session);
+  it("does not trust a client-supplied X-Forwarded-For header directly (only request.ip, Fastify's trust-proxy-resolved value, is used)", async () => {
+    const { tokens, guard } = createGuard();
+    const token = tokens.sign(tenantSession);
     // Fastify only folds X-Forwarded-For into request.ip when the peer is a trusted proxy
     // (trustProxy: "loopback"); a raw header on the request object here must never be read.
     const request: AdminRequest & { headers: Record<string, string>; ip: string } = {
@@ -59,15 +98,60 @@ describe("AdminAuthGuard", () => {
       })
     } as ExecutionContext;
 
-    expect(guard.canActivate(context)).toBe(true);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.adminSession?.requestIp).toBe("198.51.100.4");
   });
 
-  it("throws when the authorization header is missing", () => {
-    expect(() => guard.canActivate(context())).toThrow(UnauthorizedException);
+  it("throws when the authorization header is missing", async () => {
+    const { guard } = createGuard();
+    await expect(guard.canActivate(context())).rejects.toThrow(UnauthorizedException);
   });
 
-  it("throws when the token is malformed", () => {
-    expect(() => guard.canActivate(context("Bearer not-a-token"))).toThrow(UnauthorizedException);
+  it("throws when the token is malformed", async () => {
+    const { guard } = createGuard();
+    await expect(guard.canActivate(context("Bearer not-a-token"))).rejects.toThrow(UnauthorizedException);
+  });
+
+  // M1-S7 (01_09 AC6): platform sessions are re-checked against platform_admins
+  // on every request, so disable/delete revokes outstanding 8h tokens at once.
+  it("allows a platform session whose account is still active", async () => {
+    const setup = createGuard();
+    const session = await createPlatformAccount(setup);
+    const token = setup.tokens.sign(session);
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
+  });
+
+  it("rejects a platform session once the account is disabled", async () => {
+    const setup = createGuard();
+    const session = await createPlatformAccount(setup);
+    const token = setup.tokens.sign(session);
+    const findByUsername = jest.spyOn(setup.repository, "findByUsername");
+    findByUsername.mockResolvedValue({
+      id: "1",
+      username: "root",
+      passwordHash: "scrypt:x",
+      tenantId: "platform-1",
+      tenantName: "平台运营",
+      role: "platform_owner",
+      status: "disabled"
+    });
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow(UnauthorizedException);
+    expect(findByUsername).toHaveBeenCalledWith("root");
+  });
+
+  it("rejects a platform session once the account is deleted", async () => {
+    const setup = createGuard();
+    const session = await createPlatformAccount(setup);
+    const token = setup.tokens.sign(session);
+    jest.spyOn(setup.repository, "findByUsername").mockResolvedValue(null);
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("does not require a platform_admins row for tenant sessions signed before this change", async () => {
+    const setup = createGuard();
+    const findByUsername = jest.spyOn(setup.repository, "findByUsername");
+    const token = setup.tokens.sign({ ...tenantSession, accountType: "tenant" });
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
+    expect(findByUsername).not.toHaveBeenCalled();
   });
 });

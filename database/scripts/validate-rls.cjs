@@ -14,6 +14,9 @@ const tenantRlsExceptions = new Set([
   // OAuth callbacks arrive before tenant context can be established. Access is gated by a
   // high-entropy, single-use state hash; the row contains no raw state, code, or user ticket.
   "wecom_sensitive_auth_states",
+  // Admin OAuth/scan login state is consumed before tenant/platform identity has been established.
+  // It stores only a state hash and request metadata.
+  "admin_auth_states",
   // Platform operations table, same shape as callback_events: platform admins need cross-tenant
   // reads (GET /admin/platform/operation-logs), and the repository is not TenantTx-scoped.
   // Isolation is enforced at the query layer (tenant_id filter), not via RLS. See 99_71.
@@ -98,6 +101,14 @@ assert(
 assert(
   !/CREATE POLICY\s+\S+\s+ON\s+wecom_sensitive_auth_states/i.test(sql),
   "wecom_sensitive_auth_states must not define a tenant RLS policy"
+);
+assert(
+  /ALTER TABLE\s+admin_auth_states\s+DISABLE ROW LEVEL SECURITY/i.test(sql),
+  "admin_auth_states must remain callback-accessible before admin identity exists"
+);
+assert(
+  !/CREATE POLICY\s+\S+\s+ON\s+admin_auth_states/i.test(sql),
+  "admin_auth_states must not define a tenant RLS policy"
 );
 assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),

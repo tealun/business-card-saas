@@ -1,6 +1,7 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import type { AdminSession } from "../admin-auth/admin-session.js";
+import { normalizePlatformAdminRole, type PlatformAdminRole } from "../contracts/admin-auth.js";
 import { DatabaseService } from "../database/database.service.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 import type {
@@ -8,6 +9,7 @@ import type {
   AdminEventQuery,
   AdminListQuery,
   PlatformAdminListResponse,
+  PlatformAdminSummary,
   TenantAdminListResponse,
   TenantAdminSummary
 } from "../contracts/admin-observability.js";
@@ -28,7 +30,9 @@ interface TenantAdminRow extends QueryResultRow {
 interface PlatformAdminRow extends QueryResultRow {
   admin_id: string | number | bigint;
   username: string;
-  role: "owner" | "admin" | "operator" | "auditor";
+  // Raw database value; legacy 'owner' rows are normalized to 'platform_owner'
+  // in toPlatformAdminSummary (migrate_v1_14 pending).
+  role: string;
   status: string;
   password_updated_at: Date | string | null;
   created_at: Date | string;
@@ -177,22 +181,14 @@ export class AdminObservabilityRepository {
         WHERE 1 = 1
           ${filters.whereSql}
         ORDER BY
-          CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 WHEN 'operator' THEN 3 ELSE 4 END,
+          CASE role WHEN 'platform_owner' THEN 1 WHEN 'owner' THEN 1 WHEN 'ops' THEN 2 WHEN 'support' THEN 3 WHEN 'finance' THEN 4 WHEN 'engineer' THEN 5 ELSE 6 END,
           username ASC
         LIMIT 100
       `,
       filters.values
     );
     return {
-      items: result.rows.map((row) => ({
-        admin_id: String(row.admin_id),
-        username: row.username,
-        role: row.role,
-        status: row.status,
-        password_updated_at: row.password_updated_at ? iso(row.password_updated_at) : null,
-        created_at: iso(row.created_at),
-        updated_at: iso(row.updated_at)
-      })),
+      items: result.rows.map(toPlatformAdminSummary),
       total: Number(result.rows[0]?.total_count ?? 0)
     };
   }
@@ -288,28 +284,24 @@ export class AdminObservabilityRepository {
     };
   }
 
-  async updatePlatformAdminStatus(adminId: string, status: "active" | "disabled", currentUsername: string): Promise<PlatformAdminListResponse["items"][number] | null> {
+  async updatePlatformAdminStatus(
+    adminId: string,
+    status: "active" | "disabled",
+    blockedUsernames: string[]
+  ): Promise<PlatformAdminListResponse["items"][number] | null> {
     if (!this.hasPlatformDatabase()) return null;
     const result = await this.database!.query<PlatformAdminRow>(
       `
         UPDATE platform_admins
         SET status = $2, updated_at = now()
-        WHERE id = $1 AND username <> $3
+        WHERE id = $1 AND NOT (username = ANY($3::text[]))
         RETURNING id AS admin_id, username, role, status, password_updated_at, created_at, updated_at
       `,
-      [adminId, status, currentUsername]
+      [adminId, status, blockedUsernames]
     );
     const row = result.rows[0];
     if (!row) return null;
-    return {
-      admin_id: String(row.admin_id),
-      username: row.username,
-      role: row.role,
-      status: row.status,
-      password_updated_at: row.password_updated_at ? iso(row.password_updated_at) : null,
-      created_at: iso(row.created_at),
-      updated_at: iso(row.updated_at)
-    };
+    return toPlatformAdminSummary(row);
   }
 
   private hasTenantDatabase(): boolean {
@@ -319,6 +311,25 @@ export class AdminObservabilityRepository {
   private hasPlatformDatabase(): boolean {
     return Boolean(this.database && process.env.DATABASE_URL?.trim());
   }
+}
+
+function toPlatformAdminSummary(row: PlatformAdminRow): PlatformAdminSummary {
+  // Reads normalize legacy 'owner' rows to 'platform_owner' so API responses only
+  // carry the new enum even before migrate_v1_14 runs; anything else is data
+  // corruption and fails loudly instead of being silently re-labelled.
+  const role: PlatformAdminRole | null = normalizePlatformAdminRole(row.role);
+  if (!role) {
+    throw new Error(`platform_admins row ${row.admin_id} has unexpected role '${row.role}'`);
+  }
+  return {
+    admin_id: String(row.admin_id),
+    username: row.username,
+    role,
+    status: row.status,
+    password_updated_at: row.password_updated_at ? iso(row.password_updated_at) : null,
+    created_at: iso(row.created_at),
+    updated_at: iso(row.updated_at)
+  };
 }
 
 function toTenantAdminSummary(row: TenantAdminRow): TenantAdminSummary {

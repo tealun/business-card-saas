@@ -1,19 +1,23 @@
-import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, Optional, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, Logger, OnApplicationBootstrap, Optional, UnauthorizedException } from "@nestjs/common";
 import {
   adminIdentitySchema,
   adminLoginResponseSchema,
   type AdminChangePasswordRequest,
   type AdminLoginResponse,
-  type AdminPasswordLoginRequest
+  type AdminPasswordLoginRequest,
+  type PlatformAdminRole
 } from "../contracts/admin-auth.js";
+import type { PlatformAdminSummary } from "../contracts/admin-observability.js";
 import { AppConfig } from "../config/app-config.js";
 import type { AdminSession } from "./admin-session.js";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
 import { adminCapabilities } from "./admin-permissions.js";
 import { hashPassword, verifyPassword } from "./password.util.js";
-import { PlatformAdminRepository } from "./platform-admin.repository.js";
+import { PlatformAdminRepository, PlatformUsernameTakenError, type PlatformAdminRecord } from "./platform-admin.repository.js";
 
 const PLATFORM_USER_PREFIX = "platform:";
+const PLATFORM_USERNAME_PATTERN = /^[a-zA-Z0-9_.-]{3,64}$/;
+const PASSWORD_MIN_LENGTH = 10;
 
 @Injectable()
 export class PlatformAdminService implements OnApplicationBootstrap {
@@ -91,6 +95,77 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     });
   }
 
+  // M1-S4 (01_09 §4.1): platform account management. Writes use only the new
+  // 01_08 role enum; legacy 'owner' rows are normalized on read in the repository.
+  async createPlatformAccount(input: {
+    username: string;
+    password: string;
+    role: PlatformAdminRole;
+    createdBy: string;
+  }): Promise<PlatformAdminSummary> {
+    const username = input.username.trim();
+    if (!PLATFORM_USERNAME_PATTERN.test(username)) {
+      throw new BadRequestException("用户名需为 3-64 位，只能包含字母、数字、下划线、点和短横线");
+    }
+    assertPasswordComplexity(input.password);
+    try {
+      const created = await this.admins.createAccount({
+        username,
+        passwordHash: hashPassword(input.password),
+        role: input.role,
+        createdBy: input.createdBy
+      });
+      this.logger.warn(`platform admin '${username}' created by '${input.createdBy}' with role '${input.role}'`);
+      return created;
+    } catch (error) {
+      if (error instanceof PlatformUsernameTakenError) {
+        throw new ConflictException("用户名已存在");
+      }
+      throw error;
+    }
+  }
+
+  async getAccountById(adminId: string): Promise<PlatformAdminRecord | null> {
+    // platform_admins.id is BIGSERIAL; a non-numeric path param is simply not found.
+    if (!/^\d+$/.test(adminId)) {
+      return null;
+    }
+    return this.admins.findById(adminId);
+  }
+
+  async updateAccountRole(
+    adminId: string,
+    role: PlatformAdminRole,
+    blockedUsernames: string[]
+  ): Promise<PlatformAdminSummary | null> {
+    return this.admins.updateRoleById(adminId, role, blockedUsernames);
+  }
+
+  async deleteAccount(adminId: string, blockedUsernames: string[]): Promise<boolean> {
+    return this.admins.deleteById(adminId, blockedUsernames);
+  }
+
+  // The built-in owner (env ADMIN_BOOTSTRAP_USERNAME) can neither be deleted nor
+  // re-roled (01_09 §4.1).
+  getBootstrapUsername(): string {
+    return this.config?.adminBootstrapUsername ?? process.env.ADMIN_BOOTSTRAP_USERNAME?.trim() ?? "";
+  }
+
+  // M1-S7 (01_09 AC6): invoked by AdminAuthGuard on every platform request so a
+  // disabled or deleted account loses access immediately instead of living out
+  // its 8h token. Tenant sessions are unaffected: the wecom scan flow
+  // re-validates admin status at login, and tenant-side session revocation is M2.
+  async assertActiveSessionAccount(session: AdminSession): Promise<void> {
+    if (!session.openUserid.startsWith(PLATFORM_USER_PREFIX)) {
+      return;
+    }
+    const username = session.openUserid.slice(PLATFORM_USER_PREFIX.length);
+    const admin = await this.admins.findByUsername(username);
+    if (!admin || admin.status !== "active") {
+      throw new UnauthorizedException("平台账号已被禁用或删除，请重新登录");
+    }
+  }
+
   async changePassword(session: AdminSession, request: AdminChangePasswordRequest): Promise<void> {
     if (!session.openUserid.startsWith(PLATFORM_USER_PREFIX)) {
       throw new BadRequestException("password login is not enabled for this account");
@@ -105,5 +180,14 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       throw new BadRequestException("password update failed");
     }
     this.logger.warn(`platform admin '${username}' changed password`);
+  }
+}
+
+// 01_09 §4.1 password policy for owner-created accounts: at least 10 characters
+// containing both letters and digits. Enforced here (not in zod) so violations
+// return this curated message instead of the generic validation payload.
+function assertPasswordComplexity(password: string): void {
+  if (password.length < PASSWORD_MIN_LENGTH || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    throw new BadRequestException("密码至少 10 位，且需同时包含字母和数字");
   }
 }

@@ -1,4 +1,4 @@
-import type { AdminRole } from "../contracts/admin-auth.js";
+import { normalizePlatformAdminRole, type AdminRole, type PlatformAdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "./admin-session.js";
 import { adminRoleAtLeast } from "./admin-rbac.js";
 
@@ -39,7 +39,7 @@ export function adminPermissions(session: AdminSession): string[] {
   return adminCapabilities(session).permissions;
 }
 
-function tenantCapabilities(role: AdminRole): AdminCapabilities {
+function tenantCapabilities(role: AdminRole | PlatformAdminRole): AdminCapabilities {
   const permissions = new Set<string>(tenantReadPermissions);
   const menuScopes = new Set<string>([
     "tenant.dashboard",
@@ -80,7 +80,7 @@ function tenantCapabilities(role: AdminRole): AdminCapabilities {
   return sortedCapabilities(permissions, menuScopes);
 }
 
-function platformCapabilities(role: AdminRole): AdminCapabilities {
+function platformCapabilities(role: AdminRole | PlatformAdminRole): AdminCapabilities {
   const permissions = new Set<string>(platformReadPermissions);
   const menuScopes = new Set<string>([
     "platform.dashboard",
@@ -90,24 +90,37 @@ function platformCapabilities(role: AdminRole): AdminCapabilities {
     "platform.audit"
   ]);
 
-  if (adminRoleAtLeast(role, "admin")) {
-    [
-      "platform.feature.write",
-      "platform.database.read",
-      "platform.ops.read"
-    ].forEach((permission) => permissions.add(permission));
+  // Legacy 'owner' rows/tokens normalize to 'platform_owner' (migrate_v1_14
+  // pending); unknown role strings fail closed to the read-only base set.
+  // Capability bundles follow the 01_08 platform matrix, M1 granularity.
+  const platformRole = normalizePlatformAdminRole(String(role));
+
+  if (platformRole === "platform_owner" || platformRole === "ops" || platformRole === "engineer") {
+    permissions.add("platform.ops.read");
+    permissions.add("platform.database.read");
     menuScopes.add("platform.ops");
   }
 
-  if (role === "owner") {
-    [
-      "platform.database.migrate",
-      "platform.commercial.read",
-      "platform.commercial.write",
-      "platform.account.read",
-      "platform.account.write"
-    ].forEach((permission) => permissions.add(permission));
+  if (platformRole === "platform_owner" || platformRole === "ops") {
+    permissions.add("platform.feature.write");
+  }
+
+  if (platformRole === "platform_owner" || platformRole === "engineer") {
+    permissions.add("platform.database.migrate");
+  }
+
+  if (platformRole === "platform_owner" || platformRole === "support" || platformRole === "finance") {
+    permissions.add("platform.commercial.read");
     menuScopes.add("platform.commercial");
+  }
+
+  if (platformRole === "platform_owner" || platformRole === "finance") {
+    permissions.add("platform.commercial.write");
+  }
+
+  if (platformRole === "platform_owner") {
+    permissions.add("platform.account.read");
+    permissions.add("platform.account.write");
     menuScopes.add("platform.accounts");
   }
 

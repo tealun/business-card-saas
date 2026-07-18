@@ -301,6 +301,7 @@ function refreshPermissionControls() {
   applyPermissionState("#retryPlatformEvents", "platform.sync.retry");
   applyPermissionState("#loadDatabaseMigrations", "platform.database.read");
   applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
+  applyPermissionState("#createPlatformAccount", "platform.account.write");
 }
 
 function renderNav() {
@@ -1847,9 +1848,7 @@ async function loadPlatformAccounts() {
     tag(roleLabel(item.role), roleTone(item.role)),
     tag(item.status === "active" ? "启用" : "已禁用", statusTone(item.status)),
     formatDate(item.password_updated_at),
-    item.status === "active"
-      ? linkButton("禁用", () => updateAccountStatus(item, "disabled"), "link-btn danger-link")
-      : linkButton("启用", () => updateAccountStatus(item, "active"))
+    accountActions(item)
   ]);
   $("#platformAccountTotal").textContent = `${result.total || 0} 个账号`;
   return result;
@@ -1860,7 +1859,7 @@ async function updateAccountStatus(item, status) {
   const label = status === "disabled" ? "禁用" : "启用";
   const ok = await confirmAction({
     title: `确认${label}账号`,
-    body: `将${label}平台账号「${item.username}」。${status === "disabled" ? "禁用后该账号将无法登录系统后台。" : ""}`,
+    body: `将${label}平台账号「${item.username}」。${status === "disabled" ? "禁用后该账号将无法登录系统后台，现有会话立即失效。" : ""}`,
     danger: status === "disabled"
   });
   if (!ok) return;
@@ -1869,12 +1868,96 @@ async function updateAccountStatus(item, status) {
   await loadPlatformAccounts();
 }
 
+// 内建 owner（platform_owner，含迁移前 legacy 'owner' 行）不提供改角色/删除入口；
+// 禁止删除自己等约束由服务端兜底，错误消息直接 toast。
+function accountActions(item) {
+  const container = document.createElement("span");
+  container.className = "row-actions";
+  const isBuiltInOwner = item.role === "platform_owner" || item.role === "owner";
+  if (!isBuiltInOwner) {
+    container.append(
+      item.status === "active"
+        ? linkButton("禁用", () => updateAccountStatus(item, "disabled"), "link-btn danger-link")
+        : linkButton("启用", () => updateAccountStatus(item, "active"))
+    );
+  }
+  if (!isBuiltInOwner) {
+    container.append(
+      linkButton("改角色", () => updateAccountRole(item)),
+      linkButton("删除", () => deleteAccount(item), "link-btn danger-link")
+    );
+  }
+  return container;
+}
+
+async function createPlatformAccount() {
+  if (!requirePermission("platform.account.write")) return;
+  const username = $("#platformAccountCreateUsername").value.trim();
+  const password = $("#platformAccountCreatePassword").value;
+  const role = $("#platformAccountCreateRole").value;
+  if (!username || !password) {
+    notify("请填写用户名和初始密码", "danger");
+    return;
+  }
+  await run("创建平台账号", () => adminRequest("/admin/platform/accounts", { method: "POST", body: { username, password, role } }));
+  notify(`账号「${username}」已创建`);
+  $("#platformAccountCreateUsername").value = "";
+  $("#platformAccountCreatePassword").value = "";
+  await loadPlatformAccounts();
+}
+
+async function updateAccountRole(item) {
+  if (!requirePermission("platform.account.write")) return;
+  const nextRole = item.role === "ops" ? "support" : "ops";
+  const ok = await confirmAction({
+    title: "确认修改角色",
+    body: `将把平台账号「${item.username}」的角色从 ${roleLabel(item.role)} 修改为 ${roleLabel(nextRole)}。新角色在该账号下次登录时生效。`
+  });
+  if (!ok) return;
+  await run("修改角色", () => adminRequest(`/admin/platform/accounts/${encodeURIComponent(item.admin_id)}/role`, { method: "PATCH", body: { role: nextRole } }));
+  notify("角色已修改");
+  await loadPlatformAccounts();
+}
+
+async function deleteAccount(item) {
+  if (!requirePermission("platform.account.write")) return;
+  const ok = await confirmAction({
+    title: "确认删除账号",
+    body: `将永久删除平台账号「${item.username}」（硬删除，不可恢复），其现有会话立即失效。`,
+    danger: true
+  });
+  if (!ok) return;
+  await run("删除账号", () => adminRequest(`/admin/platform/accounts/${encodeURIComponent(item.admin_id)}`, { method: "DELETE" }));
+  notify("账号已删除");
+  await loadPlatformAccounts();
+}
+
 function roleLabel(role) {
-  return ({ owner: "Owner", admin: "Admin", operator: "Operator", auditor: "Auditor" })[role] || role;
+  return ({
+    owner: "Owner",
+    platform_owner: "Platform Owner",
+    ops: "Ops",
+    support: "Support",
+    finance: "Finance",
+    engineer: "Engineer",
+    admin: "Admin",
+    operator: "Operator",
+    auditor: "Auditor"
+  })[role] || role;
 }
 
 function roleTone(role) {
-  return ({ owner: "brand", admin: "success", operator: "warning", auditor: "muted" })[role] || "muted";
+  return ({
+    owner: "brand",
+    platform_owner: "brand",
+    ops: "success",
+    support: "warning",
+    finance: "warning",
+    engineer: "success",
+    admin: "success",
+    operator: "warning",
+    auditor: "muted"
+  })[role] || "muted";
 }
 
 function sourceLabel(source) {
@@ -2642,6 +2725,7 @@ $("#platformAuditSearch").addEventListener("keydown", (event) => {
 $("#platformAuditSource").addEventListener("change", () => run("筛选审计", loadPlatformAuditEvents));
 $("#platformAuditStatus").addEventListener("change", () => run("筛选审计", loadPlatformAuditEvents));
 $("#loadPlatformAccounts").addEventListener("click", () => run("刷新系统账号", loadPlatformAccounts));
+$("#createPlatformAccount").addEventListener("click", createPlatformAccount);
 $("#searchPlatformAccounts").addEventListener("click", () => run("搜索系统账号", loadPlatformAccounts));
 $("#platformAccountSearch").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {

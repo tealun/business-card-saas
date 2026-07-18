@@ -2,6 +2,24 @@ import { z } from "zod";
 
 export const adminRoleSchema = z.enum(["owner", "admin", "operator", "auditor"]);
 
+// Platform-side roles follow the 01_08 matrix (01_09 §3). They live in a separate
+// schema on purpose: platform role strings must never be accepted where tenant
+// roles are validated (01_08 platform role migration contract, rule 3).
+export const platformAdminRoleSchema = z.enum(["platform_owner", "ops", "support", "finance", "engineer", "auditor"]);
+
+// migrate_v1_14 renames legacy platform_admins.role='owner' rows to 'platform_owner'.
+// Until it has run everywhere, reads must treat the legacy value as the built-in
+// platform owner; writes only ever use the new enum.
+export const LEGACY_PLATFORM_OWNER_ROLE = "owner";
+
+export function normalizePlatformAdminRole(role: string): PlatformAdminRole | null {
+  if (role === LEGACY_PLATFORM_OWNER_ROLE) {
+    return "platform_owner";
+  }
+  const parsed = platformAdminRoleSchema.safeParse(role);
+  return parsed.success ? parsed.data : null;
+}
+
 export const adminAuthCodeRequestSchema = z.object({
   code: z.string().min(1).max(256),
   claim_token: z.string().min(32).max(160).optional()
@@ -12,7 +30,7 @@ export const adminIdentitySchema = z.object({
   tenant_name: z.string(),
   member_identity_id: z.string().nullable(),
   open_userid: z.string(),
-  role: adminRoleSchema,
+  role: z.union([adminRoleSchema, platformAdminRoleSchema]),
   account_type: z.enum(["tenant", "platform"]).default("tenant"),
   permissions: z.array(z.string()).default([]),
   menu_scopes: z.array(z.string()).default([])
@@ -44,6 +62,7 @@ export const adminChangePasswordResponseSchema = z.object({
 });
 
 export type AdminRole = z.infer<typeof adminRoleSchema>;
+export type PlatformAdminRole = z.infer<typeof platformAdminRoleSchema>;
 export type AdminPasswordLoginRequest = z.infer<typeof adminPasswordLoginRequestSchema>;
 export type AdminChangePasswordRequest = z.infer<typeof adminChangePasswordRequestSchema>;
 export type AdminAuthCodeRequest = z.infer<typeof adminAuthCodeRequestSchema>;

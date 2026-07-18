@@ -1,4 +1,4 @@
-import { BadRequestException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, UnauthorizedException } from "@nestjs/common";
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
 import { hashPassword, verifyPassword } from "./password.util.js";
 import { PlatformAdminRepository } from "./platform-admin.repository.js";
@@ -62,7 +62,7 @@ describe("PlatformAdminService", () => {
     await service.onApplicationBootstrap();
     const response = await service.passwordLogin({ username: "root", password: "changed-password-1" });
 
-    expect(response.admin.role).toBe("owner");
+    expect(response.admin.role).toBe("platform_owner");
     expect(response.admin.open_userid).toBe("platform:root");
     expect(response.admin.permissions).toEqual(
       expect.arrayContaining(["platform.tenant.read", "platform.feature.write", "platform.database.migrate"])
@@ -118,5 +118,156 @@ describe("PlatformAdminService", () => {
         { old_password: "a", new_password: "long-enough-1" }
       )
     ).rejects.toThrow(BadRequestException);
+  });
+});
+
+
+describe("PlatformAdminService account management (M1-S4)", () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalBootstrapUsername = process.env.ADMIN_BOOTSTRAP_USERNAME;
+
+  beforeEach(() => {
+    delete process.env.DATABASE_URL;
+    delete process.env.ADMIN_BOOTSTRAP_USERNAME;
+  });
+
+  afterAll(() => {
+    if (originalDatabaseUrl) {
+      process.env.DATABASE_URL = originalDatabaseUrl;
+    }
+    if (originalBootstrapUsername) {
+      process.env.ADMIN_BOOTSTRAP_USERNAME = originalBootstrapUsername;
+    }
+  });
+
+  function createService() {
+    const repository = new PlatformAdminRepository();
+    const tokens = new AdminSessionTokenService();
+    const service = new PlatformAdminService(repository, tokens);
+    return { repository, tokens, service };
+  }
+
+  it("creates an ops account with a scrypt hash that can log in immediately", async () => {
+    const { repository, service } = createService();
+
+    const summary = await service.createPlatformAccount({
+      username: "ops.one",
+      password: "password-001",
+      role: "ops",
+      createdBy: "root"
+    });
+
+    expect(summary).toMatchObject({ username: "ops.one", role: "ops", status: "active" });
+    const stored = await repository.findByUsername("ops.one");
+    expect(stored?.passwordHash.startsWith("scrypt:")).toBe(true);
+    expect(stored?.passwordHash).not.toContain("password-001");
+
+    const login = await service.passwordLogin({ username: "ops.one", password: "password-001" });
+    expect(login.admin.role).toBe("ops");
+    expect(login.admin.account_type).toBe("platform");
+    expect(login.admin.permissions).toContain("platform.feature.write");
+    expect(login.admin.permissions).not.toContain("platform.account.write");
+    expect(login.admin.menu_scopes).not.toContain("platform.accounts");
+  });
+
+  it("rejects usernames outside the allowed charset", async () => {
+    const { service } = createService();
+    await expect(
+      service.createPlatformAccount({ username: "bad name!", password: "password-001", role: "ops", createdBy: "root" })
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createPlatformAccount({ username: "ab", password: "password-001", role: "ops", createdBy: "root" })
+    ).rejects.toThrow("用户名需为 3-64 位");
+  });
+
+  it("enforces the password policy: at least 10 chars with letters and digits", async () => {
+    const { service } = createService();
+    const attempt = (password: string) =>
+      service.createPlatformAccount({ username: "ops.one", password, role: "ops", createdBy: "root" });
+
+    await expect(attempt("short-1")).rejects.toThrow("密码至少 10 位，且需同时包含字母和数字");
+    await expect(attempt("onlyletters")).rejects.toThrow("密码至少 10 位，且需同时包含字母和数字");
+    await expect(attempt("12345678901")).rejects.toThrow("密码至少 10 位，且需同时包含字母和数字");
+    await expect(attempt("valid-pass-1")).resolves.toMatchObject({ username: "ops.one" });
+  });
+
+  it("rejects duplicate usernames with a 409-friendly error", async () => {
+    const { service } = createService();
+    await service.createPlatformAccount({ username: "ops.one", password: "password-001", role: "ops", createdBy: "root" });
+
+    await expect(
+      service.createPlatformAccount({ username: "ops.one", password: "password-002", role: "support", createdBy: "root" })
+    ).rejects.toThrow(ConflictException);
+    await expect(
+      service.createPlatformAccount({ username: "ops.one", password: "password-002", role: "support", createdBy: "root" })
+    ).rejects.toThrow("用户名已存在");
+  });
+
+  it("exposes the bootstrap username from env for protection checks", () => {
+    process.env.ADMIN_BOOTSTRAP_USERNAME = "root";
+    const { service } = createService();
+    expect(service.getBootstrapUsername()).toBe("root");
+  });
+
+  it("updates roles unless the target username is protected", async () => {
+    const { service } = createService();
+    const created = await service.createPlatformAccount({
+      username: "ops.one",
+      password: "password-001",
+      role: "ops",
+      createdBy: "root"
+    });
+
+    const updated = await service.updateAccountRole(created.admin_id, "support", ["root"]);
+    expect(updated?.role).toBe("support");
+
+    await expect(service.updateAccountRole(created.admin_id, "ops", ["ops.one"])).resolves.toBeNull();
+    await expect(service.updateAccountRole("999", "ops", [])).resolves.toBeNull();
+  });
+
+  it("hard-deletes accounts unless the target username is protected", async () => {
+    const { repository, service } = createService();
+    const created = await service.createPlatformAccount({
+      username: "ops.one",
+      password: "password-001",
+      role: "ops",
+      createdBy: "root"
+    });
+
+    await expect(service.deleteAccount(created.admin_id, ["ops.one"])).resolves.toBe(false);
+    await expect(service.deleteAccount(created.admin_id, ["root"])).resolves.toBe(true);
+    await expect(repository.findByUsername("ops.one")).resolves.toBeNull();
+  });
+
+  it("assertActiveSessionAccount passes active accounts and rejects disabled or deleted ones", async () => {
+    const { repository, service } = createService();
+    await service.createPlatformAccount({ username: "ops.one", password: "password-001", role: "ops", createdBy: "root" });
+    const session = {
+      tenantId: "platform-1",
+      tenantName: "平台运营",
+      memberIdentityId: null,
+      openUserid: "platform:ops.one",
+      role: "ops",
+      accountType: "platform"
+    } as const;
+
+    await expect(service.assertActiveSessionAccount(session)).resolves.toBeUndefined();
+
+    jest.spyOn(repository, "findByUsername").mockResolvedValue(null);
+    await expect(service.assertActiveSessionAccount(session)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("assertActiveSessionAccount ignores non-password platform identities", async () => {
+    const { service } = createService();
+    await expect(
+      service.assertActiveSessionAccount({
+        tenantId: "platform-1",
+        tenantName: "平台运营",
+        memberIdentityId: null,
+        openUserid: "ou-something-else",
+        role: "platform_owner",
+        accountType: "platform"
+      })
+    ).resolves.toBeUndefined();
   });
 });

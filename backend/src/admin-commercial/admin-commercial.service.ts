@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Optional } from "@nestjs/common";
-import type { AdminRole } from "../contracts/admin-auth.js";
+import type { AdminRole, PlatformAdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
 import {
@@ -46,7 +46,7 @@ export class AdminCommercialService {
   }
 }
 
-function requireTenantCommercialRead(role: AdminRole): void {
+function requireTenantCommercialRead(role: AdminRole | PlatformAdminRole): void {
   if (role === "owner" || role === "admin" || role === "auditor") return;
   throw new ForbiddenException("admin role does not have permission");
 }
