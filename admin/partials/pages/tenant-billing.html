@@ -1,0 +1,57 @@
+<section class="page" data-page="tenant-billing">
+          <div class="page-head">
+            <div><h2>版本与额度</h2><p>当前订阅、真实用量、订单和额度调整账本。</p></div>
+            <button id="loadTenantCommercial" type="button" class="secondary icon-btn">&#x21bb; 刷新</button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel plan-panel">
+              <div class="panel-head"><h3>当前版本</h3><span id="billingPlanStatus"></span></div>
+              <div class="plan-hero">
+                <strong id="billingPlanName" class="plan-name">--</strong>
+                <div class="kv-list">
+                  <div class="kv-row"><span>有效期至</span><strong id="billingExpires">--</strong></div>
+                  <div class="kv-row"><span>计费周期</span><strong id="billingPeriod">--</strong></div>
+                  <div class="kv-row"><span>价格</span><strong id="billingPrice">--</strong></div>
+                </div>
+              </div>
+              <div class="inline-actions plan-actions">
+                <button id="billingRenew" type="button">续费 / 购买</button>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>额度使用</h3></div>
+              <div class="quota-bars">
+                <div class="quota-bar">
+                  <div class="quota-bar-head"><span>成员额度</span><strong id="billingMemberQuotaText">--</strong></div>
+                  <div class="progress"><i id="billingMemberQuotaBar"></i></div>
+                  <span class="hint" id="billingMemberQuotaLeft">--</span>
+                </div>
+                <div class="quota-bar">
+                  <div class="quota-bar-head"><span>名片额度</span><strong id="billingCardQuotaText">--</strong></div>
+                  <div class="progress"><i id="billingCardQuotaBar"></i></div>
+                  <span class="hint" id="billingCardQuotaLeft">--</span>
+                </div>
+              </div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>订单记录</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>订单号</th><th>版本</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+                <tbody id="tenantOrderRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <details class="ledger-details">
+              <summary><span class="ledger-title">额度调整记录</span><span id="tenantQuotaCount" class="status-chip muted">0 条</span></summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>类型</th><th>调整量</th><th>原因</th><th>操作人</th></tr></thead>
+                  <tbody id="tenantQuotaRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+          </article>
+        </section>

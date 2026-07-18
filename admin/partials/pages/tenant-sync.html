@@ -1,0 +1,40 @@
+<section class="page" data-page="tenant-sync">
+          <div class="page-head">
+            <div><h2>同步与回调</h2><p>查看当前企业同步事件，并重试可恢复失败。</p></div>
+            <button id="retrySyncEvents" type="button" class="secondary danger-lite">重试失败事件</button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>WeCom Settings</h3><button id="loadWecomSettings" type="button" class="secondary">Load</button></div>
+              <form id="wecomSettingsForm" class="stack-form compact-form">
+                <label class="check-line"><input id="wecomAutoSyncOnAuth" type="checkbox" /> Auto-sync after authorization</label>
+                <label class="check-line"><input id="wecomAutoCreateCards" type="checkbox" /> Auto-create cards during sync</label>
+                <label class="check-line"><input id="wecomAutoDisableLeftMembers" type="checkbox" /> Disable members missing from contacts</label>
+                <label class="check-line"><input id="wecomAllowPrivacyEdit" type="checkbox" /> Employees can edit public-field privacy</label>
+                <label class="check-line"><input id="wecomAllowShareEdit" type="checkbox" /> Employees can edit share settings</label>
+                <label class="check-line"><input id="wecomAllowQrUpload" type="checkbox" /> Employees can upload WeCom QR codes</label>
+                <label><span>QR source</span><select id="wecomQrCodeSource"><option value="enterprise_first">Enterprise first</option><option value="employee_upload_only">Employee upload only</option><option value="enterprise_only">Enterprise only</option></select></label>
+                <button id="saveWecomSettings" type="button">Save settings</button>
+                <p id="wecomSettingsUpdated" class="hint"></p>
+              </form>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>Policy Impact</h3><span class="status-chip brand">Live API</span></div>
+              <div class="capability-list">
+                <span>Contact sync</span><strong id="wecomPolicySync">--</strong>
+                <span>Member cards</span><strong id="wecomPolicyCards">--</strong>
+                <span>Employee self-service</span><strong id="wecomPolicyEmployee">--</strong>
+                <span>QR code</span><strong id="wecomPolicyQr">--</strong>
+              </div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>同步事件</h3><button id="loadSyncEvents" type="button">刷新</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>事件</th><th>来源</th><th>状态</th><th>重试</th><th>时间</th></tr></thead>
+                <tbody id="syncEventRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+        </section>

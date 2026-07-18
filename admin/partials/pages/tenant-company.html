@@ -1,0 +1,91 @@
+<section class="page" data-page="tenant-company">
+          <div class="page-head">
+            <div><h2>企业主页</h2><p>编辑企业资料、产品服务、简介、荣誉与视频模块。</p></div>
+            <div class="page-head-actions">
+              <span id="companyStatusTag"></span>
+              <button id="saveCompanyProfile" type="button" class="secondary">保存草稿</button>
+              <button id="publishCompanyProfile" type="button">发布</button>
+            </div>
+          </div>
+          <div class="completeness-bar">
+            <div class="completeness-info">
+              <strong id="companyCompletenessValue">--</strong>
+              <span class="hint" id="companyCompletenessHint">读取主页资料后计算完整度。</span>
+            </div>
+            <div class="progress"><i id="companyCompletenessBar"></i></div>
+          </div>
+          <div class="company-layout">
+            <aside class="module-tabs">
+              <button data-company-tab="profile" class="active" type="button">基础资料</button>
+              <button data-company-tab="services" type="button">服务</button>
+              <button data-company-tab="intro" type="button">介绍</button>
+              <button data-company-tab="honors" type="button">荣誉</button>
+              <button data-company-tab="video" type="button">视频</button>
+            </aside>
+            <article class="panel company-editor">
+              <div class="panel-head">
+                <h3 id="companyTabTitle">基础资料</h3>
+                <button id="loadCompanyProfile" type="button" class="secondary">读取主页</button>
+              </div>
+              <div class="company-tab active" data-company-panel="profile">
+                <form id="companyForm" class="form-grid">
+                  <label><span>企业名称</span><input name="display_name" required /></label>
+                  <label><span>企业简称</span><input name="short_name" /></label>
+                  <label><span>Logo URL</span><input name="logo_url" /></label>
+                  <label><span>官网</span><input name="website_url" /></label>
+                  <label><span>状态</span><select name="status"><option value="draft">草稿</option><option value="published">已发布</option></select></label>
+                  <label class="check-line"><input name="visible" type="checkbox" /> 公开可见</label>
+                  <label class="wide"><span>地址</span><input name="address" /></label>
+                </form>
+                <div class="editor-stack module-config">
+                  <h4 class="editor-subhead">主页模块展示</h4>
+                  <div id="moduleEditor" class="editor-stack"></div>
+                </div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="services">
+                <div class="inline-actions"><button id="addService" type="button" class="secondary">新增服务</button></div>
+                <div id="serviceEditor"></div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="intro">
+                <div class="inline-actions">
+                  <button id="addHeading" type="button" class="secondary">标题</button>
+                  <button id="addParagraph" type="button" class="secondary">正文</button>
+                  <button id="addImage" type="button" class="secondary">图片</button>
+                  <button id="addGallery" type="button" class="secondary">相册</button>
+                  <button id="addVideo" type="button" class="secondary">视频</button>
+                </div>
+                <p id="videoCapabilityHint" class="hint"></p>
+                <div id="introEditor"></div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="honors">
+                <div class="inline-actions">
+                  <button id="loadHonors" type="button" class="secondary">读取荣誉</button>
+                  <button id="addHonor" type="button" class="secondary">新增荣誉</button>
+                  <button id="saveHonors" type="button">保存荣誉</button>
+                </div>
+                <div id="honorEditor"></div>
+              </div>
+              <div class="company-tab editor-stack" data-company-panel="video">
+                <div id="videoPanel" class="video-panel"></div>
+              </div>
+            </article>
+            <aside class="phone-preview company-preview">
+              <span>实时预览</span>
+              <div class="preview-card">
+                <div class="preview-card-head">
+                  <span class="preview-logo"><img id="previewCompanyLogo" class="hidden" alt="" /><b id="previewCompanyInitial">企</b></span>
+                  <div class="preview-title">
+                    <strong id="previewCompanyName">企业名称</strong>
+                    <small id="previewCompanyShort">--</small>
+                  </div>
+                </div>
+                <p id="previewCompanyIntro">主页资料读取后展示预览。</p>
+                <div class="preview-stats">
+                  <span><strong id="previewServiceCount">0</strong> 项服务</span>
+                  <span><strong id="previewHonorCount">0</strong> 项荣誉</span>
+                </div>
+                <div id="previewModules" class="preview-modules"></div>
+              </div>
+            </aside>
+          </div>
+        </section>

@@ -1,0 +1,35 @@
+<section class="page" data-page="platform-dashboard">
+          <div class="page-head">
+            <div><h2>系统总览</h2><p>平台授权健康、回调质量和待处理风险的实时聚合。</p></div>
+            <button id="loadPlatformDashboard" type="button" class="secondary">刷新</button>
+          </div>
+          <div class="metric-grid five">
+            <button class="metric" data-go="platform-tenants"><span>授权企业数</span><strong id="platformTenantCount">--</strong></button>
+            <button class="metric" data-go="platform-tenants"><span>异常授权数</span><strong id="platformUnhealthyCount" class="warning">--</strong></button>
+            <button class="metric" data-go="platform-wecom"><span>今日回调失败</span><strong id="platformTodayFailed" class="danger">--</strong></button>
+            <button class="metric" data-go="platform-commercial"><span>订单待处理</span><strong id="platformPendingOrders">--</strong></button>
+            <button class="metric" data-go="platform-commercial"><span>额度风险企业</span><strong id="platformQuotaRisk" class="warning">--</strong></button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>风险队列</h3></div>
+              <div id="platformRiskList" class="task-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head"><h3>快捷入口</h3></div>
+              <div class="quick-grid">
+                <button data-go="platform-tenants" class="secondary quick-entry" type="button"><strong>企业授权</strong><span>查看企业授权状态</span></button>
+                <button data-go="platform-commercial" class="secondary quick-entry" type="button"><strong>异常订单</strong><span>处理待处理订单</span></button>
+                <button data-go="platform-ops" class="secondary quick-entry" type="button"><strong>数据库迁移</strong><span>执行与查看迁移</span></button>
+                <button data-go="platform-features" class="secondary quick-entry" type="button"><strong>功能开关</strong><span>管理平台能力</span></button>
+              </div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-head">
+              <h3>最近 24 小时回调</h3>
+              <span class="chart-legend"><i class="legend-dot ok"></i>成功<i class="legend-dot bad"></i>失败</span>
+            </div>
+            <div id="platformCallbackChart" class="callback-chart"></div>
+          </article>
+        </section>

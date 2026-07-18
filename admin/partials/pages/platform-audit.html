@@ -1,0 +1,49 @@
+<section class="page" data-page="platform-audit">
+          <div class="page-head">
+            <div><h2>审计</h2><p>平台与企业操作审计、回调事件视图，不展示明文 payload。</p></div>
+            <button id="loadPlatformAuditEvents" type="button">刷新</button>
+          </div>
+          <div id="platformAuditView" class="segmented" role="group" aria-label="审计视图">
+            <button type="button" data-view="operations" class="active">操作审计</button>
+            <button type="button" data-view="events">回调事件</button>
+          </div>
+          <div id="platformAuditOpsView" class="audit-view">
+            <article class="panel">
+              <div class="toolbar">
+                <select id="platformOpsHours"><option value="">全部时间</option><option value="24">近 24 小时</option><option value="168">近 7 天</option></select>
+                <select id="platformOpsAction"><option value="">全部动作</option></select>
+                <input id="platformOpsTenantId" placeholder="租户 ID" inputmode="numeric" />
+                <input id="platformOpsSearch" placeholder="搜索操作者 / 动作 / 目标" />
+                <button id="searchPlatformOps" type="button">搜索</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>租户</th><th>操作者</th><th>角色</th><th>动作</th><th>目标</th><th>IP</th><th>结果</th><th>操作</th></tr></thead>
+                  <tbody id="platformOpsRows"><tr><td colspan="9">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+              <div class="table-footer">
+                <button id="platformOpsPrev" type="button" class="secondary">上一页</button>
+                <span id="platformOpsPageInfo">第 0–0 条 / 共 0 条</span>
+                <button id="platformOpsNext" type="button" class="secondary">下一页</button>
+              </div>
+            </article>
+          </div>
+          <div id="platformAuditEventsView" class="audit-view hidden">
+            <article class="panel">
+              <div class="toolbar">
+                <input id="platformAuditSearch" placeholder="搜索企业、事件 Key 或类型" />
+                <select id="platformAuditSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+                <select id="platformAuditStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+                <button id="searchPlatformAuditEvents" type="button">搜索</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>企业</th><th>事件</th><th>状态</th><th>错误摘要</th><th>处理时间</th></tr></thead>
+                  <tbody id="platformAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+              <div class="table-footer"><strong id="platformAuditTotal">0 条事件</strong></div>
+            </article>
+          </div>
+        </section>

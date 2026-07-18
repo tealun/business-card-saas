@@ -1,0 +1,23 @@
+<section class="page" data-page="dev-tools" data-dev-only>
+          <div class="page-head"><div><h2>联调工具</h2><p>仅本地或 ?dev 模式可见，生产后台不展示。</p></div></div>
+          <div class="content-grid three">
+            <article class="panel stack-form">
+              <h3>授权链接</h3>
+              <label><span>WeCom Launch Token</span><input id="wecomLaunchToken" autocomplete="off" /></label>
+              <label><span>WeCom Redirect URI</span><input id="wecomRedirectUri" autocomplete="off" /></label>
+              <button id="createWecomAuthorizationLink" type="button">生成授权链接</button>
+            </article>
+            <article class="panel stack-form">
+              <h3>令牌</h3>
+              <label><span>Admin Token</span><input id="adminToken" autocomplete="off" /></label>
+              <button id="saveAdminToken" type="button" class="secondary">保存 Token</button>
+              <label><span>企业微信 Code</span><input id="adminLoginCode" autocomplete="off" /></label>
+              <label><span>Owner Claim Token</span><input id="adminClaimToken" autocomplete="off" /></label>
+              <button id="adminQyLogin" type="button">Code 登录</button>
+            </article>
+            <article class="panel">
+              <h3>操作输出</h3>
+              <pre id="adminOutput" class="output">等待操作</pre>
+            </article>
+          </div>
+        </section>

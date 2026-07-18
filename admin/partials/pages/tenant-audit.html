@@ -1,0 +1,55 @@
+<section class="page" data-page="tenant-audit">
+          <div class="page-head">
+            <div><h2>审计日志</h2><p>本企业管理操作、回调、同步和处理事件，不展示 payload 明文。</p></div>
+            <button id="loadTenantAuditEvents" type="button">刷新</button>
+          </div>
+          <div id="tenantAuditView" class="segmented" role="group" aria-label="审计视图">
+            <button type="button" data-view="operations" class="active">操作审计</button>
+            <button type="button" data-view="events">回调事件</button>
+          </div>
+          <div id="tenantAuditOpsView" class="audit-view">
+            <article class="panel">
+              <div class="toolbar">
+                <select id="tenantOpsHours"><option value="">全部时间</option><option value="24">近 24 小时</option><option value="168">近 7 天</option></select>
+                <select id="tenantOpsAction"><option value="">全部动作</option></select>
+                <input id="tenantOpsSearch" placeholder="搜索操作者 / 动作 / 目标" />
+                <button id="searchTenantOps" type="button">搜索</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>操作者</th><th>角色</th><th>动作</th><th>目标</th><th>结果</th><th>操作</th></tr></thead>
+                  <tbody id="tenantOpsRows"><tr><td colspan="7">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+              <div class="table-footer">
+                <button id="tenantOpsPrev" type="button" class="secondary">上一页</button>
+                <span id="tenantOpsPageInfo">第 0–0 条 / 共 0 条</span>
+                <button id="tenantOpsNext" type="button" class="secondary">下一页</button>
+              </div>
+            </article>
+          </div>
+          <div id="tenantAuditEventsView" class="audit-view hidden">
+            <p class="info-banner brand">此处为企业微信回调事件流水；管理操作记录见「操作审计」。</p>
+            <div class="metric-grid">
+              <article class="metric"><span>近 24h 接收</span><strong id="auditTodayReceived">--</strong></article>
+              <article class="metric"><span>近 24h 成功</span><strong id="auditTodaySucceeded">--</strong></article>
+              <article class="metric"><span>近 24h 失败</span><strong id="auditTodayFailed" class="danger">--</strong></article>
+              <article class="metric"><span>可重试</span><strong id="auditTodayRetryable" class="warning">--</strong></article>
+            </div>
+            <article class="panel">
+              <div class="toolbar">
+                <input id="tenantAuditSearch" placeholder="搜索事件 Key 或类型" />
+                <select id="tenantAuditSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+                <select id="tenantAuditStatus"><option value="all">全部状态</option><option value="received">已接收</option><option value="processing">处理中</option><option value="done">完成</option><option value="failed">失败</option><option value="dead">死信</option></select>
+                <button id="searchTenantAuditEvents" type="button">搜索</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>时间</th><th>来源</th><th>事件</th><th>状态</th><th>重试</th><th>操作</th></tr></thead>
+                  <tbody id="tenantAuditRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+                </table>
+              </div>
+              <div class="table-footer"><strong id="tenantAuditTotal">0 条事件</strong></div>
+            </article>
+          </div>
+        </section>

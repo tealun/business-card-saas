@@ -1,0 +1,70 @@
+<section class="page active" data-page="tenant-dashboard">
+          <div class="page-head">
+            <div>
+              <h2>企业总览</h2>
+              <p>企业授权、成员名片、主页资料和功能能力的实时状态。</p>
+            </div>
+            <button id="loadTenantDashboard" type="button" class="secondary icon-btn">&#x21bb; 刷新</button>
+          </div>
+          <div class="status-card-grid">
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">成员同步</span>
+                <strong class="status-card-value" id="dashSyncStatus">--</strong>
+                <span class="status-card-sub" id="dashSyncSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">版本额度</span>
+                <strong class="status-card-value" id="dashQuotaStatus">--</strong>
+                <span class="status-card-sub" id="dashQuotaSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">资料完整度</span>
+                <strong class="status-card-value" id="dashProfileStatus">--</strong>
+                <span class="status-card-sub" id="dashProfileSub">--</span>
+              </div>
+            </article>
+            <article class="status-card">
+              <span class="status-card-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              </span>
+              <div class="status-card-body">
+                <span class="status-card-label">企业视频</span>
+                <strong class="status-card-value" id="dashVideoStatus">--</strong>
+                <span class="status-card-sub" id="dashVideoSub">--</span>
+              </div>
+            </article>
+          </div>
+          <div class="metric-grid">
+            <button class="metric" data-go="tenant-members"><span>成员总数</span><strong id="metricMembers">--</strong></button>
+            <button class="metric" data-go="tenant-members"><span>启用名片</span><strong id="metricActiveCards">--</strong></button>
+            <button class="metric" data-go="tenant-analytics"><span>近 7 日访问</span><strong id="metricWeekVisits">--</strong></button>
+            <button class="metric" data-go="tenant-billing"><span>剩余成员额度</span><strong id="metricMemberQuotaLeft">--</strong></button>
+          </div>
+          <div class="content-grid two">
+            <article class="panel">
+              <div class="panel-head"><h3>待办事项</h3></div>
+              <div id="tenantTodoList" class="task-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <h3>近 7 日访问趋势</h3>
+                <span class="chart-legend"><i class="legend-dot visit"></i>访问量</span>
+              </div>
+              <div id="dashboardVisitChart" class="callback-chart visit-chart"></div>
+            </article>
+          </div>
+        </section>

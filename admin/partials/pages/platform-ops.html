@@ -1,0 +1,25 @@
+<section class="page" data-page="platform-ops">
+          <div class="page-head">
+            <div><h2>运维</h2><p>数据库迁移属于高风险动作，执行前需要二次确认。</p></div>
+            <button id="loadDatabaseMigrations" type="button" class="secondary">检测迁移</button>
+          </div>
+          <div class="metric-grid four">
+            <article class="metric health-card"><span>数据库</span><strong id="healthDatabase">--</strong></article>
+            <article class="metric health-card"><span>消息队列</span><strong id="healthQueue">--</strong></article>
+            <article class="metric health-card"><span>缓存</span><strong id="healthCache">--</strong></article>
+            <article class="metric health-card"><span>企业微信 API</span><strong id="healthWecomApi">--</strong></article>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>迁移任务</h3><span class="hint" id="databaseDir">--</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>任务名</th><th>状态</th><th>执行时间</th><th>操作</th></tr></thead>
+                <tbody id="databaseMigrationRows"><tr><td colspan="4">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span class="hint">迁移文件 <strong id="databaseMigrationFiles">--</strong> 个 · 待执行 <strong id="databasePendingCount">--</strong> 个</span>
+              <button id="runDatabaseMigrations" type="button" class="secondary danger-lite">执行迁移</button>
+            </div>
+          </article>
+        </section>

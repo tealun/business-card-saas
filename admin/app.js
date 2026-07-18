@@ -2377,67 +2377,15 @@ async function checkApiHealth() {
   }
 }
 
-$("#gatePasswordForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const username = $("#gateUsername").value.trim();
-  const password = $("#gatePassword").value;
-  if (!username || !password) {
-    gateError.textContent = "请输入账号和密码";
-    return;
-  }
-  $("#gatePasswordLogin").disabled = true;
-  try {
-    const result = await request("/admin/auth/login", { method: "POST", auth: false, body: { username, password } });
-    completeLogin(result.access_token, result.admin);
-  } catch (error) {
-    gateError.textContent = error.message || "登录失败";
-  } finally {
-    $("#gatePasswordLogin").disabled = false;
-  }
-});
-
-$("#gateLogin").addEventListener("click", async () => {
-  const code = $("#gateLoginCode").value.trim();
-  const claimToken = $("#gateClaimToken").value.trim();
-  if (!code) {
-    gateError.textContent = "请输入企业微信登录 Code";
-    return;
-  }
-  const body = { code };
-  if (claimToken) body.claim_token = claimToken;
-  try {
-    const result = await request("/admin/auth/qy-login", { method: "POST", auth: false, body });
-    completeLogin(result.access_token, result.admin);
-  } catch (error) {
-    gateError.textContent = error.message || "登录失败";
-  }
-});
-
-$("#gateWecomScanLogin").addEventListener("click", async () => {
-  const button = $("#gateWecomScanLogin");
-  button.disabled = true;
-  gateError.textContent = "";
-  try {
-    const config = await request("/admin/auth/wecom/login-config", { auth: false });
-    window.location.assign(config.login_url || fallbackWecomLoginUrl(config));
-  } catch (error) {
-    gateError.textContent = error.message || "企业微信扫码登录暂不可用";
-    button.disabled = false;
-  }
-});
-
-$("#gateTokenLogin").addEventListener("click", async () => {
-  const token = $("#gateTokenInput").value.trim();
-  if (!token) {
-    gateError.textContent = "请输入访问令牌";
-    return;
-  }
-  try {
-    const result = await request("/admin/session/me", { token });
-    completeLogin(token, result.admin);
-  } catch (error) {
-    gateError.textContent = error.message || "令牌无效";
-  }
+window.AdminLogin.bind({
+  $,
+  $$,
+  request,
+  run,
+  completeLogin,
+  fallbackWecomLoginUrl,
+  gateError,
+  topbarAdmin
 });
 
 $("#logoutButton").addEventListener("click", () => expireAdminSession(""));
@@ -2834,72 +2782,6 @@ async function boot() {
 fillOperationActionOptions();
 
 void boot();
-
-/* ---- UI enhancement bindings (additive only) ---- */
-(() => {
-  const loginForm = $(".login-form");
-  const accountLabel = $("#gateAccountLabel");
-  const usernameInput = $("#gateUsername");
-  const roleCopy = {
-    tenant: { label: "企业管理员账号", placeholder: "请输入手机号/邮箱" },
-    platform: { label: "平台账号", placeholder: "请输入平台账号" }
-  };
-  $$("[data-login-role]").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      $$("[data-login-role]").forEach((node) => {
-        const active = node === tab;
-        node.classList.toggle("active", active);
-        node.setAttribute("aria-selected", active ? "true" : "false");
-      });
-      const copy = roleCopy[tab.dataset.loginRole] || roleCopy.tenant;
-      if (accountLabel) accountLabel.textContent = copy.label;
-      if (usernameInput) usernameInput.placeholder = copy.placeholder;
-    });
-  });
-
-  const pwdInput = $("#gatePassword");
-  const pwdToggle = $("#gatePasswordToggle");
-  if (pwdInput && pwdToggle) {
-    pwdToggle.addEventListener("click", () => {
-      const visible = pwdInput.type === "password";
-      pwdInput.type = visible ? "text" : "password";
-      pwdToggle.setAttribute("aria-label", visible ? "隐藏密码" : "显示密码");
-      $("#gatePwdEyeOpen")?.classList.toggle("hidden", visible);
-      $("#gatePwdEyeClosed")?.classList.toggle("hidden", !visible);
-    });
-  }
-
-  const remember = $("#gateRemember");
-  if (remember) {
-    remember.addEventListener("click", () => {
-      remember.setAttribute("aria-pressed", remember.getAttribute("aria-pressed") === "true" ? "false" : "true");
-    });
-  }
-
-  const submitButton = $("#gatePasswordLogin");
-  if (submitButton) {
-    const label = submitButton.querySelector("span:last-child");
-    new MutationObserver(() => {
-      if (label) label.textContent = submitButton.disabled ? "登录中…" : "登录";
-    }).observe(submitButton, { attributes: true, attributeFilter: ["disabled"] });
-  }
-
-  if (loginForm && gateError) {
-    new MutationObserver(() => {
-      loginForm.classList.toggle("has-error", Boolean(gateError.textContent.trim()));
-    }).observe(gateError, { childList: true, characterData: true, subtree: true });
-  }
-
-  const avatar = $("#accountAvatar");
-  if (avatar) {
-    const render = () => {
-      const text = (topbarAdmin.textContent || "").trim();
-      avatar.textContent = text && text !== "未登录" ? text.charAt(0) : "·";
-    };
-    new MutationObserver(render).observe(topbarAdmin, { childList: true, characterData: true, subtree: true });
-    render();
-  }
-})();
 
 /* ---- Login hero tilt (additive only) ---- */
 (() => {

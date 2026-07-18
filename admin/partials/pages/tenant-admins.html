@@ -1,0 +1,21 @@
+<section class="page" data-page="tenant-admins">
+          <div class="page-head">
+            <div><h2>管理员</h2><p>来自 tenant_admins 的企业管理员清单。</p></div>
+            <button id="loadTenantAdmins" type="button">刷新</button>
+          </div>
+          <p class="info-banner">管理员通过企业微信扫码登录；新增管理员需在企微侧添加后由 Owner 确认身份。</p>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="tenantAdminSearch" placeholder="搜索姓名、Userid 或 OpenUserID" />
+              <select id="tenantAdminStatus"><option value="all">全部状态</option><option value="active">启用</option><option value="disabled">停用</option></select>
+              <button id="searchTenantAdmins" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>姓名</th><th>角色</th><th>状态</th><th>加入时间</th><th>操作</th></tr></thead>
+                <tbody id="tenantAdminRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="tenantAdminTotal">0 个管理员</strong></div>
+          </article>
+        </section>

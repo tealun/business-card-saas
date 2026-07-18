@@ -1,0 +1,35 @@
+<section class="page" data-page="tenant-members">
+          <div class="page-head">
+            <div><h2>成员与名片</h2><p>成员来自企业微信同步，名片资料通过后台接口保存。</p></div>
+            <button id="syncMembers" type="button">同步成员</button>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="memberSearch" placeholder="搜索姓名 / userid / open_userid" />
+              <select id="memberStatusFilter">
+                <option value="all">全部状态</option>
+                <option value="active">已启用</option>
+                <option value="disabled">已停用</option>
+              </select>
+              <button id="loadMembers" type="button" class="secondary">刷新</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>姓名</th>
+                    <th>职位</th>
+                    <th>部门</th>
+                    <th>手机</th>
+                    <th>邮箱</th>
+                    <th>名片状态</th>
+                    <th>最近访问</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="membersRows"><tr><td colspan="8">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><span id="membersTotal">0 个成员</span></div>
+          </article>
+        </section>

@@ -1,5 +1,13 @@
 # Admin Console
 
+## File Layout
+
+- `index.html`: shared shell, login gate, dialogs, and partial mount points.
+- `partials/pages/*.html`: one partial per admin page, named by `data-page`.
+- `js/admin-partials.js`: shared page partial loader used before `app.js`.
+- `js/admin-login.js`: login UI and login action bindings.
+- `app.js`: shared admin state, API helpers, navigation, permissions, and feature page logic.
+
 M1 静态企业管理后台，无构建步骤，可直接由 Nginx / COS 静态托管。
 
 ## 本地打开

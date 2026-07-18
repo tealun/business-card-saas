@@ -1,0 +1,35 @@
+<section class="page" data-page="tenant-design">
+          <div class="page-head">
+            <div><h2>字段与模板</h2><p>统一成员名片字段规则和企业默认模板。</p></div>
+            <button id="saveFieldSettings" type="button">保存字段规则</button>
+          </div>
+          <article class="panel">
+            <div class="panel-head"><h3>字段规则</h3><button id="loadFieldSettings" type="button" class="secondary">读取字段</button></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>字段</th><th>锁定</th><th>员工可编辑</th><th>默认展示</th><th>说明</th></tr></thead>
+                <tbody id="fieldRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h3>模板</h3><button id="loadTemplates" type="button" class="secondary">读取模板</button></div>
+            <div id="templateCards" class="template-grid"></div>
+            <form id="templateForm" class="stack-form compact-form template-form">
+              <h4 class="editor-subhead">新建 / 编辑模板</h4>
+              <input id="templateId" type="hidden" />
+              <label><span>模板名称</span><input id="templateName" required /></label>
+              <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
+              <label><span>背景 URL</span><input id="templateBackgroundUrl" /></label>
+              <label><span>Logo URL</span><input id="templateLogoUrl" /></label>
+              <label><span>主色</span><input id="templatePrimaryColor" value="#2563eb" /></label>
+              <label><span>底色</span><input id="templateSurfaceColor" value="#ffffff" /></label>
+              <label><span>布局</span><input id="templateLayoutVariant" value="horizontal-business" /></label>
+              <div class="inline-actions">
+                <button id="createTemplate" type="button">新增</button>
+                <button id="updateTemplate" type="button" class="secondary">保存</button>
+                <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
+              </div>
+            </form>
+          </article>
+        </section>

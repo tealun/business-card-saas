@@ -1,0 +1,27 @@
+<section class="page" data-page="platform-accounts">
+          <div class="page-head">
+            <div><h2>系统账号</h2><p>平台账号清单与启停管理；列表不返回密码哈希。</p></div>
+            <button id="loadPlatformAccounts" type="button" class="secondary">刷新</button>
+          </div>
+          <article class="panel stack-form">
+            <h3>创建平台账号</h3>
+            <label><span>用户名</span><input id="platformAccountCreateUsername" autocomplete="off" placeholder="3-64 位字母、数字或 _ . -" /></label>
+            <label><span>初始密码</span><input id="platformAccountCreatePassword" type="password" autocomplete="new-password" placeholder="至少 10 位，需含字母和数字" /></label>
+            <label><span>角色</span><select id="platformAccountCreateRole"><option value="ops">Ops（运营）</option><option value="support">Support（客服）</option></select></label>
+            <button id="createPlatformAccount" type="button">创建账号</button>
+          </article>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="platformAccountSearch" placeholder="搜索用户名" />
+              <select id="platformAccountStatus"><option value="all">全部状态</option><option value="active">启用</option><option value="disabled">停用</option></select>
+              <button id="searchPlatformAccounts" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>账号</th><th>角色</th><th>状态</th><th>密码更新时间</th><th>操作</th></tr></thead>
+                <tbody id="platformAccountRows"><tr><td colspan="5">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="platformAccountTotal">0 个账号</strong></div>
+          </article>
+        </section>

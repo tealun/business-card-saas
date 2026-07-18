@@ -1,0 +1,29 @@
+<section class="page" data-page="platform-wecom">
+          <div class="page-head">
+            <div><h2>授权与回调</h2><p>平台级回调事件队列，只显示脱敏摘要。</p></div>
+            <div class="page-head-actions">
+              <button id="retryPlatformEvents" type="button" class="secondary danger-lite">重试失败事件</button>
+              <button id="loadPlatformWecomEvents" type="button" class="secondary">刷新</button>
+            </div>
+          </div>
+          <div class="metric-grid three">
+            <article class="metric"><span>今日成功</span><strong id="platformWecomTodaySuccess">--</strong></article>
+            <article class="metric"><span>今日失败</span><strong id="platformWecomTodayFailed" class="danger">--</strong></article>
+            <article class="metric"><span>待重试</span><strong id="platformWecomTodayRetry" class="warning">--</strong></article>
+          </div>
+          <article class="panel">
+            <div class="toolbar">
+              <input id="platformWecomSearch" placeholder="搜索企业、事件 Key 或类型" />
+              <select id="platformWecomSource"><option value="all">全部来源</option><option value="command">指令回调</option><option value="data">数据回调</option><option value="sync">同步任务</option></select>
+              <select id="platformWecomStatus"><option value="all">全部状态</option><option value="failed">失败</option><option value="dead">死信</option><option value="done">完成</option><option value="processing">处理中</option><option value="received">已接收</option></select>
+              <button id="searchPlatformWecomEvents" type="button">搜索</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>类型</th><th>企业</th><th>状态</th><th>时间</th><th>错误摘要</th><th>操作</th></tr></thead>
+                <tbody id="platformWecomRows"><tr><td colspan="6">尚未加载</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-footer"><strong id="platformWecomTotal">0 条事件</strong></div>
+          </article>
+        </section>
