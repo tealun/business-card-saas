@@ -8,7 +8,7 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     />
     <title>智云名片 · 管理后台</title>
-    <link rel="stylesheet" href="./styles.css?v=20260717-tenant3" />
+    <link rel="stylesheet" href="./styles.css?v=20260718-scan1" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -93,6 +93,12 @@
               <span class="login-spinner" aria-hidden="true"></span><span>登录</span>
             </button>
           </form>
+          <div class="wecom-scan-login" id="wecomScanLoginBox">
+            <button id="gateWecomScanLogin" type="button" class="secondary">
+              企业微信扫码登录
+            </button>
+            <p id="gateWecomScanHint">将跳转到企业微信完成管理员身份校验</p>
+          </div>
           <details class="login-alt">
             <summary>其他登录方式（企业微信 / 令牌）</summary>
             <label>
@@ -960,6 +966,6 @@
     </dialog>
 
     <script src="./config.js"></script>
-    <script src="./app.js?v=20260717-tenant3"></script>
+    <script src="./app.js?v=20260718-scan1"></script>
   </body>
 </html>

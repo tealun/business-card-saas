@@ -247,6 +247,42 @@ function applyAdminIdentity(admin) {
   loadCurrentPage();
 }
 
+function cleanWecomScanQuery() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("code");
+  url.searchParams.delete("state");
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+}
+
+async function completeWecomScanFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  const scanState = params.get("state");
+  if (!code || !scanState) return false;
+
+  showGate("正在完成企业微信登录…");
+  try {
+    const query = new URLSearchParams({ code, state: scanState });
+    const result = await request(`/admin/auth/wecom/scan-callback?${query}`, { auth: false });
+    cleanWecomScanQuery();
+    completeLogin(result.access_token, result.admin);
+  } catch (error) {
+    cleanWecomScanQuery();
+    expireAdminSession(error.message || "企业微信扫码登录失败，请重新扫码");
+  }
+  return true;
+}
+
+function fallbackWecomLoginUrl(config) {
+  const url = new URL("https://login.work.weixin.qq.com/wwlogin/sso/login");
+  url.searchParams.set("login_type", "ServiceApp");
+  url.searchParams.set("appid", config.appid);
+  url.searchParams.set("redirect_uri", config.redirect_uri);
+  url.searchParams.set("state", config.state);
+  url.searchParams.set("lang", "zh");
+  return url.toString();
+}
+
 function hasCapability(listName, value) {
   const values = state.admin?.[listName];
   return !Array.isArray(values) || values.includes(value);
@@ -2377,6 +2413,19 @@ $("#gateLogin").addEventListener("click", async () => {
   }
 });
 
+$("#gateWecomScanLogin").addEventListener("click", async () => {
+  const button = $("#gateWecomScanLogin");
+  button.disabled = true;
+  gateError.textContent = "";
+  try {
+    const config = await request("/admin/auth/wecom/login-config", { auth: false });
+    window.location.assign(config.login_url || fallbackWecomLoginUrl(config));
+  } catch (error) {
+    gateError.textContent = error.message || "企业微信扫码登录暂不可用";
+    button.disabled = false;
+  }
+});
+
 $("#gateTokenLogin").addEventListener("click", async () => {
   const token = $("#gateTokenInput").value.trim();
   if (!token) {
@@ -2768,6 +2817,7 @@ if (DEV_MODE) {
 
 async function boot() {
   void checkApiHealth();
+  if (await completeWecomScanFromLocation()) return;
   if (!state.adminToken) {
     showGate("");
     return;

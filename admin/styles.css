@@ -959,6 +959,24 @@ label span,
   padding-top: 12px;
 }
 
+.wecom-scan-login {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.wecom-scan-login button {
+  width: 100%;
+  min-height: 42px;
+}
+
+.wecom-scan-login p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .login-alt summary {
   cursor: pointer;
   color: var(--faint);

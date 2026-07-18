@@ -212,9 +212,11 @@ HOST=0.0.0.0
 PORT=3000
 WECOM_INSTALL_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/authorization-complete
 WECOM_SENSITIVE_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/member-sensitive/callback
-WECOM_ADMIN_LOGIN_REDIRECT_URI=https://your-backend-domain.example/api/v1/admin/auth/wecom/scan-callback
+WECOM_ADMIN_LOGIN_REDIRECT_URI=https://your-admin-domain.example/
 WECOM_INSTALL_BASE_URL=https://open.work.weixin.qq.com/3rdapp/install
 ```
+
+`WECOM_ADMIN_LOGIN_REDIRECT_URI` is the public admin web page that receives WeCom `code` and `state`, not the backend JSON exchange endpoint. The admin page then calls `/api/v1/admin/auth/wecom/scan-callback` to complete the login.
 
 If the admin web app calls this API from another domain, include that admin origin in `CORS_ORIGINS`, for example:
 

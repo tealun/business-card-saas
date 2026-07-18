@@ -33,11 +33,11 @@
 
 | # | Item | Owner | Status | Evidence |
 |---|------|-------|--------|----------|
-| M1-S1 | 扫码全链路：管理员扫码 → 实时 `get_admin_list` 命中 → 自动建档 → 进入后台首页（`session/me` 返回 `account_type=tenant`） | | ◐ 后端 mock 通过 / 真实联调待 D-1/D-2 | `AdminWecomScanAuthService` 覆盖 `getuserinfo3rd` → `get_admin_list` → `AdminWecomScanRepository.upsertFromScan` → 发放 tenant admin session；`AdminWecomScanRepository` 覆盖首个扫码管理员为 owner、后续为 admin；真实扫码录屏/端到端日志仍依赖 D-1/D-2。 |
+| M1-S1 | 扫码全链路：管理员扫码 → 实时 `get_admin_list` 命中 → 自动建档 → 进入后台首页（`session/me` 返回 `account_type=tenant`） | | ◐ 代码链路通过 / 真实联调待 D-1/D-2 | `AdminWecomScanAuthService` 覆盖 `getuserinfo3rd` → `get_admin_list` → `AdminWecomScanRepository.upsertFromScan` → 发放 tenant admin session；管理端登录页已接入 `/admin/auth/wecom/login-config` 与 `code/state` 回调换 token；真实扫码录屏/端到端日志仍依赖 D-1/D-2。 |
 | M1-S2 | 非管理员扫码 → 403 中文提示，不建档不发会话 | | ☑ 单测通过 | `AdminWecomScanAuthService` 覆盖 `get_admin_list` 未命中与 `auth_type=0` 均 403，且不调用 `upsertFromScan`。 |
 | M1-S3 | 本地 `disabled` 管理员扫码被拒（本地管控优先） | | ☑ 单测通过 | `AdminWecomScanAuthService` 覆盖本地 `status='disabled'` 优先拒绝，且不签发 session token。 |
 | M1-S4 | owner 创建/改角色/禁用/删除平台账号；禁止操作自己与内建 owner | | ☑ 单测通过 | `PlatformAdminService account management (M1-S4)`、`AdminObservabilityService platform account management (M1-S4)`；`cmd /c npm run test -- admin-auth admin-observability admin-database`（2026-07-18，73 passed） |
-| M1-S5 | 登录成功/失败 + 账号管理操作全部落 `admin_operation_logs` | | ◐ 部分通过 | 账号创建/改角色/删除已在 `AdminObservabilityService platform account management (M1-S4)` 断言 `operationLogs.record`；登录成功/失败日志待扫码链路落地后补 |
+| M1-S5 | 登录成功/失败 + 账号管理操作全部落 `admin_operation_logs` | | ☑ 单测通过 | 账号创建/改角色/删除已在 `AdminObservabilityService platform account management (M1-S4)` 断言 `operationLogs.record`；扫码登录成功写 `admin.login.wecom_scan.success`，非管理员 / `auth_type=0` / 本地 disabled 写 `admin.login.wecom_scan.failed`；`cmd /c npm test -- admin-wecom admin-operation-log`（2026-07-18，22 passed）。 |
 | M1-S6 | 隔离回归：tenant 会话访问 platform 端点 403；反之亦然 | | ☑ 单测通过 | `admin-rbac.spec.ts` 覆盖 platform/tenant role 互斥；`admin-observability.service.spec.ts`、`admin-database.service.spec.ts` 覆盖非 platform owner 访问拒绝；同批测试 73 passed |
 | M1-S7 | 禁用/删除后存量会话行为明确：`AdminAuthGuard` 每次查库校验 status，或接受 8h 窗口并记录决策 | | ☑ 决策落地 | 采用“每次 platform 请求查库校验 status/存在性”；`admin-auth.guard.ts` 调用 `PlatformAdminService.assertActiveSessionAccount`；`admin-auth.guard.spec.ts` 覆盖 active/disabled/deleted platform session 与 tenant session 不查平台账号 |
 

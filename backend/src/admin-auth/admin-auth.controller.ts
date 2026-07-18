@@ -45,9 +45,9 @@ export class AdminAuthController {
 
   @Get("wecom/scan-callback")
   @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } })
-  wecomScanCallback(@Query() query: unknown) {
+  wecomScanCallback(@Req() request: AdminRequest & { ip?: string }, @Query() query: unknown) {
     const input = adminWecomScanCallbackQuerySchema.parse(query);
-    return this.wecomScan.completeScan(input);
+    return this.wecomScan.completeScan({ ...input, clientIp: request.ip ?? null });
   }
 
   @Put("password")

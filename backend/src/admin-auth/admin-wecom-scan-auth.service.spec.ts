@@ -12,11 +12,17 @@ describe("AdminWecomScanAuthService", () => {
     });
 
     expect(result).toEqual({
-      appid: "wwprovider",
-      redirect_uri: "https://admin.example.com/api/v1/admin/auth/wecom/scan-callback",
+      appid: "wwsuite",
+      redirect_uri: "https://admin.example.com/",
+      login_url: expect.stringContaining("https://login.work.weixin.qq.com/wwlogin/sso/login?"),
       state: expect.stringMatching(/^[a-f0-9]{48}$/),
       expires_in: 600
     });
+    const loginUrl = new URL(result.login_url);
+    expect(loginUrl.searchParams.get("login_type")).toBe("ServiceApp");
+    expect(loginUrl.searchParams.get("appid")).toBe("wwsuite");
+    expect(loginUrl.searchParams.get("redirect_uri")).toBe("https://admin.example.com/");
+    expect(loginUrl.searchParams.get("state")).toBe(result.state);
     expect(fixture.states.create).toHaveBeenCalledWith(
       expect.objectContaining({
         state: result.state,
@@ -46,6 +52,18 @@ describe("AdminWecomScanAuthService", () => {
       userid: "zhangsan",
       openUserid: "open-zhangsan"
     });
+    expect(fixture.operationLogs.record).toHaveBeenCalledWith({
+      session: expect.objectContaining({
+        tenantId: "tenant-1",
+        openUserid: "open-zhangsan",
+        role: "owner",
+        accountType: "tenant"
+      }),
+      action: "admin.login.wecom_scan.success",
+      targetType: "tenant_admin",
+      targetId: "open-zhangsan",
+      detail: { open_corpid: "corp-1", userid: "zhangsan" }
+    });
     expect(result).toEqual({
       access_token: "x".repeat(40),
       token_type: "Bearer",
@@ -69,6 +87,8 @@ describe("AdminWecomScanAuthService", () => {
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
     ).rejects.toThrow(BadRequestException);
     expect(fixture.api.fetchThirdPartyUserInfo).not.toHaveBeenCalled();
+    expect(fixture.operationLogs.record).not.toHaveBeenCalled();
+    expect(fixture.operationLogs.recordLoginAttempt).not.toHaveBeenCalled();
   });
 
   it("rejects scanned users who are not enterprise administrators", async () => {
@@ -79,6 +99,15 @@ describe("AdminWecomScanAuthService", () => {
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
     ).rejects.toThrow(ForbiddenException);
     expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+    expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        actorOpenUserid: "open-zhangsan",
+        action: "admin.login.wecom_scan.failed",
+        targetId: "zhangsan",
+        detail: expect.objectContaining({ reason: "not_enterprise_admin", userid: "zhangsan" })
+      })
+    );
   });
 
   it("rejects scanned administrators without management permission", async () => {
@@ -89,6 +118,14 @@ describe("AdminWecomScanAuthService", () => {
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
     ).rejects.toThrow(ForbiddenException);
     expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+    expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        action: "admin.login.wecom_scan.failed",
+        targetId: "zhangsan",
+        detail: expect.objectContaining({ reason: "no_management_permission", auth_type: 0 })
+      })
+    );
   });
 
   it("lets the local disabled admin status override WeCom administrator status", async () => {
@@ -106,13 +143,22 @@ describe("AdminWecomScanAuthService", () => {
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
     ).rejects.toThrow(ForbiddenException);
     expect(fixture.sessionTokens.sign).not.toHaveBeenCalled();
+    expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        actorOpenUserid: "open-zhangsan",
+        action: "admin.login.wecom_scan.failed",
+        targetId: "zhangsan",
+        detail: expect.objectContaining({ reason: "local_admin_disabled" })
+      })
+    );
   });
 });
 
 function createFixture() {
   const config = {
-    suite: { providerCorpId: "wwprovider" },
-    adminLoginRedirectUri: "https://admin.example.com/api/v1/admin/auth/wecom/scan-callback"
+    suite: { providerCorpId: "wwprovider", suiteId: "wwsuite" },
+    adminLoginRedirectUri: "https://admin.example.com/"
   };
   const states = {
     create: jest.fn(async () => undefined),
@@ -175,6 +221,10 @@ function createFixture() {
     expiresIn: 28800,
     sign: jest.fn(() => "x".repeat(40))
   };
+  const operationLogs = {
+    record: jest.fn(async () => undefined),
+    recordLoginAttempt: jest.fn(async () => undefined)
+  };
   const service = new AdminWecomScanAuthService(
     config as never,
     states as never,
@@ -183,8 +233,9 @@ function createFixture() {
     api as never,
     tenants as never,
     scanAdmins as never,
-    sessionTokens as never
+    sessionTokens as never,
+    operationLogs as never
   );
 
-  return { service, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens };
+  return { service, states, suiteTokens, corpTokens, api, tenants, scanAdmins, sessionTokens, operationLogs };
 }

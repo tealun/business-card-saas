@@ -20,6 +20,7 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 - 分区式后台导航：概览、员工、企业资料、字段与模板、同步、授权与联调
 - demo `qy-login`
 - 企业微信授权链接生成（需要 `x-wecom-launch-token`）
+- 企业微信扫码登录：页面请求 `/admin/auth/wecom/login-config` 跳转企微，回到本页后用 `code/state` 换取 Admin token
 - Admin 企业微信 code 登录，可选 owner claim token 认领首个企业 owner
 - Admin token 保存与 `admin/session/me`
 - 后台概览、成员列表筛选/分页、成员名片读取/配置，核心数据以指标/表格呈现

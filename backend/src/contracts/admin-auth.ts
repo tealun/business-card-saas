@@ -64,6 +64,7 @@ export const adminChangePasswordResponseSchema = z.object({
 export const adminWecomLoginConfigResponseSchema = z.object({
   appid: z.string().min(1),
   redirect_uri: z.string().url(),
+  login_url: z.string().url(),
   state: z.string().min(32),
   expires_in: z.number().int().positive()
 });

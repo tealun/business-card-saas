@@ -23,6 +23,18 @@ export interface AdminOperationLogEntry {
   detail?: Record<string, unknown> | undefined;
 }
 
+export interface AdminLoginAttemptLogEntry {
+  tenantId: string | number;
+  actorOpenUserid: string | null;
+  actorRole: string;
+  accountType: "tenant" | "platform";
+  action: string;
+  targetType?: string | undefined;
+  targetId?: string | number | null | undefined;
+  detail?: Record<string, unknown> | undefined;
+  ip?: string | null | undefined;
+}
+
 @Injectable()
 export class AdminOperationLogService {
   private readonly logger = new Logger(AdminOperationLogService.name);
@@ -52,6 +64,29 @@ export class AdminOperationLogService {
       });
     } catch (error) {
       this.logger.warn({ action: entry.action, err: error instanceof Error ? error.message : error }, "admin operation log write failed");
+    }
+  }
+
+  async recordLoginAttempt(entry: AdminLoginAttemptLogEntry): Promise<void> {
+    try {
+      await this.repository.insert({
+        tenantId: String(entry.tenantId),
+        actorAdminId: null,
+        actorOpenUserid: entry.actorOpenUserid,
+        actorName: null,
+        actorRole: entry.actorRole,
+        accountType: entry.accountType,
+        action: entry.action,
+        targetType: entry.targetType ?? null,
+        targetId: entry.targetId === undefined || entry.targetId === null ? null : String(entry.targetId),
+        detail: entry.detail ?? null,
+        ip: entry.ip ?? null
+      });
+    } catch (error) {
+      this.logger.warn(
+        { action: entry.action, err: error instanceof Error ? error.message : error },
+        "admin login attempt log write failed"
+      );
     }
   }
 

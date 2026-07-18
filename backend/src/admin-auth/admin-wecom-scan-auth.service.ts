@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Optional } from "@nestjs/common";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import {
   adminIdentitySchema,
   adminLoginResponseSchema,
@@ -31,7 +32,8 @@ export class AdminWecomScanAuthService {
     private readonly api: WecomApiClientService,
     private readonly tenants: WecomTenantAuthRepository,
     private readonly scanAdmins: AdminWecomScanRepository,
-    private readonly sessionTokens: AdminSessionTokenService
+    private readonly sessionTokens: AdminSessionTokenService,
+    @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
   async loginConfig(input: {
@@ -48,14 +50,19 @@ export class AdminWecomScanAuthService {
       userAgent: input.userAgent
     });
     return adminWecomLoginConfigResponseSchema.parse({
-      appid: this.config.suite.providerCorpId,
+      appid: this.config.suite.suiteId,
       redirect_uri: this.config.adminLoginRedirectUri,
+      login_url: buildWecomLoginUrl({
+        suiteId: this.config.suite.suiteId,
+        redirectUri: this.config.adminLoginRedirectUri,
+        state
+      }),
       state,
       expires_in: STATE_EXPIRES_IN_SECONDS
     });
   }
 
-  async completeScan(input: { code: string; state: string }): Promise<AdminLoginResponse> {
+  async completeScan(input: { code: string; state: string; clientIp?: string | null }): Promise<AdminLoginResponse> {
     const state = await this.states.consume(input.state.trim());
     if (!state) {
       throw new BadRequestException("WeCom scan login state is invalid or expired");
@@ -66,22 +73,45 @@ export class AdminWecomScanAuthService {
       requireUserTicket: false
     });
     const userid = identity.userid?.trim();
-    if (!userid) {
-      throw new ForbiddenException("WeCom did not return an administrator userid");
-    }
-
     const tenant = await this.tenants.getByOpenCorpid(identity.openCorpid);
     if (!tenant) {
       throw new ForbiddenException("WeCom enterprise is not installed or authorization was cancelled");
+    }
+    if (!userid) {
+      await this.recordScanLoginFailure({
+        tenantId: tenant.tenantId,
+        actorOpenUserid: identity.openUserid,
+        reason: "missing_userid",
+        openCorpid: identity.openCorpid,
+        clientIp: input.clientIp ?? null
+      });
+      throw new ForbiddenException("WeCom did not return an administrator userid");
     }
 
     const corpToken = await this.corpTokens.getCorpAccessToken(identity.openCorpid);
     const adminList = await this.api.fetchCorpAdminList({ accessToken: corpToken.accessToken });
     const matched = adminList.admins.find((admin) => admin.userid === userid);
     if (!matched) {
+      await this.recordScanLoginFailure({
+        tenantId: tenant.tenantId,
+        actorOpenUserid: identity.openUserid,
+        reason: "not_enterprise_admin",
+        userid,
+        openCorpid: identity.openCorpid,
+        clientIp: input.clientIp ?? null
+      });
       throw new ForbiddenException("WeCom user is not an enterprise administrator");
     }
     if (matched.authType !== 1) {
+      await this.recordScanLoginFailure({
+        tenantId: tenant.tenantId,
+        actorOpenUserid: identity.openUserid,
+        reason: "no_management_permission",
+        userid,
+        openCorpid: identity.openCorpid,
+        authType: matched.authType,
+        clientIp: input.clientIp ?? null
+      });
       throw new ForbiddenException("WeCom administrator has no management permission");
     }
 
@@ -92,6 +122,14 @@ export class AdminWecomScanAuthService {
       openUserid: identity.openUserid
     });
     if (admin.status === "disabled") {
+      await this.recordScanLoginFailure({
+        tenantId: tenant.tenantId,
+        actorOpenUserid: admin.openUserid,
+        reason: "local_admin_disabled",
+        userid,
+        openCorpid: identity.openCorpid,
+        clientIp: input.clientIp ?? null
+      });
       throw new ForbiddenException("Local administrator account is disabled");
     }
 
@@ -103,6 +141,13 @@ export class AdminWecomScanAuthService {
       role: admin.role,
       accountType: "tenant"
     };
+    await this.operationLogs?.record({
+      session: input.clientIp ? { ...session, requestIp: input.clientIp } : session,
+      action: "admin.login.wecom_scan.success",
+      targetType: "tenant_admin",
+      targetId: admin.openUserid,
+      detail: { open_corpid: identity.openCorpid, userid }
+    });
     return adminLoginResponseSchema.parse({
       access_token: this.sessionTokens.sign(session),
       token_type: "Bearer",
@@ -124,10 +169,47 @@ export class AdminWecomScanAuthService {
       menu_scopes: capabilities.menuScopes
     });
   }
+
+  private async recordScanLoginFailure(input: {
+    tenantId: string;
+    actorOpenUserid: string | null;
+    reason: string;
+    openCorpid: string;
+    userid?: string | undefined;
+    authType?: 0 | 1 | undefined;
+    clientIp: string | null;
+  }): Promise<void> {
+    await this.operationLogs?.recordLoginAttempt({
+      tenantId: input.tenantId,
+      actorOpenUserid: input.actorOpenUserid,
+      actorRole: "unknown",
+      accountType: "tenant",
+      action: "admin.login.wecom_scan.failed",
+      targetType: "tenant_admin",
+      targetId: input.userid ?? input.actorOpenUserid ?? null,
+      detail: {
+        reason: input.reason,
+        open_corpid: input.openCorpid,
+        userid: input.userid ?? null,
+        auth_type: input.authType ?? null
+      },
+      ip: input.clientIp
+    });
+  }
 }
 
 function sanitizeRedirectPath(value?: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.startsWith("/") && !trimmed.startsWith("//") ? trimmed.slice(0, 256) : null;
+}
+
+function buildWecomLoginUrl(input: { suiteId: string; redirectUri: string; state: string }): string {
+  const url = new URL("https://login.work.weixin.qq.com/wwlogin/sso/login");
+  url.searchParams.set("login_type", "ServiceApp");
+  url.searchParams.set("appid", input.suiteId);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("lang", "zh");
+  return url.toString();
 }

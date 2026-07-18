@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { AdminOperationLogRepository } from "../admin-operation-log/admin-operation-log.repository.js";
+import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import { OwnerBootstrapModule } from "../admin-bootstrap/owner-bootstrap.module.js";
 import { ConfigModule } from "../config/config.module.js";
 import { WecomModule } from "../wecom/wecom.module.js";
@@ -23,6 +25,8 @@ import { PlatformAdminService } from "./platform-admin.service.js";
     AdminWecomAuthStateRepository,
     AdminWecomScanAuthService,
     AdminWecomScanRepository,
+    AdminOperationLogRepository,
+    AdminOperationLogService,
     PlatformAdminRepository,
     PlatformAdminService
   ],
