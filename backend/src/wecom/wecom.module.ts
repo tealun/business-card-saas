@@ -16,6 +16,8 @@ import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
 import { WecomDataCallbackController } from "./wecom-data-callback.controller.js";
 import { WecomDataCallbackService } from "./wecom-data-callback.service.js";
 import { WecomEmployeeProvisioningRepository } from "./wecom-employee-provisioning.repository.js";
+import { WecomLoginCallbackController } from "./wecom-login-callback.controller.js";
+import { WecomLoginCallbackService } from "./wecom-login-callback.service.js";
 import { WecomMiniProgramLoginService } from "./wecom-miniprogram-login.service.js";
 import { WecomStateCipherService } from "./wecom-state-cipher.service.js";
 import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
@@ -28,7 +30,8 @@ import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repositor
     WecomAuthorizationCompleteController,
     WecomAuthorizationLinkController,
     WecomCommandCallbackController,
-    WecomDataCallbackController
+    WecomDataCallbackController,
+    WecomLoginCallbackController
   ],
   providers: [
     WecomCallbackEventRepository,
@@ -44,6 +47,7 @@ import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repositor
     WecomCorpTokenService,
     WecomDataCallbackService,
     WecomEmployeeProvisioningRepository,
+    WecomLoginCallbackService,
     WecomMiniProgramLoginService,
     WecomStateCipherService,
     WecomSuiteStateRepository,
@@ -62,6 +66,7 @@ import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repositor
     WecomCorpTokenService,
     WecomDataCallbackService,
     WecomEmployeeProvisioningRepository,
+    WecomLoginCallbackService,
     WecomMiniProgramLoginService,
     WecomStateCipherService,
     WecomSuiteStateRepository,

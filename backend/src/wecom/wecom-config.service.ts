@@ -8,6 +8,8 @@ export interface WecomSuiteConfig {
   callbackAesKey: string;
   dataCallbackToken: string;
   dataCallbackAesKey: string;
+  loginCallbackToken: string;
+  loginCallbackAesKey: string;
 }
 
 @Injectable()
@@ -22,13 +24,18 @@ export class WecomConfigService {
       callbackToken,
       callbackAesKey,
       dataCallbackToken: readRequired("WECOM_DATA_CALLBACK_TOKEN"),
-      dataCallbackAesKey: readRequired("WECOM_DATA_CALLBACK_AES_KEY")
+      dataCallbackAesKey: readRequired("WECOM_DATA_CALLBACK_AES_KEY"),
+      loginCallbackToken: readRequired("WECOM_LOGIN_CALLBACK_TOKEN"),
+      loginCallbackAesKey: readRequired("WECOM_LOGIN_CALLBACK_AES_KEY")
     };
     if (suite.callbackAesKey.length !== 43) {
       throw new Error("WECOM_CALLBACK_AES_KEY must be 43 characters");
     }
     if (suite.dataCallbackAesKey.length !== 43) {
       throw new Error("WECOM_DATA_CALLBACK_AES_KEY must be 43 characters");
+    }
+    if (suite.loginCallbackAesKey.length !== 43) {
+      throw new Error("WECOM_LOGIN_CALLBACK_AES_KEY must be 43 characters");
     }
     return suite;
   }

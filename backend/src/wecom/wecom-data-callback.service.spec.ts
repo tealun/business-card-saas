@@ -184,7 +184,9 @@ class FakeConfigService {
     callbackToken: "command-token",
     callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
     dataCallbackToken: "data-token",
-    dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+    dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+    loginCallbackToken: "login-token",
+    loginCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
   };
 }
 

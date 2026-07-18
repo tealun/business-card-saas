@@ -63,6 +63,8 @@ const appConfigSchema = z
     WECOM_CALLBACK_AES_KEY: z.string().length(43),
     WECOM_DATA_CALLBACK_TOKEN: z.string().min(1),
     WECOM_DATA_CALLBACK_AES_KEY: z.string().length(43),
+    WECOM_LOGIN_CALLBACK_TOKEN: z.string().min(1),
+    WECOM_LOGIN_CALLBACK_AES_KEY: z.string().length(43),
     WECOM_API_BASE_URL: z.string().url(),
     WECOM_HTTP_TIMEOUT_MS: z.coerce.number().int().positive(),
     WECOM_INSTALL_BASE_URL: z.string().url(),

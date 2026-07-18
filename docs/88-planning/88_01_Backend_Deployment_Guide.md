@@ -100,6 +100,8 @@ Then edit `.env` on the server only. Required production secrets include:
 - `WECOM_CALLBACK_AES_KEY`
 - `WECOM_DATA_CALLBACK_TOKEN`
 - `WECOM_DATA_CALLBACK_AES_KEY`
+- `WECOM_LOGIN_CALLBACK_TOKEN`
+- `WECOM_LOGIN_CALLBACK_AES_KEY`
 - `WECOM_AUTH_LAUNCH_TOKEN`
 - `WECOM_INSTALL_REDIRECT_URI`
 - `WECOM_SENSITIVE_REDIRECT_URI`
@@ -239,6 +241,7 @@ Configure these URLs in the Enterprise WeChat third-party app / service provider
 | Authorization redirect | `https://your-backend-domain.example/api/v1/wecom/authorization-complete` |
 | Command callback | `https://your-backend-domain.example/api/v1/wecom/callbacks/command` |
 | Data callback | `https://your-backend-domain.example/api/v1/wecom/callbacks/data` |
+| Login authorization callback | `https://your-backend-domain.example/api/v1/wecom/callbacks/login` |
 
 Keep the callback Token and EncodingAESKey values consistent between the Enterprise WeChat console and the server `.env`:
 
@@ -249,6 +252,8 @@ WECOM_CALLBACK_TOKEN=real_command_callback_token
 WECOM_CALLBACK_AES_KEY=real_43_character_command_encoding_aes_key
 WECOM_DATA_CALLBACK_TOKEN=real_data_callback_token
 WECOM_DATA_CALLBACK_AES_KEY=real_43_character_data_encoding_aes_key
+WECOM_LOGIN_CALLBACK_TOKEN=real_login_authorization_callback_token
+WECOM_LOGIN_CALLBACK_AES_KEY=real_43_character_login_authorization_encoding_aes_key
 ```
 
 Generate internal backend-only keys locally and paste only into the server `.env`:

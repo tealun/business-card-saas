@@ -10,7 +10,9 @@ const suite: WecomSuiteConfig = {
   callbackToken: "callback-token",
   callbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
   dataCallbackToken: "data-callback-token",
-  dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+  dataCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+  loginCallbackToken: "login-callback-token",
+  loginCallbackAesKey: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 };
 
 let nonceCounter = 0;

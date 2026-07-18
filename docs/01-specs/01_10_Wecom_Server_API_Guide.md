@@ -101,6 +101,13 @@
    - `appid=<WECOM_SUITE_ID>`
    - `redirect_uri=<WECOM_ADMIN_LOGIN_REDIRECT_URI>`
    - `state=<one-time-state>`
+
+Service provider login authorization console settings:
+
+- Trusted domain: admin web domain, for example `biz.yuanyin.design`.
+- Instruction callback URL: `https://wecomcard.yuanyin.design/api/v1/wecom/callbacks/login`.
+- Token and EncodingAESKey from this page map to `WECOM_LOGIN_CALLBACK_TOKEN` and `WECOM_LOGIN_CALLBACK_AES_KEY`.
+- Do not reuse the third-party app command callback secrets; `/api/v1/wecom/callbacks/command` still owns suite_ticket/create_auth/change_auth/cancel_auth, and `/api/v1/wecom/callbacks/data` still owns contact data callbacks.
 4. 企业微信回跳 `code/state`。
 5. 后端消费 `state`，用 `suite_access_token + code` 调 `getuserinfo3rd`。
 6. 用返回的 `open_corpid` 定位 tenant，并读取该 tenant 的 `agentid`。
@@ -226,6 +233,7 @@ npm run lint
 - `WECOM_SUITE_SECRET` 与 SuiteID 属于同一个第三方应用。
 - 指令回调 URL、Token、EncodingAESKey 配置正确。
 - 数据回调 URL、Token、EncodingAESKey 与指令回调分开配置。
+- 登录授权页已开通；登录授权可信域名、指令回调 URL、Token、EncodingAESKey 使用 `/api/v1/wecom/callbacks/login` 专用配置。
 - `WECOM_ADMIN_LOGIN_REDIRECT_URI` 已加入可信域名/回调域名，且与部署域名一致。
 - `WECOM_INSTALL_REDIRECT_URI` 可公网 HTTPS 访问。
 - 服务商后台合法来源 IP 包含生产出口 IP。
