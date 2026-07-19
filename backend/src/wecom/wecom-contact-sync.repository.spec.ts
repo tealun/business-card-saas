@@ -38,7 +38,7 @@ describe("WecomContactSyncRepository", () => {
     expect(tenantTx.transaction.memberUpdateParams?.[3]).toBeNull();
   });
 
-  it("does not persist WeCom account ids as member display names", async () => {
+  it("does not replace existing account-like names when WeCom detail has no real name", async () => {
     const tenantTx = new FakeTenantTx();
     tenantTx.transaction.memberName = "user-001";
     const repository = new WecomContactSyncRepository(tenantTx as unknown as TenantTx);
@@ -57,15 +57,15 @@ describe("WecomContactSyncRepository", () => {
       ]
     });
 
-    expect(tenantTx.transaction.memberUpdateParams?.[3]).toBe("未填写姓名");
+    expect(tenantTx.transaction.memberUpdateParams?.[3]).toBeNull();
     expect(tenantTx.transaction.cardUpdateParams).toEqual([
       "tenant-001",
       "12",
       "active",
       "user-001",
       "ou-001",
-      "未填写姓名",
-      "未填写姓名",
+      "WeCom Member",
+      "user-001",
       null,
       null,
       null,

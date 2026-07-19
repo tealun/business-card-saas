@@ -74,14 +74,18 @@ export class PlatformTenantService {
       detail: {
         synced_count: result.syncedCount,
         skipped_count: result.skippedCount,
-        disabled_count: result.disabledCount
+        disabled_count: result.disabledCount,
+        detail_synced_count: result.detailSyncedCount,
+        detail_missing_count: result.detailMissingCount
       }
     });
     return {
       tenant_id: result.tenantId,
       synced_count: result.syncedCount,
       skipped_count: result.skippedCount,
-      disabled_count: result.disabledCount
+      disabled_count: result.disabledCount,
+      detail_synced_count: result.detailSyncedCount,
+      detail_missing_count: result.detailMissingCount
     };
   }
 

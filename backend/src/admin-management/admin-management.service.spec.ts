@@ -62,7 +62,9 @@ describe("AdminManagementService", () => {
       tenant_id: "tenant-001",
       synced_count: 2,
       skipped_count: 0,
-      disabled_count: 0
+      disabled_count: 0,
+      detail_synced_count: 2,
+      detail_missing_count: 0
     });
   });
 
@@ -75,7 +77,7 @@ describe("AdminManagementService", () => {
     expect(operationLogs.record).toHaveBeenCalledWith({
       session: ownerSession(),
       action: "member.sync",
-      detail: { synced_count: 2, skipped_count: 0, disabled_count: 0 }
+      detail: { synced_count: 2, skipped_count: 0, disabled_count: 0, detail_synced_count: 2, detail_missing_count: 0 }
     });
   });
 
@@ -278,7 +280,9 @@ function fakeContactSync(): WecomContactSyncService {
       tenantId: input.tenantId,
       syncedCount: 2,
       skippedCount: 0,
-      disabledCount: 0
+      disabledCount: 0,
+      detailSyncedCount: 2,
+      detailMissingCount: 0
     })
   } as WecomContactSyncService;
 }

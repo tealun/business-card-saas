@@ -57,8 +57,6 @@ interface MemberIdentityConflictRow extends QueryResultRow {
   id: string | number | bigint;
 }
 
-const unknownMemberDisplayName = "未填写姓名";
-
 @Injectable()
 export class WecomContactSyncRepository {
   private readonly memory = new Map<string, SyncWecomContactUser[]>();
@@ -246,7 +244,7 @@ export class WecomContactSyncRepository {
       [tenantId, user.openUserid, user.userid]
     );
     const current = existing.rows[0];
-    const displayName = user.name ?? unknownMemberDisplayName;
+    const displayName = user.name ?? user.openUserid ?? user.userid ?? "WeCom Member";
     if (current) {
       const nextOpenUserid = (await this.isOpenUseridOwnedByAnotherMember(tx, tenantId, user.openUserid, current.id))
         ? null
@@ -254,8 +252,7 @@ export class WecomContactSyncRepository {
       const nextUserid = (await this.isUseridOwnedByAnotherMember(tx, tenantId, user.userid, current.id))
         ? null
         : user.userid;
-      const nextDisplayName =
-        user.name ?? (isAccountAlias(current.name, user.userid, user.openUserid) ? unknownMemberDisplayName : null);
+      const nextDisplayName = user.name;
       const updated = await tx.query<MemberIdentityRow>(
         `
           UPDATE member_identities
@@ -386,7 +383,7 @@ export class WecomContactSyncRepository {
         `
           UPDATE cards
           SET display_name = CASE
-                WHEN display_name = $4 OR display_name = $5 OR display_name = $6 THEN $7
+                WHEN $7 <> $6 AND (display_name = $4 OR display_name = $5 OR display_name = $6) THEN $7
                 ELSE display_name
               END,
               title = COALESCE(title, $8),
@@ -403,7 +400,7 @@ export class WecomContactSyncRepository {
           input.status,
           input.userid,
           input.openUserid,
-          unknownMemberDisplayName,
+          "WeCom Member",
           input.displayName,
           input.title,
           phoneEncrypted,

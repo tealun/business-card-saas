@@ -44,7 +44,14 @@ describe("WecomContactSyncService", () => {
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
-    expect(result).toEqual({ tenantId: "tenant-001", syncedCount: 2, skippedCount: 0, disabledCount: 0 });
+    expect(result).toEqual({
+      tenantId: "tenant-001",
+      syncedCount: 2,
+      skippedCount: 0,
+      disabledCount: 0,
+      detailSyncedCount: 2,
+      detailMissingCount: 0
+    });
     expect(api.requests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
     expect(repository.lastInput?.users).toEqual([
       {

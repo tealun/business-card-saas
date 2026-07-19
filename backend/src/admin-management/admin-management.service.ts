@@ -60,7 +60,9 @@ export class AdminManagementService {
       tenant_id: result.tenantId,
       synced_count: result.syncedCount,
       skipped_count: result.skippedCount,
-      disabled_count: result.disabledCount
+      disabled_count: result.disabledCount,
+      detail_synced_count: result.detailSyncedCount,
+      detail_missing_count: result.detailMissingCount
     });
     await this.operationLogs?.record({
       session,
@@ -68,7 +70,9 @@ export class AdminManagementService {
       detail: {
         synced_count: response.synced_count,
         skipped_count: response.skipped_count,
-        disabled_count: response.disabled_count
+        disabled_count: response.disabled_count,
+        detail_synced_count: response.detail_synced_count,
+        detail_missing_count: response.detail_missing_count
       }
     });
     return response;

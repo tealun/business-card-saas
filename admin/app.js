@@ -2291,8 +2291,8 @@ async function openTenantDetail(tenantId) {
     actionButton("重新同步", async () => {
       const ok = await confirmAction({ title: "确认重新同步", body: `将从企业微信重新拉取「${item.tenant_name}」的通讯录并更新成员状态。`, danger: true });
       if (!ok) return;
-      await run("重新同步", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}/sync`, { method: "POST", timeoutMs: 60000 }));
-      notify("重新同步已完成");
+      const result = await run("重新同步", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}/sync`, { method: "POST", timeoutMs: 60000 }));
+      notify(memberSyncResultMessage(result), result.detail_missing_count > 0 ? "warning" : "success");
       await openTenantDetail(tenantId);
     }, "secondary"),
     actionButton("重试失败事件", async () => {
@@ -2335,6 +2335,16 @@ function contactSyncDiagnosticTag(item) {
     return tag("最近同步成功", "success");
   }
   return tag("需结合授权范围确认", "warning");
+}
+
+function memberSyncResultMessage(result) {
+  const synced = Number(result?.synced_count || 0);
+  const detailSynced = Number(result?.detail_synced_count || 0);
+  const detailMissing = Number(result?.detail_missing_count || 0);
+  if (detailMissing > 0) {
+    return `同步 ${synced} 个成员，详情补全 ${detailSynced} 个，${detailMissing} 个未返回姓名/职位。请在服务商后台选择“通讯录单个信息只读”并让企业重新授权。`;
+  }
+  return `同步 ${synced} 个成员，详情补全 ${detailSynced} 个。`;
 }
 
 async function loadVideoFeatures() {
@@ -2527,7 +2537,8 @@ $("#syncMembers").addEventListener("click", async () => {
     danger: true
   });
   if (ok) {
-    await run("同步成员", () => adminRequest("/admin/members/sync", { method: "POST", timeoutMs: 30000 }));
+    const result = await run("同步成员", () => adminRequest("/admin/members/sync", { method: "POST", timeoutMs: 30000 }));
+    notify(memberSyncResultMessage(result), result.detail_missing_count > 0 ? "warning" : "success");
     await loadMembers();
   }
 });

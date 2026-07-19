@@ -56,7 +56,14 @@ function createRepository() {
 
 function createContactSync() {
   return {
-    syncTenantMembers: jest.fn(async () => ({ tenantId: "2", syncedCount: 5, skippedCount: 1, disabledCount: 0 }))
+    syncTenantMembers: jest.fn(async () => ({
+      tenantId: "2",
+      syncedCount: 5,
+      skippedCount: 1,
+      disabledCount: 0,
+      detailSyncedCount: 3,
+      detailMissingCount: 2
+    }))
   };
 }
 

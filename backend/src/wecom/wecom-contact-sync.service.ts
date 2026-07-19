@@ -15,6 +15,8 @@ export interface SyncTenantContactMembersResult {
   syncedCount: number;
   skippedCount: number;
   disabledCount: number;
+  detailSyncedCount: number;
+  detailMissingCount: number;
 }
 
 @Injectable()
@@ -64,7 +66,9 @@ export class WecomContactSyncService {
       tenantId: input.tenantId,
       syncedCount: result.syncedCount,
       skippedCount: result.skippedCount,
-      disabledCount
+      disabledCount,
+      detailSyncedCount: users.filter(hasUsefulContactDetail).length,
+      detailMissingCount: users.filter((user) => !hasUsefulContactDetail(user)).length
     };
   }
 
@@ -104,4 +108,8 @@ export class WecomContactSyncService {
     }
     return enriched;
   }
+}
+
+function hasUsefulContactDetail(user: WecomContactUserIdentity): boolean {
+  return Boolean(user.name || user.title || user.mobile || user.email);
 }

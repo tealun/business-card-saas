@@ -53,7 +53,9 @@ export const adminMemberSyncResponseSchema = z.object({
   tenant_id: z.string(),
   synced_count: z.number().int().min(0),
   skipped_count: z.number().int().min(0),
-  disabled_count: z.number().int().min(0)
+  disabled_count: z.number().int().min(0),
+  detail_synced_count: z.number().int().min(0).default(0),
+  detail_missing_count: z.number().int().min(0).default(0)
 });
 
 export const adminSyncEventRetryResponseSchema = z.object({
