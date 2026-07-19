@@ -1,8 +1,6 @@
-import { ServiceUnavailableException } from "@nestjs/common";
+import { ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
 import {
   WecomApiClientService,
-  type FetchContactUserIdsRequest,
-  type FetchContactUserIdsResponse,
   type WecomContactUserIdentity
 } from "./wecom-api-client.service.js";
 import {
@@ -19,18 +17,10 @@ import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repositor
 describe("WecomContactSyncService", () => {
   it("fetches contact user ids, enriches details and upserts active members", async () => {
     const { service, api, repository } = createService();
-    api.pages = [
-      {
-        users: [
-          { userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: ["1"] },
-          { userid: "user-002", openUserid: null, name: null, departmentIds: [] }
-        ],
-        nextCursor: "cursor-2"
-      },
-      {
-        users: [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }],
-        nextCursor: null
-      }
+    api.departmentUsers = [
+      { userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: ["1"] },
+      { userid: "user-002", openUserid: null, name: null, departmentIds: [] },
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
     ];
     api.details.set("user-001", {
       userid: "user-001",
@@ -61,10 +51,7 @@ describe("WecomContactSyncService", () => {
       detailSyncedCount: 2,
       detailMissingCount: 0
     });
-    expect(api.requests).toEqual([
-      { accessToken: "corp-token", cursor: "", limit: 1000 },
-      { accessToken: "corp-token", cursor: "cursor-2", limit: 1000 }
-    ]);
+    expect(api.departmentRequests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
     expect(repository.lastInput?.users).toEqual([
       {
         userid: "user-001",
@@ -100,12 +87,7 @@ describe("WecomContactSyncService", () => {
 
   it("does not count account aliases as synced real member details", async () => {
     const { service, api } = createService();
-    api.pages = [
-      {
-        users: [{ userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: [] }],
-        nextCursor: null
-      }
-    ];
+    api.departmentUsers = [{ userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: [] }];
     api.details.set("user-001", {
       userid: "user-001",
       openUserid: "ou-001",
@@ -135,13 +117,52 @@ describe("WecomContactSyncService", () => {
       qrcode_source: "enterprise_first",
       updated_at: null
     };
-    api.pages = [{ users: [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }], nextCursor: null }];
+    api.departmentUsers = [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }];
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
     expect(result.disabledCount).toBe(0);
     expect(repository.lastInput?.createCards).toBe(false);
     expect(repository.lastStaleInput).toBeNull();
+  });
+
+  it("keeps basic contact sync when detail API permission is missing", async () => {
+    const { service, api, repository } = createService();
+    api.departmentUsers = [
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
+    ];
+    api.detailErrors.set("user-001", new ForbiddenException("no user/get privilege"));
+
+    const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
+
+    expect(result).toMatchObject({
+      syncedCount: 1,
+      detailSyncedCount: 1,
+      detailMissingCount: 0
+    });
+    expect(repository.lastInput?.users).toEqual([
+      {
+        userid: "user-001",
+        openUserid: "ou-001",
+        name: "Ada",
+        departmentIds: ["1"],
+        title: null,
+        mobile: null,
+        email: null,
+        status: "active"
+      }
+    ]);
+  });
+
+  it("does not use user list_id when basic member listing permission is missing", async () => {
+    const { service, api } = createService();
+    api.departmentError = new ForbiddenException("no user/simplelist privilege");
+
+    await expect(service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" })).rejects.toThrow(
+      "no user/simplelist privilege"
+    );
+
+    expect(api.departmentRequests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
   });
 });
 
@@ -172,16 +193,25 @@ class FakeCorpTokenService {
 }
 
 class FakeWecomApiClient {
-  requests: FetchContactUserIdsRequest[] = [];
-  pages: FetchContactUserIdsResponse[] = [{ users: [], nextCursor: null }];
+  departmentRequests: Array<{ accessToken: string; departmentId?: string | number; fetchChild?: boolean }> = [];
+  departmentUsers: WecomContactUserIdentity[] = [];
+  departmentError: Error | null = null;
   details = new Map<string, WecomContactUserIdentity>();
+  detailErrors = new Map<string, Error>();
 
-  async fetchContactUserIds(request: FetchContactUserIdsRequest): Promise<FetchContactUserIdsResponse> {
-    this.requests.push(request);
-    return this.pages.shift() ?? { users: [], nextCursor: null };
+  async fetchDepartmentUsers(request: { accessToken: string; departmentId?: string | number; fetchChild?: boolean }): Promise<WecomContactUserIdentity[]> {
+    this.departmentRequests.push(request);
+    if (this.departmentError) {
+      throw this.departmentError;
+    }
+    return this.departmentUsers;
   }
 
   async fetchContactUserDetail(request: { userid: string }): Promise<WecomContactUserIdentity> {
+    const error = this.detailErrors.get(request.userid);
+    if (error) {
+      throw error;
+    }
     return this.details.get(request.userid) ?? {
       userid: request.userid,
       openUserid: null,

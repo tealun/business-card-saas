@@ -73,7 +73,7 @@ export class WecomContactSyncService {
   }
 
   private async fetchAllContactUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
-    const users = await this.fetchAllContactUserIds(accessToken);
+    const users = await this.fetchVisibleDepartmentUsers(accessToken);
     const seen = new Set<string>();
     const visibleUsers = users.filter((user) => {
       const key = user.openUserid || user.userid;
@@ -88,10 +88,7 @@ export class WecomContactSyncService {
         enriched.push(user);
         continue;
       }
-      const detail = await this.api.fetchContactUserDetail({
-        accessToken,
-        userid: user.userid
-      });
+      const detail = await this.fetchOptionalContactUserDetail(accessToken, user);
       enriched.push({
         userid: detail.userid ?? user.userid,
         openUserid: detail.openUserid ?? user.openUserid,
@@ -105,27 +102,45 @@ export class WecomContactSyncService {
     return enriched;
   }
 
-  private async fetchAllContactUserIds(accessToken: string): Promise<WecomContactUserIdentity[]> {
-    const users: WecomContactUserIdentity[] = [];
-    let cursor: string | null = "";
-    for (let page = 0; page < maxContactPages; page += 1) {
-      const response = await this.api.fetchContactUserIds({
-        accessToken,
-        cursor,
-        limit: contactPageLimit
-      });
-      users.push(...response.users);
-      if (!response.nextCursor) {
-        return users;
-      }
-      cursor = response.nextCursor;
-    }
-    throw new ServiceUnavailableException("WeCom contact sync exceeded the page safety limit");
+  private async fetchVisibleDepartmentUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
+    return this.api.fetchDepartmentUsers({
+      accessToken,
+      departmentId: 1,
+      fetchChild: true
+    });
   }
+
+  private async fetchOptionalContactUserDetail(
+    accessToken: string,
+    user: WecomContactUserIdentity
+  ): Promise<WecomContactUserIdentity> {
+    if (!user.userid) {
+      return user;
+    }
+    try {
+      return await this.api.fetchContactUserDetail({
+        accessToken,
+        userid: user.userid
+      });
+    } catch (error) {
+      if (isForbiddenError(error)) {
+        return user;
+      }
+      throw error;
+    }
+  }
+
 }
 
-const contactPageLimit = 1000;
-const maxContactPages = 20;
+function isForbiddenError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "getStatus" in error &&
+      typeof (error as { getStatus?: unknown }).getStatus === "function" &&
+      (error as { getStatus: () => number }).getStatus() === 403
+  );
+}
 
 function hasUsefulContactDetail(user: WecomContactUserIdentity): boolean {
   return Boolean(realContactName(user) || user.title || user.mobile || user.email);

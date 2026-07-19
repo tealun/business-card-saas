@@ -269,8 +269,9 @@ describe("WecomApiClientService", () => {
       throw new Error("expected fetchContactUserIds to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(ForbiddenException);
-      expect((error as Error).message).toContain("成员 ID 读取接口");
+      expect((error as Error).message).toContain("成员 ID 列表接口");
       expect((error as Error).message).toContain("user/list_id");
+      expect((error as Error).message).toContain("单个信息只读只支持按已知 userid 读取详情");
       expect((error as Error).message).not.toContain("211.149.165.251");
       expect((error as Error).message).not.toContain("1784337086555210389202947");
     }

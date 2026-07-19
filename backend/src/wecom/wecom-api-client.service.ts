@@ -442,7 +442,7 @@ export class WecomApiClientService {
     if (payload.errcode && payload.errcode !== 0) {
       if (isWecomPermissionDenied(payload.errcode)) {
         throw new ForbiddenException(
-          "企业微信未授权通讯录成员 ID 读取接口（user/list_id），请确认服务商后台已开启通讯录单个信息只读、企业已用管理员授权模式重新授权，且应用可见范围包含目标成员。"
+          "企业微信未授权通讯录成员 ID 列表接口（user/list_id）；通讯录单个信息只读只支持按已知 userid 读取详情，不支持批量枚举成员。后台批量同步请开启通讯录基本信息只读或企业微信要求的更高通讯录范围，并让企业重新授权。"
         );
       }
       throw new BadGatewayException(`WeCom user/list_id failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
