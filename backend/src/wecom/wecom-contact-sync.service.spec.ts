@@ -86,6 +86,25 @@ describe("WecomContactSyncService", () => {
     );
   });
 
+  it("does not count account aliases as synced real member details", async () => {
+    const { service, api } = createService();
+    api.users = [{ userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: [] }];
+    api.details.set("user-001", {
+      userid: "user-001",
+      openUserid: "ou-001",
+      name: "user-001",
+      departmentIds: [],
+      title: null,
+      mobile: null,
+      email: null
+    });
+
+    const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
+
+    expect(result.detailSyncedCount).toBe(0);
+    expect(result.detailMissingCount).toBe(1);
+  });
+
   it("applies tenant sync settings for card creation and stale member disabling", async () => {
     const { service, api, repository, settings } = createService();
     settings.settings = {

@@ -51,6 +51,7 @@ describe("WecomAuthorizationLinkService", () => {
     expect(service.consumeState("state_001")).toBe("state_001");
     expect(() => service.consumeState("state_001")).toThrow(UnauthorizedException);
   });
+
 });
 
 function createService() {

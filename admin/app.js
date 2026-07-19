@@ -2342,9 +2342,9 @@ function memberSyncResultMessage(result) {
   const detailSynced = Number(result?.detail_synced_count || 0);
   const detailMissing = Number(result?.detail_missing_count || 0);
   if (detailMissing > 0) {
-    return `同步 ${synced} 个成员，详情补全 ${detailSynced} 个，${detailMissing} 个未返回姓名/职位。请在服务商后台选择“通讯录单个信息只读”并让企业重新授权。`;
+    return `同步 ${synced} 个成员，真实详情补全 ${detailSynced} 个，${detailMissing} 个未返回真实姓名/职位。企业微信对普通第三方应用会隐藏真实通讯录信息，可改用通讯录展示组件或成员本人授权补全。`;
   }
-  return `同步 ${synced} 个成员，详情补全 ${detailSynced} 个。`;
+  return `同步 ${synced} 个成员，真实详情补全 ${detailSynced} 个。`;
 }
 
 async function loadVideoFeatures() {

@@ -111,5 +111,13 @@ export class WecomContactSyncService {
 }
 
 function hasUsefulContactDetail(user: WecomContactUserIdentity): boolean {
-  return Boolean(user.name || user.title || user.mobile || user.email);
+  return Boolean(realContactName(user) || user.title || user.mobile || user.email);
+}
+
+function realContactName(user: WecomContactUserIdentity): string | null {
+  const name = user.name?.trim();
+  if (!name || name === user.userid?.trim() || name === user.openUserid?.trim()) {
+    return null;
+  }
+  return name;
 }
