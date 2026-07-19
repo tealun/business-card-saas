@@ -19,18 +19,54 @@ describe("WecomContactSyncService", () => {
   it("fetches visible department users and upserts active members", async () => {
     const { service, api, repository } = createService();
     api.users = [
-      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] },
+      { userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: ["1"] },
       { userid: "user-002", openUserid: null, name: null, departmentIds: [] },
       { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
     ];
+    api.details.set("user-001", {
+      userid: "user-001",
+      openUserid: "ou-001",
+      name: "Ada",
+      departmentIds: ["1"],
+      title: "VP Sales",
+      mobile: "13800138000",
+      email: "ada@example.com"
+    });
+    api.details.set("user-002", {
+      userid: "user-002",
+      openUserid: null,
+      name: "Bob",
+      departmentIds: [],
+      title: null,
+      mobile: null,
+      email: null
+    });
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
     expect(result).toEqual({ tenantId: "tenant-001", syncedCount: 2, skippedCount: 0, disabledCount: 0 });
     expect(api.requests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
     expect(repository.lastInput?.users).toEqual([
-      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"], status: "active" },
-      { userid: "user-002", openUserid: null, name: null, departmentIds: [], status: "active" }
+      {
+        userid: "user-001",
+        openUserid: "ou-001",
+        name: "Ada",
+        departmentIds: ["1"],
+        title: "VP Sales",
+        mobile: "13800138000",
+        email: "ada@example.com",
+        status: "active"
+      },
+      {
+        userid: "user-002",
+        openUserid: null,
+        name: "Bob",
+        departmentIds: [],
+        title: null,
+        mobile: null,
+        email: null,
+        status: "active"
+      }
     ]);
   });
 
@@ -95,10 +131,23 @@ class FakeCorpTokenService {
 class FakeWecomApiClient {
   requests: FetchDepartmentUsersRequest[] = [];
   users: WecomContactUserIdentity[] = [];
+  details = new Map<string, WecomContactUserIdentity>();
 
   async fetchDepartmentUsers(request: FetchDepartmentUsersRequest): Promise<WecomContactUserIdentity[]> {
     this.requests.push(request);
     return this.users;
+  }
+
+  async fetchContactUserDetail(request: { userid: string }): Promise<WecomContactUserIdentity> {
+    return this.details.get(request.userid) ?? {
+      userid: request.userid,
+      openUserid: null,
+      name: null,
+      departmentIds: [],
+      title: null,
+      mobile: null,
+      email: null
+    };
   }
 }
 

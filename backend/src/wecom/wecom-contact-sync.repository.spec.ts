@@ -37,6 +37,41 @@ describe("WecomContactSyncRepository", () => {
     expect(tenantTx.transaction.memberUpdateSql).toContain("name = COALESCE($4, name)");
     expect(tenantTx.transaction.memberUpdateParams?.[3]).toBeNull();
   });
+
+  it("does not persist WeCom account ids as member display names", async () => {
+    const tenantTx = new FakeTenantTx();
+    tenantTx.transaction.memberName = "user-001";
+    const repository = new WecomContactSyncRepository(tenantTx as unknown as TenantTx);
+
+    await repository.upsertMembers({
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      users: [
+        {
+          userid: "user-001",
+          openUserid: "ou-001",
+          name: "user-001",
+          departmentIds: ["1"],
+          status: "active"
+        }
+      ]
+    });
+
+    expect(tenantTx.transaction.memberUpdateParams?.[3]).toBe("未填写姓名");
+    expect(tenantTx.transaction.cardUpdateParams).toEqual([
+      "tenant-001",
+      "12",
+      "active",
+      "user-001",
+      "ou-001",
+      "未填写姓名",
+      "未填写姓名",
+      null,
+      null,
+      null,
+      null
+    ]);
+  });
 });
 
 class FakeTenantTx {
@@ -48,12 +83,14 @@ class FakeTenantTx {
 }
 
 class FakeTransaction {
+  memberName = "Ada Existing";
   memberUpdateSql = "";
   memberUpdateParams: unknown[] | null = null;
+  cardUpdateParams: unknown[] | null = null;
 
   async query<T>(text: string, params: unknown[] = []): Promise<{ rows: T[] }> {
     if (text.includes("SELECT id, name") && text.includes("FROM member_identities")) {
-      return { rows: [{ id: "7", name: "Ada Existing" } as T] };
+      return { rows: [{ id: "7", name: this.memberName } as T] };
     }
     if (text.includes("SELECT id") && text.includes("FROM member_identities")) {
       return { rows: [] };
@@ -61,10 +98,14 @@ class FakeTransaction {
     if (text.includes("UPDATE member_identities")) {
       this.memberUpdateSql = text;
       this.memberUpdateParams = params;
-      return { rows: [{ id: "7", name: "Ada Existing" } as T] };
+      return { rows: [{ id: "7", name: String(params[3] ?? this.memberName) } as T] };
     }
     if (text.includes("SELECT id, public_id") && text.includes("FROM cards")) {
       return { rows: [{ id: "12", public_id: "pub_existing0001" } as T] };
+    }
+    if (text.includes("UPDATE cards")) {
+      this.cardUpdateParams = params;
+      return { rows: [] };
     }
     return { rows: [] };
   }

@@ -87,6 +87,9 @@ export interface WecomContactUserIdentity {
   openUserid: string | null;
   name: string | null;
   departmentIds: string[];
+  title?: string | null;
+  mobile?: string | null;
+  email?: string | null;
 }
 
 export interface FetchContactUserIdsResponse {
@@ -98,6 +101,11 @@ export interface FetchDepartmentUsersRequest {
   accessToken: string;
   departmentId?: string | number;
   fetchChild?: boolean;
+}
+
+export interface FetchContactUserDetailRequest {
+  accessToken: string;
+  userid: string;
 }
 
 export interface FetchThirdPartyUserInfoResponse {
@@ -189,6 +197,9 @@ interface WecomContactUserPayload {
   open_userid?: string;
   name?: string;
   department?: Array<string | number>;
+  position?: string;
+  mobile?: string;
+  email?: string;
 }
 
 interface WecomContactUserListPayload {
@@ -204,6 +215,11 @@ interface WecomDepartmentUserListPayload {
   errmsg?: string;
   userlist?: WecomContactUserPayload[];
 }
+
+type WecomContactUserDetailPayload = WecomContactUserPayload & {
+  errcode?: number;
+  errmsg?: string;
+};
 
 interface WecomThirdPartyUserInfoPayload {
   errcode?: number;
@@ -457,8 +473,37 @@ export class WecomApiClientService {
       userid: normalizeOptionalString(user.userid),
       openUserid: normalizeOptionalString(user.open_userid),
       name: normalizeOptionalString(user.name),
-      departmentIds: Array.isArray(user.department) ? user.department.map(String) : []
+      departmentIds: Array.isArray(user.department) ? user.department.map(String) : [],
+      title: normalizeOptionalString(user.position),
+      mobile: normalizeOptionalString(user.mobile),
+      email: normalizeOptionalString(user.email)
     }));
+  }
+
+  async fetchContactUserDetail(request: FetchContactUserDetailRequest): Promise<WecomContactUserIdentity> {
+    const search = new URLSearchParams({
+      access_token: request.accessToken,
+      userid: request.userid
+    });
+    const payload = await this.getJson<WecomContactUserDetailPayload>("contact user get", `/cgi-bin/user/get?${search.toString()}`);
+    if (payload.errcode && payload.errcode !== 0) {
+      if (payload.errcode === WECOM_API_FORBIDDEN) {
+        throw new ForbiddenException(
+          "企业微信未授权通讯录成员详情接口（user/get），请确认服务商后台已开启通讯录基本信息只读、应用可见范围包含目标成员，并让企业重新授权。"
+        );
+      }
+      throw new BadGatewayException(`WeCom user/get failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+
+    return {
+      userid: normalizeOptionalString(payload.userid) ?? request.userid,
+      openUserid: normalizeOptionalString(payload.open_userid),
+      name: normalizeOptionalString(payload.name),
+      departmentIds: Array.isArray(payload.department) ? payload.department.map(String) : [],
+      title: normalizeOptionalString(payload.position),
+      mobile: normalizeOptionalString(payload.mobile),
+      email: normalizeOptionalString(payload.email)
+    };
   }
 
   async fetchThirdPartyUserInfo(

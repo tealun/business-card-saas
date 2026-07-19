@@ -45,6 +45,9 @@ export class WecomContactSyncService {
         openUserid: user.openUserid,
         name: user.name,
         departmentIds: user.departmentIds,
+        title: user.title ?? null,
+        mobile: user.mobile ?? null,
+        email: user.email ?? null,
         status: "active"
       }))
     });
@@ -72,12 +75,33 @@ export class WecomContactSyncService {
       fetchChild: true
     });
     const seen = new Set<string>();
-    return users.filter((user) => {
+    const visibleUsers = users.filter((user) => {
       const key = user.openUserid || user.userid;
       if (!key) return false;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+    const enriched: WecomContactUserIdentity[] = [];
+    for (const user of visibleUsers) {
+      if (!user.userid) {
+        enriched.push(user);
+        continue;
+      }
+      const detail = await this.api.fetchContactUserDetail({
+        accessToken,
+        userid: user.userid
+      });
+      enriched.push({
+        userid: detail.userid ?? user.userid,
+        openUserid: detail.openUserid ?? user.openUserid,
+        name: detail.name ?? user.name,
+        departmentIds: detail.departmentIds.length ? detail.departmentIds : user.departmentIds,
+        title: detail.title ?? user.title ?? null,
+        mobile: detail.mobile ?? user.mobile ?? null,
+        email: detail.email ?? user.email ?? null
+      });
+    }
+    return enriched;
   }
 }

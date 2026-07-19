@@ -301,14 +301,72 @@ describe("WecomApiClientService", () => {
     });
 
     expect(result).toEqual([
-      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1", "2"] },
-      { userid: "user-002", openUserid: null, name: null, departmentIds: [] }
+      {
+        userid: "user-001",
+        openUserid: "ou-001",
+        name: "Ada",
+        departmentIds: ["1", "2"],
+        title: null,
+        mobile: null,
+        email: null
+      },
+      {
+        userid: "user-002",
+        openUserid: null,
+        name: null,
+        departmentIds: [],
+        title: null,
+        mobile: null,
+        email: null
+      }
     ]);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/cgi-bin/user/simplelist?");
     expect(url).toContain("access_token=corp-token");
     expect(url).toContain("department_id=1");
     expect(url).toContain("fetch_child=1");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("gets contact user detail for synced members", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          userid: "user-001",
+          open_userid: "ou-001",
+          name: "张三",
+          position: "销售总监",
+          mobile: "13800138000",
+          email: "zhangsan@example.com",
+          department: [1]
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchContactUserDetail({
+      accessToken: "corp-token",
+      userid: "user-001"
+    });
+
+    expect(result).toEqual({
+      userid: "user-001",
+      openUserid: "ou-001",
+      name: "张三",
+      departmentIds: ["1"],
+      title: "销售总监",
+      mobile: "13800138000",
+      email: "zhangsan@example.com"
+    });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/cgi-bin/user/get?");
+    expect(url).toContain("access_token=corp-token");
+    expect(url).toContain("userid=user-001");
     expect(init.body).toBeUndefined();
   });
 

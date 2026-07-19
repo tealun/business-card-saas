@@ -24,6 +24,7 @@ import { WecomSuiteStateRepository } from "./wecom-suite-state.repository.js";
 import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import { WecomTenantAuthRepository } from "./wecom-tenant-auth.repository.js";
 import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
+import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
 
 @Module({
   controllers: [
@@ -38,6 +39,7 @@ import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repositor
     WecomCallbackAlertService,
     WecomCallbackCryptoService,
     WecomApiClientService,
+    CardFieldCipherService,
     WecomAuthorizationLinkService,
     WecomAuthorizationService,
     WecomCommandCallbackService,

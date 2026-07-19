@@ -1,5 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
+import { CardFieldCipherService } from "../admin-management/card-field-cipher.service.js";
 import { defaultEmployeeCardSlug, defaultEmployeePublicId } from "../common/default-public-id.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
 
@@ -8,6 +9,9 @@ export interface SyncWecomContactUser {
   openUserid: string | null;
   name: string | null;
   departmentIds: string[];
+  title?: string | null;
+  mobile?: string | null;
+  email?: string | null;
   status: "active" | "disabled";
 }
 
@@ -53,11 +57,16 @@ interface MemberIdentityConflictRow extends QueryResultRow {
   id: string | number | bigint;
 }
 
+const unknownMemberDisplayName = "未填写姓名";
+
 @Injectable()
 export class WecomContactSyncRepository {
   private readonly memory = new Map<string, SyncWecomContactUser[]>();
 
-  constructor(@Optional() private readonly tenantTx?: TenantTx) {}
+  constructor(
+    @Optional() private readonly tenantTx?: TenantTx,
+    @Optional() private readonly cipher?: CardFieldCipherService
+  ) {}
 
   async upsertMembers(input: SyncWecomContactMembersInput): Promise<SyncWecomContactMembersResult> {
     const normalized = input.users.map(normalizeUser).filter((user) => user.openUserid || user.userid);
@@ -76,6 +85,12 @@ export class WecomContactSyncRepository {
             tenantName: input.tenantName,
             memberIdentityId: String(member.id),
             displayName: member.name,
+            userid: user.userid,
+            openUserid: user.openUserid,
+            title: user.title ?? null,
+            mobile: user.mobile ?? null,
+            email: user.email ?? null,
+            departmentIds: user.departmentIds,
             status: user.status
           });
         }
@@ -231,7 +246,7 @@ export class WecomContactSyncRepository {
       [tenantId, user.openUserid, user.userid]
     );
     const current = existing.rows[0];
-    const displayName = user.name ?? user.openUserid ?? user.userid ?? "WeCom Member";
+    const displayName = user.name ?? unknownMemberDisplayName;
     if (current) {
       const nextOpenUserid = (await this.isOpenUseridOwnedByAnotherMember(tx, tenantId, user.openUserid, current.id))
         ? null
@@ -239,6 +254,8 @@ export class WecomContactSyncRepository {
       const nextUserid = (await this.isUseridOwnedByAnotherMember(tx, tenantId, user.userid, current.id))
         ? null
         : user.userid;
+      const nextDisplayName =
+        user.name ?? (isAccountAlias(current.name, user.userid, user.openUserid) ? unknownMemberDisplayName : null);
       const updated = await tx.query<MemberIdentityRow>(
         `
           UPDATE member_identities
@@ -255,7 +272,7 @@ export class WecomContactSyncRepository {
           tenantId,
           nextOpenUserid,
           nextUserid,
-          user.name,
+          nextDisplayName,
           JSON.stringify(user.departmentIds),
           user.status,
           current.id
@@ -333,9 +350,25 @@ export class WecomContactSyncRepository {
       tenantName: string;
       memberIdentityId: string;
       displayName: string;
+      userid: string | null;
+      openUserid: string | null;
+      title: string | null;
+      mobile: string | null;
+      email: string | null;
+      departmentIds: string[];
       status: "active" | "disabled";
     }
   ): Promise<CardRow> {
+    const fields = this.encryptFields({
+      mobile: input.mobile,
+      phone: null,
+      email: input.email,
+      wechat_id: null,
+      address: null,
+      department: null
+    });
+    const phoneEncrypted = this.encryptOptional(input.mobile);
+    const emailEncrypted = this.encryptOptional(input.email);
     const existing = await tx.query<CardRow>(
       `
         SELECT id, public_id
@@ -352,11 +385,31 @@ export class WecomContactSyncRepository {
       await tx.query(
         `
           UPDATE cards
-          SET status = $3,
+          SET display_name = CASE
+                WHEN display_name = $4 OR display_name = $5 OR display_name = $6 THEN $7
+                ELSE display_name
+              END,
+              title = COALESCE(title, $8),
+              phone_encrypted = COALESCE(phone_encrypted, $9),
+              email_encrypted = COALESCE(email_encrypted, $10),
+              fields_encrypted = COALESCE(fields_encrypted, $11),
+              status = $3,
               updated_at = now()
           WHERE tenant_id = $1 AND id = $2
         `,
-        [input.tenantId, existing.rows[0].id, input.status]
+        [
+          input.tenantId,
+          existing.rows[0].id,
+          input.status,
+          input.userid,
+          input.openUserid,
+          unknownMemberDisplayName,
+          input.displayName,
+          input.title,
+          phoneEncrypted,
+          emailEncrypted,
+          fields
+        ]
       );
       await this.upsertPublicDirectory(tx, {
         tenantId: input.tenantId,
@@ -380,12 +433,16 @@ export class WecomContactSyncRepository {
           card_type,
           slug,
           display_name,
+          title,
+          phone_encrypted,
+          email_encrypted,
+          fields_encrypted,
           privacy_json,
           status,
           created_at,
           updated_at
         )
-        VALUES ($1, $2, $3, 'primary', $4, $5, $6, $7, now(), now())
+        VALUES ($1, $2, $3, 'primary', $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
         RETURNING id, public_id
       `,
       [
@@ -394,6 +451,10 @@ export class WecomContactSyncRepository {
         publicId,
         defaultEmployeeCardSlug(input),
         input.displayName,
+        input.title,
+        phoneEncrypted,
+        emailEncrypted,
+        fields,
         JSON.stringify({ show_mobile: false, show_email: true, show_wechat: false, allow_forward: true }),
         input.status
       ]
@@ -440,6 +501,20 @@ export class WecomContactSyncRepository {
     );
   }
 
+  private encryptFields(fields: Record<string, string | null>): string | null {
+    if (!this.cipher) {
+      return null;
+    }
+    return this.cipher.encrypt(JSON.stringify(fields));
+  }
+
+  private encryptOptional(value: string | null): string | null {
+    if (!value || !this.cipher) {
+      return null;
+    }
+    return this.cipher.encrypt(value);
+  }
+
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }
@@ -449,8 +524,11 @@ function normalizeUser(user: SyncWecomContactUser): SyncWecomContactUser {
   return {
     userid: normalizeOptionalString(user.userid),
     openUserid: normalizeOptionalString(user.openUserid),
-    name: normalizeOptionalString(user.name),
+    name: normalizeContactName(user.name, user.userid, user.openUserid),
     departmentIds: user.departmentIds.map(String).filter(Boolean),
+    title: normalizeOptionalString(user.title ?? null),
+    mobile: normalizeOptionalString(user.mobile ?? null),
+    email: normalizeOptionalString(user.email ?? null),
     status: user.status
   };
 }
@@ -458,6 +536,16 @@ function normalizeUser(user: SyncWecomContactUser): SyncWecomContactUser {
 function normalizeOptionalString(value: string | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeContactName(name: string | null, userid: string | null, openUserid: string | null): string | null {
+  const normalized = normalizeOptionalString(name);
+  return normalized && !isAccountAlias(normalized, userid, openUserid) ? normalized : null;
+}
+
+function isAccountAlias(value: string | null, userid: string | null, openUserid: string | null): boolean {
+  const normalized = normalizeOptionalString(value);
+  return Boolean(normalized && (normalized === normalizeOptionalString(userid) || normalized === normalizeOptionalString(openUserid)));
 }
 
 function requireMemberRow(row: MemberIdentityRow | undefined): MemberIdentityRow {
