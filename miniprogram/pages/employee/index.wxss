@@ -493,6 +493,10 @@
   gap: 16rpx;
 }
 
+.identity-refresh {
+  margin-top: 20rpx;
+}
+
 .identity-option {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 const app = getApp();
-const { switchIdentity } = require("../../utils/auth");
+const { ensureSession, switchIdentity } = require("../../utils/auth");
 const { request, isWeComRuntime } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
@@ -78,6 +78,7 @@ Page({
     wecomSensitiveSyncing: false,
     submitting: false,
     switchingIdentity: false,
+    refreshingIdentities: false,
     currentIdentity: null,
     identities: [],
     // 初始为未登录演示态；bootstrap/登录成功后按登录态切换。
@@ -383,6 +384,28 @@ Page({
       wx.showToast({ title: error.message || "切换失败", icon: "none" });
     } finally {
       this.setData({ switchingIdentity: false });
+    }
+  },
+
+  // 重新走一次登录（企业微信内为 qy-login），把最新的企业授权/成员绑定拉回身份列表。
+  // 用于修复“企业已接入但本地还留着旧会话，看不到企业身份”的场景。
+  async refreshIdentities() {
+    if (this.data.refreshingIdentities || this.data.switchingIdentity) {
+      return;
+    }
+    if (!this.ensureLoggedIn("请先登录后刷新身份")) {
+      return;
+    }
+    this.setData({ refreshingIdentities: true });
+    try {
+      const session = await ensureSession({ force: true });
+      this.syncIdentityState(session);
+      await this.loadPreview();
+      wx.showToast({ title: "身份已刷新", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: (error && error.message) || "刷新失败，请稍后重试", icon: "none" });
+    } finally {
+      this.setData({ refreshingIdentities: false });
     }
   },
 

@@ -281,7 +281,10 @@
         <view class="icon icon-check icon--sm identity-option__check" wx:if="{{item.selected}}"></view>
       </view>
     </view>
-    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "个人名片和企业名片互不覆盖；样例仅用于展示，不会覆盖真实资料。"}}</view>
+    <view class="btn btn--soft btn--sm btn--block identity-refresh" catchtap="refreshIdentities">
+      {{refreshingIdentities ? "正在刷新身份..." : "刷新企业身份"}}
+    </view>
+    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "看不到自己的企业？企业授权接入后，点击“刷新企业身份”重新拉取。"}}</view>
   </view>
 
   <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>
