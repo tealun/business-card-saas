@@ -252,15 +252,49 @@ function cleanWecomScanQuery() {
   const url = new URL(window.location.href);
   url.searchParams.delete("code");
   url.searchParams.delete("auth_code");
+  url.searchParams.delete("error");
+  url.searchParams.delete("error_description");
+  url.searchParams.delete("errcode");
+  url.searchParams.delete("errmsg");
   url.searchParams.delete("state");
   window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+}
+
+function scanLoginFailureMessage(error) {
+  const raw = String(error?.message || error || "").trim();
+  const known = [
+    [/not installed|authorization was cancelled/i, "当前登录的企业未授权使用本应用，或企业授权已被取消"],
+    [/not an enterprise administrator|not a tenant admin/i, "当前扫码用户不是该企业的企业微信管理员，无法登录企业管理后台"],
+    [/no management permission/i, "当前扫码用户虽是企业微信管理员，但未开通应用管理权限，无法登录企业管理后台"],
+    [/administrator userid/i, "企业微信未返回可校验的管理员账号，请确认扫码账号属于当前企业"],
+    [/missing an agent id/i, "当前企业授权信息不完整，缺少企业微信应用 AgentID，请联系平台管理员重新同步授权"],
+    [/disabled/i, "当前管理员账号已在本系统中停用，请联系企业 Owner 或平台管理员"],
+    [/invalid or expired|expired/i, "扫码登录已过期或已被使用，请重新发起企业微信扫码登录"]
+  ];
+  for (const [pattern, message] of known) {
+    if (pattern.test(raw)) return message;
+  }
+  return raw || "企业微信扫码登录失败，请重新扫码";
 }
 
 async function completeWecomScanFromLocation() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code") || params.get("auth_code");
   const scanState = params.get("state");
-  if (!code || !scanState) return false;
+  const providerError = params.get("error_description") || params.get("errmsg") || params.get("error") || params.get("errcode");
+  if (providerError || scanState || code) {
+    if (!code || !scanState) {
+      const message = providerError
+        ? `企业微信扫码登录失败：${providerError}`
+        : "企业微信回跳缺少登录授权码或 state，请重新发起扫码登录";
+      sessionStorage.setItem("bc_admin_login_error", message);
+      cleanWecomScanQuery();
+      expireAdminSession(message);
+      return true;
+    }
+  } else {
+    return false;
+  }
 
   showGate("正在完成企业微信登录…");
   try {
@@ -269,7 +303,7 @@ async function completeWecomScanFromLocation() {
     cleanWecomScanQuery();
     completeLogin(result.access_token, result.admin);
   } catch (error) {
-    const message = error.message || "企业微信扫码登录失败，请重新扫码";
+    const message = scanLoginFailureMessage(error);
     sessionStorage.setItem("bc_admin_login_error", message);
     cleanWecomScanQuery();
     expireAdminSession(message);
@@ -663,9 +697,19 @@ async function loadMembers() {
     escapeHtml(maskEmail(item.email)),
     cardStatusTag(item.card_status),
     item.last_visit_at ? formatDate(item.last_visit_at) : "—",
-    linkButton("编辑", () => openMemberDrawer(item))
+    memberRowActions(item)
   ]);
   return result;
+}
+
+function memberRowActions(item) {
+  const wrap = document.createElement("div");
+  wrap.className = "row-actions";
+  wrap.append(linkButton(item.card_status === "none" ? "创建名片" : "编辑", () => openMemberDrawer(item)));
+  const nextStatus = item.card_status === "active" ? "disabled" : "active";
+  const label = item.card_status === "active" ? "停用" : "启用";
+  wrap.append(linkButton(label, () => updateMemberCardStatus(item, nextStatus), "link-btn"));
+  return wrap;
 }
 
 function cardStatusTag(status) {
@@ -707,7 +751,7 @@ async function openMemberDrawer(item) {
   state.selectedMemberId = item.member_identity_id;
   state.memberCard = card;
   drawerTitle.textContent = item.display_name;
-  drawerSubtitle.textContent = "成员名片编辑";
+  drawerSubtitle.textContent = item.card_status === "none" ? "创建成员名片" : "成员名片编辑";
   drawerBody.innerHTML = `
     <form id="cardForm" class="form-grid">
       <label><span>姓名</span><input name="display_name" required value="${escapeAttr(card.display_name || "")}" /></label>
@@ -730,7 +774,7 @@ async function openMemberDrawer(item) {
   form.show_email.checked = Boolean(card.privacy?.show_email);
   form.show_wechat.checked = Boolean(card.privacy?.show_wechat);
   form.allow_forward.checked = card.privacy?.allow_forward !== false;
-  drawerFooter.replaceChildren(actionButton("保存名片", saveMemberCard, "secondary", "tenant.member.card.write"));
+  drawerFooter.replaceChildren(actionButton(card.card_id ? "保存名片" : "创建名片", saveMemberCard, "secondary", "tenant.member.card.write"));
   showDrawer();
 }
 
@@ -766,6 +810,29 @@ async function saveMemberCard() {
   }));
   notify("名片已保存");
   closeDrawer();
+  await loadMembers();
+}
+
+async function updateMemberCardStatus(item, status) {
+  if (!requirePermission("tenant.member.card.write")) return;
+  const label = status === "active" ? "启用名片" : "停用名片";
+  const ok = await confirmAction({
+    title: `确认${label}`,
+    body: status === "active"
+      ? `将为「${item.display_name}」创建或启用默认名片。`
+      : `将停用「${item.display_name}」的默认名片，公开访问将不可用。`,
+    danger: status === "disabled"
+  });
+  if (!ok) return;
+  await run(label, () => adminRequest(`/admin/members/${encodeURIComponent(item.member_identity_id)}/card`, {
+    method: "PUT",
+    body: {
+      display_name: item.display_name,
+      title: item.title || null,
+      status
+    }
+  }));
+  notify(`${label}完成`);
   await loadMembers();
 }
 
@@ -2200,6 +2267,14 @@ async function openTenantDetail(tenantId) {
       </div>
     </section>
     <section class="drawer-section">
+      <h3>通讯录授权诊断</h3>
+      <div class="kv-list">
+        <div class="kv-row"><span>通讯录同步</span><strong>${contactSyncDiagnosticTag(item)}</strong></div>
+        <div class="kv-row"><span>最近错误</span><strong>${escapeHtml(item.last_callback?.last_error || "--")}</strong></div>
+      </div>
+      <pre class="output">${escapeHtml(JSON.stringify(item.auth_scope || {}, null, 2))}</pre>
+    </section>
+    <section class="drawer-section">
       <h3>企业规模</h3>
       <div class="drawer-metrics">
         <div class="drawer-metric"><span>成员</span><strong>${item.active_member_count}<small> / ${item.member_count}</small></strong></div>
@@ -2249,6 +2324,17 @@ async function openTenantDetail(tenantId) {
     row.append(main, side);
     return row;
   }));
+}
+
+function contactSyncDiagnosticTag(item) {
+  const lastError = String(item.last_callback?.last_error || "");
+  if (/user\/list_id|48002|通讯录读取接口/.test(lastError)) {
+    return tag("缺少通讯录读取权限或仍在使用旧授权 Token", "danger");
+  }
+  if (item.last_callback?.event_type === "contact_sync" && item.last_callback.status === "done") {
+    return tag("最近同步成功", "success");
+  }
+  return tag("需结合授权范围确认", "warning");
 }
 
 async function loadVideoFeatures() {

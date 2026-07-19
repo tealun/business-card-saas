@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { AdminWecomScanAuthService } from "./admin-wecom-scan-auth.service.js";
+import type { TenantAuthorizationSnapshot } from "../wecom/wecom-tenant-auth.repository.js";
 
 describe("AdminWecomScanAuthService", () => {
   it("creates scan login config with a one-time state and sanitized redirect path", async () => {
@@ -169,13 +170,42 @@ describe("AdminWecomScanAuthService", () => {
     expect(fixture.operationLogs.recordLoginAttempt).not.toHaveBeenCalled();
   });
 
+  it("explains when the scanned enterprise has not installed or has cancelled authorization", async () => {
+    const fixture = createFixture();
+    fixture.tenants.getByOpenCorpid.mockResolvedValueOnce(null);
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow("当前登录的企业未授权使用本应用");
+    expect(fixture.api.fetchCorpAdminList).not.toHaveBeenCalled();
+    expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+  });
+
+  it("explains when the tenant authorization is missing an agent id", async () => {
+    const fixture = createFixture();
+    fixture.tenants.getByOpenCorpid.mockResolvedValueOnce({
+      tenantId: "tenant-1",
+      corpName: "Pilot Corp",
+      openCorpid: "corp-1",
+      permanentCode: "permanent-code",
+      agentId: null,
+      authStatus: "active"
+    });
+
+    await expect(
+      fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
+    ).rejects.toThrow("当前企业授权信息不完整");
+    expect(fixture.api.fetchCorpAdminList).not.toHaveBeenCalled();
+    expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
+  });
+
   it("rejects scanned users who are not enterprise administrators", async () => {
     const fixture = createFixture();
     fixture.api.fetchCorpAdminList.mockResolvedValueOnce({ admins: [{ userid: "lisi", openUserid: null, authType: 1 }] });
 
     await expect(
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toThrow("当前扫码用户不是该企业的企业微信管理员");
     expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
     expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -196,7 +226,7 @@ describe("AdminWecomScanAuthService", () => {
 
     await expect(
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toThrow("未开通应用管理权限");
     expect(fixture.scanAdmins.upsertFromScan).not.toHaveBeenCalled();
     expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -221,7 +251,7 @@ describe("AdminWecomScanAuthService", () => {
 
     await expect(
       fixture.service.completeScan({ code: "oauth-code", state: "state-token-00000000000000000000000000000001" })
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toThrow("当前管理员账号已在本系统中停用");
     expect(fixture.sessionTokens.sign).not.toHaveBeenCalled();
     expect(fixture.operationLogs.recordLoginAttempt).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -275,7 +305,7 @@ function createFixture(overrides: { config?: Partial<{ loginSuiteId: string; adm
     >(async () => ({ admins: [{ userid: "zhangsan", openUserid: "open-zhangsan", authType: 1 }] }))
   };
   const tenants = {
-    getByOpenCorpid: jest.fn(async () => ({
+    getByOpenCorpid: jest.fn<Promise<TenantAuthorizationSnapshot | null>, [string]>(async () => ({
       tenantId: "tenant-1",
       corpName: "Pilot Corp",
       openCorpid: "corp-1",

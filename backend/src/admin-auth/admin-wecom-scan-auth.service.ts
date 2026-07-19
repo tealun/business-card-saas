@@ -81,7 +81,7 @@ export class AdminWecomScanAuthService {
   async completeScan(input: { code: string; state: string; clientIp?: string | null }): Promise<AdminLoginResponse> {
     const state = await this.states.consume(input.state.trim());
     if (!state) {
-      throw new BadRequestException("WeCom scan login state is invalid or expired");
+      throw new BadRequestException("扫码登录已过期或已被使用，请重新发起企业微信扫码登录");
     }
 
     const loginSuiteToken = await this.suiteTokens.getLoginSuiteAccessToken();
@@ -91,10 +91,10 @@ export class AdminWecomScanAuthService {
     const userid = identity.userid?.trim() || identity.openUserid;
     const tenant = await this.tenants.getByOpenCorpid(identity.openCorpid);
     if (!tenant) {
-      throw new ForbiddenException("WeCom enterprise is not installed or authorization was cancelled");
+      throw new ForbiddenException("当前登录的企业未授权使用本应用，或企业授权已被取消");
     }
     if (!tenant.agentId) {
-      throw new ServiceUnavailableException("WeCom tenant authorization is missing an agent id");
+      throw new ServiceUnavailableException("当前企业授权信息不完整，缺少企业微信应用 AgentID，请联系平台管理员重新同步授权");
     }
     if (!userid) {
       await this.recordScanLoginFailure({
@@ -104,7 +104,7 @@ export class AdminWecomScanAuthService {
         openCorpid: identity.openCorpid,
         clientIp: input.clientIp ?? null
       });
-      throw new ForbiddenException("WeCom did not return an administrator userid");
+      throw new ForbiddenException("企业微信未返回可校验的管理员账号，请确认扫码账号属于当前企业");
     }
 
     const suiteToken = await this.suiteTokens.getSuiteAccessToken();
@@ -125,7 +125,7 @@ export class AdminWecomScanAuthService {
         openCorpid: identity.openCorpid,
         clientIp: input.clientIp ?? null
       });
-      throw new ForbiddenException("WeCom user is not an enterprise administrator");
+      throw new ForbiddenException("当前扫码用户不是该企业的企业微信管理员，无法登录企业管理后台");
     }
     if (matched.authType !== 1) {
       await this.recordScanLoginFailure({
@@ -137,7 +137,7 @@ export class AdminWecomScanAuthService {
         authType: matched.authType,
         clientIp: input.clientIp ?? null
       });
-      throw new ForbiddenException("WeCom administrator has no management permission");
+      throw new ForbiddenException("当前扫码用户虽是企业微信管理员，但未开通应用管理权限，无法登录企业管理后台");
     }
 
     const admin = await this.scanAdmins.upsertFromScan({
@@ -155,7 +155,7 @@ export class AdminWecomScanAuthService {
         openCorpid: identity.openCorpid,
         clientIp: input.clientIp ?? null
       });
-      throw new ForbiddenException("Local administrator account is disabled");
+      throw new ForbiddenException("当前管理员账号已在本系统中停用，请联系企业 Owner 或平台管理员");
     }
 
     const session: AdminSession = {

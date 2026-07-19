@@ -71,8 +71,8 @@ export class WecomTenantAuthRepository {
         authorizedAt: input.authorizedAt,
         tenantId: current?.tenantId ?? String(this.memory.size + 1),
         permanentCodeEncrypted: encrypted,
-        corpAccessTokenEncrypted: current?.corpAccessTokenEncrypted ?? null,
-        corpAccessTokenExpiresAt: current?.corpAccessTokenExpiresAt ?? null
+        corpAccessTokenEncrypted: null,
+        corpAccessTokenExpiresAt: null
       };
       this.memory.set(input.openCorpid, stored);
       return this.storedToSnapshot(stored);
@@ -99,6 +99,8 @@ export class WecomTenantAuthRepository {
           agent_id = EXCLUDED.agent_id,
           auth_scope_json = EXCLUDED.auth_scope_json,
           authorized_at = EXCLUDED.authorized_at,
+          corp_access_token_encrypted = NULL,
+          corp_access_token_expires_at = NULL,
           updated_at = now()
         RETURNING id, open_corpid, name, permanent_code_encrypted, agent_id, auth_status
       `,

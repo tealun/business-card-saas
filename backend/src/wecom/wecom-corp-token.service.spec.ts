@@ -51,6 +51,25 @@ describe("WecomCorpTokenService", () => {
     });
   });
 
+  it("refreshes the corp token after enterprise reauthorization invalidates the cached token", async () => {
+    const { service, api, tenants } = createService();
+    await saveTenant(tenants, { permanentCode: "perm-old" });
+    await tenants.saveCorpAccessToken("corp-001", "cached-before-reauth", new Date("2026-07-06T10:20:00.000Z"));
+    await saveTenant(tenants, { permanentCode: "perm-new" });
+    api.nextResponse = { accessToken: "fresh-after-reauth", expiresIn: 7200 };
+
+    const result = await service.getCorpAccessToken("corp-001", new Date("2026-07-06T10:00:00.000Z"));
+
+    expect(result.accessToken).toBe("fresh-after-reauth");
+    expect(result.fromCache).toBe(false);
+    expect(api.calls).toBe(1);
+    expect(api.lastRequest).toEqual({
+      suiteAccessToken: "suite-token",
+      openCorpid: "corp-001",
+      permanentCode: "perm-new"
+    });
+  });
+
   it("fails clearly when the tenant has not been authorized", async () => {
     const { service } = createService();
 
@@ -93,13 +112,16 @@ function createService() {
   return { service, api, tenants };
 }
 
-async function saveTenant(tenants: WecomTenantAuthRepository) {
+async function saveTenant(
+  tenants: WecomTenantAuthRepository,
+  overrides: Partial<{ permanentCode: string; authInfo: unknown }> = {}
+) {
   await tenants.saveAuthorization({
     openCorpid: "corp-001",
     corpName: "Pilot Corp",
-    permanentCode: "perm-001",
+    permanentCode: overrides.permanentCode ?? "perm-001",
     agentId: "100001",
-    authInfo: null,
+    authInfo: overrides.authInfo ?? null,
     authorizedAt: new Date("2026-07-06T09:00:00.000Z")
   });
 }

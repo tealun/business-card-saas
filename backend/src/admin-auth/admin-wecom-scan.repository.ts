@@ -1,5 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
+import { defaultEmployeeCardSlug, defaultEmployeePublicId } from "../common/default-public-id.js";
 import { TenantTx } from "../database/tenant-tx.service.js";
 import type { TenantAdminRole } from "../admin-bootstrap/owner-bootstrap.repository.js";
 
@@ -23,6 +24,12 @@ interface AdminRow extends QueryResultRow {
 
 interface MemberRow extends QueryResultRow {
   id: string | number | bigint;
+  name: string;
+}
+
+interface CardRow extends QueryResultRow {
+  id: string | number | bigint;
+  public_id: string;
 }
 
 @Injectable()
@@ -50,7 +57,7 @@ export class AdminWecomScanRepository {
             userid = COALESCE(EXCLUDED.userid, member_identities.userid),
             status = 'active',
             updated_at = now()
-          RETURNING id
+          RETURNING id, name
         `,
         [input.tenantId, input.userid, input.openUserid, input.userid]
       );
@@ -74,6 +81,11 @@ export class AdminWecomScanRepository {
         if (currentAdmin.status === "disabled") {
           return currentAdmin;
         }
+        await this.ensureDefaultCard(tx, {
+          tenantId: input.tenantId,
+          memberIdentityId,
+          displayName: member.rows[0]?.name || input.userid
+        });
         const updated = await tx.query<AdminRow>(
           `
             UPDATE tenant_admins
@@ -88,6 +100,12 @@ export class AdminWecomScanRepository {
         );
         return requireAdmin(updated.rows[0]);
       }
+
+      await this.ensureDefaultCard(tx, {
+        tenantId: input.tenantId,
+        memberIdentityId,
+        displayName: member.rows[0]?.name || input.userid
+      });
 
       const hasOwner = await tx.query(
         `
@@ -160,6 +178,99 @@ export class AdminWecomScanRepository {
 
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
+  }
+
+  private async ensureDefaultCard(
+    tx: {
+      query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
+    },
+    input: {
+      tenantId: string;
+      memberIdentityId: string;
+      displayName: string;
+    }
+  ): Promise<void> {
+    const existing = await tx.query<CardRow>(
+      `
+        SELECT id, public_id
+        FROM cards
+        WHERE tenant_id = $1
+          AND member_identity_id = $2
+          AND card_type = 'primary'
+          AND deleted_at IS NULL
+        LIMIT 1
+      `,
+      [input.tenantId, input.memberIdentityId]
+    );
+    const card = existing.rows[0] ?? (await this.createDefaultCard(tx, input));
+    await tx.query(
+      `
+        INSERT INTO public_card_directory (
+          public_id,
+          tenant_id,
+          card_id,
+          status,
+          card_updated_at,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'active', now(), now(), now())
+        ON CONFLICT (public_id) DO UPDATE SET
+          status = 'active',
+          card_updated_at = now(),
+          updated_at = now()
+        WHERE public_card_directory.tenant_id = EXCLUDED.tenant_id
+          AND public_card_directory.card_id = EXCLUDED.card_id
+      `,
+      [card.public_id, input.tenantId, String(card.id)]
+    );
+  }
+
+  private async createDefaultCard(
+    tx: {
+      query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
+    },
+    input: {
+      tenantId: string;
+      memberIdentityId: string;
+      displayName: string;
+    }
+  ): Promise<CardRow> {
+    const publicId = defaultEmployeePublicId({
+      tenantId: input.tenantId,
+      memberIdentityId: input.memberIdentityId
+    });
+    const inserted = await tx.query<CardRow>(
+      `
+        INSERT INTO cards (
+          tenant_id,
+          member_identity_id,
+          public_id,
+          card_type,
+          slug,
+          display_name,
+          privacy_json,
+          status,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, 'primary', $4, $5, $6, 'active', now(), now())
+        RETURNING id, public_id
+      `,
+      [
+        input.tenantId,
+        input.memberIdentityId,
+        publicId,
+        defaultEmployeeCardSlug(input),
+        input.displayName,
+        JSON.stringify({ show_mobile: false, show_email: true, show_wechat: false, allow_forward: true })
+      ]
+    );
+    const card = inserted.rows[0];
+    if (!card) {
+      throw new Error("failed to create default WeCom scan admin card");
+    }
+    return card;
   }
 }
 
