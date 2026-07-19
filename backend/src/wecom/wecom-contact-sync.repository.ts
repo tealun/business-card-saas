@@ -98,15 +98,17 @@ export class WecomContactSyncRepository {
   }
 
   async disableStaleMembers(input: DisableStaleWecomContactMembersInput): Promise<number> {
+    // 停用判定必须保守：成员的任一标识（不分列）出现在本次名单里就算在职，
+    // 两个标识都不在名单里才停用，避免标识命名空间错位时把在职成员当离职。
+    const activeKeys = [...new Set([...input.activeOpenUserids, ...input.activeUserids])];
     if (!this.hasDatabase()) {
       const current = this.memory.get(input.tenantId) ?? [];
       let disabledCount = 0;
       const updated = current.map((user) => {
-        if (
-          user.status === "active" &&
-          ((user.openUserid && !input.activeOpenUserids.includes(user.openUserid)) ||
-            (user.userid && !input.activeUserids.includes(user.userid)))
-        ) {
+        const hasAnyId = Boolean(user.openUserid || user.userid);
+        const openUseridKnown = Boolean(user.openUserid && activeKeys.includes(user.openUserid));
+        const useridKnown = Boolean(user.userid && activeKeys.includes(user.userid));
+        if (user.status === "active" && hasAnyId && !openUseridKnown && !useridKnown) {
           disabledCount += 1;
           return { ...user, status: "disabled" as const };
         }
@@ -124,10 +126,9 @@ export class WecomContactSyncRepository {
             FROM member_identities
             WHERE tenant_id = $1
               AND status = 'active'
-              AND (
-                (open_userid IS NOT NULL AND NOT (open_userid = ANY($2::text[])))
-                OR (userid IS NOT NULL AND NOT (userid = ANY($3::text[])))
-              )
+              AND (open_userid IS NOT NULL OR userid IS NOT NULL)
+              AND (open_userid IS NULL OR NOT (open_userid = ANY($2::text[])))
+              AND (userid IS NULL OR NOT (userid = ANY($2::text[])))
           )
           UPDATE member_identities
           SET status = 'disabled',
@@ -135,7 +136,7 @@ export class WecomContactSyncRepository {
           WHERE tenant_id = $1 AND id IN (SELECT id FROM stale)
           RETURNING id
         `,
-        [input.tenantId, input.activeOpenUserids, input.activeUserids]
+        [input.tenantId, activeKeys]
       );
       const disabledIds = result.rows.map((row) => String(row.id));
       if (disabledIds.length > 0) {
@@ -229,14 +230,16 @@ export class WecomContactSyncRepository {
     tenantId: string,
     user: SyncWecomContactUser
   ): Promise<MemberIdentityRow> {
+    // 跨列匹配：登录 provisioning、授权范围兜底和通讯录接口写入的标识可能落在
+    // 不同列（open_userid/userid），任一标识命中任一列都视为同一成员，避免重复建行。
     const existing = await tx.query<MemberIdentityRow>(
       `
         SELECT id, name
         FROM member_identities
         WHERE tenant_id = $1
           AND (
-            ($2::text IS NOT NULL AND open_userid = $2)
-            OR ($3::text IS NOT NULL AND userid = $3)
+            ($2::text IS NOT NULL AND (open_userid = $2 OR userid = $2))
+            OR ($3::text IS NOT NULL AND (userid = $3 OR open_userid = $3))
           )
         ORDER BY id ASC
         LIMIT 1

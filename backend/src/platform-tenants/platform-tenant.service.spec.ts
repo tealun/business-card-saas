@@ -62,7 +62,8 @@ function createContactSync() {
       skippedCount: 1,
       disabledCount: 0,
       detailSyncedCount: 3,
-      detailMissingCount: 2
+      detailMissingCount: 2,
+      source: "contact_api" as const
     }))
   };
 }

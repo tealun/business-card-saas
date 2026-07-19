@@ -282,7 +282,8 @@ function fakeContactSync(): WecomContactSyncService {
       skippedCount: 0,
       disabledCount: 0,
       detailSyncedCount: 2,
-      detailMissingCount: 0
+      detailMissingCount: 0,
+      source: "contact_api" as const
     })
   } as WecomContactSyncService;
 }

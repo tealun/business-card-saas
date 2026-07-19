@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { WecomApiClientService, type WecomContactUserIdentity } from "./wecom-api-client.service.js";
 import { WecomContactSyncRepository } from "./wecom-contact-sync.repository.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
@@ -11,6 +11,8 @@ export interface SyncTenantContactMembersInput {
   tenantName: string;
 }
 
+export type WecomContactSyncSource = "contact_api" | "auth_scope";
+
 export interface SyncTenantContactMembersResult {
   tenantId: string;
   syncedCount: number;
@@ -18,10 +20,13 @@ export interface SyncTenantContactMembersResult {
   disabledCount: number;
   detailSyncedCount: number;
   detailMissingCount: number;
+  source: WecomContactSyncSource;
 }
 
 @Injectable()
 export class WecomContactSyncService {
+  private readonly logger = new Logger(WecomContactSyncService.name);
+
   constructor(
     private readonly tenants: WecomTenantAuthRepository,
     private readonly corpTokens: WecomCorpTokenService,
@@ -39,7 +44,10 @@ export class WecomContactSyncService {
 
     const corpToken = await this.corpTokens.getCorpAccessToken(authorization.openCorpid);
     const settings = await this.settings.get(input.tenantId);
-    const users = await this.fetchAllContactUsers(corpToken.accessToken, authorization);
+    const { users, source } = await this.fetchAllContactUsers(corpToken.accessToken, authorization);
+    this.logger.log(
+      `WeCom contact sync for tenant ${input.tenantId} used ${source} and returned ${users.length} members`
+    );
     const result = await this.repository.upsertMembers({
       tenantId: input.tenantId,
       tenantName: input.tenantName,
@@ -56,7 +64,9 @@ export class WecomContactSyncService {
       }))
     });
 
-    const disabledCount = settings.auto_disable_left_members
+    // 授权范围兜底得到的名单不完整，绝不能作为“已离职”的判定依据；
+    // 只有通讯录接口给出的完整名单才允许自动停用未出现的成员。
+    const disabledCount = settings.auto_disable_left_members && source === "contact_api"
       ? await this.repository.disableStaleMembers({
           tenantId: input.tenantId,
           activeOpenUserids: users.map((user) => user.openUserid).filter(Boolean) as string[],
@@ -70,7 +80,8 @@ export class WecomContactSyncService {
       skippedCount: result.skippedCount,
       disabledCount,
       detailSyncedCount: users.filter(hasUsefulContactDetail).length,
-      detailMissingCount: users.filter((user) => !hasUsefulContactDetail(user)).length
+      detailMissingCount: users.filter((user) => !hasUsefulContactDetail(user)).length,
+      source
     };
   }
 
@@ -79,24 +90,27 @@ export class WecomContactSyncService {
   private async fetchAllContactUsers(
     accessToken: string,
     authorization: TenantAuthorizationSnapshot
-  ): Promise<WecomContactUserIdentity[]> {
-    const users = await this.fetchVisibleUsers(accessToken, authorization);
+  ): Promise<{ users: WecomContactUserIdentity[]; source: WecomContactSyncSource }> {
+    const { users, source } = await this.fetchVisibleUsers(accessToken, authorization);
     const seen = new Set<string>();
-    return users.filter((user) => {
-      const key = user.openUserid || user.userid;
-      if (!key) return false;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    return {
+      users: users.filter((user) => {
+        const key = user.openUserid || user.userid;
+        if (!key) return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+      source
+    };
   }
 
   private async fetchVisibleUsers(
     accessToken: string,
     authorization: TenantAuthorizationSnapshot
-  ): Promise<WecomContactUserIdentity[]> {
+  ): Promise<{ users: WecomContactUserIdentity[]; source: WecomContactSyncSource }> {
     try {
-      return await this.fetchVisibleDepartmentUsers(accessToken);
+      return { users: await this.fetchVisibleDepartmentUsers(accessToken), source: "contact_api" };
     } catch (error) {
       if (!isForbiddenError(error)) {
         throw error;
@@ -107,7 +121,7 @@ export class WecomContactSyncService {
       if (!fallbackUsers.length) {
         throw error;
       }
-      return fallbackUsers;
+      return { users: fallbackUsers, source: "auth_scope" };
     }
   }
 

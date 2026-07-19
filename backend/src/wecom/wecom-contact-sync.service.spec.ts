@@ -35,7 +35,8 @@ describe("WecomContactSyncService", () => {
       skippedCount: 0,
       disabledCount: 0,
       detailSyncedCount: 1,
-      detailMissingCount: 1
+      detailMissingCount: 1,
+      source: "contact_api"
     });
     expect(api.departmentIdRequests).toEqual([{ accessToken: "corp-token" }]);
     expect(api.departmentRequests).toEqual([
@@ -140,8 +141,12 @@ describe("WecomContactSyncService", () => {
     expect(result).toMatchObject({
       syncedCount: 3,
       detailSyncedCount: 0,
-      detailMissingCount: 3
+      detailMissingCount: 3,
+      disabledCount: 0,
+      source: "auth_scope"
     });
+    // 兜底名单不完整，即使开启了自动停用也不得据此停用成员。
+    expect(repository.lastStaleInput).toBeNull();
     expect(api.authInfoRequests).toEqual([
       { suiteAccessToken: "suite-token", openCorpid: "corp-001", permanentCode: "perm-001" }
     ]);
