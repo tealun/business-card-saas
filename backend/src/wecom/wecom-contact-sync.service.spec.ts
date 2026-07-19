@@ -1,8 +1,8 @@
 import { ServiceUnavailableException } from "@nestjs/common";
 import {
   WecomApiClientService,
-  type FetchContactUserIdsRequest,
-  type FetchContactUserIdsResponse
+  type FetchDepartmentUsersRequest,
+  type WecomContactUserIdentity
 } from "./wecom-api-client.service.js";
 import {
   WecomContactSyncRepository,
@@ -16,26 +16,18 @@ import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./w
 import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 describe("WecomContactSyncService", () => {
-  it("fetches contact users across pages and upserts active members", async () => {
+  it("fetches visible department users and upserts active members", async () => {
     const { service, api, repository } = createService();
-    api.pages = [
-      {
-        users: [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }],
-        nextCursor: "cursor-2"
-      },
-      {
-        users: [{ userid: "user-002", openUserid: null, name: null, departmentIds: [] }],
-        nextCursor: null
-      }
+    api.users = [
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] },
+      { userid: "user-002", openUserid: null, name: null, departmentIds: [] },
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
     ];
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
     expect(result).toEqual({ tenantId: "tenant-001", syncedCount: 2, skippedCount: 0, disabledCount: 0 });
-    expect(api.requests).toEqual([
-      { accessToken: "corp-token", cursor: "", limit: 1000 },
-      { accessToken: "corp-token", cursor: "cursor-2", limit: 1000 }
-    ]);
+    expect(api.requests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
     expect(repository.lastInput?.users).toEqual([
       { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"], status: "active" },
       { userid: "user-002", openUserid: null, name: null, departmentIds: [], status: "active" }
@@ -64,7 +56,7 @@ describe("WecomContactSyncService", () => {
       qrcode_source: "enterprise_first",
       updated_at: null
     };
-    api.pages = [{ users: [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }], nextCursor: null }];
+    api.users = [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }];
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
@@ -101,12 +93,12 @@ class FakeCorpTokenService {
 }
 
 class FakeWecomApiClient {
-  requests: FetchContactUserIdsRequest[] = [];
-  pages: FetchContactUserIdsResponse[] = [{ users: [], nextCursor: null }];
+  requests: FetchDepartmentUsersRequest[] = [];
+  users: WecomContactUserIdentity[] = [];
 
-  async fetchContactUserIds(request: FetchContactUserIdsRequest): Promise<FetchContactUserIdsResponse> {
+  async fetchDepartmentUsers(request: FetchDepartmentUsersRequest): Promise<WecomContactUserIdentity[]> {
     this.requests.push(request);
-    return this.pages.shift() ?? { users: [], nextCursor: null };
+    return this.users;
   }
 }
 

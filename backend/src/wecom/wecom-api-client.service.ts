@@ -94,6 +94,12 @@ export interface FetchContactUserIdsResponse {
   nextCursor: string | null;
 }
 
+export interface FetchDepartmentUsersRequest {
+  accessToken: string;
+  departmentId?: string | number;
+  fetchChild?: boolean;
+}
+
 export interface FetchThirdPartyUserInfoResponse {
   openCorpid: string;
   userid: string | null;
@@ -190,6 +196,12 @@ interface WecomContactUserListPayload {
   errmsg?: string;
   next_cursor?: string;
   dept_user?: WecomContactUserPayload[];
+  userlist?: WecomContactUserPayload[];
+}
+
+interface WecomDepartmentUserListPayload {
+  errcode?: number;
+  errmsg?: string;
   userlist?: WecomContactUserPayload[];
 }
 
@@ -420,6 +432,33 @@ export class WecomApiClientService {
       })),
       nextCursor: normalizeOptionalString(payload.next_cursor)
     };
+  }
+
+  async fetchDepartmentUsers(request: FetchDepartmentUsersRequest): Promise<WecomContactUserIdentity[]> {
+    const search = new URLSearchParams({
+      access_token: request.accessToken,
+      department_id: String(request.departmentId ?? 1),
+      fetch_child: request.fetchChild === false ? "0" : "1"
+    });
+    const payload = await this.getJson<WecomDepartmentUserListPayload>(
+      "department user simplelist",
+      `/cgi-bin/user/simplelist?${search.toString()}`
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      if (payload.errcode === WECOM_API_FORBIDDEN) {
+        throw new ForbiddenException(
+          "企业微信未授权通讯录基本信息读取接口（user/simplelist），请确认服务商后台已开启通讯录基本信息只读、应用可见范围包含目标部门，并让企业重新授权。"
+        );
+      }
+      throw new BadGatewayException(`WeCom user/simplelist failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
+    }
+
+    return (payload.userlist ?? []).map((user) => ({
+      userid: normalizeOptionalString(user.userid),
+      openUserid: normalizeOptionalString(user.open_userid),
+      name: normalizeOptionalString(user.name),
+      departmentIds: Array.isArray(user.department) ? user.department.map(String) : []
+    }));
   }
 
   async fetchThirdPartyUserInfo(

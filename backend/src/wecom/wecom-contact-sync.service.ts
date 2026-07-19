@@ -17,9 +17,6 @@ export interface SyncTenantContactMembersResult {
   disabledCount: number;
 }
 
-const contactPageLimit = 1000;
-const maxContactPages = 20;
-
 @Injectable()
 export class WecomContactSyncService {
   constructor(
@@ -69,20 +66,18 @@ export class WecomContactSyncService {
   }
 
   private async fetchAllContactUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
-    const users: WecomContactUserIdentity[] = [];
-    let cursor: string | null = "";
-    for (let page = 0; page < maxContactPages; page += 1) {
-      const response = await this.api.fetchContactUserIds({
-        accessToken,
-        cursor,
-        limit: contactPageLimit
-      });
-      users.push(...response.users);
-      if (!response.nextCursor) {
-        return users;
-      }
-      cursor = response.nextCursor;
-    }
-    throw new ServiceUnavailableException("WeCom contact sync exceeded the page safety limit");
+    const users = await this.api.fetchDepartmentUsers({
+      accessToken,
+      departmentId: 1,
+      fetchChild: true
+    });
+    const seen = new Set<string>();
+    return users.filter((user) => {
+      const key = user.openUserid || user.userid;
+      if (!key) return false;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 }

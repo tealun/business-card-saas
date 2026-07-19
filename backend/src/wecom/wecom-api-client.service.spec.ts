@@ -276,6 +276,70 @@ describe("WecomApiClientService", () => {
     }
   });
 
+  it("gets visible department users with read-only contact permission", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          userlist: [
+            { userid: "user-001", open_userid: "ou-001", name: "Ada", department: [1, "2"] },
+            { userid: "user-002", department: [] }
+          ]
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchDepartmentUsers({
+      accessToken: "corp-token",
+      departmentId: 1,
+      fetchChild: true
+    });
+
+    expect(result).toEqual([
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1", "2"] },
+      { userid: "user-002", openUserid: null, name: null, departmentIds: [] }
+    ]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/cgi-bin/user/simplelist?");
+    expect(url).toContain("access_token=corp-token");
+    expect(url).toContain("department_id=1");
+    expect(url).toContain("fetch_child=1");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("maps read-only contact API permission denial to an actionable forbidden error", async () => {
+    global.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 48002,
+          errmsg: "api forbidden, hint: [1784337086555210389202947], from ip: 211.149.165.251"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    ) as unknown as typeof fetch;
+
+    try {
+      await new WecomApiClientService(new WecomConfigService()).fetchDepartmentUsers({
+        accessToken: "corp-token"
+      });
+      throw new Error("expected fetchDepartmentUsers to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect((error as Error).message).toContain("user/simplelist");
+      expect((error as Error).message).toContain("应用可见范围");
+      expect((error as Error).message).not.toContain("211.149.165.251");
+      expect((error as Error).message).not.toContain("1784337086555210389202947");
+    }
+  });
+
   it("exchanges third-party OAuth code and user ticket for avatar and QR code", async () => {
     const fetchMock = jest
       .fn()
