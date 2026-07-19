@@ -325,8 +325,7 @@ describe("WecomApiClientService", () => {
 
     const result = await new WecomApiClientService(new WecomConfigService()).fetchDepartmentUsers({
       accessToken: "corp-token",
-      departmentId: 1,
-      fetchChild: true
+      departmentId: 1
     });
 
     expect(result).toEqual([
@@ -353,8 +352,65 @@ describe("WecomApiClientService", () => {
     expect(url).toContain("/cgi-bin/user/simplelist?");
     expect(url).toContain("access_token=corp-token");
     expect(url).toContain("department_id=1");
-    expect(url).toContain("fetch_child=1");
+    expect(url).not.toContain("fetch_child");
     expect(init.body).toBeUndefined();
+  });
+
+  it("lists visible department ids from department simplelist", async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 0,
+          department_id: [
+            { id: 2, parentid: 1, order: 10 },
+            { id: 3, parentid: 2, order: 5 },
+            { id: 2, parentid: 1, order: 10 }
+          ]
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await new WecomApiClientService(new WecomConfigService()).fetchVisibleDepartmentIds({
+      accessToken: "corp-token"
+    });
+
+    expect(result).toEqual(["2", "3"]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/cgi-bin/department/simplelist?");
+    expect(url).toContain("access_token=corp-token");
+    expect(url).not.toContain("id=");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("maps department listing permission denial to an actionable forbidden error", async () => {
+    global.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 60011,
+          errmsg: "no privilege to access/modify contact/party/agent, hint: [178], from ip: 211.149.165.251"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    ) as unknown as typeof fetch;
+
+    try {
+      await new WecomApiClientService(new WecomConfigService()).fetchVisibleDepartmentIds({
+        accessToken: "corp-token"
+      });
+      throw new Error("expected fetchVisibleDepartmentIds to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect((error as Error).message).toContain("department/simplelist");
+      expect((error as Error).message).not.toContain("211.149.165.251");
+    }
   });
 
   it("gets contact user detail for synced members", async () => {
@@ -415,7 +471,8 @@ describe("WecomApiClientService", () => {
 
     try {
       await new WecomApiClientService(new WecomConfigService()).fetchDepartmentUsers({
-        accessToken: "corp-token"
+        accessToken: "corp-token",
+        departmentId: 1
       });
       throw new Error("expected fetchDepartmentUsers to fail");
     } catch (error) {

@@ -15,31 +15,16 @@ import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./w
 import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
 
 describe("WecomContactSyncService", () => {
-  it("fetches contact user ids, enriches details and upserts active members", async () => {
+  it("enumerates visible departments, dedupes members and upserts active members", async () => {
     const { service, api, repository } = createService();
-    api.departmentUsers = [
-      { userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: ["1"] },
-      { userid: "user-002", openUserid: null, name: null, departmentIds: [] },
-      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
-    ];
-    api.details.set("user-001", {
-      userid: "user-001",
-      openUserid: "ou-001",
-      name: "Ada",
-      departmentIds: ["1"],
-      title: "VP Sales",
-      mobile: "13800138000",
-      email: "ada@example.com"
-    });
-    api.details.set("user-002", {
-      userid: "user-002",
-      openUserid: null,
-      name: "Bob",
-      departmentIds: [],
-      title: null,
-      mobile: null,
-      email: null
-    });
+    api.departmentIds = ["1", "2"];
+    api.departmentUsersById.set("1", [
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] },
+      { userid: "user-002", openUserid: null, name: null, departmentIds: [] }
+    ]);
+    api.departmentUsersById.set("2", [
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1", "2"] }
+    ]);
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
@@ -48,25 +33,29 @@ describe("WecomContactSyncService", () => {
       syncedCount: 2,
       skippedCount: 0,
       disabledCount: 0,
-      detailSyncedCount: 2,
-      detailMissingCount: 0
+      detailSyncedCount: 1,
+      detailMissingCount: 1
     });
-    expect(api.departmentRequests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
+    expect(api.departmentIdRequests).toEqual([{ accessToken: "corp-token" }]);
+    expect(api.departmentRequests).toEqual([
+      { accessToken: "corp-token", departmentId: "1" },
+      { accessToken: "corp-token", departmentId: "2" }
+    ]);
     expect(repository.lastInput?.users).toEqual([
       {
         userid: "user-001",
         openUserid: "ou-001",
         name: "Ada",
         departmentIds: ["1"],
-        title: "VP Sales",
-        mobile: "13800138000",
-        email: "ada@example.com",
+        title: null,
+        mobile: null,
+        email: null,
         status: "active"
       },
       {
         userid: "user-002",
         openUserid: null,
-        name: "Bob",
+        name: null,
         departmentIds: [],
         title: null,
         mobile: null,
@@ -87,16 +76,10 @@ describe("WecomContactSyncService", () => {
 
   it("does not count account aliases as synced real member details", async () => {
     const { service, api } = createService();
-    api.departmentUsers = [{ userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: [] }];
-    api.details.set("user-001", {
-      userid: "user-001",
-      openUserid: "ou-001",
-      name: "user-001",
-      departmentIds: [],
-      title: null,
-      mobile: null,
-      email: null
-    });
+    api.departmentIds = ["1"];
+    api.departmentUsersById.set("1", [
+      { userid: "user-001", openUserid: "ou-001", name: "user-001", departmentIds: [] }
+    ]);
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
@@ -117,7 +100,10 @@ describe("WecomContactSyncService", () => {
       qrcode_source: "enterprise_first",
       updated_at: null
     };
-    api.departmentUsers = [{ userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }];
+    api.departmentIds = ["1"];
+    api.departmentUsersById.set("1", [
+      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: [] }
+    ]);
 
     const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
 
@@ -126,43 +112,27 @@ describe("WecomContactSyncService", () => {
     expect(repository.lastStaleInput).toBeNull();
   });
 
-  it("keeps basic contact sync when detail API permission is missing", async () => {
-    const { service, api, repository } = createService();
-    api.departmentUsers = [
-      { userid: "user-001", openUserid: "ou-001", name: "Ada", departmentIds: ["1"] }
-    ];
-    api.detailErrors.set("user-001", new ForbiddenException("no user/get privilege"));
+  it("propagates department listing permission errors", async () => {
+    const { service, api } = createService();
+    api.departmentIdsError = new ForbiddenException("no department/simplelist privilege");
 
-    const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
+    await expect(service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" })).rejects.toThrow(
+      "no department/simplelist privilege"
+    );
 
-    expect(result).toMatchObject({
-      syncedCount: 1,
-      detailSyncedCount: 1,
-      detailMissingCount: 0
-    });
-    expect(repository.lastInput?.users).toEqual([
-      {
-        userid: "user-001",
-        openUserid: "ou-001",
-        name: "Ada",
-        departmentIds: ["1"],
-        title: null,
-        mobile: null,
-        email: null,
-        status: "active"
-      }
-    ]);
+    expect(api.departmentRequests).toEqual([]);
   });
 
-  it("does not use user list_id when basic member listing permission is missing", async () => {
+  it("propagates member listing permission errors", async () => {
     const { service, api } = createService();
+    api.departmentIds = ["1"];
     api.departmentError = new ForbiddenException("no user/simplelist privilege");
 
     await expect(service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" })).rejects.toThrow(
       "no user/simplelist privilege"
     );
 
-    expect(api.departmentRequests).toEqual([{ accessToken: "corp-token", departmentId: 1, fetchChild: true }]);
+    expect(api.departmentRequests).toEqual([{ accessToken: "corp-token", departmentId: "1" }]);
   });
 });
 
@@ -193,34 +163,27 @@ class FakeCorpTokenService {
 }
 
 class FakeWecomApiClient {
-  departmentRequests: Array<{ accessToken: string; departmentId?: string | number; fetchChild?: boolean }> = [];
-  departmentUsers: WecomContactUserIdentity[] = [];
+  departmentIdRequests: Array<{ accessToken: string }> = [];
+  departmentIds: string[] = ["1"];
+  departmentIdsError: Error | null = null;
+  departmentRequests: Array<{ accessToken: string; departmentId: string | number }> = [];
+  departmentUsersById = new Map<string, WecomContactUserIdentity[]>();
   departmentError: Error | null = null;
-  details = new Map<string, WecomContactUserIdentity>();
-  detailErrors = new Map<string, Error>();
 
-  async fetchDepartmentUsers(request: { accessToken: string; departmentId?: string | number; fetchChild?: boolean }): Promise<WecomContactUserIdentity[]> {
+  async fetchVisibleDepartmentIds(request: { accessToken: string }): Promise<string[]> {
+    this.departmentIdRequests.push(request);
+    if (this.departmentIdsError) {
+      throw this.departmentIdsError;
+    }
+    return this.departmentIds;
+  }
+
+  async fetchDepartmentUsers(request: { accessToken: string; departmentId: string | number }): Promise<WecomContactUserIdentity[]> {
     this.departmentRequests.push(request);
     if (this.departmentError) {
       throw this.departmentError;
     }
-    return this.departmentUsers;
-  }
-
-  async fetchContactUserDetail(request: { userid: string }): Promise<WecomContactUserIdentity> {
-    const error = this.detailErrors.get(request.userid);
-    if (error) {
-      throw error;
-    }
-    return this.details.get(request.userid) ?? {
-      userid: request.userid,
-      openUserid: null,
-      name: null,
-      departmentIds: [],
-      title: null,
-      mobile: null,
-      email: null
-    };
+    return this.departmentUsersById.get(String(request.departmentId)) ?? [];
   }
 }
 

@@ -72,74 +72,28 @@ export class WecomContactSyncService {
     };
   }
 
+  // 企业微信不向第三方应用返回成员真实姓名/手机号（user/get 以 userid 代替 name），
+  // 所以这里不做逐人详情补全；真实资料由成员在小程序内完成敏感信息授权后写入。
   private async fetchAllContactUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
     const users = await this.fetchVisibleDepartmentUsers(accessToken);
     const seen = new Set<string>();
-    const visibleUsers = users.filter((user) => {
+    return users.filter((user) => {
       const key = user.openUserid || user.userid;
       if (!key) return false;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-    const enriched: WecomContactUserIdentity[] = [];
-    for (const user of visibleUsers) {
-      if (!user.userid) {
-        enriched.push(user);
-        continue;
-      }
-      const detail = await this.fetchOptionalContactUserDetail(accessToken, user);
-      enriched.push({
-        userid: detail.userid ?? user.userid,
-        openUserid: detail.openUserid ?? user.openUserid,
-        name: detail.name ?? user.name,
-        departmentIds: detail.departmentIds.length ? detail.departmentIds : user.departmentIds,
-        title: detail.title ?? user.title ?? null,
-        mobile: detail.mobile ?? user.mobile ?? null,
-        email: detail.email ?? user.email ?? null
-      });
-    }
-    return enriched;
   }
 
   private async fetchVisibleDepartmentUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
-    return this.api.fetchDepartmentUsers({
-      accessToken,
-      departmentId: 1,
-      fetchChild: true
-    });
-  }
-
-  private async fetchOptionalContactUserDetail(
-    accessToken: string,
-    user: WecomContactUserIdentity
-  ): Promise<WecomContactUserIdentity> {
-    if (!user.userid) {
-      return user;
+    const departmentIds = await this.api.fetchVisibleDepartmentIds({ accessToken });
+    const users: WecomContactUserIdentity[] = [];
+    for (const departmentId of departmentIds) {
+      users.push(...(await this.api.fetchDepartmentUsers({ accessToken, departmentId })));
     }
-    try {
-      return await this.api.fetchContactUserDetail({
-        accessToken,
-        userid: user.userid
-      });
-    } catch (error) {
-      if (isForbiddenError(error)) {
-        return user;
-      }
-      throw error;
-    }
+    return users;
   }
-
-}
-
-function isForbiddenError(error: unknown): boolean {
-  return Boolean(
-    error &&
-      typeof error === "object" &&
-      "getStatus" in error &&
-      typeof (error as { getStatus?: unknown }).getStatus === "function" &&
-      (error as { getStatus: () => number }).getStatus() === 403
-  );
 }
 
 function hasUsefulContactDetail(user: WecomContactUserIdentity): boolean {

@@ -99,8 +99,11 @@ export interface FetchContactUserIdsResponse {
 
 export interface FetchDepartmentUsersRequest {
   accessToken: string;
-  departmentId?: string | number;
-  fetchChild?: boolean;
+  departmentId: string | number;
+}
+
+export interface FetchVisibleDepartmentIdsRequest {
+  accessToken: string;
 }
 
 export interface FetchContactUserDetailRequest {
@@ -218,6 +221,16 @@ interface WecomDepartmentUserListPayload {
   errcode?: number;
   errmsg?: string;
   userlist?: WecomContactUserPayload[];
+}
+
+interface WecomDepartmentSimpleListPayload {
+  errcode?: number;
+  errmsg?: string;
+  department_id?: Array<{
+    id?: number | string;
+    parentid?: number | string;
+    order?: number;
+  }>;
 }
 
 type WecomContactUserDetailPayload = WecomContactUserPayload & {
@@ -460,11 +473,35 @@ export class WecomApiClientService {
     };
   }
 
+  async fetchVisibleDepartmentIds(request: FetchVisibleDepartmentIdsRequest): Promise<string[]> {
+    // id 不填时返回应用权限范围内的全部部门；第三方应用可见范围之外的部门不会出现。
+    const search = new URLSearchParams({ access_token: request.accessToken });
+    const payload = await this.getJson<WecomDepartmentSimpleListPayload>(
+      "department simplelist",
+      `/cgi-bin/department/simplelist?${search.toString()}`
+    );
+    if (payload.errcode && payload.errcode !== 0) {
+      if (isWecomPermissionDenied(payload.errcode)) {
+        throw new ForbiddenException(
+          "企业微信未授权部门列表接口（department/simplelist），请确认企业授权时选择的通讯录范围至少包含一个部门，并让企业重新授权。"
+        );
+      }
+      throw new BadGatewayException(
+        `WeCom department/simplelist failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim()
+      );
+    }
+
+    const ids = (payload.department_id ?? [])
+      .map((department) => (department.id === undefined || department.id === null ? "" : String(department.id).trim()))
+      .filter(Boolean);
+    return [...new Set(ids)];
+  }
+
   async fetchDepartmentUsers(request: FetchDepartmentUsersRequest): Promise<WecomContactUserIdentity[]> {
+    // user/simplelist 已取消 fetch_child 语义，只返回该部门直属成员；调用方需逐部门枚举。
     const search = new URLSearchParams({
       access_token: request.accessToken,
-      department_id: String(request.departmentId ?? 1),
-      fetch_child: request.fetchChild === false ? "0" : "1"
+      department_id: String(request.departmentId)
     });
     const payload = await this.getJson<WecomDepartmentUserListPayload>(
       "department user simplelist",
