@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
@@ -63,6 +63,12 @@ export class AdminManagementController {
       requireAdminSession(request),
       updateAdminWecomSettingsRequestSchema.parse(body)
     );
+  }
+
+  @Delete("members/:memberIdentityId")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  deleteMember(@Req() request: AdminRequest, @Param("memberIdentityId") memberIdentityId: string) {
+    return this.management.deleteMember(requireAdminSession(request), memberIdentityId);
   }
 
   @Get("members/:memberIdentityId/card")

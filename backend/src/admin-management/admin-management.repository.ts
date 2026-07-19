@@ -421,6 +421,74 @@ export class AdminManagementRepository {
     });
   }
 
+  // 硬删除成员档案及其名片、访问/分发记录和账号绑定；企业微信里仍存在的成员
+  // 下次同步会重新建档。绑定了企业管理员账号的成员拒绝删除，防止删掉后台登录身份。
+  async deleteMember(
+    session: AdminSession,
+    memberIdentityId: string
+  ): Promise<"deleted" | "not_found" | "admin_bound" | null> {
+    if (!this.hasDatabase()) {
+      return null;
+    }
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const member = await tx.query(
+        `SELECT id FROM member_identities WHERE tenant_id = $1 AND id = $2`,
+        [session.tenantId, memberIdentityId]
+      );
+      if (!member.rows[0]) {
+        return "not_found" as const;
+      }
+      const adminBound = await tx.query(
+        `SELECT id FROM tenant_admins WHERE tenant_id = $1 AND member_identity_id = $2 LIMIT 1`,
+        [session.tenantId, memberIdentityId]
+      );
+      if (adminBound.rows[0]) {
+        return "admin_bound" as const;
+      }
+
+      const cards = await tx.query<{ id: string | number | bigint }>(
+        `SELECT id FROM cards WHERE tenant_id = $1 AND member_identity_id = $2`,
+        [session.tenantId, memberIdentityId]
+      );
+      const cardIds = cards.rows.map((row) => String(row.id));
+      if (cardIds.length) {
+        await tx.query(`DELETE FROM card_visits WHERE tenant_id = $1 AND card_id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+        await tx.query(`DELETE FROM card_actions WHERE tenant_id = $1 AND card_id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+        await tx.query(`DELETE FROM card_shares WHERE tenant_id = $1 AND card_id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+        await tx.query(`DELETE FROM card_style_overrides WHERE tenant_id = $1 AND card_id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+        await tx.query(`DELETE FROM public_card_directory WHERE tenant_id = $1 AND card_id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+        await tx.query(`DELETE FROM cards WHERE tenant_id = $1 AND id = ANY($2::bigint[])`, [
+          session.tenantId,
+          cardIds
+        ]);
+      }
+      await tx.query(`DELETE FROM account_identity_bindings WHERE tenant_id = $1 AND member_identity_id = $2`, [
+        session.tenantId,
+        memberIdentityId
+      ]);
+      await tx.query(`DELETE FROM member_identities WHERE tenant_id = $1 AND id = $2`, [
+        session.tenantId,
+        memberIdentityId
+      ]);
+      return "deleted" as const;
+    });
+  }
+
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse | null> {
     if (!this.hasPlatformDatabase()) {
       return null;

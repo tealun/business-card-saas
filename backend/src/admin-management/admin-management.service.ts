@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import {
   adminMemberCardResponseSchema,
+  adminMemberDeleteResponseSchema,
   adminMemberListResponseSchema,
   adminMemberSyncResponseSchema,
   adminOverviewResponseSchema,
@@ -8,6 +9,7 @@ import {
   adminSyncEventListResponseSchema,
   adminWecomSettingsResponseSchema,
   type AdminMemberCardResponse,
+  type AdminMemberDeleteResponse,
   type AdminMemberListQuery,
   type AdminMemberListResponse,
   type AdminMemberSyncResponse,
@@ -74,6 +76,28 @@ export class AdminManagementService {
         detail_synced_count: response.detail_synced_count,
         detail_missing_count: response.detail_missing_count
       }
+    });
+    return response;
+  }
+
+  async deleteMember(session: AdminSession, memberIdentityId: string): Promise<AdminMemberDeleteResponse> {
+    requireTenantAdminRole(session, "admin");
+    const outcome = await this.repository.deleteMember(session, memberIdentityId);
+    if (outcome === null || outcome === "not_found") {
+      throw new NotFoundException("tenant member not found");
+    }
+    if (outcome === "admin_bound") {
+      throw new ConflictException("该成员绑定了企业管理员账号，请先移除管理员身份后再删除");
+    }
+    const response = adminMemberDeleteResponseSchema.parse({
+      member_identity_id: memberIdentityId,
+      deleted: true
+    });
+    await this.operationLogs?.record({
+      session,
+      action: "member.delete",
+      targetType: "member_identity",
+      targetId: memberIdentityId
     });
     return response;
   }

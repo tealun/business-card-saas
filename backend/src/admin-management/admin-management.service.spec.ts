@@ -81,6 +81,41 @@ describe("AdminManagementService", () => {
     });
   });
 
+  it("deletes a member and records an operation log", async () => {
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = createService(fakeRepository(), fakeDataCallbacks(), fakeAuthorization(), operationLogs);
+
+    await expect(service.deleteMember(ownerSession(), "member-001")).resolves.toEqual({
+      member_identity_id: "member-001",
+      deleted: true
+    });
+    expect(operationLogs.record).toHaveBeenCalledWith({
+      session: ownerSession(),
+      action: "member.delete",
+      targetType: "member_identity",
+      targetId: "member-001"
+    });
+  });
+
+  it("refuses to delete members bound to a tenant admin account", async () => {
+    const repository = fakeRepository();
+    (repository as unknown as { deleteMember: () => Promise<string> }).deleteMember = async () => "admin_bound";
+    const service = createService(repository);
+
+    await expect(service.deleteMember(ownerSession(), "member-001")).rejects.toThrow("管理员");
+  });
+
+  it("rejects delete for unknown members and read-only auditors", async () => {
+    const repository = fakeRepository();
+    (repository as unknown as { deleteMember: () => Promise<string> }).deleteMember = async () => "not_found";
+    const service = createService(repository);
+
+    await expect(service.deleteMember(ownerSession(), "member-999")).rejects.toThrow(NotFoundException);
+    await expect(service.deleteMember({ ...ownerSession(), role: "auditor" }, "member-001")).rejects.toThrow(
+      ForbiddenException
+    );
+  });
+
   it("returns an empty sync event list when persistence is not configured", async () => {
     const service = createService();
 
@@ -270,7 +305,9 @@ function fakeRepository(): AdminManagementRepository {
       }
       currentCard = { ...currentCard, status: status as AdminMemberCardResponse["status"] };
       return true;
-    }
+    },
+    deleteMember: async (_session: AdminSession, memberIdentityId: string) =>
+      memberIdentityId === "member-001" ? "deleted" : "not_found"
   } as unknown as AdminManagementRepository;
 }
 

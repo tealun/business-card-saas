@@ -709,7 +709,20 @@ function memberRowActions(item) {
   const nextStatus = item.card_status === "active" ? "disabled" : "active";
   const label = item.card_status === "active" ? "停用" : "启用";
   wrap.append(linkButton(label, () => updateMemberCardStatus(item, nextStatus), "link-btn"));
+  wrap.append(linkButton("删除", () => deleteMember(item), "link-btn danger-link"));
   return wrap;
+}
+
+async function deleteMember(item) {
+  const ok = await confirmAction({
+    title: "确认删除成员",
+    body: `将永久删除「${item.display_name}」的成员档案、名片及其访问记录。若该成员仍在企业微信通讯录中，下次同步会重新建档。`,
+    danger: true
+  });
+  if (!ok) return;
+  await run("删除成员", () => adminRequest(`/admin/members/${encodeURIComponent(item.member_identity_id)}`, { method: "DELETE" }));
+  notify("成员已删除");
+  await loadMembers();
 }
 
 function cardStatusTag(status) {

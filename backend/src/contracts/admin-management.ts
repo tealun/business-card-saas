@@ -58,6 +58,11 @@ export const adminMemberSyncResponseSchema = z.object({
   detail_missing_count: z.number().int().min(0).default(0)
 });
 
+export const adminMemberDeleteResponseSchema = z.object({
+  member_identity_id: z.string(),
+  deleted: z.literal(true)
+});
+
 export const adminSyncEventRetryResponseSchema = z.object({
   retried_count: z.number().int().min(0),
   succeeded_count: z.number().int().min(0),
@@ -93,6 +98,7 @@ export type AdminMemberListQuery = z.infer<typeof adminMemberListQuerySchema>;
 export type AdminMemberCardResponse = z.infer<typeof adminMemberCardResponseSchema>;
 export type UpdateAdminMemberCardRequest = z.infer<typeof updateAdminMemberCardRequestSchema>;
 export type AdminMemberSyncResponse = z.infer<typeof adminMemberSyncResponseSchema>;
+export type AdminMemberDeleteResponse = z.infer<typeof adminMemberDeleteResponseSchema>;
 export type AdminSyncEventRetryResponse = z.infer<typeof adminSyncEventRetryResponseSchema>;
 export type AdminSyncEventSummary = z.infer<typeof adminSyncEventSummarySchema>;
 export type AdminSyncEventListResponse = z.infer<typeof adminSyncEventListResponseSchema>;
