@@ -10,6 +10,7 @@ import {
 } from "./wecom-contact-sync.repository.js";
 import { WecomContactSyncService } from "./wecom-contact-sync.service.js";
 import { WecomCorpTokenService } from "./wecom-corp-token.service.js";
+import { WecomSuiteTokenService } from "./wecom-suite-token.service.js";
 import type { WecomCorpAccessTokenResult } from "./wecom-corp-token.service.js";
 import { WecomTenantAuthRepository, type TenantAuthorizationSnapshot } from "./wecom-tenant-auth.repository.js";
 import { WecomTenantSettingsRepository } from "./wecom-tenant-settings.repository.js";
@@ -112,15 +113,43 @@ describe("WecomContactSyncService", () => {
     expect(repository.lastStaleInput).toBeNull();
   });
 
-  it("propagates department listing permission errors", async () => {
+  it("propagates department listing permission errors when the authorization scope has no members", async () => {
     const { service, api } = createService();
     api.departmentIdsError = new ForbiddenException("no department/simplelist privilege");
+    api.authInfo = { agent: [{ privilege: { allow_party: [1], allow_user: [] } }] };
 
     await expect(service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" })).rejects.toThrow(
       "no department/simplelist privilege"
     );
 
     expect(api.departmentRequests).toEqual([]);
+  });
+
+  it("falls back to authorization scope members when contact APIs are forbidden", async () => {
+    const { service, api, repository } = createService();
+    api.departmentIdsError = new ForbiddenException("no department/simplelist privilege");
+    api.authInfo = {
+      agent: [
+        { privilege: { allow_user: ["ou-001", "ou-002", "ou-001"] } },
+        { privilege: { allow_user: ["ou-003"] } }
+      ]
+    };
+
+    const result = await service.syncTenantMembers({ tenantId: "tenant-001", tenantName: "Pilot Corp" });
+
+    expect(result).toMatchObject({
+      syncedCount: 3,
+      detailSyncedCount: 0,
+      detailMissingCount: 3
+    });
+    expect(api.authInfoRequests).toEqual([
+      { suiteAccessToken: "suite-token", openCorpid: "corp-001", permanentCode: "perm-001" }
+    ]);
+    expect(repository.lastInput?.users).toEqual([
+      { userid: null, openUserid: "ou-001", name: null, departmentIds: [], title: null, mobile: null, email: null, status: "active" },
+      { userid: null, openUserid: "ou-002", name: null, departmentIds: [], title: null, mobile: null, email: null, status: "active" },
+      { userid: null, openUserid: "ou-003", name: null, departmentIds: [], title: null, mobile: null, email: null, status: "active" }
+    ]);
   });
 
   it("propagates member listing permission errors", async () => {
@@ -169,6 +198,8 @@ class FakeWecomApiClient {
   departmentRequests: Array<{ accessToken: string; departmentId: string | number }> = [];
   departmentUsersById = new Map<string, WecomContactUserIdentity[]>();
   departmentError: Error | null = null;
+  authInfo: unknown = null;
+  authInfoRequests: Array<{ suiteAccessToken: string; openCorpid: string; permanentCode: string }> = [];
 
   async fetchVisibleDepartmentIds(request: { accessToken: string }): Promise<string[]> {
     this.departmentIdRequests.push(request);
@@ -184,6 +215,22 @@ class FakeWecomApiClient {
       throw this.departmentError;
     }
     return this.departmentUsersById.get(String(request.departmentId)) ?? [];
+  }
+
+  async fetchAuthorizationInfo(request: { suiteAccessToken: string; openCorpid: string; permanentCode: string }) {
+    this.authInfoRequests.push(request);
+    return {
+      openCorpid: request.openCorpid,
+      corpName: "Pilot Corp",
+      agentId: "100001",
+      authInfo: this.authInfo
+    };
+  }
+}
+
+class FakeSuiteTokenService {
+  async getSuiteAccessToken() {
+    return { accessToken: "suite-token", expiresAt: new Date("2026-07-06T12:00:00.000Z") };
   }
 }
 
@@ -229,12 +276,14 @@ function createService() {
   const api = new FakeWecomApiClient();
   const repository = new FakeContactSyncRepository();
   const settings = new FakeTenantSettingsRepository();
+  const suiteTokens = new FakeSuiteTokenService();
   const service = new WecomContactSyncService(
     tenants as unknown as WecomTenantAuthRepository,
     corpTokens as unknown as WecomCorpTokenService,
     api as unknown as WecomApiClientService,
     repository as unknown as WecomContactSyncRepository,
-    settings as unknown as WecomTenantSettingsRepository
+    settings as unknown as WecomTenantSettingsRepository,
+    suiteTokens as unknown as WecomSuiteTokenService
   );
   return { service, tenants, api, repository, settings };
 }

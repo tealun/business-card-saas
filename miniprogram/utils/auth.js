@@ -53,10 +53,18 @@ function currentSession() {
 
 async function loginWithQyCode() {
   const code = await qyLoginCode();
+  // 企业微信内同时取 wx.login code，让后端把企业身份归并进微信个人账号；
+  // 取不到时退回仅企业登录，不阻断流程。
+  let wxCode = "";
+  try {
+    wxCode = await wxLoginCode();
+  } catch (_error) {
+    wxCode = "";
+  }
   return request("/auth/qy-login", {
     method: "POST",
     auth: false,
-    data: { code }
+    data: wxCode ? { code, wx_code: wxCode } : { code }
   });
 }
 

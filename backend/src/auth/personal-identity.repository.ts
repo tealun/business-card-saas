@@ -35,6 +35,10 @@ interface CardRow extends QueryResultRow {
   public_id: string;
 }
 
+interface BindingUpdateRow extends QueryResultRow {
+  account_id: string | number | bigint;
+}
+
 @Injectable()
 export class PersonalIdentityRepository {
   private readonly memory = new Map<string, LoginIdentity>();
@@ -122,6 +126,41 @@ export class PersonalIdentityRepository {
       return this.memoryIdentities.get(accountId) ?? [];
     }
     return this.database.transaction((tx) => this.listAccountIdentitiesInTx(accountId, tx));
+  }
+
+  // 把企业微信登录 provision 出来的企业身份归并到微信个人账号：仅当该身份还挂在
+  // “无微信标识的裸企业微信账号”上时才迁移绑定，避免抢占已绑定到他人微信的身份。
+  // 归并成功后把企业身份记为最近使用身份（从企业微信入口进入即企业语境）。
+  async adoptWecomIdentity(input: {
+    wxAccountId: string;
+    tenantId: string;
+    memberIdentityId: string;
+  }): Promise<string | null> {
+    if (!this.hasDatabase()) {
+      // 内存模式下企业身份存放在另一套 provisioning 仓库里，无法跨仓库归并。
+      return null;
+    }
+    return this.database.transaction(async (tx) => {
+      await this.setRlsContext({ accountId: input.wxAccountId, tenantId: input.tenantId }, tx);
+      const result = await tx.query<BindingUpdateRow>(
+        `
+          UPDATE account_identity_bindings b
+          SET account_id = $1
+          FROM accounts a
+          WHERE b.tenant_id = $2
+            AND b.member_identity_id = $3
+            AND a.id = b.account_id
+            AND (b.account_id = $1 OR (a.wx_unionid IS NULL AND a.primary_wx_openid IS NULL))
+          RETURNING b.account_id
+        `,
+        [input.wxAccountId, input.tenantId, input.memberIdentityId]
+      );
+      if (!result.rows[0]) {
+        return null;
+      }
+      await this.setLastIdentity({ accountId: input.wxAccountId, memberIdentityId: input.memberIdentityId }, tx);
+      return input.wxAccountId;
+    });
   }
 
   async switchIdentity(accountId: string, memberIdentityId: string): Promise<{ current: LoginIdentity; identities: LoginIdentity[] }> {

@@ -52,6 +52,45 @@ describe("PersonalIdentityRepository", () => {
     expect(setTenantCtx).toBeGreaterThan(indexOf("INSERT INTO tenants"));
   });
 
+  it("adopts a bare wecom identity into the WeChat account and marks it last-used", async () => {
+    const db = new RecordingDatabaseService();
+    const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
+
+    const adopted = await repository.adoptWecomIdentity({
+      wxAccountId: "wx-account-1",
+      tenantId: "tenant-enterprise",
+      memberIdentityId: "member-enterprise"
+    });
+
+    expect(adopted).toBe("wx-account-1");
+    const texts = db.tx.queries.map((query) => query.text);
+    const setTenantCtx = texts.findIndex((t) => t.includes("set_config") && t.includes("app.tenant_id"));
+    const bindingUpdate = texts.findIndex((t) => t.includes("UPDATE account_identity_bindings"));
+    const preferenceWrite = texts.findIndex((t) => t.includes("INSERT INTO account_preferences"));
+    expect(setTenantCtx).toBeGreaterThanOrEqual(0);
+    expect(setTenantCtx).toBeLessThan(bindingUpdate);
+    expect(preferenceWrite).toBeGreaterThan(bindingUpdate);
+    // 只归并挂在无微信标识账号上的身份，防止抢占他人微信已绑定的企业身份。
+    expect(texts[bindingUpdate]).toContain("wx_unionid IS NULL");
+    expect(texts[bindingUpdate]).toContain("primary_wx_openid IS NULL");
+  });
+
+  it("does not adopt a wecom identity already owned by another WeChat account", async () => {
+    const db = new RecordingDatabaseService();
+    db.tx.bindingUpdateRows = [];
+    const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
+
+    const adopted = await repository.adoptWecomIdentity({
+      wxAccountId: "wx-account-1",
+      tenantId: "tenant-enterprise",
+      memberIdentityId: "member-enterprise"
+    });
+
+    expect(adopted).toBeNull();
+    const texts = db.tx.queries.map((query) => query.text);
+    expect(texts.some((t) => t.includes("INSERT INTO account_preferences"))).toBe(false);
+  });
+
   it("locks the WeChat account keys before selecting or inserting an account", async () => {
     const repository = new PersonalIdentityRepository({} as DatabaseService) as unknown as {
       findOrCreateAccount(input: { openid: string; unionid: string | null }, tx: AccountCreationTransaction): Promise<string>;
@@ -130,9 +169,13 @@ class RecordingDatabaseService {
 
 class RecordingTransaction {
   readonly queries: Array<{ text: string; values?: unknown[] }> = [];
+  bindingUpdateRows: Array<{ account_id: string }> = [{ account_id: "wx-account-1" }];
 
   async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
     this.queries.push(values === undefined ? { text } : { text, values });
+    if (text.includes("UPDATE account_identity_bindings")) {
+      return { rows: this.bindingUpdateRows as T[] };
+    }
     if (text.includes("INSERT INTO accounts")) {
       return { rows: [{ id: "account-1" } as T] };
     }

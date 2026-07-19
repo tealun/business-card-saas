@@ -4,6 +4,12 @@ export const authCodeRequestSchema = z.object({
   code: z.string().min(1).max(256)
 });
 
+// 企业微信登录可附带同一小程序的 wx.login code，用于把企业身份归并进微信个人账号。
+export const qyLoginRequestSchema = z.object({
+  code: z.string().min(1).max(256),
+  wx_code: z.string().min(1).max(256).optional()
+});
+
 export const switchIdentityRequestSchema = z.object({
   member_identity_id: z.string().min(1).max(64)
 });
@@ -31,6 +37,7 @@ export const qyLoginResponseSchema = z.object({
 });
 
 export type AuthCodeRequest = z.infer<typeof authCodeRequestSchema>;
+export type QyLoginRequest = z.infer<typeof qyLoginRequestSchema>;
 export type SwitchIdentityRequest = z.infer<typeof switchIdentityRequestSchema>;
 export type IdentitySummary = z.infer<typeof identitySummarySchema>;
 export type QyLoginResponse = z.infer<typeof qyLoginResponseSchema>;

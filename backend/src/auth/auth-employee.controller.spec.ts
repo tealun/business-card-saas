@@ -140,6 +140,23 @@ describe("Auth and employee card flow", () => {
     expect(card.privacy.show_mobile).toBe(false);
   });
 
+  it("accepts qy-login with an optional wx_code for account linking", async () => {
+    const loginResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/qy-login",
+      payload: { code: "demo-qy-code", wx_code: "demo-wx-code" }
+    });
+
+    expect(loginResponse.statusCode).toBe(201);
+    const login = dataOf<{
+      access_token: string;
+      current_identity: { identity_type: string; open_userid: string };
+    }>(loginResponse.body);
+    expect(login.access_token).toBeTruthy();
+    expect(login.current_identity.identity_type).toBe("wecom_member");
+    expect(login.current_identity.open_userid).toBe("ou_demo0001");
+  });
+
   it("logs in from WeChat and creates a personal card identity", async () => {
     const loginResponse = await app.inject({
       method: "POST",

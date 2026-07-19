@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   qyLoginResponseSchema,
   type AuthCodeRequest,
+  type QyLoginRequest,
   type QyLoginResponse,
   type SwitchIdentityRequest
 } from "../contracts/auth.js";
@@ -20,13 +21,32 @@ export class AuthService {
     private readonly personalIdentities: PersonalIdentityRepository
   ) {}
 
-  async qyLogin(request: AuthCodeRequest): Promise<QyLoginResponse> {
+  async qyLogin(request: QyLoginRequest): Promise<QyLoginResponse> {
     const identity = await this.repository.resolveQyCode(request.code);
+    const linkedAccountId = request.wx_code ? await this.tryLinkWxAccount(identity, request.wx_code) : null;
+    const accountId = linkedAccountId ?? identity.accountId;
+    const boundIdentity = { ...identity, accountId };
     const { current, identities } = await this.personalIdentities.preferredAccountIdentity(
-      identity.accountId,
+      accountId,
       identity.memberIdentityId
     );
-    return this.loginResponse(current ?? identity, identities.length ? identities : [identity]);
+    return this.loginResponse(current ?? boundIdentity, identities.length ? identities : [boundIdentity]);
+  }
+
+  // 企业微信内同时携带 wx.login code 时，把企业身份归并进该微信个人账号，
+  // 让企业/微信两个入口共享同一份身份列表。归并失败不阻断企业登录。
+  private async tryLinkWxAccount(identity: LoginIdentity, wxCode: string): Promise<string | null> {
+    try {
+      const wxSession = await this.wxMiniProgramLogin.resolveJsCode(wxCode);
+      const { current } = await this.personalIdentities.provisionFromWxSession(wxSession);
+      return await this.personalIdentities.adoptWecomIdentity({
+        wxAccountId: current.accountId,
+        tenantId: identity.tenantId,
+        memberIdentityId: identity.memberIdentityId
+      });
+    } catch {
+      return null;
+    }
   }
 
   async wxLogin(request: AuthCodeRequest): Promise<QyLoginResponse> {

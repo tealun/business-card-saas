@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { authCodeRequestSchema, switchIdentityRequestSchema } from "../contracts/auth.js";
+import { authCodeRequestSchema, qyLoginRequestSchema, switchIdentityRequestSchema } from "../contracts/auth.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { AuthService } from "./auth.service.js";
 
@@ -13,7 +13,7 @@ export class AuthController {
   // shared-IP-safe ceiling; many coworkers can legitimately sit behind one NAT.
   @Throttle({ default: { ttl: 60_000, limit: 120 } })
   qyLogin(@Body() body: unknown) {
-    return this.auth.qyLogin(authCodeRequestSchema.parse(body));
+    return this.auth.qyLogin(qyLoginRequestSchema.parse(body));
   }
 
   @Post("wx-login")
