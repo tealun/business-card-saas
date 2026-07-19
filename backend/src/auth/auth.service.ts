@@ -26,11 +26,11 @@ export class AuthService {
     const linkedAccountId = request.wx_code ? await this.tryLinkWxAccount(identity, request.wx_code) : null;
     const accountId = linkedAccountId ?? identity.accountId;
     const boundIdentity = { ...identity, accountId };
-    const { current, identities } = await this.personalIdentities.preferredAccountIdentity(
+    const { current, identities } = await this.personalIdentities.loginAccountIdentity(
       accountId,
-      identity.memberIdentityId
+      boundIdentity
     );
-    return this.loginResponse(current ?? boundIdentity, identities.length ? identities : [boundIdentity]);
+    return this.loginResponse(current, identities);
   }
 
   // 企业微信内同时携带 wx.login code 时，把企业身份归并进该微信个人账号，

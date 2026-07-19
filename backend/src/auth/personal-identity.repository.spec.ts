@@ -29,6 +29,30 @@ describe("PersonalIdentityRepository", () => {
     ]);
   });
 
+  it("uses the current login identity over a stale personal preference", async () => {
+    const db = new LoginIdentityDatabaseService();
+    const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
+
+    const result = await repository.loginAccountIdentity("acct-1", {
+      accountId: "acct-1",
+      identityType: "wecom_member",
+      tenantId: "tenant-enterprise",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-enterprise",
+      displayName: "Ada",
+      openUserid: "ou-1",
+      publicId: "pub_enterprise"
+    });
+
+    expect(result.current.memberIdentityId).toBe("member-enterprise");
+    expect(result.current.identityType).toBe("wecom_member");
+    expect(db.tx.queries.some((query) => query.text.includes("INSERT INTO account_preferences"))).toBe(true);
+    expect(db.tx.queries.find((query) => query.text.includes("INSERT INTO account_preferences"))?.values).toEqual([
+      "acct-1",
+      "member-enterprise"
+    ]);
+  });
+
   it("sets RLS tenant/account context before writing to any RLS-protected table", async () => {
     const db = new RecordingDatabaseService();
     const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
@@ -153,6 +177,47 @@ class FakeTransaction {
             default_member_identity_id: "member-personal"
           } as T
         ]
+      };
+    }
+    return { rows: [] };
+  }
+}
+
+class LoginIdentityDatabaseService {
+  readonly tx = new LoginIdentityTransaction();
+
+  async transaction<T>(callback: (tx: LoginIdentityTransaction) => Promise<T>): Promise<T> {
+    return callback(this.tx);
+  }
+}
+
+class LoginIdentityTransaction {
+  readonly queries: Array<{ text: string; values?: unknown[] }> = [];
+
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    this.queries.push(values === undefined ? { text } : { text, values });
+    if (text.includes("FROM account_identity_bindings b")) {
+      return {
+        rows: [
+          {
+            tenant_id: "tenant-personal",
+            tenant_name: "涓汉鍚嶇墖",
+            tenant_type: "personal",
+            member_identity_id: "member-personal",
+            display_name: "鎴戠殑鍚嶇墖",
+            open_userid: "wx:openid-1",
+            public_id: "pub_personal"
+          },
+          {
+            tenant_id: "tenant-enterprise",
+            tenant_name: "Pilot Corp",
+            tenant_type: "enterprise",
+            member_identity_id: "member-enterprise",
+            display_name: "Ada",
+            open_userid: "ou-1",
+            public_id: "pub_enterprise"
+          }
+        ] as T[]
       };
     }
     return { rows: [] };

@@ -121,6 +121,25 @@ export class PersonalIdentityRepository {
     });
   }
 
+  async loginAccountIdentity(
+    accountId: string,
+    fallbackIdentity: LoginIdentity
+  ): Promise<{ current: LoginIdentity; identities: LoginIdentity[] }> {
+    if (!this.hasDatabase()) {
+      const identities = this.memoryIdentities.get(accountId) ?? [];
+      const current = identities.find((identity) => identity.memberIdentityId === fallbackIdentity.memberIdentityId)
+        ?? fallbackIdentity;
+      return { current, identities: identities.length ? identities : [current] };
+    }
+    return this.database.transaction(async (tx) => {
+      const identities = await this.listAccountIdentitiesInTx(accountId, tx);
+      const current = identities.find((identity) => identity.memberIdentityId === fallbackIdentity.memberIdentityId)
+        ?? fallbackIdentity;
+      await this.setLastIdentity({ accountId, memberIdentityId: current.memberIdentityId }, tx);
+      return { current, identities: identities.length ? identities : [current] };
+    });
+  }
+
   async listAccountIdentities(accountId: string): Promise<LoginIdentity[]> {
     if (!this.hasDatabase()) {
       return this.memoryIdentities.get(accountId) ?? [];

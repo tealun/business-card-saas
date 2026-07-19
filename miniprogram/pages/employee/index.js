@@ -106,6 +106,13 @@ Page({
   },
 
   async bootstrap() {
+    if (shouldRefreshWeComSession(app.globalData.currentIdentity)) {
+      try {
+        await ensureSession({ force: true });
+      } catch (_error) {
+        // Keep the existing session visible if the enterprise refresh cannot complete.
+      }
+    }
     const hasSession = Boolean(app.globalData.token && app.globalData.currentIdentity);
     if (!hasSession) {
       this.setData({
@@ -733,6 +740,10 @@ function fallbackCardFromIdentity(identity) {
     fields: {},
     status: "active"
   };
+}
+
+function shouldRefreshWeComSession(identity) {
+  return isWeComRuntime() && identity && identity.identity_type === "personal";
 }
 
 function defaultWecomSensitiveStatus() {
