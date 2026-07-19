@@ -2328,8 +2328,8 @@ async function openTenantDetail(tenantId) {
 
 function contactSyncDiagnosticTag(item) {
   const lastError = String(item.last_callback?.last_error || "");
-  if (/user\/list_id|48002|通讯录读取接口/.test(lastError)) {
-    return tag("缺少通讯录读取权限或仍在使用旧授权 Token", "danger");
+  if (/user\/list_id|user\/simplelist|user\/get|48002|60011|通讯录读取接口/.test(lastError)) {
+    return tag("缺少通讯录权限或仍在使用旧授权 Token", "danger");
   }
   if (item.last_callback?.event_type === "contact_sync" && item.last_callback.status === "done") {
     return tag("最近同步成功", "success");
@@ -2342,7 +2342,7 @@ function memberSyncResultMessage(result) {
   const detailSynced = Number(result?.detail_synced_count || 0);
   const detailMissing = Number(result?.detail_missing_count || 0);
   if (detailMissing > 0) {
-    return `同步 ${synced} 个成员，真实详情补全 ${detailSynced} 个，${detailMissing} 个未返回真实姓名/职位。企业微信对普通第三方应用会隐藏真实通讯录信息，可改用通讯录展示组件或成员本人授权补全。`;
+    return `同步 ${synced} 个成员，真实详情补全 ${detailSynced} 个，${detailMissing} 个未返回真实姓名/职位。请确认已开启“通讯录单个信息只读”、企业已重新授权，且应用可见范围包含目标成员。`;
   }
   return `同步 ${synced} 个成员，真实详情补全 ${detailSynced} 个。`;
 }

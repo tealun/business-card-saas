@@ -69,8 +69,32 @@ describe("WecomContactSyncRepository", () => {
       null,
       null,
       null,
-      null
+      null,
+      "未填写姓名"
     ]);
+  });
+
+  it("replaces old unknown display-name placeholders with the account id fallback", async () => {
+    const tenantTx = new FakeTenantTx();
+    tenantTx.transaction.memberName = "未填写姓名";
+    const repository = new WecomContactSyncRepository(tenantTx as unknown as TenantTx);
+
+    await repository.upsertMembers({
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      users: [
+        {
+          userid: "user-001",
+          openUserid: "ou-001",
+          name: null,
+          departmentIds: ["1"],
+          status: "active"
+        }
+      ]
+    });
+
+    expect(tenantTx.transaction.memberUpdateParams?.[3]).toBe("user-001");
+    expect(tenantTx.transaction.cardUpdateParams?.[6]).toBe("user-001");
   });
 });
 

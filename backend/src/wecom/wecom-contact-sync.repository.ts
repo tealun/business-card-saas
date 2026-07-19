@@ -244,7 +244,7 @@ export class WecomContactSyncRepository {
       [tenantId, user.openUserid, user.userid]
     );
     const current = existing.rows[0];
-    const displayName = user.name ?? user.openUserid ?? user.userid ?? "WeCom Member";
+    const displayName = fallbackDisplayName(user);
     if (current) {
       const nextOpenUserid = (await this.isOpenUseridOwnedByAnotherMember(tx, tenantId, user.openUserid, current.id))
         ? null
@@ -252,7 +252,7 @@ export class WecomContactSyncRepository {
       const nextUserid = (await this.isUseridOwnedByAnotherMember(tx, tenantId, user.userid, current.id))
         ? null
         : user.userid;
-      const nextDisplayName = user.name;
+      const nextDisplayName = user.name ?? (isPlaceholderDisplayName(current.name) ? fallbackDisplayName(user) : null);
       const updated = await tx.query<MemberIdentityRow>(
         `
           UPDATE member_identities
@@ -383,7 +383,7 @@ export class WecomContactSyncRepository {
         `
           UPDATE cards
           SET display_name = CASE
-                WHEN $7 <> $6 AND (display_name = $4 OR display_name = $5 OR display_name = $6) THEN $7
+                WHEN $7 <> $6 AND (display_name = $4 OR display_name = $5 OR display_name = $6 OR display_name = $12) THEN $7
                 ELSE display_name
               END,
               title = COALESCE(title, $8),
@@ -405,7 +405,8 @@ export class WecomContactSyncRepository {
           input.title,
           phoneEncrypted,
           emailEncrypted,
-          fields
+          fields,
+          "未填写姓名"
         ]
       );
       await this.upsertPublicDirectory(tx, {
@@ -543,6 +544,15 @@ function normalizeContactName(name: string | null, userid: string | null, openUs
 function isAccountAlias(value: string | null, userid: string | null, openUserid: string | null): boolean {
   const normalized = normalizeOptionalString(value);
   return Boolean(normalized && (normalized === normalizeOptionalString(userid) || normalized === normalizeOptionalString(openUserid)));
+}
+
+function fallbackDisplayName(user: SyncWecomContactUser): string {
+  return user.name ?? user.userid ?? user.openUserid ?? "WeCom Member";
+}
+
+function isPlaceholderDisplayName(value: string | null): boolean {
+  const normalized = normalizeOptionalString(value);
+  return normalized === "未填写姓名" || normalized === "WeCom Member";
 }
 
 function requireMemberRow(row: MemberIdentityRow | undefined): MemberIdentityRow {

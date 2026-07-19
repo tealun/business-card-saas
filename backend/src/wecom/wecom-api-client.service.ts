@@ -254,6 +254,7 @@ interface WecomThirdPartyUserDetailPayload {
 }
 
 const WECOM_API_FORBIDDEN = 48002;
+const WECOM_API_NO_PRIVILEGE = 60011;
 
 @Injectable()
 export class WecomApiClientService {
@@ -430,9 +431,9 @@ export class WecomApiClientService {
       }
     );
     if (payload.errcode && payload.errcode !== 0) {
-      if (payload.errcode === WECOM_API_FORBIDDEN) {
+      if (isWecomPermissionDenied(payload.errcode)) {
         throw new ForbiddenException(
-          "企业微信未授权通讯录读取接口（user/list_id），请在服务商后台确认通讯录读取范围并让企业重新授权；无通讯录权限时仅支持管理员扫码按需建档。"
+          "企业微信未授权通讯录成员 ID 读取接口（user/list_id），请确认服务商后台已开启通讯录单个信息只读、企业已用管理员授权模式重新授权，且应用可见范围包含目标成员。"
         );
       }
       throw new BadGatewayException(`WeCom user/list_id failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
@@ -461,7 +462,7 @@ export class WecomApiClientService {
       `/cgi-bin/user/simplelist?${search.toString()}`
     );
     if (payload.errcode && payload.errcode !== 0) {
-      if (payload.errcode === WECOM_API_FORBIDDEN) {
+      if (isWecomPermissionDenied(payload.errcode)) {
         throw new ForbiddenException(
           "企业微信未授权通讯录基本信息读取接口（user/simplelist），请确认服务商后台已开启通讯录基本信息只读、应用可见范围包含目标部门，并让企业重新授权。"
         );
@@ -487,9 +488,9 @@ export class WecomApiClientService {
     });
     const payload = await this.getJson<WecomContactUserDetailPayload>("contact user get", `/cgi-bin/user/get?${search.toString()}`);
     if (payload.errcode && payload.errcode !== 0) {
-      if (payload.errcode === WECOM_API_FORBIDDEN) {
+      if (isWecomPermissionDenied(payload.errcode)) {
         throw new ForbiddenException(
-          "企业微信未授权通讯录成员详情接口（user/get），请确认服务商后台已开启通讯录基本信息只读、应用可见范围包含目标成员，并让企业重新授权。"
+          "企业微信未授权通讯录成员详情接口（user/get），请确认服务商后台已开启通讯录单个信息只读、企业已用管理员授权模式重新授权，且应用可见范围包含目标成员。"
         );
       }
       throw new BadGatewayException(`WeCom user/get failed: ${payload.errcode} ${payload.errmsg ?? ""}`.trim());
@@ -680,6 +681,10 @@ function delay(ms: number): Promise<void> {
 function normalizeOptionalString(value: string | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function isWecomPermissionDenied(errcode: number): boolean {
+  return errcode === WECOM_API_FORBIDDEN || errcode === WECOM_API_NO_PRIVILEGE;
 }
 
 function normalizeAppId(value: string | number): string | number {

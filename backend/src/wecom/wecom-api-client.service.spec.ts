@@ -269,10 +269,38 @@ describe("WecomApiClientService", () => {
       throw new Error("expected fetchContactUserIds to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(ForbiddenException);
-      expect((error as Error).message).toContain("通讯录读取接口");
+      expect((error as Error).message).toContain("成员 ID 读取接口");
       expect((error as Error).message).toContain("user/list_id");
       expect((error as Error).message).not.toContain("211.149.165.251");
       expect((error as Error).message).not.toContain("1784337086555210389202947");
+    }
+  });
+
+  it("maps WeCom no-privilege contact errors without leaking hint metadata", async () => {
+    global.fetch = jest.fn(async () =>
+      new Response(
+        JSON.stringify({
+          errcode: 60011,
+          errmsg:
+            "no privilege to access/modify contact/party/agent, hint: [1784433208486501271906601], from ip: 211.149.165.251"
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      )
+    ) as unknown as typeof fetch;
+
+    try {
+      await new WecomApiClientService(new WecomConfigService()).fetchContactUserIds({
+        accessToken: "corp-token"
+      });
+      throw new Error("expected fetchContactUserIds to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ForbiddenException);
+      expect((error as Error).message).toContain("user/list_id");
+      expect((error as Error).message).not.toContain("211.149.165.251");
+      expect((error as Error).message).not.toContain("1784433208486501271906601");
     }
   });
 

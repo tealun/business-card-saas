@@ -43,7 +43,10 @@ describe("AdminConfigService", () => {
     });
 
     expect(fields.fields.find((field) => field.field_key === "display_name")?.locked).toBe(true);
-    expect(fields.fields.find((field) => field.field_key === "website")?.employee_editable).toBe(true);
+    expect(fields.fields.find((field) => field.field_key === "website")?.employee_editable).toBe(false);
+    expect(fields.fields.find((field) => field.field_key === "title")?.employee_editable).toBe(true);
+    expect(fields.fields.find((field) => field.field_key === "department")?.employee_editable).toBe(true);
+    expect(fields.fields.find((field) => field.field_key === "mobile")?.employee_editable).toBe(true);
     expect(profile.display_name).toBe("Pilot Corp Updated");
     expect(profile.website_url).toBe("https://example.com");
   });

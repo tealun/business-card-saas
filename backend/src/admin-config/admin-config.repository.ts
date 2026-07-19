@@ -710,8 +710,8 @@ function defaultFieldRules(): AdminFieldRule[] {
     { field_key: "avatar_url", label: "头像", locked: false, employee_editable: true, default_visible: true },
     { field_key: "display_name", label: "姓名", locked: false, employee_editable: true, default_visible: true },
     { field_key: "title", label: "职位", locked: false, employee_editable: true, default_visible: true },
-    { field_key: "company", label: "公司全称", locked: false, employee_editable: true, default_visible: true },
-    { field_key: "company_short_name", label: "公司简称", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "company", label: "公司全称", locked: true, employee_editable: false, default_visible: true },
+    { field_key: "company_short_name", label: "公司简称", locked: true, employee_editable: false, default_visible: true },
     { field_key: "department", label: "部门", locked: false, employee_editable: true, default_visible: true },
     { field_key: "mobile", label: "手机", locked: false, employee_editable: true, default_visible: false },
     { field_key: "phone", label: "座机", locked: false, employee_editable: true, default_visible: true },
@@ -720,7 +720,7 @@ function defaultFieldRules(): AdminFieldRule[] {
     { field_key: "wechat_qrcode_url", label: "个人微信二维码", locked: false, employee_editable: true, default_visible: false },
     { field_key: "wecom_qrcode_url", label: "企业微信二维码", locked: false, employee_editable: true, default_visible: false },
     { field_key: "address", label: "地址", locked: false, employee_editable: true, default_visible: true },
-    { field_key: "website", label: "官网", locked: false, employee_editable: true, default_visible: true }
+    { field_key: "website", label: "官网", locked: true, employee_editable: false, default_visible: true }
   ];
 }
 
