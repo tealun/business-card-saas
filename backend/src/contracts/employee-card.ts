@@ -31,7 +31,8 @@ export const employeeCardResponseSchema = z.object({
     wechat_qrcode_url: imageSourceSchema.nullable().optional(),
     wecom_qrcode_url: imageSourceSchema.nullable().optional(),
     address: z.string().nullable().optional(),
-    website: z.string().url().nullable().optional()
+    website: z.string().url().nullable().optional(),
+    wecom_sensitive_synced_at: z.string().datetime().nullable().optional()
   }),
   status: z.enum(["active", "disabled"]),
   privacy: z.object({
@@ -109,6 +110,15 @@ export const employeeWechatQrCodeResponseSchema = z.object({
   cached: z.boolean()
 });
 
+export const employeeWecomSensitiveStatusResponseSchema = z.object({
+  eligible: z.boolean(),
+  authorized: z.boolean(),
+  should_authorize: z.boolean(),
+  can_authorize: z.boolean(),
+  synced_fields: z.array(z.enum(["profile", "avatar", "qrcode"])),
+  message: z.string()
+});
+
 export const employeeCardStatsResponseSchema = z.object({
   visitor_count: z.number().int().nonnegative(),
   visit_count: z.number().int().nonnegative(),
@@ -138,3 +148,4 @@ export type UpdateEmployeeCardStyleRequest = z.infer<typeof updateEmployeeCardSt
 export type EmployeeCardPreviewResponse = z.infer<typeof publicCardResponseSchema>;
 export type UpdateWechatQrCodeRequest = z.infer<typeof updateWechatQrCodeRequestSchema>;
 export type EmployeeWechatQrCodeResponse = z.infer<typeof employeeWechatQrCodeResponseSchema>;
+export type EmployeeWecomSensitiveStatusResponse = z.infer<typeof employeeWecomSensitiveStatusResponseSchema>;

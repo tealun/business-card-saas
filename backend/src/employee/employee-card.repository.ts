@@ -5,6 +5,7 @@ import type {
   EmployeeCardResponse,
   EmployeeCardStatsResponse,
   EmployeeWechatQrCodeResponse,
+  EmployeeWecomSensitiveStatusResponse,
   UpdateEmployeeCardRequest,
   UpdateEmployeeCardStyleRequest
 } from "../contracts/employee-card.js";
@@ -345,6 +346,33 @@ export class EmployeeCardRepository {
     };
   }
 
+  async getWecomSensitiveStatus(session: EmployeeSession): Promise<EmployeeWecomSensitiveStatusResponse> {
+    if (session.identityType !== "wecom_member") {
+      return {
+        eligible: false,
+        authorized: false,
+        should_authorize: false,
+        can_authorize: false,
+        synced_fields: [],
+        message: "当前不是企业名片，无需同步企业微信资料"
+      };
+    }
+    const card = await this.getCurrentCard(session);
+    const syncedFields: EmployeeWecomSensitiveStatusResponse["synced_fields"] = [];
+    if (hasSensitiveProfile(card, session)) syncedFields.push("profile");
+    if (card.avatar_url) syncedFields.push("avatar");
+    if (card.fields.wecom_qrcode_url) syncedFields.push("qrcode");
+    const authorized = Boolean(card.fields.wecom_sensitive_synced_at);
+    return {
+      eligible: true,
+      authorized,
+      should_authorize: !authorized,
+      can_authorize: true,
+      synced_fields: syncedFields,
+      message: authorized ? "企业微信资料已授权同步" : "需要授权同步企业微信个人资料"
+    };
+  }
+
   async updateWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<EmployeeWechatQrCodeResponse> {
     const settings = await this.readEmployeeWecomSettings(session);
     if (session.identityType !== "personal" && !settings.allowEmployeeWecomQrCodeUpload) {
@@ -392,7 +420,14 @@ export class EmployeeCardRepository {
 
   async syncWecomSensitiveProfile(
     session: EmployeeSession,
-    profile: { avatarUrl: string | null; qrCodeUrl: string | null }
+    profile: {
+      name: string | null;
+      title: string | null;
+      mobile: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+      qrCodeUrl: string | null;
+    }
   ): Promise<EmployeeCardResponse> {
     const card = await this.getCurrentCard(session);
     const settings = await this.readEmployeeWecomSettings(session);
@@ -404,19 +439,34 @@ export class EmployeeCardRepository {
       : profile.qrCodeUrl;
     const next: EmployeeCardResponse = {
       ...card,
+      display_name: profile.name ?? card.display_name,
+      title: profile.title ?? card.title,
       avatar_url: avatarUrl ?? card.avatar_url,
       fields: {
         ...card.fields,
-        wecom_qrcode_url: settings.qrcodeSource === "employee_upload_only" ? card.fields.wecom_qrcode_url ?? null : qrCodeUrl ?? card.fields.wecom_qrcode_url ?? null
+        mobile: profile.mobile ?? card.fields.mobile,
+        email: profile.email ?? card.fields.email,
+        wecom_qrcode_url: settings.qrcodeSource === "employee_upload_only" ? card.fields.wecom_qrcode_url ?? null : qrCodeUrl ?? card.fields.wecom_qrcode_url ?? null,
+        wecom_sensitive_synced_at: new Date().toISOString()
       }
     };
     if (this.hasDatabase()) {
       await this.tenantTx!.run(session.tenantId, async (tx) => {
         await tx.query(
           `UPDATE cards
-           SET avatar_url = $3, fields_encrypted = $4, updated_at = now()
+           SET display_name = $3,
+               title = $4,
+               avatar_url = $5,
+               fields_encrypted = $6,
+               updated_at = now()
            WHERE tenant_id = $1 AND id = $2`,
-          [session.tenantId, card.card_id, next.avatar_url, this.encryptJson(next.fields)]
+          [session.tenantId, card.card_id, next.display_name, next.title, next.avatar_url, this.encryptJson(next.fields)]
+        );
+        await tx.query(
+          `UPDATE member_identities
+           SET name = $3, updated_at = now()
+           WHERE tenant_id = $1 AND id = $2`,
+          [session.tenantId, session.memberIdentityId, next.display_name]
         );
       });
     } else {
@@ -1121,8 +1171,18 @@ function defaultFields(): CardFields {
     wechat_qrcode_url: null,
     wecom_qrcode_url: null,
     address: null,
-    website: null
+    website: null,
+    wecom_sensitive_synced_at: null
   };
+}
+
+function hasSensitiveProfile(card: EmployeeCardResponse, session: EmployeeSession): boolean {
+  return Boolean(
+    (card.display_name && card.display_name !== session.openUserid) ||
+      card.title ||
+      card.fields.mobile ||
+      card.fields.email
+  );
 }
 
 function normalizeFields(value: unknown): CardFields {
@@ -1138,7 +1198,8 @@ function normalizeFields(value: unknown): CardFields {
     wechat_qrcode_url: typeof record.wechat_qrcode_url === "string" ? record.wechat_qrcode_url : null,
     wecom_qrcode_url: typeof record.wecom_qrcode_url === "string" ? record.wecom_qrcode_url : null,
     address: typeof record.address === "string" ? record.address : null,
-    website: typeof record.website === "string" ? record.website : null
+    website: typeof record.website === "string" ? record.website : null,
+    wecom_sensitive_synced_at: typeof record.wecom_sensitive_synced_at === "string" ? record.wecom_sensitive_synced_at : null
   };
 }
 

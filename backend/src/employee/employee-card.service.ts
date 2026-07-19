@@ -3,6 +3,7 @@ import {
   employeeCardResponseSchema,
   employeeCardStatsResponseSchema,
   employeeWechatQrCodeResponseSchema,
+  employeeWecomSensitiveStatusResponseSchema,
   employeeShareResponseSchema,
   updateEmployeeCardStyleRequestSchema,
   updateEmployeeCardRequestSchema,
@@ -11,6 +12,7 @@ import {
   type EmployeeCardResponse,
   type EmployeeCardStatsResponse,
   type EmployeeWechatQrCodeResponse,
+  type EmployeeWecomSensitiveStatusResponse,
   type EmployeeShareResponse,
   type UpdateEmployeeCardStyleRequest,
   type UpdateEmployeeCardRequest,
@@ -64,6 +66,10 @@ export class EmployeeCardService {
     return employeeWechatQrCodeResponseSchema.parse(await this.repository.getWechatQrCode(session));
   }
 
+  async getWecomSensitiveStatus(session: EmployeeSession): Promise<EmployeeWecomSensitiveStatusResponse> {
+    return employeeWecomSensitiveStatusResponseSchema.parse(await this.repository.getWecomSensitiveStatus(session));
+  }
+
   async updateWechatQrCode(session: EmployeeSession, request: UpdateWechatQrCodeRequest): Promise<EmployeeWechatQrCodeResponse> {
     const parsed = updateWechatQrCodeRequestSchema.parse(request);
     const result = employeeWechatQrCodeResponseSchema.parse(await this.repository.updateWechatQrCode(session, parsed.qrcode_url));
@@ -73,7 +79,14 @@ export class EmployeeCardService {
 
   async syncWecomSensitiveProfile(
     session: EmployeeSession,
-    profile: { avatarUrl: string | null; qrCodeUrl: string | null }
+    profile: {
+      name: string | null;
+      title: string | null;
+      mobile: string | null;
+      email: string | null;
+      avatarUrl: string | null;
+      qrCodeUrl: string | null;
+    }
   ): Promise<EmployeeCardResponse> {
     const card = employeeCardResponseSchema.parse(await this.repository.syncWecomSensitiveProfile(session, profile));
     await this.publishPreview(await this.repository.getPreview(session));

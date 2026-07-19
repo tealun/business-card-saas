@@ -35,6 +35,17 @@ describe("WecomSensitiveService", () => {
     );
   });
 
+  it("reports sensitive profile authorization status for the current enterprise identity", async () => {
+    const fixture = createFixture();
+
+    await expect(fixture.service.getStatus(session)).resolves.toMatchObject({
+      eligible: true,
+      authorized: true,
+      should_authorize: false
+    });
+    expect(fixture.cards.getWecomSensitiveStatus).toHaveBeenCalledWith(session);
+  });
+
   it("syncs avatar and QR code only when corp and member identities match", async () => {
     const fixture = createFixture();
 
@@ -43,6 +54,10 @@ describe("WecomSensitiveService", () => {
     expect(fixture.cards.syncWecomSensitiveProfile).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant-1", memberIdentityId: "member-1", openUserid: "open-user-1" }),
       {
+        name: "张三",
+        title: "销售总监",
+        mobile: "13800138000",
+        email: "zhangsan@example.com",
         avatarUrl: "https://images.example.com/avatar.png",
         qrCodeUrl: "https://images.example.com/qr.png"
       }
@@ -85,11 +100,25 @@ function createFixture() {
     fetchThirdPartyUserDetail: jest.fn(async () => ({
       openCorpid: "corp-1",
       openUserid: null,
+      name: "张三",
+      title: "销售总监",
+      mobile: "13800138000",
+      email: "zhangsan@example.com",
       avatarUrl: "https://images.example.com/avatar.png",
       qrCodeUrl: "https://images.example.com/qr.png"
     }))
   };
-  const cards = { syncWecomSensitiveProfile: jest.fn(async () => undefined) };
+  const cards = {
+    getWecomSensitiveStatus: jest.fn(async () => ({
+      eligible: true,
+      authorized: true,
+      should_authorize: false,
+      can_authorize: true,
+      synced_fields: ["profile"],
+      message: "企业微信资料已授权同步"
+    })),
+    syncWecomSensitiveProfile: jest.fn(async () => undefined)
+  };
   const service = new WecomSensitiveService(
     {
       suite: { suiteId: "wwsuite001" },

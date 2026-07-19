@@ -441,6 +441,10 @@ describe("WecomApiClientService", () => {
             errcode: 0,
             corpid: "corp-1",
             userid: "internal-user-1",
+            name: "张三",
+            position: "销售总监",
+            mobile: "13800138000",
+            biz_mail: "zhangsan@example.com",
             avatar: "http://images.example.com/avatar.png",
             qr_code: "https://images.example.com/qr.png"
           }),
@@ -465,6 +469,10 @@ describe("WecomApiClientService", () => {
     expect(detail).toEqual({
       openCorpid: "corp-1",
       openUserid: "internal-user-1",
+      name: "张三",
+      title: "销售总监",
+      mobile: "13800138000",
+      email: "zhangsan@example.com",
       avatarUrl: "https://images.example.com/avatar.png",
       qrCodeUrl: "https://images.example.com/qr.png"
     });

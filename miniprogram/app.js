@@ -19,6 +19,7 @@ App({
     identities: [demoIdentity(true)],
     currentCard: null,
     shareId: "",
+    wecomSensitiveAutoPrompted: {},
     visitToken: "",
     anonId: "",
     themeBrand: "",

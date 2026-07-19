@@ -235,6 +235,52 @@ describe("EmployeeCardRepository", () => {
     );
   });
 
+  it("syncs WeCom sensitive profile details and reports authorization status", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "wecom_member" as const,
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-wecom",
+      displayName: "zhangsan",
+      openUserid: "zhangsan",
+      publicId: "pub_wecom001"
+    };
+
+    await expect(repository.getWecomSensitiveStatus(session)).resolves.toMatchObject({
+      eligible: true,
+      authorized: false,
+      should_authorize: true
+    });
+
+    const card = await repository.syncWecomSensitiveProfile(session, {
+      name: "张三",
+      title: "销售总监",
+      mobile: "13800138000",
+      email: "zhangsan@example.com",
+      avatarUrl: "https://images.example.com/avatar.png",
+      qrCodeUrl: "https://images.example.com/qr.png"
+    });
+
+    expect(card).toMatchObject({
+      display_name: "张三",
+      title: "销售总监",
+      avatar_url: "https://images.example.com/avatar.png",
+      fields: {
+        mobile: "13800138000",
+        email: "zhangsan@example.com",
+        wecom_qrcode_url: "https://images.example.com/qr.png"
+      }
+    });
+    await expect(repository.getWecomSensitiveStatus(session)).resolves.toMatchObject({
+      eligible: true,
+      authorized: true,
+      should_authorize: false,
+      synced_fields: ["profile", "avatar", "qrcode"]
+    });
+  });
+
   it("keeps bundled preset card background paths without storage upload", async () => {
     const storage = {
       storeImageDataUrl: jest.fn()

@@ -1,6 +1,6 @@
 const app = getApp();
 const { switchIdentity } = require("../../utils/auth");
-const { request } = require("../../utils/api");
+const { request, isWeComRuntime } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 const { DEMO_CARD_ID, DEMO_CARD_ROUTE, demoIdentity } = require("../../utils/demo-card");
@@ -73,6 +73,9 @@ Page({
       allow_wecom_qrcode_upload: true,
       qrcode_source: "enterprise_first"
     },
+    wecomSensitive: defaultWecomSensitiveStatus(),
+    wecomSensitiveChecking: false,
+    wecomSensitiveSyncing: false,
     submitting: false,
     switchingIdentity: false,
     currentIdentity: null,
@@ -110,6 +113,7 @@ Page({
         demoMode: true,
         authState: "guest",
         loggedIn: false,
+        wecomSensitive: defaultWecomSensitiveStatus(),
         currentIdentity: demoIdentity(true),
         identities: [demoIdentity(true)],
         card: demoCard,
@@ -223,6 +227,7 @@ Page({
         authState: "logged",
         loggedIn: true,
         selfService,
+        wecomSensitive: defaultWecomSensitiveStatus(),
         // 登录后先清掉演示数据，再拉取当前身份的真实统计
         requests: [],
         stats: { visitors: 0, viewed: 0, friends: 0 },
@@ -230,6 +235,7 @@ Page({
       });
       this.prepareShareImage();
       this.loadStats();
+      this.checkWecomSensitiveAuthorization({ auto: true });
     } catch (error) {
       // 读取失败不等于登录失效：token 还在时保持登录态，只提示错误，
       // 避免把已登录用户误降级成“未登录 + 演示名片”。
@@ -241,6 +247,7 @@ Page({
           authState: "logged",
           loggedIn: true,
           card: fallbackCardFromIdentity(app.globalData.currentIdentity),
+          wecomSensitive: defaultWecomSensitiveStatus(),
           requests: [],
           stats: { visitors: 0, viewed: 0, friends: 0 },
           recentVisitors: []
@@ -276,6 +283,61 @@ Page({
     } catch (_error) {
       // 统计失败不打扰主流程，保持当前数值
     }
+  },
+
+  async checkWecomSensitiveAuthorization(options = {}) {
+    const currentIdentity = this.data.currentIdentity || {};
+    if (!this.data.loggedIn || currentIdentity.identity_type !== "wecom_member") {
+      this.setData({ wecomSensitive: defaultWecomSensitiveStatus(), wecomSensitiveChecking: false });
+      return;
+    }
+    if (this.data.wecomSensitiveChecking) {
+      return;
+    }
+    this.setData({ wecomSensitiveChecking: true });
+    try {
+      const status = await request("/wecom/member-sensitive/status");
+      this.setData({ wecomSensitive: Object.assign(defaultWecomSensitiveStatus(), status) });
+      if (
+        options.auto &&
+        status.should_authorize &&
+        status.can_authorize &&
+        isWeComRuntime() &&
+        !hasAutoPromptedWecomSensitive(currentIdentity.member_identity_id)
+      ) {
+        markAutoPromptedWecomSensitive(currentIdentity.member_identity_id);
+        this.startWecomSensitiveAuthorization({ auto: true });
+      }
+    } catch (_error) {
+      this.setData({ wecomSensitive: defaultWecomSensitiveStatus() });
+    } finally {
+      this.setData({ wecomSensitiveChecking: false });
+    }
+  },
+
+  startWecomSensitiveAuthorization(options = {}) {
+    if (!this.ensureLoggedIn("请先登录后同步企业微信资料")) {
+      return;
+    }
+    const currentIdentity = this.data.currentIdentity || {};
+    if (currentIdentity.identity_type !== "wecom_member") {
+      wx.showToast({ title: "当前不是企业名片", icon: "none" });
+      return;
+    }
+    if (!isWeComRuntime()) {
+      wx.showToast({ title: "请在企业微信中打开小程序授权", icon: "none" });
+      return;
+    }
+    if (!options.auto) {
+      markAutoPromptedWecomSensitive(currentIdentity.member_identity_id);
+    }
+    this.setData({ wecomSensitiveSyncing: true });
+    wx.navigateTo({
+      url: "/pages/wecom-sensitive/index",
+      complete: () => {
+        this.setData({ wecomSensitiveSyncing: false });
+      }
+    });
   },
 
   openIdentitySheet() {
@@ -394,6 +456,15 @@ Page({
         wx.showToast({ title: "纸质名片已选择，识别保存即将上线", icon: "none" });
       }
     });
+  },
+
+  handleWechatTool() {
+    const currentIdentity = this.data.currentIdentity || {};
+    if (currentIdentity.identity_type === "wecom_member") {
+      this.startWecomSensitiveAuthorization();
+      return;
+    }
+    this.openWechatQr();
   },
 
   async openWechatQr() {
@@ -639,6 +710,30 @@ function fallbackCardFromIdentity(identity) {
     fields: {},
     status: "active"
   };
+}
+
+function defaultWecomSensitiveStatus() {
+  return {
+    eligible: false,
+    authorized: false,
+    should_authorize: false,
+    can_authorize: false,
+    synced_fields: [],
+    message: ""
+  };
+}
+
+function hasAutoPromptedWecomSensitive(memberIdentityId) {
+  const key = String(memberIdentityId || "");
+  return Boolean(key && app.globalData.wecomSensitiveAutoPrompted && app.globalData.wecomSensitiveAutoPrompted[key]);
+}
+
+function markAutoPromptedWecomSensitive(memberIdentityId) {
+  const key = String(memberIdentityId || "");
+  if (!key) {
+    return;
+  }
+  app.globalData.wecomSensitiveAutoPrompted = Object.assign({}, app.globalData.wecomSensitiveAutoPrompted, { [key]: true });
 }
 
 function enterpriseWechatQrUrl(selfService = {}) {

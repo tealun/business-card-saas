@@ -18,6 +18,19 @@
       <view class="btn btn--sm btn--soft identity-strip__btn" bindtap="openIdentitySheet">切换</view>
     </view>
 
+    <view
+      class="wecom-sync-card"
+      wx:if="{{currentIdentity && currentIdentity.identity_type === 'wecom_member' && wecomSensitive.should_authorize}}"
+    >
+      <view class="wecom-sync-card__text">
+        <view class="wecom-sync-card__title">同步当前企业微信资料</view>
+        <view class="wecom-sync-card__desc">授权后会更新当前企业名片的姓名、职位、头像和联系方式。</view>
+      </view>
+      <view class="btn btn--sm btn--primary wecom-sync-card__btn" bindtap="startWecomSensitiveAuthorization">
+        {{wecomSensitiveSyncing ? "打开中" : "授权同步"}}
+      </view>
+    </view>
+
     <block wx:if="{{loading}}">
       <view class="card skeleton-card">
         <view class="skeleton skeleton-line skeleton-line--short"></view>
@@ -90,7 +103,7 @@
           <view class="icon icon-paper"></view>
           <text>纸质名片</text>
         </view>
-        <view class="tool-grid__item" bindtap="openWechatQr">
+        <view class="tool-grid__item" bindtap="handleWechatTool">
           <view class="icon icon-wechat"></view>
           <text>{{currentIdentity && currentIdentity.identity_type === "wecom_member" ? "同步企微资料" : "设置微信号"}}</text>
         </view>

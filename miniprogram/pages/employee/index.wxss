@@ -67,6 +67,41 @@
   flex: none;
 }
 
+.wecom-sync-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+  padding: 22rpx 24rpx;
+  border-radius: var(--r-card);
+  background: var(--brand-tint);
+  border: 1rpx solid rgba(90, 112, 200, 0.18);
+}
+
+.wecom-sync-card__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.wecom-sync-card__title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.wecom-sync-card__desc {
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.wecom-sync-card__btn {
+  width: 144rpx;
+  padding: 0;
+  flex: none;
+}
+
 .skeleton-card {
   height: 432rpx;
   display: flex;

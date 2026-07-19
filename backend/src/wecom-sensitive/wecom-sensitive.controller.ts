@@ -14,6 +14,13 @@ export class WecomSensitiveController {
     return this.sensitive.createAuthorizationUrl(request.employeeSession);
   }
 
+  @Get("status")
+  @UseGuards(EmployeeAuthGuard)
+  getStatus(@Req() request: EmployeeRequest) {
+    if (!request.employeeSession) throw new Error("employee session missing after guard");
+    return this.sensitive.getStatus(request.employeeSession);
+  }
+
   @Get("callback")
   async callback(
     @Query("code") code: string | undefined,
@@ -40,6 +47,6 @@ export class WecomSensitiveController {
 
 function resultPage(success: boolean): string {
   const title = success ? "企业信息同步成功" : "企业信息授权未完成";
-  const detail = success ? "头像和企业微信二维码已更新，请返回小程序查看。" : "请返回小程序重新发起授权。";
+  const detail = success ? "企业微信资料已同步，请返回小程序查看。" : "请返回小程序重新发起授权。";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui;padding:48px 24px;text-align:center;color:#1f2937"><h2>${title}</h2><p>${detail}</p></body></html>`;
 }

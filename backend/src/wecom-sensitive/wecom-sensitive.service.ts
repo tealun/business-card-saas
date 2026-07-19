@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { EmployeeCardService } from "../employee/employee-card.service.js";
+import type { EmployeeWecomSensitiveStatusResponse } from "../contracts/employee-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { WecomApiClientService } from "../wecom/wecom-api-client.service.js";
 import { WecomConfigService } from "../wecom/wecom-config.service.js";
@@ -47,6 +48,10 @@ export class WecomSensitiveService {
     return { authorization_url: startUrl.toString(), expires_in: expiresIn };
   }
 
+  async getStatus(session: EmployeeSession): Promise<EmployeeWecomSensitiveStatusResponse> {
+    return this.cards.getWecomSensitiveStatus(session);
+  }
+
   createWecomOAuthUrl(state: string): string {
     const url = new URL("https://open.weixin.qq.com/connect/oauth2/authorize");
     url.searchParams.set("appid", this.config.suite.suiteId);
@@ -77,8 +82,8 @@ export class WecomSensitiveService {
     if (detail.openCorpid && detail.openCorpid !== context.openCorpid) {
       throw new ForbiddenException("sensitive profile enterprise identity mismatch");
     }
-    if (!detail.avatarUrl && !detail.qrCodeUrl) {
-      throw new ForbiddenException("WeCom did not grant avatar or QR-code access");
+    if (!detail.name && !detail.title && !detail.mobile && !detail.email && !detail.avatarUrl && !detail.qrCodeUrl) {
+      throw new ForbiddenException("WeCom did not grant profile, avatar, or QR-code access");
     }
     await this.cards.syncWecomSensitiveProfile(
       {
@@ -88,7 +93,14 @@ export class WecomSensitiveService {
         memberIdentityId: context.memberIdentityId,
         openUserid: identity.openUserid
       },
-      { avatarUrl: detail.avatarUrl, qrCodeUrl: detail.qrCodeUrl }
+      {
+        name: detail.name,
+        title: detail.title,
+        mobile: detail.mobile,
+        email: detail.email,
+        avatarUrl: detail.avatarUrl,
+        qrCodeUrl: detail.qrCodeUrl
+      }
     );
   }
 }

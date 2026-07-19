@@ -135,6 +135,10 @@ export interface FetchCorpAdminListResponse {
 export interface FetchThirdPartyUserDetailResponse {
   openCorpid: string | null;
   openUserid: string | null;
+  name: string | null;
+  title: string | null;
+  mobile: string | null;
+  email: string | null;
   avatarUrl: string | null;
   qrCodeUrl: string | null;
 }
@@ -249,6 +253,11 @@ interface WecomThirdPartyUserDetailPayload {
   corpid?: string;
   userid?: string;
   open_userid?: string;
+  name?: string;
+  position?: string;
+  mobile?: string;
+  email?: string;
+  biz_mail?: string;
   avatar?: string;
   qr_code?: string;
 }
@@ -567,6 +576,10 @@ export class WecomApiClientService {
     return {
       openCorpid: payload.corpid?.trim() || null,
       openUserid: (payload.open_userid ?? payload.userid)?.trim() || null,
+      name: normalizeOptionalString(payload.name),
+      title: normalizeOptionalString(payload.position),
+      mobile: normalizeOptionalString(payload.mobile),
+      email: normalizeOptionalString(payload.email) ?? normalizeOptionalString(payload.biz_mail),
       avatarUrl: secureImageUrl(payload.avatar),
       qrCodeUrl: secureImageUrl(payload.qr_code)
     };
