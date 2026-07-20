@@ -18,8 +18,9 @@ CREATE TABLE "tenants" (
     "id" BIGSERIAL NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "tenant_type" VARCHAR(32) NOT NULL DEFAULT 'enterprise',
-    "open_corpid" VARCHAR(128) NOT NULL,
-    "auth_status" VARCHAR(32) NOT NULL DEFAULT 'active',
+    "creation_source" VARCHAR(32) NOT NULL DEFAULT 'local',
+    "open_corpid" VARCHAR(128),
+    "auth_status" VARCHAR(32) NOT NULL DEFAULT 'unconnected',
     "permanent_code_encrypted" TEXT,
     "agent_id" VARCHAR(64),
     "auth_scope_json" JSONB,
@@ -30,7 +31,8 @@ CREATE TABLE "tenants" (
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
-    CONSTRAINT "tenants_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "tenants_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "tenants_creation_source_check" CHECK ("creation_source" IN ('local','wecom','personal'))
 );
 
 -- CreateTable
@@ -219,7 +221,7 @@ CREATE TABLE "tenant_admins" (
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
-    CONSTRAINT "tenant_admins_auth_source_check" CHECK ("auth_source" IN ('claim_token','wecom_scan')),
+    CONSTRAINT "tenant_admins_auth_source_check" CHECK ("auth_source" IN ('claim_token','wecom_scan','local_account')),
     CONSTRAINT "tenant_admins_pkey" PRIMARY KEY ("id")
 );
 
@@ -252,6 +254,41 @@ CREATE TABLE "admin_claim_tokens" (
     "created_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "admin_claim_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "member_invitations" (
+    "id" BIGSERIAL NOT NULL,
+    "tenant_id" BIGINT NOT NULL,
+    "member_identity_id" BIGINT NOT NULL,
+    "token_hash" VARCHAR(64) NOT NULL,
+    "created_by_admin_id" BIGINT,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "used_at" TIMESTAMPTZ(6),
+    "revoked_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "member_invitations_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "tenant_join_codes" (
+    "id" BIGSERIAL PRIMARY KEY,
+    "tenant_id" BIGINT NOT NULL,
+    "token_hash" VARCHAR(64) NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "revoked_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now()
+);
+
+CREATE TABLE "member_join_requests" (
+    "id" BIGSERIAL PRIMARY KEY,
+    "tenant_id" BIGINT NOT NULL,
+    "account_id" BIGINT NOT NULL,
+    "display_name" VARCHAR(128) NOT NULL,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'pending',
+    "reviewed_by_admin_id" BIGINT,
+    "reviewed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "member_join_requests_status_check" CHECK ("status" IN ('pending','approved','rejected','cancelled'))
 );
 
 -- CreateTable
@@ -539,7 +576,10 @@ CREATE UNIQUE INDEX "uk_platform_admins_username" ON "platform_admins"("username
 CREATE UNIQUE INDEX "uk_accounts_primary_wx_openid" ON "accounts"("primary_wx_openid") WHERE "primary_wx_openid" IS NOT NULL;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "uk_tenants_open_corpid" ON "tenants"("open_corpid");
+CREATE UNIQUE INDEX "uk_tenants_open_corpid" ON "tenants"("open_corpid") WHERE "open_corpid" IS NOT NULL;
+
+-- CreateIndex
+CREATE INDEX "idx_tenants_creation_source" ON "tenants"("tenant_type", "creation_source");
 
 -- CreateIndex
 CREATE INDEX "idx_member_tenant" ON "member_identities"("tenant_id");
@@ -630,6 +670,13 @@ CREATE UNIQUE INDEX "uk_tenant_admin_user" ON "tenant_admins"("tenant_id", "open
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_tenant_owner_active" ON "tenant_admins"("tenant_id") WHERE "role" = 'owner' AND "status" = 'active';
+
+CREATE UNIQUE INDEX "uk_member_invitations_token_hash" ON "member_invitations"("token_hash");
+CREATE INDEX "idx_member_invitations_tenant_member" ON "member_invitations"("tenant_id", "member_identity_id");
+CREATE UNIQUE INDEX "uk_tenant_join_codes_token_hash" ON "tenant_join_codes"("token_hash");
+CREATE INDEX "idx_tenant_join_codes_tenant" ON "tenant_join_codes"("tenant_id", "expires_at");
+CREATE UNIQUE INDEX "uk_member_join_requests_pending" ON "member_join_requests"("tenant_id", "account_id") WHERE "status" = 'pending';
+CREATE INDEX "idx_member_join_requests_tenant_status" ON "member_join_requests"("tenant_id", "status", "created_at");
 
 -- CreateIndex
 CREATE INDEX "idx_admin_claim_tenant" ON "admin_claim_tokens"("tenant_id");
@@ -735,6 +782,12 @@ ALTER TABLE "platform_admins" ADD CONSTRAINT "platform_admins_tenant_id_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_member_identity_id_fkey" FOREIGN KEY ("tenant_id", "member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "member_invitations" ADD CONSTRAINT "member_invitations_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "member_invitations" ADD CONSTRAINT "member_invitations_member_identity_id_fkey" FOREIGN KEY ("member_identity_id") REFERENCES "member_identities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tenant_join_codes" ADD CONSTRAINT "tenant_join_codes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "member_join_requests" ADD CONSTRAINT "member_join_requests_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "member_join_requests" ADD CONSTRAINT "member_join_requests_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "admin_claim_tokens" ADD CONSTRAINT "admin_claim_tokens_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

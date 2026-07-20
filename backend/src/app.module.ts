@@ -26,6 +26,7 @@ import { AdminObservabilityModule } from "./admin-observability/admin-observabil
 import { AdminOperationLogModule } from "./admin-operation-log/admin-operation-log.module.js";
 import { AdminAnalyticsModule } from "./admin-analytics/admin-analytics.module.js";
 import { AdminCommercialModule } from "./admin-commercial/admin-commercial.module.js";
+import { LocalEnterpriseModule } from "./local-enterprise/local-enterprise.module.js";
 
 @Module({
   imports: [
@@ -90,7 +91,8 @@ import { AdminCommercialModule } from "./admin-commercial/admin-commercial.modul
     AdminObservabilityModule,
     AdminOperationLogModule,
     CompanyVideoFeatureModule,
-    PlatformTenantModule
+    PlatformTenantModule,
+    LocalEnterpriseModule
   ],
   controllers: [HealthController, MetricsController],
   providers: [

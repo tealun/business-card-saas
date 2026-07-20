@@ -41,6 +41,7 @@
 | [`01_07_Commercialization_And_Quota_Spec.md`](01-specs/01_07_Commercialization_And_Quota_Spec.md) | 企业微信商业化规格：一年期收费版本、企业共享展示额度、订单状态机、原子扣量、通知、数据模型与安全边界 |
 | [`01_08_Admin_Backoffice_Architecture_Guide.md`](01-specs/01_08_Admin_Backoffice_Architecture_Guide.md) | 管理后台重构后端架构开发指南：系统管理员/企业管理员权限区分、授权管理、付费版本控制、审计与实施里程碑 |
 | [`01_09_Admin_Account_Auth_System_Spec.md`](01-specs/01_09_Admin_Account_Auth_System_Spec.md) | 管理后台账号登录系统规格：企业微信扫码实时鉴权（get_admin_list）+ 平台账号 CRUD/角色配置、双身份域会话隔离、API 契约与验收标准 |
+| [`01_11_Local_Enterprise_And_Identity.md`](01-specs/01_11_Local_Enterprise_And_Identity.md) | 本地企业、成员邀请/绑定与企业微信可选连接器边界；账号调用许可 M0 |
 
 ### design（设计交付）
 
@@ -64,6 +65,7 @@
 | [`02_02_First_Enterprise_Wecom_Admin_Plan.md`](02-tasks/02_02_First_Enterprise_Wecom_Admin_Plan.md) | 首个真实企业微信接入 + 企业员工配置后台执行计划（从 demo skeleton 到试点企业可配置） |
 | [`02_03_Wecom_Commercialization_Plan.md`](02-tasks/02_03_Wecom_Commercialization_Plan.md) | 服务商收费版本开发计划：M0 平台取证、订单入账、展示额度扣减、管理端、应用通知、合规与生产上线门槛 |
 | [`02_04_Admin_Account_Auth_Gates.md`](02-tasks/02_04_Admin_Account_Auth_Gates.md) | 管理后台账号登录系统 M0/M1 门禁：企微扫码鉴权五项外部事实验证（get_admin_list / 3rd_qrConnect / getuserinfo3rd）+ walking skeleton 七项验收（扩展 01_09） |
+| [`02_05_Local_Enterprise_Decoupling_Plan.md`](02-tasks/02_05_Local_Enterprise_Decoupling_Plan.md) | 本地企业主闭环、成员邀请绑定、企微连接器迁移及账号调用许可取证的实施 gates |
 
 > 后续待建（进入对应线时，不提前、不复制正文）：
 > `88-planning/`（产品愿景/路线图/商业化/部署运维）、

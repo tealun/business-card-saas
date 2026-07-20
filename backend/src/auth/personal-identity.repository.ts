@@ -300,13 +300,14 @@ export class PersonalIdentityRepository {
         INSERT INTO tenants (
           name,
           tenant_type,
+          creation_source,
           open_corpid,
           auth_status,
           created_at,
           updated_at
         )
-        VALUES ('个人名片', 'personal', $1, 'active', now(), now())
-        ON CONFLICT (open_corpid) DO UPDATE SET
+        VALUES ('个人名片', 'personal', 'personal', $1, 'active', now(), now())
+        ON CONFLICT (open_corpid) WHERE open_corpid IS NOT NULL DO UPDATE SET
           tenant_type = 'personal',
           updated_at = now()
         RETURNING id, name

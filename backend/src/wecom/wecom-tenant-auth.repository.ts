@@ -83,6 +83,7 @@ export class WecomTenantAuthRepository {
         INSERT INTO tenants (
           name,
           open_corpid,
+          creation_source,
           auth_status,
           permanent_code_encrypted,
           agent_id,
@@ -91,9 +92,10 @@ export class WecomTenantAuthRepository {
           created_at,
           updated_at
         )
-        VALUES ($1, $2, 'active', $3, $4, $5, $6, now(), now())
-        ON CONFLICT (open_corpid) DO UPDATE SET
+        VALUES ($1, $2, 'wecom', 'active', $3, $4, $5, $6, now(), now())
+        ON CONFLICT (open_corpid) WHERE open_corpid IS NOT NULL DO UPDATE SET
           name = EXCLUDED.name,
+          creation_source = 'wecom',
           auth_status = 'active',
           permanent_code_encrypted = EXCLUDED.permanent_code_encrypted,
           agent_id = EXCLUDED.agent_id,

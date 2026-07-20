@@ -85,7 +85,7 @@ async function resolveTenant(client, options) {
     `
       INSERT INTO tenants (name, open_corpid, auth_status, created_at, updated_at)
       VALUES ($1, $2, 'active', now(), now())
-      ON CONFLICT (open_corpid) DO UPDATE SET updated_at = now()
+      ON CONFLICT (open_corpid) WHERE open_corpid IS NOT NULL DO UPDATE SET updated_at = now()
       RETURNING id, name
     `,
     [options.tenantName, BOOTSTRAP_CORPID]

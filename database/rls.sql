@@ -36,6 +36,16 @@ DROP POLICY IF EXISTS tenant_isolation_admin_claim_tokens ON admin_claim_tokens;
 CREATE POLICY tenant_isolation_admin_claim_tokens ON admin_claim_tokens
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+-- Invitation acceptance occurs before tenant context is known. The table stores only a
+-- high-entropy token hash and minimal binding metadata; repositories must use atomic consume.
+ALTER TABLE member_invitations DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation_member_invitations ON member_invitations;
+
+-- Join codes and pending requests are resolved before tenant context exists. Both contain only
+-- opaque hashes/minimal workflow metadata; every admin query must filter by session tenant_id.
+ALTER TABLE tenant_join_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE member_join_requests DISABLE ROW LEVEL SECURITY;
+
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_templates ON templates;
 CREATE POLICY tenant_isolation_templates ON templates

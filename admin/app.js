@@ -702,6 +702,31 @@ async function loadMembers() {
   return result;
 }
 
+async function inviteLocalMember() {
+  const displayName=window.prompt("请输入员工姓名");
+  if(!displayName||!displayName.trim()) return;
+  const result=await run("创建员工邀请",()=>adminRequest("/admin/local-enterprises/members/invitations",{method:"POST",body:{display_name:displayName.trim()}}));
+  window.prompt("复制一次性邀请票据（24小时有效）",result.invitation_token||"");
+  await loadMembers();
+}
+
+async function createEnterpriseJoinCode() {
+  const result=await run("生成企业加入码",()=>adminRequest("/admin/local-enterprises/join-code",{method:"POST"}));
+  const path=`pages/enterprise-join/index?token=${encodeURIComponent(result.join_token||"")}`;
+  $("#joinCodeResult").textContent=`小程序路径：${path}（有效期至 ${formatDate(result.expires_at)}）`;
+  window.prompt("复制小程序加入路径，用微信公众平台生成小程序码",path);
+}
+
+async function loadJoinRequests() {
+  const result=await adminRequest("/admin/local-enterprises/join-requests");
+  renderRows($("#joinRequestRows"),result.items||[],4,item=>[
+    `<strong>${escapeHtml(item.displayName||"")}</strong>`,tag(item.status,item.status==="approved"?"success":item.status==="pending"?"warning":"muted"),formatDate(item.createdAt),joinRequestActions(item)
+  ]);
+}
+
+function joinRequestActions(item){const wrap=document.createElement("div");wrap.className="row-actions";if(item.status==="pending"){wrap.append(linkButton("批准",()=>reviewJoinRequest(item,"approved")));wrap.append(linkButton("拒绝",()=>reviewJoinRequest(item,"rejected"),"link-btn danger-link"));}return wrap;}
+async function reviewJoinRequest(item,decision){await run("审批加入申请",()=>adminRequest(`/admin/local-enterprises/join-requests/${encodeURIComponent(item.id)}/review`,{method:"POST",body:{decision}}));await Promise.all([loadJoinRequests(),loadMembers()]);}
+
 function memberRowActions(item) {
   const wrap = document.createElement("div");
   wrap.className = "row-actions";
@@ -2542,6 +2567,9 @@ $("#memberSearch").addEventListener("keydown", (event) => {
   }
 });
 $("#memberStatusFilter").addEventListener("change", () => run("筛选成员", loadMembers));
+$("#inviteMember").addEventListener("click",inviteLocalMember);
+$("#createJoinCode").addEventListener("click",createEnterpriseJoinCode);
+$("#loadJoinRequests").addEventListener("click",()=>run("加载加入申请",loadJoinRequests));
 $("#syncMembers").addEventListener("click", async () => {
   if (!requirePermission("tenant.member.sync")) return;
   const ok = await confirmAction({

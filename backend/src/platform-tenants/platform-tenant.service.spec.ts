@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { PlatformTenantService } from "./platform-tenant.service.js";
 
@@ -16,6 +16,7 @@ const tenantSession = { ...platformSession, tenantId: "2", accountType: "tenant"
 const listItem = {
   tenantId: "2",
   name: "测试企业",
+  creationSource: "wecom" as const,
   openCorpid: "wwcorp001",
   authStatus: "active",
   agentId: "100001",
@@ -31,7 +32,7 @@ const listItem = {
 function createRepository() {
   return {
     list: jest.fn(async () => ({ items: [listItem], total: 1 })),
-    summary: jest.fn(async () => ({ activeCount: 1, cancelledCount: 0, unhealthyCount: 0 })),
+    summary: jest.fn(async () => ({ localCount: 0, activeCount: 1, cancelledCount: 0, unhealthyCount: 0 })),
     getById: jest.fn(async (tenantId: string) => tenantId === "2" ? {
       ...listItem,
       authScope: { auth_user: ["ou001"] },
@@ -81,8 +82,14 @@ describe("PlatformTenantService", () => {
     const { service, repository } = createService();
     await expect(service.list(platformSession, { search: "测试", status: "active" })).resolves.toMatchObject({
       total: 1,
-      summary: { active_count: 1, cancelled_count: 0, unhealthy_count: 0 },
-      items: [{ tenant_id: "2", tenant_name: "测试企业", member_count: 3, authorization_healthy: true }]
+      summary: { local_count: 0, active_count: 1, cancelled_count: 0, unhealthy_count: 0 },
+      items: [{
+        tenant_id: "2",
+        tenant_name: "测试企业",
+        creation_source: "wecom",
+        member_count: 3,
+        authorization_healthy: true
+      }]
     });
     expect(repository.list).toHaveBeenCalledWith({ search: "测试", status: "active", limit: 20, offset: 0 });
   });
@@ -122,6 +129,19 @@ describe("PlatformTenantService", () => {
   it("rejects resync from tenant administrators", async () => {
     const { service, contactSync } = createService();
     await expect(service.syncTenantMembers(tenantSession, "2")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
+  });
+
+  it("rejects WeCom sync for a local enterprise", async () => {
+    const repository = createRepository();
+    repository.getById.mockResolvedValueOnce({
+      ...await repository.getById("2"),
+      creationSource: "local",
+      openCorpid: null,
+      authStatus: "unconnected"
+    } as never);
+    const { service, contactSync } = createService(repository);
+    await expect(service.syncTenantMembers(platformSession, "2")).rejects.toBeInstanceOf(BadRequestException);
     expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
   });
 });

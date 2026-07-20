@@ -171,10 +171,10 @@ async function seedProbeData(pool) {
   `);
 
   await pool.query(`
-    INSERT INTO tenants (name, open_corpid, auth_status, created_at, updated_at)
+    INSERT INTO tenants (name, creation_source, open_corpid, auth_status, created_at, updated_at)
     VALUES
-      ('Tenant A', 'open-corpid-a', 'active', now(), now()),
-      ('Tenant B', 'open-corpid-b', 'active', now(), now())
+      ('Tenant A', 'wecom', 'open-corpid-a', 'active', now(), now()),
+      ('Tenant B', 'wecom', 'open-corpid-b', 'active', now(), now())
   `);
   await pool.query(`
     INSERT INTO member_identities (tenant_id, open_userid, name, status, created_at, updated_at)

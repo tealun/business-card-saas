@@ -1,0 +1,10 @@
+<view class="join-page">
+  <view class="join-card">
+    <view class="join-title">申请加入企业</view>
+    <view class="join-desc">提交后不会立即加入，企业管理员审核通过后才会创建企业名片。</view>
+    <input class="join-input" placeholder="请输入真实姓名" value="{{displayName}}" bindinput="onNameInput" maxlength="128" />
+    <button class="join-button" type="primary" loading="{{submitting}}" disabled="{{submitting||result}}" bindtap="submit">提交申请</button>
+    <view wx:if="{{result}}" class="join-success">{{result}}</view>
+    <view wx:if="{{error}}" class="join-error">{{error}}</view>
+  </view>
+</view>

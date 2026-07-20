@@ -4,6 +4,7 @@
     "pages/employee/edit",
     "pages/employee/style",
     "pages/wecom-sensitive/index",
+    "pages/enterprise-join/index",
     "pages/public/card",
     "pages/card-wallet/index",
     "pages/company-card/index",

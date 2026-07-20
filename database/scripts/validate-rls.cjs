@@ -17,6 +17,11 @@ const tenantRlsExceptions = new Set([
   // Admin OAuth/scan login state is consumed before tenant/platform identity has been established.
   // It stores only a state hash and request metadata.
   "admin_auth_states",
+  // Member invitation acceptance resolves the tenant from an opaque single-use token hash.
+  // The row is locked and consumed before account/tenant binding is created.
+  "member_invitations",
+  "tenant_join_codes",
+  "member_join_requests",
   // Platform operations table, same shape as callback_events: platform admins need cross-tenant
   // reads (GET /admin/platform/operation-logs), and the repository is not TenantTx-scoped.
   // Isolation is enforced at the query layer (tenant_id filter), not via RLS. See 99_71.
@@ -110,6 +115,17 @@ assert(
   !/CREATE POLICY\s+\S+\s+ON\s+admin_auth_states/i.test(sql),
   "admin_auth_states must not define a tenant RLS policy"
 );
+assert(
+  /ALTER TABLE\s+member_invitations\s+DISABLE ROW LEVEL SECURITY/i.test(sql),
+  "member_invitations must remain consumable before tenant context exists"
+);
+assert(
+  !/CREATE POLICY\s+\S+\s+ON\s+member_invitations/i.test(sql),
+  "member_invitations must not define a tenant RLS policy"
+);
+for (const table of ["tenant_join_codes", "member_join_requests"]) {
+  assert(new RegExp(`ALTER TABLE\\s+${table}\\s+DISABLE ROW LEVEL SECURITY`, "i").test(sql), `${table} must remain accessible before tenant context exists`);
+}
 assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),
   "all app tenant/account current_setting calls must include missing_ok=true"

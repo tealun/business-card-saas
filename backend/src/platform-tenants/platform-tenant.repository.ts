@@ -5,7 +5,8 @@ import { DatabaseService } from "../database/database.service.js";
 export interface PlatformTenantListRecord {
   tenantId: string;
   name: string;
-  openCorpid: string;
+  creationSource: "local" | "wecom";
+  openCorpid: string | null;
   authStatus: string;
   agentId: string | null;
   authorizedAt: Date | null;
@@ -39,7 +40,8 @@ export interface PlatformTenantDetailRecord extends PlatformTenantListRecord {
 interface TenantListRow extends QueryResultRow {
   tenant_id: string | number | bigint;
   tenant_name: string;
-  open_corpid: string;
+  creation_source: "local" | "wecom";
+  open_corpid: string | null;
   auth_status: string;
   agent_id: string | null;
   authorized_at: Date | string | null;
@@ -53,6 +55,7 @@ interface TenantListRow extends QueryResultRow {
 }
 
 interface TenantSummaryRow extends QueryResultRow {
+  local_count: string | number | bigint;
   active_count: string | number | bigint;
   cancelled_count: string | number | bigint;
   unhealthy_count: string | number | bigint;
@@ -90,6 +93,7 @@ export class PlatformTenantRepository {
         SELECT
           t.id AS tenant_id,
           t.name AS tenant_name,
+          t.creation_source,
           t.open_corpid,
           t.auth_status,
           t.agent_id,
@@ -103,7 +107,7 @@ export class PlatformTenantRepository {
           count(*) OVER() AS total_count
         FROM tenants t
         WHERE t.tenant_type = 'enterprise'
-          AND ($1 = '' OR t.name ILIKE '%' || $1 || '%' OR t.open_corpid ILIKE '%' || $1 || '%')
+          AND ($1 = '' OR t.name ILIKE '%' || $1 || '%' OR COALESCE(t.open_corpid, '') ILIKE '%' || $1 || '%')
           AND ($2 = 'all' OR t.auth_status = $2)
         ORDER BY t.authorized_at DESC NULLS LAST, t.id DESC
         LIMIT $3 OFFSET $4
@@ -116,19 +120,23 @@ export class PlatformTenantRepository {
     };
   }
 
-  async summary(): Promise<{ activeCount: number; cancelledCount: number; unhealthyCount: number }> {
+  async summary(): Promise<{ localCount: number; activeCount: number; cancelledCount: number; unhealthyCount: number }> {
     const result = await this.database.query<TenantSummaryRow>(
       `
         SELECT
-          count(*) FILTER (WHERE auth_status = 'active') AS active_count,
-          count(*) FILTER (WHERE auth_status <> 'active') AS cancelled_count,
-          count(*) FILTER (WHERE auth_status <> 'active' OR permanent_code_encrypted IS NULL) AS unhealthy_count
+          count(*) FILTER (WHERE creation_source = 'local') AS local_count,
+          count(*) FILTER (WHERE creation_source = 'wecom' AND auth_status = 'active') AS active_count,
+          count(*) FILTER (WHERE creation_source = 'wecom' AND auth_status IN ('changed','cancelled')) AS cancelled_count,
+          count(*) FILTER (
+            WHERE creation_source = 'wecom' AND (auth_status <> 'active' OR permanent_code_encrypted IS NULL)
+          ) AS unhealthy_count
         FROM tenants
         WHERE tenant_type = 'enterprise'
       `
     );
     const row = result.rows[0];
     return {
+      localCount: Number(row?.local_count ?? 0),
       activeCount: Number(row?.active_count ?? 0),
       cancelledCount: Number(row?.cancelled_count ?? 0),
       unhealthyCount: Number(row?.unhealthy_count ?? 0)
@@ -141,6 +149,7 @@ export class PlatformTenantRepository {
         SELECT
           t.id AS tenant_id,
           t.name AS tenant_name,
+          t.creation_source,
           t.open_corpid,
           t.auth_status,
           t.agent_id,
@@ -208,6 +217,7 @@ export class PlatformTenantRepository {
     return {
       tenantId: String(row.tenant_id),
       name: row.tenant_name,
+      creationSource: row.creation_source,
       openCorpid: row.open_corpid,
       authStatus: row.auth_status,
       agentId: row.agent_id,
@@ -221,4 +231,3 @@ export class PlatformTenantRepository {
     };
   }
 }
-

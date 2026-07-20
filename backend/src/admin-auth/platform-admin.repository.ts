@@ -287,9 +287,9 @@ export class PlatformAdminRepository {
   ): Promise<{ id: string | number | bigint; name: string }> {
     const tenant = await tx.query<{ id: string | number | bigint; name: string }>(
       `
-        INSERT INTO tenants (name, open_corpid, auth_status, created_at, updated_at)
-        VALUES ($1, $2, 'active', now(), now())
-        ON CONFLICT (open_corpid) DO UPDATE SET updated_at = now()
+        INSERT INTO tenants (name, creation_source, open_corpid, auth_status, created_at, updated_at)
+        VALUES ($1, 'local', $2, 'unconnected', now(), now())
+        ON CONFLICT (open_corpid) WHERE open_corpid IS NOT NULL DO UPDATE SET updated_at = now()
         RETURNING id, name
       `,
       [tenantName, BOOTSTRAP_CORPID]

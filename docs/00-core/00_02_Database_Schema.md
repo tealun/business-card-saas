@@ -12,7 +12,7 @@
 
 ```text
 批次1 基础：accounts, tenants, wecom_suite_state
-批次2 身份：member_identities, account_identity_bindings, account_openid_bindings, account_preferences, tenant_admins
+批次2 身份：member_identities, account_identity_bindings, account_openid_bindings, account_preferences, tenant_admins, member_invitations
 批次3 名片：cards, templates
 批次4 访客/客户：visitor_accounts, tenant_external_customers, tenant_customer_owners
 批次5 行为/分享：card_visits, card_actions, card_shares
@@ -21,6 +21,10 @@
 批次7.5 企业内容：company_profiles, company_videos, company_honors, company_honor_images, card_style_overrides
 批次8 §15.3/§15.4 变更：cards(public_id/card_type)、contact_ways(strategy/channel NOT NULL)、visitor_accounts(appid)、card_actions(share_id/visit_id/trust_level)、card_visits(share_id/visit_id/anon_id/trust_level，审计 A6-P1-1)、card_shares(issuer_type/issuer_visitor_account_id/depth，审计 A6-P1-2)、templates(uk_tpl_default_active，审计 A6-P2-4)、关键外键、软删除部分唯一索引 —— 若为全新库可并入建表。存量演进的 `ADD COLUMN ... NOT NULL` 须按「加可空列 → 回填 → SET NOT NULL」三步走（审计 A6-P2-7）
 ```
+
+`tenants` 是平台企业事实源，不是企业微信授权记录：`creation_source=local|wecom|personal`；标准企业可令 `open_corpid=NULL` 且 `auth_status=unconnected`。`open_corpid` 只对非空值唯一。第一阶段为兼容现有代码暂存企微凭据列；后续按 `02_05` 通过双写、回填、核对迁入 `tenant_connectors`，不得一次性删除旧列。
+
+`member_invitations` 只保存一次性高熵票据的 SHA-256 hash、目标成员和有效期。接受邀请时尚无 tenant 上下文，因此该表显式不启用 RLS；服务端必须按 hash 行锁查询、校验未使用/未撤销/未过期并在同一事务内建立绑定和写入 `used_at`。明文票据只在创建响应中返回一次。
 
 > 全新库直接以最终形态建表（含 §15.3 字段）。批次8 仅作为文档说明存量演进策略，不对应当前仓库中的独立迁移文件。
 
@@ -77,7 +81,8 @@ erDiagram
 | 字段 | 取值 |
 |------|------|
 | `accounts.status` / `member_identities.status` / `cards.status` | `active` / `inactive` / `disabled` |
-| `tenants.auth_status` | `active` / `changed` / `cancelled` |
+| `tenants.creation_source` | `local` / `wecom` / `personal` |
+| `tenants.auth_status` | `unconnected` / `active` / `changed` / `cancelled`（仅表达连接状态，不决定企业本地可用性） |
 | `member_identities.license_type` / `licenses.license_type` | `base` / `interflow` / `plan_basic` / `plan_wecom` / `plan_contact` |
 | `cards.card_type` | `primary`（MVP）/ `recruiting` / `event` / `sales` |
 | `contact_ways.strategy` | `per_member_static` / `per_campaign_static` / `temp_session` |

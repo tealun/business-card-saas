@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js";
@@ -17,7 +17,9 @@ export class PlatformTenantService {
     this.requirePlatform(session);
     const page = Math.max(1, Math.trunc(input.page ?? 1));
     const pageSize = Math.min(100, Math.max(1, Math.trunc(input.pageSize ?? 20)));
-    const status = ["active", "cancelled", "all"].includes(input.status ?? "") ? input.status! : "all";
+    const status = ["unconnected", "active", "changed", "cancelled", "all"].includes(input.status ?? "")
+      ? input.status!
+      : "all";
     const [result, summary] = await Promise.all([
       this.repository.list({
         search: input.search?.trim() ?? "",
@@ -32,6 +34,7 @@ export class PlatformTenantService {
       page_size: pageSize,
       total: result.total,
       summary: {
+        local_count: summary.localCount,
         active_count: summary.activeCount,
         cancelled_count: summary.cancelledCount,
         unhealthy_count: summary.unhealthyCount
@@ -60,6 +63,9 @@ export class PlatformTenantService {
     const item = await this.repository.getById(tenantId);
     if (!item) {
       throw new NotFoundException("enterprise authorization not found");
+    }
+    if (item.creationSource !== "wecom" || !item.openCorpid || item.authStatus !== "active") {
+      throw new BadRequestException("enterprise has no active WeCom connection");
     }
     const result = await this.contactSync.syncTenantMembers({
       tenantId: item.tenantId,
@@ -99,6 +105,7 @@ export class PlatformTenantService {
     return {
       tenant_id: item.tenantId,
       tenant_name: item.name,
+      creation_source: item.creationSource,
       open_corpid: item.openCorpid,
       auth_status: item.authStatus,
       agent_id: item.agentId,
