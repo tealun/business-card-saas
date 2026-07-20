@@ -46,6 +46,9 @@ DROP POLICY IF EXISTS tenant_isolation_member_invitations ON member_invitations;
 ALTER TABLE tenant_join_codes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE member_join_requests DISABLE ROW LEVEL SECURITY;
 
+-- Browser login resolves the opaque challenge before tenant/account context exists.
+ALTER TABLE local_admin_login_challenges DISABLE ROW LEVEL SECURITY;
+
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_templates ON templates;
 CREATE POLICY tenant_isolation_templates ON templates

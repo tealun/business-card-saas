@@ -94,14 +94,15 @@
               <span class="login-spinner" aria-hidden="true"></span><span>登录</span>
             </button>
           </form>
-          <div class="wecom-scan-login" id="wecomScanLoginBox">
-            <button id="gateWecomScanLogin" type="button">
-              企业微信扫码登录
-            </button>
-            <p id="gateWecomScanHint">将跳转到企业微信完成管理员身份校验</p>
+          <div class="wecom-scan-login" id="localScanLoginBox">
+            <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="196" height="196" />
+            <p id="gateLocalScanHint">正在生成微信小程序登录码…</p>
+            <button id="gateLocalScanRefresh" type="button" class="secondary">刷新登录码</button>
           </div>
           <details class="login-alt">
-            <summary>其他登录方式（企业微信 / 令牌）</summary>
+            <summary>已连接企业微信？使用企业微信登录</summary>
+            <button id="gateWecomScanLogin" type="button" class="secondary">企业微信扫码登录</button>
+            <div class="alt-divider"></div>
             <label>
               <span>企业微信登录 Code</span>
               <input id="gateLoginCode" autocomplete="off" />
@@ -226,7 +227,7 @@
 
     <script src="./config.js"></script>
     <script src="./js/admin-partials.js?v=20260718-modular1"></script>
-    <script src="./js/admin-login.js?v=20260718-wecomscan1"></script>
-    <script src="./app.js?v=20260718-wecomscan1"></script>
+    <script src="./js/admin-login.js?v=20260720-localscan1"></script>
+    <script src="./app.js?v=20260720-localscan1"></script>
   </body>
 </html>

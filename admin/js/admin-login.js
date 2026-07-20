@@ -1,4 +1,6 @@
 (function () {
+  let localScanTimer = null;
+  let localChallenge = "";
   function selectedLoginRole($) {
     return $(".login-role-tabs [data-login-role].active")?.dataset.loginRole || "tenant";
   }
@@ -8,7 +10,7 @@
     $("#gatePasswordForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       if (selectedLoginRole($) !== "platform") {
-        gateError.textContent = "企业管理员请使用企业微信扫码登录";
+        gateError.textContent = "企业管理员请使用微信小程序扫码登录";
         return;
       }
       const username = $("#gateUsername").value.trim();
@@ -67,6 +69,27 @@
     });
   }
 
+  function stopLocalScan(){if(localScanTimer){clearTimeout(localScanTimer);localScanTimer=null;}localChallenge="";}
+
+  async function startLocalScan(context){
+    const {$,request,completeLogin,gateError}=context;
+    stopLocalScan();
+    const hint=$("#gateLocalScanHint");const image=$("#gateLocalScanQr");const refresh=$("#gateLocalScanRefresh");
+    if(!hint||!image||!refresh)return;
+    hint.textContent="正在生成微信小程序登录码…";image.classList.add("hidden");refresh.disabled=true;gateError.textContent="";
+    try{
+      const result=await request("/admin/auth/local-scan/challenges",{method:"POST",auth:false});
+      localChallenge=result.challenge_token;
+      if(result.qr_code_data_url){image.src=result.qr_code_data_url;image.classList.remove("hidden");hint.textContent="请使用微信扫描，并在智云名片小程序中确认登录";}
+      else{hint.textContent=`小程序码暂不可用，请在小程序中打开：${result.miniprogram_path}`;}
+      const poll=async()=>{if(!localChallenge)return;try{const status=await request(`/admin/auth/local-scan/challenges/${encodeURIComponent(localChallenge)}`,{auth:false});if(status.status==="approved"){stopLocalScan();completeLogin(status.access_token,status.admin);return;}if(status.status==="expired"||status.status==="consumed"||status.status==="revoked"){stopLocalScan();hint.textContent="登录码已失效，请刷新后重试";refresh.disabled=false;return;}}catch(error){gateError.textContent=error.message||"登录状态查询失败";}localScanTimer=setTimeout(poll,2000);};
+      localScanTimer=setTimeout(poll,1500);
+    }catch(error){gateError.textContent=error.message||"微信登录码生成失败";hint.textContent="无法生成登录码";}
+    finally{refresh.disabled=false;}
+  }
+
+  function bindLocalScanLogin(context){$("#gateLocalScanRefresh")?.addEventListener("click",()=>startLocalScan(context));}
+
   function bindTokenLogin(context) {
     const { $, request, completeLogin, gateError } = context;
     $("#gateTokenLogin").addEventListener("click", async () => {
@@ -87,7 +110,7 @@
   function bindLoginRoleUi(context) {
     const { $, $$, gateError } = context;
     const passwordForm = $("#gatePasswordForm");
-    const wecomScanLoginBox = $("#wecomScanLoginBox");
+    const localScanLoginBox = $("#localScanLoginBox");
     const loginAlt = $(".login-alt");
     const accountLabel = $("#gateAccountLabel");
     const usernameInput = $("#gateUsername");
@@ -111,8 +134,9 @@
         if (!isPlatform) passwordInput.value = "";
       }
       passwordForm?.classList.toggle("hidden", !isPlatform);
-      wecomScanLoginBox?.classList.toggle("hidden", isPlatform);
+      localScanLoginBox?.classList.toggle("hidden", isPlatform);
       loginAlt?.classList.toggle("hidden", isPlatform);
+      if(isPlatform) stopLocalScan(); else startLocalScan(context);
       if (gateError && gateError.dataset.preserve !== "true") gateError.textContent = "";
       if (gateError) delete gateError.dataset.preserve;
     }
@@ -187,6 +211,7 @@
       bindPasswordLogin(context);
       bindWecomCodeLogin(context);
       bindWecomScanLogin(context);
+      bindLocalScanLogin(context);
       bindTokenLogin(context);
       bindLoginRoleUi(context);
       bindPasswordVisibility(context);

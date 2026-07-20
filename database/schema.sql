@@ -291,6 +291,21 @@ CREATE TABLE "member_join_requests" (
     CONSTRAINT "member_join_requests_status_check" CHECK ("status" IN ('pending','approved','rejected','cancelled'))
 );
 
+CREATE TABLE "local_admin_login_challenges" (
+    "id" BIGSERIAL NOT NULL,
+    "token_hash" VARCHAR(64) NOT NULL,
+    "account_id" BIGINT,
+    "tenant_id" BIGINT,
+    "member_identity_id" BIGINT,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'pending',
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "approved_at" TIMESTAMPTZ(6),
+    "consumed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "local_admin_login_challenges_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "local_admin_login_challenges_status_check" CHECK ("status" IN ('pending','approved','consumed'))
+);
+
 -- CreateTable
 -- admin_auth_states is a platform-level one-time OAuth state store used before
 -- tenant context exists. It intentionally has no tenant RLS, like
@@ -679,6 +694,8 @@ CREATE INDEX "idx_member_invitations_tenant_member" ON "member_invitations"("ten
 CREATE UNIQUE INDEX "uk_tenant_join_codes_token_hash" ON "tenant_join_codes"("token_hash");
 CREATE INDEX "idx_tenant_join_codes_tenant" ON "tenant_join_codes"("tenant_id", "expires_at");
 CREATE UNIQUE INDEX "uk_member_join_requests_pending" ON "member_join_requests"("tenant_id", "account_id") WHERE "status" = 'pending';
+
+CREATE UNIQUE INDEX "uk_local_admin_login_challenges_token" ON "local_admin_login_challenges"("token_hash");
 CREATE INDEX "idx_member_join_requests_tenant_status" ON "member_join_requests"("tenant_id", "status", "created_at");
 
 -- CreateIndex
@@ -793,6 +810,9 @@ ALTER TABLE "member_invitations" ADD CONSTRAINT "member_invitations_member_ident
 ALTER TABLE "tenant_join_codes" ADD CONSTRAINT "tenant_join_codes_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "member_join_requests" ADD CONSTRAINT "member_join_requests_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "member_join_requests" ADD CONSTRAINT "member_join_requests_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "local_admin_login_challenges" ADD CONSTRAINT "local_admin_login_challenges_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "local_admin_login_challenges" ADD CONSTRAINT "local_admin_login_challenges_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "local_admin_login_challenges" ADD CONSTRAINT "local_admin_login_challenges_tenant_member_fkey" FOREIGN KEY ("tenant_id", "member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "admin_claim_tokens" ADD CONSTRAINT "admin_claim_tokens_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

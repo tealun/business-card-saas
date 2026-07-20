@@ -1727,7 +1727,7 @@ CREATE TABLE tenant_admins (
 CREATE UNIQUE INDEX uk_tenant_admin_user ON tenant_admins (tenant_id, open_userid) WHERE open_userid IS NOT NULL;
 ```
 
-管理端登录：企业管理员优先企业微信扫码 / OAuth 登录；平台管理员独立后台账号 + MFA；第一版不做纯密码式企业管理员登录。
+管理端登录：企业管理员默认使用普通微信小程序扫码，以本地账号绑定和 `tenant_admins` 状态鉴权；已连接企业微信的租户可选企微扫码 / OAuth；平台管理员使用独立后台账号 + MFA。第一版不做纯密码式企业管理员登录。
 
 **客户归属（A2-P1-7）：**
 

@@ -5,7 +5,7 @@ const owner = { tenantId:"20", tenantName:"本地企业", memberIdentityId:"30",
 
 describe("LocalEnterpriseService", () => {
   const audit={record:jest.fn(async()=>undefined)};
-  const joinQr={generate:jest.fn(async()=>"data:image/png;base64,cXI=")};
+  const joinQr={generate:jest.fn(async()=>"data:image/png;base64,cXI="),generateScene:jest.fn(async()=>"data:image/png;base64,YWRtaW4=")};
   it("creates a local enterprise and returns an owner admin session", async () => {
     const repository={ createEnterprise:jest.fn(async()=>({tenantId:"20",memberId:"30",tenantName:"本地企业",openUserid:"account:10"})) };
     const tokens={ expiresIn:28800, sign:jest.fn(()=>"admin-token") };
@@ -47,5 +47,20 @@ describe("LocalEnterpriseService", () => {
     const service=new LocalEnterpriseService(repository as never,tokens as never,audit as never,joinQr as never);
     await expect(service.createAdminSession(employee,"20")).resolves.toEqual({tenant_id:"20",admin_access_token:"new-admin-token",expires_in:28800});
     expect(repository.findLocalAdminForAccount).toHaveBeenCalledWith("10","20");
+  });
+
+  it("creates and consumes a one-time local admin scan challenge",async()=>{
+    const repository={
+      createAdminScanChallenge:jest.fn(async()=>undefined),
+      listLocalAdminsForAccount:jest.fn(async()=>[{tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"}]),
+      approveAdminScanChallenge:jest.fn(async()=>undefined),
+      consumeAdminScanChallenge:jest.fn(async()=>({status:"approved",tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"}))
+    };
+    const tokens={expiresIn:28800,sign:jest.fn(()=>"admin-token")};
+    const service=new LocalEnterpriseService(repository as never,tokens as never,audit as never,joinQr as never);
+    const challenge=await service.createAdminScanChallenge();
+    expect(challenge.challenge_token).toHaveLength(32);
+    await expect(service.confirmAdminScan(employee,challenge.challenge_token)).resolves.toEqual(expect.objectContaining({approved:true,tenant_id:"20"}));
+    await expect(service.pollAdminScanChallenge(challenge.challenge_token)).resolves.toEqual(expect.objectContaining({status:"approved",access_token:"admin-token"}));
   });
 });

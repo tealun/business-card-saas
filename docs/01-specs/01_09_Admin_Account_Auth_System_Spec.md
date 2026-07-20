@@ -1,21 +1,21 @@
 # 01_09 管理后台账号登录系统规格
 
-版本: v2 · 日期: 2026-07-17 · 归属: admin/auth
+版本: v3 · 日期: 2026-07-20 · 归属: admin/auth
 关联: `01_08_Admin_Backoffice_Architecture_Guide.md`（双身份域基线）、`01_04_Admin_Web_Guide.md`、`02_02_First_Enterprise_Wecom_Admin_Plan.md`、`02_04_Admin_Account_Auth_Gates.md`、`99_72_admin_account_auth_readiness.md`
 
-> v2 变更（M0 取证修订）：扫码链路从旧 `3rd_qrConnect` + `get_login_info` 更正为**新版企业微信登录组件** + `getuserinfo3rd`；`get_admin_list` 采用第三方应用服务商接口（`suite_access_token` + `auth_corpid` + `agentid`）调用。证据见 02_04 M0 表。
+> v3 变更：企业管理员默认入口改为普通微信小程序扫码，按本地账号绑定与管理员状态鉴权；本规格原有企业微信实时鉴权链路保留为已连接企微租户的可选入口。
 
 ## 1. 背景与目标
 
 企业已安装第三方应用，但管理后台对企业侧无可用登录入口；平台侧缺账号管理能力。本规格在既有双身份域（`account_type = platform / tenant`）之上补齐两条链路：
 
-- G1 **企业管理员扫码登录**：企业微信扫码 → 实时鉴权"该企业管理员" → 自动建档 → 直接进入企业后台（`account_type=tenant`）。
+- G1 **企业管理员扫码登录**：普通微信扫码 → 小程序确认本地企业身份 → 网页换取一次性会话 → 进入企业后台（`account_type=tenant`）；已连接企微租户可选企微实时鉴权。
 - G2 **平台账号管理**：owner 用户名密码登录（已有）→ 创建 / 禁用 / 配置角色 / 删除平台管理员。
 - G3 同一后台、双登录入口、单会话体系，Guard 强制 scope 隔离。
 
 ## 2. 范围与非目标
 
-**范围（M1）**：扫码登录全链路、企业管理员自动建档、平台账号 CRUD + 角色配置、登录/管理操作审计、隔离回归。
+**范围（M1）**：普通微信扫码登录全链路、企微可选登录、平台账号 CRUD + 角色配置、登录/管理操作审计、隔离回归。
 
 **非目标（M2+，见 02_04 Deferred）**：多企业切换页、企微管理员周期对账、MFA、会话撤销、细粒度能力点覆盖、企业侧纯密码登录（`01_04` 已明确第一版不做）、React 目标架构迁移。
 
@@ -27,7 +27,8 @@
 | tenant | `owner` / `admin` / `operator` / `auditor` | 沿用现有 `tenant_admins.role` |
 
 关键决策：
-- 企业管理员身份的唯一信任源 = 企微实时管理员状态（`get_admin_list`），每次扫码实时核验。
+- 本地企业管理员身份信任源 = 普通微信 `account` 与 `account_identity_bindings` 的绑定关系，加上 active `tenant_admins`；每次换取后台会话重新核验。
+- 已连接企微租户通过企微入口登录时，企微实时管理员状态（`get_admin_list`）仍是该入口的外部信任源。
 - 本地 `tenant_admins` = 档案缓存 + 本地管控；`status=disabled` 优先于企微侧身份（本地最终否决权）。
 - 企微侧是管理员但本地无档案 → 自动建档（tenant 内无 active owner 的首位管理员建档为 `owner`，其后为 `admin`）。
 
@@ -42,7 +43,11 @@ M1 补齐（均仅 `platform_owner`，全部落审计）：
 - `PATCH /api/v1/admin/platform/accounts/:id/role` — 配置角色（M1 限定 `ops` / `support`）。
 - `DELETE /api/v1/admin/platform/accounts/:id` — 硬删除；禁止删除自己与内建 owner。
 
-### 4.2 企业管理员扫码登录（新建，核心链路）
+### 4.2 企业管理员扫码登录
+
+默认链路采用普通微信小程序：网页创建 5 分钟一次性 challenge（数据库只存 SHA-256）并展示小程序码；扫码账号在 `pages/admin-login/index` 确认，有多个可管理企业时必须选择；网页轮询并原子消费 challenge，服务端再次验证绑定和 active 管理员状态后发放 8 小时 tenant 会话。challenge 过期、已消费或管理员被停用均不得登录。
+
+以下企业微信链路仅作为已连接企微租户的可选入口：
 
 > 链路选型（M0 取证结论）：采用**新版企业微信登录**——官方文档 98170《单点登录》明确"新版企业微信登录是对原扫码登录的能力升级"，旧 `3rd_qrConnect` + `get_login_info`（provider_access_token）为旧链路，不采用。授权码经 `getuserinfo3rd`（官方 91121，`suite_access_token`）换取身份；管理员判定经服务商 `get_admin_list`（官方 100073，`suite_access_token` + `auth_corpid` + `agentid`）。
 

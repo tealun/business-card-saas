@@ -5,6 +5,7 @@
     "pages/employee/style",
     "pages/wecom-sensitive/index",
     "pages/enterprise-join/index",
+    "pages/admin-login/index",
     "pages/public/card",
     "pages/card-wallet/index",
     "pages/company-card/index",

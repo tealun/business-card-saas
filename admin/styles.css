@@ -976,6 +976,8 @@ label span,
   line-height: 1.5;
   text-align: center;
 }
+.wecom-scan-login img{display:block;width:196px;height:196px;margin:0 auto 14px;border-radius:14px;background:#fff;box-shadow:0 8px 28px rgba(43,57,112,.12)}
+.wecom-scan-login img.hidden{display:none}
 
 .login-alt summary {
   cursor: pointer;

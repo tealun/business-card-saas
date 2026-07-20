@@ -8,10 +8,10 @@
 
 ## 1. 登录与鉴权（§15.3）
 
-- **企业管理员**：企业微信扫码 / OAuth 登录，绑定 `tenant_admins`（`open_userid`）。第一版不做纯密码登录。
+- **企业管理员**：默认使用普通微信小程序扫码，按 `account_identity_bindings` + `tenant_admins` 鉴权；已连接企微租户可选企业微信扫码 / OAuth。第一版不做纯密码登录。
 - **平台管理员**：独立后台账号 + **MFA**；分级 超级管理员 / 客服运营 / 技术运维 / 只读审计（§16.2）。
 - 会话：MVP 已落地签名 Admin token；生产增强再接 Redis 会话/撤销。后台接口经租户中间件注入 `tenant_id`，配合 RLS（§16.1）。
-- 登录时序（审计 A6-P1-3）：OAuth 返回 `corpid` → 定位 tenant → 事务内 `SET LOCAL app.tenant_id` → 查 `tenant_admins`（该表已纳入租户 RLS，见 [`../00-core/00_02_Database_Schema.md`](../00-core/00_02_Database_Schema.md) §2）。
+- 默认登录时序：网页创建 5 分钟一次性 challenge → 普通微信扫码进入小程序 → 当前微信账号选择其有管理权的本地企业并确认 → 网页原子消费 challenge → 重新验证账号绑定与 active `tenant_admins` → 发放企业后台会话。企微可选入口仍按 `corpid` 定位 tenant，并在租户上下文内实时核验企微管理员。
 - 首个 owner 认领：若授权后暂时无法直接拿到管理员 `open_userid`，服务端生成短期一次性 `admin_claim_tokens`；管理员后续登录 `POST /api/v1/admin/auth/qy-login` 时可携带 `claim_token`，服务端在当前 tenant 事务内 hash 校验、消费 token 并创建首个 owner。
 
 ## 2. 角色与权限（RBAC）

@@ -40,7 +40,7 @@
 | [`01_06_Miniprogram_Config_Guide.md`](01-specs/01_06_Miniprogram_Config_Guide.md) | 小程序配置与后端对接：微信小程序后台、企业微信服务商后台、后端域名、`apiBase`、联调顺序 |
 | [`01_07_Commercialization_And_Quota_Spec.md`](01-specs/01_07_Commercialization_And_Quota_Spec.md) | 企业微信商业化规格：一年期收费版本、企业共享展示额度、订单状态机、原子扣量、通知、数据模型与安全边界 |
 | [`01_08_Admin_Backoffice_Architecture_Guide.md`](01-specs/01_08_Admin_Backoffice_Architecture_Guide.md) | 管理后台重构后端架构开发指南：系统管理员/企业管理员权限区分、授权管理、付费版本控制、审计与实施里程碑 |
-| [`01_09_Admin_Account_Auth_System_Spec.md`](01-specs/01_09_Admin_Account_Auth_System_Spec.md) | 管理后台账号登录系统规格：企业微信扫码实时鉴权（get_admin_list）+ 平台账号 CRUD/角色配置、双身份域会话隔离、API 契约与验收标准 |
+| [`01_09_Admin_Account_Auth_System_Spec.md`](01-specs/01_09_Admin_Account_Auth_System_Spec.md) | 管理后台账号登录系统规格：普通微信小程序扫码为默认入口、已连接租户可选企业微信实时鉴权，以及平台账号与双身份域隔离 |
 | [`01_11_Local_Enterprise_And_Identity.md`](01-specs/01_11_Local_Enterprise_And_Identity.md) | 本地企业、成员邀请/绑定与企业微信可选连接器边界；账号调用许可 M0 |
 
 ### design（设计交付）

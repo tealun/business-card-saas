@@ -12,7 +12,7 @@
 
 ```text
 批次1 基础：accounts, tenants, wecom_suite_state
-批次2 身份：member_identities, account_identity_bindings, account_openid_bindings, account_preferences, tenant_admins, member_invitations
+批次2 身份：member_identities, account_identity_bindings, account_openid_bindings, account_preferences, tenant_admins, member_invitations, local_admin_login_challenges
 批次3 名片：cards, templates
 批次4 访客/客户：visitor_accounts, tenant_external_customers, tenant_customer_owners
 批次5 行为/分享：card_visits, card_actions, card_shares
@@ -25,6 +25,8 @@
 `tenants` 是平台企业事实源，不是企业微信授权记录：`creation_source=local|wecom|personal`；标准企业可令 `open_corpid=NULL` 且 `auth_status=unconnected`。`open_corpid` 只对非空值唯一。第一阶段为兼容现有代码暂存企微凭据列；后续按 `02_05` 通过双写、回填、核对迁入 `tenant_connectors`，不得一次性删除旧列。
 
 `member_invitations` 只保存一次性高熵票据的 SHA-256 hash、目标成员和有效期。接受邀请时尚无 tenant 上下文，因此该表显式不启用 RLS；服务端必须按 hash 行锁查询、校验未使用/未撤销/未过期并在同一事务内建立绑定和写入 `used_at`。明文票据只在创建响应中返回一次。
+
+`local_admin_login_challenges` 保存企业后台普通微信扫码登录的一次性挑战 hash。挑战批准前不含企业身份，批准后只保存 account/tenant/member 关联，5 分钟过期并在网页换取后台会话时原子标记 `consumed`；换取时必须重新验证绑定与管理员状态。
 
 > 全新库直接以最终形态建表（含 §15.3 字段）。批次8 仅作为文档说明存量演进策略，不对应当前仓库中的独立迁移文件。
 

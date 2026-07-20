@@ -9,6 +9,8 @@ interface IdRow extends QueryResultRow { id: string | number | bigint; }
 interface InviteRow extends QueryResultRow { tenant_id: string | number | bigint; member_identity_id: string | number | bigint; name: string; }
 interface JoinRequestRow extends QueryResultRow { id:string|number|bigint; tenant_id:string|number|bigint; account_id:string|number|bigint; display_name:string; status:"pending"|"approved"|"rejected"|"cancelled"; created_at:Date|string; }
 interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; }
+interface LocalAdminCandidateRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; }
+interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bigint|null; tenant_id:string|number|bigint|null; member_identity_id:string|number|bigint|null; status:"pending"|"approved"|"consumed"; expires_at:Date|string; }
 
 @Injectable()
 export class LocalEnterpriseRepository {
@@ -39,6 +41,46 @@ export class LocalEnterpriseRepository {
       const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,t.name AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM account_identity_bindings b JOIN tenant_admins a ON a.tenant_id=b.tenant_id AND a.member_identity_id=b.member_identity_id JOIN tenants t ON t.id=a.tenant_id WHERE b.account_id=$1 AND b.tenant_id=$2 AND t.creation_source='local' AND a.status='active' LIMIT 1`,[accountId,tenantId]);
       const row=result.rows[0];
       return row?{tenantId:String(row.tenant_id),tenantName:row.tenant_name,memberId:String(row.member_identity_id),openUserid:row.open_userid,role:row.role}:null;
+    });
+  }
+
+  async listLocalAdminsForAccount(accountId:string){
+    return this.database.transaction(async tx=>{
+      await tx.query("SELECT set_config('app.account_id',$1,true)",[accountId]);
+      const candidates=await tx.query<LocalAdminCandidateRow>(`SELECT b.tenant_id,t.name AS tenant_name,b.member_identity_id FROM account_identity_bindings b JOIN tenants t ON t.id=b.tenant_id WHERE b.account_id=$1 AND t.creation_source='local' ORDER BY t.name,b.tenant_id`,[accountId]);
+      const admins=[] as Array<{tenantId:string;tenantName:string;memberId:string;openUserid:string;role:"owner"|"admin"|"operator"|"auditor"}>;
+      for(const candidate of candidates.rows){
+        const tenantId=String(candidate.tenant_id);const memberId=String(candidate.member_identity_id);
+        await tx.query("SELECT set_config('app.tenant_id',$1,true)",[tenantId]);
+        const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,$3::text AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM tenant_admins a WHERE a.tenant_id=$1 AND a.member_identity_id=$2 AND a.status='active' LIMIT 1`,[tenantId,memberId,candidate.tenant_name]);
+        const row=result.rows[0];if(row)admins.push({tenantId,tenantName:row.tenant_name,memberId,openUserid:row.open_userid,role:row.role});
+      }
+      return admins;
+    });
+  }
+
+  async createAdminScanChallenge(tokenHash:string,expiresAt:Date){
+    await this.database.query(`INSERT INTO local_admin_login_challenges(token_hash,status,expires_at,created_at) VALUES($1,'pending',$2,now())`,[tokenHash,expiresAt]);
+  }
+
+  async approveAdminScanChallenge(input:{tokenHash:string;accountId:string;admin:{tenantId:string;memberId:string}}){
+    const result=await this.database.query(`UPDATE local_admin_login_challenges SET account_id=$2,tenant_id=$3,member_identity_id=$4,status='approved',approved_at=now() WHERE token_hash=$1 AND status='pending' AND expires_at>now()`,[input.tokenHash,input.accountId,input.admin.tenantId,input.admin.memberId]);
+    if(result.rowCount!==1) throw new ConflictException("login challenge is invalid or expired");
+  }
+
+  async consumeAdminScanChallenge(tokenHash:string){
+    return this.database.transaction(async tx=>{
+      const result=await tx.query<AdminChallengeRow>(`SELECT account_id,tenant_id,member_identity_id,status,expires_at FROM local_admin_login_challenges WHERE token_hash=$1 FOR UPDATE`,[tokenHash]);
+      const row=result.rows[0];
+      if(!row||new Date(row.expires_at).getTime()<=Date.now()) return {status:"expired" as const};
+      if(row.status!=="approved") return {status:row.status};
+      if(!row.account_id||!row.tenant_id||!row.member_identity_id) return {status:"revoked" as const};
+      const tenantId=String(row.tenant_id);const memberId=String(row.member_identity_id);
+      await this.context(tx,String(row.account_id),tenantId);
+      const adminResult=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,t.name AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM tenant_admins a JOIN tenants t ON t.id=a.tenant_id JOIN account_identity_bindings b ON b.tenant_id=a.tenant_id AND b.member_identity_id=a.member_identity_id WHERE a.tenant_id=$1 AND a.member_identity_id=$2 AND b.account_id=$3 AND a.status='active' LIMIT 1`,[tenantId,memberId,String(row.account_id)]);
+      const admin=adminResult.rows[0];if(!admin)return {status:"revoked" as const};
+      await tx.query(`UPDATE local_admin_login_challenges SET status='consumed',consumed_at=now() WHERE token_hash=$1 AND status='approved'`,[tokenHash]);
+      return {status:"approved" as const,tenantId,tenantName:admin.tenant_name,memberId,openUserid:admin.open_userid,role:admin.role};
     });
   }
 

@@ -8,6 +8,7 @@ import type { EmployeeSession } from "../session/employee-session.js";
 import { LocalEnterpriseRepository } from "./local-enterprise.repository.js";
 import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import { WechatJoinQrService } from "./wechat-join-qr.service.js";
+import { adminCapabilities } from "../admin-auth/admin-permissions.js";
 
 @Injectable()
 export class LocalEnterpriseService {
@@ -26,6 +27,33 @@ export class LocalEnterpriseService {
     return { tenant_id: admin.tenantId, admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
   }
 
+  async createAdminScanChallenge(){
+    const token=randomToken("adm",21);
+    const expiresAt=new Date(Date.now()+5*60*1000);
+    await this.repository.createAdminScanChallenge(this.hash(token),expiresAt);
+    const qrCodeDataUrl=await this.joinQr.generateScene(token,"pages/admin-login/index").catch(()=>null);
+    return {challenge_token:token,status:"pending",expires_at:expiresAt.toISOString(),qr_code_data_url:qrCodeDataUrl,miniprogram_path:`pages/admin-login/index?scene=${encodeURIComponent(token)}`};
+  }
+
+  async confirmAdminScan(session:EmployeeSession,token:string,tenantId?:string){
+    const admins=await this.repository.listLocalAdminsForAccount(session.accountId);
+    if(!admins.length) throw new ForbiddenException("当前微信账号不是本地企业管理员");
+    if(!tenantId&&admins.length>1) return {requires_selection:true,tenants:admins.map(item=>({tenant_id:item.tenantId,tenant_name:item.tenantName,role:item.role}))};
+    const selected=admins.find(item=>item.tenantId===(tenantId??admins[0]!.tenantId));
+    if(!selected) throw new ForbiddenException("当前微信账号无权管理所选企业");
+    await this.repository.approveAdminScanChallenge({tokenHash:this.hash(token),accountId:session.accountId,admin:selected});
+    return {requires_selection:false,approved:true,tenant_id:selected.tenantId,tenant_name:selected.tenantName};
+  }
+
+  async pollAdminScanChallenge(token:string){
+    if(!/^adm_[A-Za-z0-9_-]{28}$/.test(token)) throw new ForbiddenException("invalid login challenge");
+    const result=await this.repository.consumeAdminScanChallenge(this.hash(token));
+    if(result.status!=="approved") return {status:result.status};
+    const adminSession:AdminSession={tenantId:result.tenantId,tenantName:result.tenantName,memberIdentityId:result.memberId,openUserid:result.openUserid,role:result.role,accountType:"tenant"};
+    const capabilities=adminCapabilities(adminSession);
+    return {status:"approved",access_token:this.adminTokens.sign(adminSession),token_type:"Bearer",expires_in:this.adminTokens.expiresIn,admin:{tenant_id:result.tenantId,tenant_name:result.tenantName,member_identity_id:result.memberId,open_userid:result.openUserid,role:result.role,account_type:"tenant",permissions:capabilities.permissions,menu_scopes:capabilities.menuScopes}};
+  }
+
   async invite(session: AdminSession, displayName: string) {
     requireTenantAdminRole(session, "admin");
     const token = randomToken("member", 24);
@@ -41,4 +69,6 @@ export class LocalEnterpriseService {
   submitJoinRequest(session:EmployeeSession,token:string,displayName:string) { return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName}); }
   async listJoinRequests(session:AdminSession) { requireTenantAdminRole(session,"admin"); return {items:await this.repository.listJoinRequests(session.tenantId)}; }
   async reviewJoinRequest(session:AdminSession,requestId:string,decision:"approved"|"rejected") { requireTenantAdminRole(session,"admin"); const result=await this.repository.reviewJoinRequest({tenantId:session.tenantId,requestId,adminId:session.memberIdentityId,decision}); await this.audit.record({session,action:`local_join_request.${decision}`,targetType:"member_join_request",targetId:requestId,detail:{member_id:result.memberId}}); return result; }
+
+  private hash(token:string){return createHash("sha256").update(token).digest("hex");}
 }

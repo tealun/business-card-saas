@@ -9,11 +9,15 @@ export class WechatJoinQrService {
   constructor(private readonly config:AppConfig){}
 
   async generate(joinToken:string):Promise<string|null>{
+    return this.generateScene(joinToken,"pages/enterprise-join/index");
+  }
+
+  async generateScene(scene:string,page:string):Promise<string|null>{
     if(!this.config.wechatMiniProgramAppId||!this.config.wechatMiniProgramSecret) return null;
     const accessToken=await this.accessToken();
     const response=await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${encodeURIComponent(accessToken)}`,{
       method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({scene:joinToken,page:"pages/enterprise-join/index",check_path:false,env_version:"release",width:430})
+      body:JSON.stringify({scene,page,check_path:false,env_version:"release",width:430})
     });
     if(!response.ok) throw new ServiceUnavailableException(`WeChat QR HTTP ${response.status}`);
     const contentType=response.headers.get("content-type")||"";
