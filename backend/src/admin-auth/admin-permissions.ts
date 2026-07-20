@@ -119,6 +119,7 @@ function platformCapabilities(role: AdminRole | PlatformAdminRole): AdminCapabil
   }
 
   if (platformRole === "platform_owner") {
+    permissions.add("platform.tenant.write");
     permissions.add("platform.account.read");
     permissions.add("platform.account.write");
     menuScopes.add("platform.accounts");

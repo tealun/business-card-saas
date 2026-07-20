@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/comm
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
-import { acceptMemberInvitationSchema, createLocalEnterpriseAdminSessionSchema, createLocalEnterpriseSchema, createMemberInvitationSchema, localAdminScanConfirmSchema, reviewJoinRequestSchema, submitJoinRequestSchema } from "../contracts/local-enterprise.js";
+import { acceptMemberInvitationSchema, claimLocalEnterpriseSchema, createLocalEnterpriseAdminSessionSchema, createLocalEnterpriseSchema, createMemberInvitationSchema, localAdminScanConfirmSchema, reviewJoinRequestSchema, submitJoinRequestSchema } from "../contracts/local-enterprise.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { LocalEnterpriseService } from "./local-enterprise.service.js";
 
@@ -13,6 +13,7 @@ export class LocalEnterpriseController {
   @Post() @Throttle({ default: { ttl: 60 * 60 * 1000, limit: 5 } }) create(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=createLocalEnterpriseSchema.parse(body); return this.service.create(req.employeeSession!, input.name); }
   @Post("admin-session") @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } }) adminSession(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=createLocalEnterpriseAdminSessionSchema.parse(body); return this.service.createAdminSession(req.employeeSession!, input.tenant_id); }
   @Post("invitations/accept") accept(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=acceptMemberInvitationSchema.parse(body); return this.service.accept(req.employeeSession!, input.invitation_token); }
+  @Post("claim") @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } }) claim(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=claimLocalEnterpriseSchema.parse(body); return this.service.claim(req.employeeSession!, input.claim_token, input.display_name); }
   @Post("join-requests") join(@Req() req:EmployeeRequest,@Body() body:unknown){const input=submitJoinRequestSchema.parse(body);return this.service.submitJoinRequest(req.employeeSession!,input.join_token,input.display_name);}
   @Post("admin-scan/confirm") @Throttle({default:{ttl:60_000,limit:20}}) confirmAdminScan(@Req() req:EmployeeRequest,@Body() body:unknown){const input=localAdminScanConfirmSchema.parse(body);return this.service.confirmAdminScan(req.employeeSession!,input.challenge_token,input.tenant_id);}
 }

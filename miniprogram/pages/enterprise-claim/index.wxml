@@ -1,0 +1,10 @@
+<view class="claim-page">
+  <view class="claim-card">
+    <view class="claim-title">认领企业管理员</view>
+    <view class="claim-desc">认领成功后，您将成为该企业的管理员，可管理成员与名片。请确认由平台提供的认领码后再提交。</view>
+    <input class="claim-input" placeholder="请输入真实姓名" value="{{displayName}}" bindinput="onNameInput" maxlength="128" />
+    <button class="claim-button" type="primary" loading="{{submitting}}" disabled="{{submitting||result}}" bindtap="submit">确认认领</button>
+    <view wx:if="{{result}}" class="claim-success">{{result}}</view>
+    <view wx:if="{{error}}" class="claim-error">{{error}}</view>
+  </view>
+</view>

@@ -65,6 +65,13 @@ export class LocalEnterpriseService {
 
   accept(session: EmployeeSession, token: string) { return this.repository.acceptInvitation(session.accountId, token); }
 
+  // 认领平台创建的空壳本地企业：普通微信账号消费认领码成为该企业首个 owner，返回后台会话。
+  async claim(session: EmployeeSession, token: string, displayName: string) {
+    const created = await this.repository.claimEnterprise({ accountId: session.accountId, rawToken: token, displayName });
+    const adminSession: AdminSession = { tenantId: created.tenantId, tenantName: created.tenantName, memberIdentityId: created.memberId, openUserid: created.openUserid, role: "owner", accountType: "tenant" };
+    return { tenant_id: created.tenantId, tenant_name: created.tenantName, member_identity_id: created.memberId, admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
+  }
+
   async createJoinCode(session:AdminSession) { requireTenantAdminRole(session,"admin"); const token=randomToken("join",20); const expiresAt=new Date(Date.now()+30*24*60*60*1000); await this.repository.createJoinCode({tenantId:session.tenantId,tokenHash:createHash("sha256").update(token).digest("hex"),expiresAt}); const qrCodeDataUrl=await this.joinQr.generate(token).catch(()=>null); await this.audit.record({session,action:"local_join_code.rotate",targetType:"tenant",targetId:session.tenantId,detail:{expires_at:expiresAt.toISOString(),qr_generated:Boolean(qrCodeDataUrl)}}); return {join_token:token,join_path:`pages/enterprise-join/index?token=${encodeURIComponent(token)}`,qr_code_data_url:qrCodeDataUrl,expires_at:expiresAt.toISOString()}; }
   submitJoinRequest(session:EmployeeSession,token:string,displayName:string) { return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName}); }
   async listJoinRequests(session:AdminSession) { requireTenantAdminRole(session,"admin"); return {items:await this.repository.listJoinRequests(session.tenantId)}; }

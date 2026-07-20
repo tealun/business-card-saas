@@ -516,6 +516,8 @@ export class PersonalIdentityRepository {
           AND c.card_type = 'primary'
           AND c.deleted_at IS NULL
         WHERE b.account_id = $1
+          AND t.deleted_at IS NULL
+          AND t.status <> 'disabled'
         ORDER BY
           CASE WHEN COALESCE(t.tenant_type, 'enterprise') = 'personal' THEN 0 ELSE 1 END,
           b.created_at ASC

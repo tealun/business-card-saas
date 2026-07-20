@@ -85,6 +85,9 @@ erDiagram
 | `accounts.status` / `member_identities.status` / `cards.status` | `active` / `inactive` / `disabled` |
 | `tenants.creation_source` | `local` / `wecom` / `personal` |
 | `tenants.auth_status` | `unconnected` / `active` / `changed` / `cancelled`（仅表达连接状态，不决定企业本地可用性） |
+| `tenants.status` | `active` / `disabled`（本地企业软禁用开关，默认 `active`；`disabled` 时成员不可切换到该企业身份） |
+| `tenants.deleted_at` | 软删除时间戳，`NULL` 表示未删除；非空的企业不出现在平台列表、汇总与登录身份中 |
+| `tenants.member_limit` | 授权人数上限，`NULL`=不限（本地企业默认不限）；为将来企业微信缴费席位限制预留（`migrate_v1_20`，`CHECK member_limit IS NULL OR > 0`） |
 | `member_identities.license_type` / `licenses.license_type` | `base` / `interflow` / `plan_basic` / `plan_wecom` / `plan_contact` |
 | `cards.card_type` | `primary`（MVP）/ `recruiting` / `event` / `sales` |
 | `contact_ways.strategy` | `per_member_static` / `per_campaign_static` / `temp_session` |

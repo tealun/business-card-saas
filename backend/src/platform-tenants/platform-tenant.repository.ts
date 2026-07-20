@@ -8,6 +8,8 @@ export interface PlatformTenantListRecord {
   creationSource: "local" | "wecom";
   openCorpid: string | null;
   authStatus: string;
+  status: "active" | "disabled";
+  memberLimit: number | null;
   agentId: string | null;
   authorizedAt: Date | null;
   updatedAt: Date;
@@ -43,6 +45,8 @@ interface TenantListRow extends QueryResultRow {
   creation_source: "local" | "wecom";
   open_corpid: string | null;
   auth_status: string;
+  tenant_status: "active" | "disabled";
+  member_limit: number | null;
   agent_id: string | null;
   authorized_at: Date | string | null;
   updated_at: Date | string;
@@ -96,6 +100,8 @@ export class PlatformTenantRepository {
           t.creation_source,
           t.open_corpid,
           t.auth_status,
+          t.status AS tenant_status,
+          t.member_limit,
           t.agent_id,
           t.authorized_at,
           t.updated_at,
@@ -107,6 +113,7 @@ export class PlatformTenantRepository {
           count(*) OVER() AS total_count
         FROM tenants t
         WHERE t.tenant_type = 'enterprise'
+          AND t.deleted_at IS NULL
           AND ($1 = '' OR t.name ILIKE '%' || $1 || '%' OR COALESCE(t.open_corpid, '') ILIKE '%' || $1 || '%')
           AND ($2 = 'all' OR t.auth_status = $2)
         ORDER BY t.authorized_at DESC NULLS LAST, t.id DESC
@@ -132,6 +139,7 @@ export class PlatformTenantRepository {
           ) AS unhealthy_count
         FROM tenants
         WHERE tenant_type = 'enterprise'
+          AND deleted_at IS NULL
       `
     );
     const row = result.rows[0];
@@ -152,6 +160,8 @@ export class PlatformTenantRepository {
           t.creation_source,
           t.open_corpid,
           t.auth_status,
+          t.status AS tenant_status,
+          t.member_limit,
           t.agent_id,
           t.auth_scope_json,
           t.authorized_at,
@@ -181,7 +191,7 @@ export class PlatformTenantRepository {
           ORDER BY received_at DESC, id DESC
           LIMIT 1
         ) callback ON true
-        WHERE t.id = $1 AND t.tenant_type = 'enterprise'
+        WHERE t.id = $1 AND t.tenant_type = 'enterprise' AND t.deleted_at IS NULL
         LIMIT 1
       `,
       [tenantId]
@@ -220,6 +230,8 @@ export class PlatformTenantRepository {
       creationSource: row.creation_source,
       openCorpid: row.open_corpid,
       authStatus: row.auth_status,
+      status: row.tenant_status === "disabled" ? "disabled" : "active",
+      memberLimit: row.member_limit === null || row.member_limit === undefined ? null : Number(row.member_limit),
       agentId: row.agent_id,
       authorizedAt: row.authorized_at ? new Date(row.authorized_at) : null,
       updatedAt: new Date(row.updated_at),
@@ -229,5 +241,89 @@ export class PlatformTenantRepository {
       activeCardCount: Number(row.active_card_count),
       permanentCodeConfigured: row.permanent_code_configured === true
     };
+  }
+
+  // Fetch a writable local enterprise (creation_source='local', not soft-deleted).
+  // Returns null for missing rows, WeCom/personal tenants, or already-deleted ones,
+  // so the service can fail closed before mutating platform-managed state.
+  async getLocalWritable(tenantId: string): Promise<{ tenantId: string; name: string; status: "active" | "disabled"; activeOwnerCount: number } | null> {
+    if (!/^\d+$/.test(tenantId)) {
+      return null;
+    }
+    const result = await this.database.query<{ id: string | number | bigint; name: string; status: string; active_owner_count: string | number | bigint }>(
+      `
+        SELECT
+          t.id,
+          t.name,
+          t.status,
+          (SELECT count(*) FROM tenant_admins a WHERE a.tenant_id = t.id AND a.role = 'owner' AND a.status = 'active') AS active_owner_count
+        FROM tenants t
+        WHERE t.id = $1
+          AND t.tenant_type = 'enterprise'
+          AND t.creation_source = 'local'
+          AND t.deleted_at IS NULL
+        LIMIT 1
+      `,
+      [tenantId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+    return {
+      tenantId: String(row.id),
+      name: row.name,
+      status: row.status === "disabled" ? "disabled" : "active",
+      activeOwnerCount: Number(row.active_owner_count)
+    };
+  }
+
+  async createLocalTenant(input: { name: string; memberLimit: number | null }): Promise<{ tenantId: string; name: string }> {
+    const result = await this.database.query<{ id: string | number | bigint; name: string }>(
+      `
+        INSERT INTO tenants (name, tenant_type, creation_source, auth_status, status, member_limit, created_at, updated_at)
+        VALUES ($1, 'enterprise', 'local', 'unconnected', 'active', $2, now(), now())
+        RETURNING id, name
+      `,
+      [input.name, input.memberLimit]
+    );
+    const row = result.rows[0]!;
+    return { tenantId: String(row.id), name: row.name };
+  }
+
+  async renameLocalTenant(tenantId: string, name: string): Promise<boolean> {
+    const result = await this.database.query(
+      `
+        UPDATE tenants
+        SET name = $2, updated_at = now()
+        WHERE id = $1 AND tenant_type = 'enterprise' AND creation_source = 'local' AND deleted_at IS NULL
+      `,
+      [tenantId, name]
+    );
+    return result.rowCount === 1;
+  }
+
+  async setLocalTenantStatus(tenantId: string, status: "active" | "disabled"): Promise<boolean> {
+    const result = await this.database.query(
+      `
+        UPDATE tenants
+        SET status = $2, updated_at = now()
+        WHERE id = $1 AND tenant_type = 'enterprise' AND creation_source = 'local' AND deleted_at IS NULL
+      `,
+      [tenantId, status]
+    );
+    return result.rowCount === 1;
+  }
+
+  async softDeleteLocalTenant(tenantId: string): Promise<boolean> {
+    const result = await this.database.query(
+      `
+        UPDATE tenants
+        SET deleted_at = now(), status = 'disabled', updated_at = now()
+        WHERE id = $1 AND tenant_type = 'enterprise' AND creation_source = 'local' AND deleted_at IS NULL
+      `,
+      [tenantId]
+    );
+    return result.rowCount === 1;
   }
 }

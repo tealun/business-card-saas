@@ -19,6 +19,8 @@ const listItem = {
   creationSource: "wecom" as const,
   openCorpid: "wwcorp001",
   authStatus: "active",
+  status: "active" as const,
+  memberLimit: null,
   agentId: "100001",
   authorizedAt: new Date("2026-07-16T01:00:00.000Z"),
   updatedAt: new Date("2026-07-16T02:00:00.000Z"),
@@ -51,7 +53,14 @@ function createRepository() {
         retryCount: 0,
         lastError: null
       }
-    } : null)
+    } : null),
+    getLocalWritable: jest.fn(async (tenantId: string) => tenantId === "2"
+      ? { tenantId: "2", name: "本地企业", status: "active" as const, activeOwnerCount: 0 }
+      : null),
+    createLocalTenant: jest.fn(async (input: { name: string; memberLimit: number | null }) => ({ tenantId: "10", name: input.name })),
+    renameLocalTenant: jest.fn(async () => true),
+    setLocalTenantStatus: jest.fn(async () => true),
+    softDeleteLocalTenant: jest.fn(async () => true)
   };
 }
 
@@ -70,10 +79,19 @@ function createContactSync() {
 }
 
 function createService(repository = createRepository(), contactSync = createContactSync()) {
+  const ownerBootstrap = {
+    bootstrapOwner: jest.fn(async () => ({
+      mode: "claim_token_created" as const,
+      tenant_id: "2",
+      claim_token: "admclaim_test",
+      expires_at: new Date(Date.now() + 900_000).toISOString()
+    }))
+  };
   return {
-    service: new PlatformTenantService(repository as never, contactSync as never),
+    service: new PlatformTenantService(repository as never, contactSync as never, ownerBootstrap as never),
     repository,
-    contactSync
+    contactSync,
+    ownerBootstrap
   };
 }
 
@@ -143,6 +161,61 @@ describe("PlatformTenantService", () => {
     const { service, contactSync } = createService(repository);
     await expect(service.syncTenantMembers(platformSession, "2")).rejects.toBeInstanceOf(BadRequestException);
     expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
+  });
+
+  it("creates a local enterprise shell and returns a claim token", async () => {
+    const { service, repository, ownerBootstrap } = createService();
+    const result = await service.createLocalEnterprise(platformSession, { name: "新本地企业", memberLimit: null });
+    expect(repository.createLocalTenant).toHaveBeenCalledWith({ name: "新本地企业", memberLimit: null });
+    expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "10" });
+    expect(result).toMatchObject({
+      tenant_id: "10",
+      tenant_name: "新本地企业",
+      member_limit: null,
+      claim_token: "admclaim_test"
+    });
+    expect(result.claim_path).toContain("admclaim_test");
+  });
+
+  it("rejects a create with too short a name", async () => {
+    const { service, repository } = createService();
+    await expect(service.createLocalEnterprise(platformSession, { name: "x", memberLimit: null })).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.createLocalTenant).not.toHaveBeenCalled();
+  });
+
+  it("renames a local enterprise", async () => {
+    const { service, repository } = createService();
+    await expect(service.renameLocalEnterprise(platformSession, "2", "改名后的企业")).resolves.toMatchObject({
+      tenant_id: "2",
+      tenant_name: "改名后的企业"
+    });
+    expect(repository.renameLocalTenant).toHaveBeenCalledWith("2", "改名后的企业");
+  });
+
+  it("rejects rename for a non-local or deleted enterprise", async () => {
+    const { service, repository } = createService();
+    await expect(service.renameLocalEnterprise(platformSession, "999", "任意名称")).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.renameLocalTenant).not.toHaveBeenCalled();
+  });
+
+  it("disables and enables a local enterprise", async () => {
+    const { service, repository } = createService();
+    await expect(service.setLocalEnterpriseStatus(platformSession, "2", "disabled")).resolves.toMatchObject({ tenant_id: "2", status: "disabled" });
+    await expect(service.setLocalEnterpriseStatus(platformSession, "2", "active")).resolves.toMatchObject({ tenant_id: "2", status: "active" });
+    expect(repository.setLocalTenantStatus).toHaveBeenNthCalledWith(1, "2", "disabled");
+    expect(repository.setLocalTenantStatus).toHaveBeenNthCalledWith(2, "2", "active");
+  });
+
+  it("soft deletes a local enterprise", async () => {
+    const { service, repository } = createService();
+    await expect(service.deleteLocalEnterprise(platformSession, "2")).resolves.toMatchObject({ tenant_id: "2", deleted: true });
+    expect(repository.softDeleteLocalTenant).toHaveBeenCalledWith("2");
+  });
+
+  it("rejects local enterprise mutations from non-owner platform sessions", async () => {
+    const { service } = createService();
+    const editorSession = { ...platformSession, role: "support" } as AdminSession;
+    await expect(service.createLocalEnterprise(editorSession, { name: "任意名称", memberLimit: null })).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
 

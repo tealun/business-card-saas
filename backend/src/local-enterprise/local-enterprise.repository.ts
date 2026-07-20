@@ -35,6 +35,46 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  // Claim a platform-created empty local enterprise: the current WeChat account
+  // becomes the first active owner. Tenant must be local/active/not-deleted, the
+  // claim token unused and unexpired, and there must be no existing active owner
+  // nor an existing binding for this account.
+  async claimEnterprise(input: { accountId: string; rawToken: string; displayName: string }) {
+    const tokenHash = createHash("sha256").update(input.rawToken).digest("hex");
+    return this.database.transaction(async (tx) => {
+      const tokenRow = await tx.query<{ tenant_id: string | number | bigint; tenant_name: string }>(
+        `SELECT c.tenant_id, t.name AS tenant_name
+         FROM admin_claim_tokens c
+         JOIN tenants t ON t.id = c.tenant_id
+         WHERE c.token_hash = $1
+           AND c.used_at IS NULL
+           AND c.expires_at > now()
+           AND t.tenant_type = 'enterprise'
+           AND t.creation_source = 'local'
+           AND t.deleted_at IS NULL
+           AND t.status = 'active'
+         FOR UPDATE OF c`,
+        [tokenHash]
+      );
+      const row = tokenRow.rows[0];
+      if (!row) throw new ConflictException("认领码无效或已过期");
+      const tenantId = String(row.tenant_id);
+      await this.context(tx, input.accountId, tenantId);
+      const owner = await tx.query(`SELECT 1 FROM tenant_admins WHERE tenant_id=$1 AND role='owner' AND status='active' LIMIT 1`, [tenantId]);
+      if (owner.rows[0]) throw new ConflictException("企业已被认领");
+      const bound = await tx.query(`SELECT 1 FROM account_identity_bindings WHERE tenant_id=$1 AND account_id=$2 LIMIT 1`, [tenantId, input.accountId]);
+      if (bound.rows[0]) throw new ConflictException("当前微信已在该企业拥有身份");
+      const member = await tx.query<IdRow>(`INSERT INTO member_identities (tenant_id,name,status,created_at,updated_at) VALUES ($1,$2,'active',now(),now()) RETURNING id`, [tenantId, input.displayName]);
+      const memberId = String(member.rows[0]!.id);
+      await tx.query(`INSERT INTO account_identity_bindings (account_id,tenant_id,member_identity_id,bind_source,created_at) VALUES ($1,$2,$3,'local_owner',now())`, [input.accountId, tenantId, memberId]);
+      await this.createCard(tx, tenantId, memberId, input.displayName);
+      const openUserid = `account:${input.accountId}`;
+      await tx.query(`INSERT INTO tenant_admins (tenant_id,member_identity_id,open_userid,role,status,auth_source,created_at,updated_at) VALUES ($1,$2,$3,'owner','active','claim_token',now(),now())`, [tenantId, memberId, openUserid]);
+      await tx.query(`UPDATE admin_claim_tokens SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL`, [tokenHash]);
+      return { tenantId, memberId, tenantName: row.tenant_name, openUserid };
+    });
+  }
+
   async findLocalAdminForAccount(accountId:string,tenantId:string) {
     return this.database.transaction(async tx=>{
       await this.context(tx,accountId,tenantId);

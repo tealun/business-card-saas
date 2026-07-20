@@ -28,11 +28,16 @@ CREATE TABLE "tenants" (
     "cancel_auth_time" TIMESTAMPTZ(6),
     "corp_access_token_encrypted" TEXT,
     "corp_access_token_expires_at" TIMESTAMPTZ(6),
+    "status" VARCHAR(16) NOT NULL DEFAULT 'active',
+    "member_limit" INTEGER,
+    "deleted_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "tenants_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "tenants_creation_source_check" CHECK ("creation_source" IN ('local','wecom','personal'))
+    CONSTRAINT "tenants_creation_source_check" CHECK ("creation_source" IN ('local','wecom','personal')),
+    CONSTRAINT "tenants_status_check" CHECK ("status" IN ('active','disabled')),
+    CONSTRAINT "tenants_member_limit_check" CHECK ("member_limit" IS NULL OR "member_limit" > 0)
 );
 
 -- CreateTable
@@ -595,6 +600,9 @@ CREATE UNIQUE INDEX "uk_tenants_open_corpid" ON "tenants"("open_corpid") WHERE "
 
 -- CreateIndex
 CREATE INDEX "idx_tenants_creation_source" ON "tenants"("tenant_type", "creation_source");
+
+-- CreateIndex
+CREATE INDEX "idx_tenants_status_deleted" ON "tenants"("status", "deleted_at");
 
 -- CreateIndex
 CREATE INDEX "idx_member_tenant" ON "member_identities"("tenant_id");

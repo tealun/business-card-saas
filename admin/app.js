@@ -376,6 +376,7 @@ function refreshPermissionControls() {
   applyPermissionState("#loadDatabaseMigrations", "platform.database.read");
   applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
   applyPermissionState("#createPlatformAccount", "platform.account.write");
+  applyPermissionState("#createLocalEnterprise", "platform.tenant.write");
 }
 
 function renderNav() {
@@ -2246,25 +2247,153 @@ async function loadTenantAuthorizations(page = state.tenantAuthorizations.page) 
 
 function renderTenantAuthorizations() {
   const current = state.tenantAuthorizations;
-  renderRows($("#tenantAuthorizationRows"), current.items, 8, (item) => [
-    `<strong>${escapeHtml(item.tenant_name)}</strong>`,
-    `<code>${escapeHtml(item.open_corpid)}</code>`,
-    tag(item.auth_status === "active" ? "授权有效" : "已取消授权", statusTone(item.auth_status)),
-    item.authorization_healthy === undefined
-      ? tag("未知", "muted")
-      : item.authorization_healthy
-        ? tag("正常", "success")
-        : tag("需检查", "warning"),
-    `${item.active_member_count} / ${item.member_count}`,
-    `${item.active_card_count} / ${item.card_count}`,
-    formatDate(item.authorized_at),
-    linkButton("查看详情", () => openTenantDetail(item.tenant_id))
-  ]);
+  renderRows($("#tenantAuthorizationRows"), current.items, 8, (item) => {
+    const isLocal = item.creation_source === "local";
+    const nameCell = isLocal
+      ? `<strong>${escapeHtml(item.tenant_name)}</strong> ${tag("本地企业", "brand")}${item.status === "disabled" ? " " + tag("已禁用", "danger") : ""}`
+      : `<strong>${escapeHtml(item.tenant_name)}</strong>`;
+    const corpCell = isLocal ? "<code>--</code>" : `<code>${escapeHtml(item.open_corpid)}</code>`;
+    const authCell = isLocal
+      ? tag(item.status === "disabled" ? "已禁用" : "本地启用", item.status === "disabled" ? "danger" : "success")
+      : tag(item.auth_status === "active" ? "授权有效" : "已取消授权", statusTone(item.auth_status));
+    const healthCell = isLocal
+      ? tag("本地", "muted")
+      : item.authorization_healthy === undefined
+        ? tag("未知", "muted")
+        : item.authorization_healthy
+          ? tag("正常", "success")
+          : tag("需检查", "warning");
+    return [
+      nameCell,
+      corpCell,
+      authCell,
+      healthCell,
+      `${item.active_member_count} / ${item.member_count}${isLocal ? formatMemberLimit(item.member_limit) : ""}`,
+      `${item.active_card_count} / ${item.card_count}`,
+      formatDate(item.authorized_at),
+      isLocal ? buildLocalEnterpriseActions(item) : linkButton("查看详情", () => openTenantDetail(item.tenant_id))
+    ];
+  });
   const totalPages = Math.max(1, Math.ceil(current.total / current.pageSize));
   $("#tenantAuthorizationPage").textContent = `第 ${current.page} / ${totalPages} 页`;
   $("#tenantAuthorizationPrev").disabled = current.page <= 1;
   $("#tenantAuthorizationNext").disabled = current.page >= totalPages;
   $("#tenantAuthorizationTotal").textContent = `${current.total} 家企业`;
+}
+
+function formatMemberLimit(memberLimit) {
+  return memberLimit === null || memberLimit === undefined ? "（不限）" : `（上限 ${memberLimit}）`;
+}
+
+function buildLocalEnterpriseActions(item) {
+  const wrap = document.createElement("div");
+  wrap.className = "row-actions";
+  wrap.append(linkButton("详情", () => openTenantDetail(item.tenant_id)));
+  if (hasPermission("platform.tenant.write")) {
+    wrap.append(linkButton("改名", () => renameLocalEnterprise(item)));
+    if (item.status === "disabled") {
+      wrap.append(linkButton("启用", () => toggleLocalEnterprise(item, "enable")));
+    } else {
+      wrap.append(linkButton("禁用", () => toggleLocalEnterprise(item, "disable")));
+    }
+    wrap.append(linkButton("删除", () => deleteLocalEnterprise(item), "link-btn danger-link"));
+  }
+  return wrap;
+}
+
+async function openCreateLocalEnterprise() {
+  if (!requirePermission("platform.tenant.write")) return;
+  const panel = $("#createLocalEnterprisePanel");
+  panel.hidden = false;
+  $("#localEnterpriseClaimResult").hidden = true;
+  $("#localEnterpriseCreateName").value = "";
+  $("#localEnterpriseCreateMemberLimit").value = "";
+  $("#localEnterpriseCreateName").focus();
+}
+
+async function submitCreateLocalEnterprise() {
+  if (!requirePermission("platform.tenant.write")) return;
+  const name = $("#localEnterpriseCreateName").value.trim();
+  const limitRaw = $("#localEnterpriseCreateMemberLimit").value.trim();
+  if (name.length < 2) {
+    notify("请填写企业名称（至少 2 个字）", "danger");
+    return;
+  }
+  const body = { name };
+  if (limitRaw) {
+    const limit = Number(limitRaw);
+    if (!Number.isInteger(limit) || limit < 1) {
+      notify("授权人数需为正整数，或留空表示不限", "danger");
+      return;
+    }
+    body.member_limit = limit;
+  }
+  const res = await run("创建本地企业", () => adminRequest("/admin/platform/tenants", { method: "POST", body }));
+  notify(`本地企业「${name}」已创建`);
+  const result = $("#localEnterpriseClaimResult");
+  if (res && res.claim_token) {
+    result.hidden = false;
+    result.innerHTML = `
+      <div class="kv-list">
+        <div class="kv-row"><span>企业 ID</span><strong><code>${escapeHtml(String(res.tenant_id))}</code></strong></div>
+        <div class="kv-row"><span>认领码</span><strong><code>${escapeHtml(res.claim_token)}</code></strong></div>
+        <div class="kv-row"><span>认领链接</span><strong><code>${escapeHtml(res.claim_path || "--")}</code></strong></div>
+        <div class="kv-row"><span>有效期至</span><strong>${escapeHtml(formatDate(res.claim_expires_at))}</strong></div>
+      </div>
+      <p class="hint">请尽快将认领码或认领链接发送给企业负责人；认领码 15 分钟内有效，过期后可删除该企业重建，或在详情中重新生成。</p>`;
+  } else {
+    result.hidden = true;
+  }
+  $("#localEnterpriseCreateName").value = "";
+  $("#localEnterpriseCreateMemberLimit").value = "";
+  await loadTenantAuthorizations(1);
+}
+
+async function renameLocalEnterprise(item) {
+  if (!requirePermission("platform.tenant.write")) return;
+  const next = await confirmAction({
+    title: "修改企业名称",
+    body: `将修改本地企业「${item.tenant_name}」的名称，请在下方输入新的企业名称。`,
+    reason: true
+  });
+  if (next === false) return;
+  const trimmed = String(next || "").trim();
+  if (trimmed.length < 2) {
+    notify("企业名称至少 2 个字", "danger");
+    return;
+  }
+  await run("修改企业名称", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(item.tenant_id)}`, { method: "PATCH", body: { name: trimmed } }));
+  notify("企业名称已修改");
+  await loadTenantAuthorizations();
+}
+
+async function toggleLocalEnterprise(item, action) {
+  if (!requirePermission("platform.tenant.write")) return;
+  const disabling = action === "disable";
+  const ok = await confirmAction({
+    title: disabling ? "确认禁用企业" : "确认启用企业",
+    body: disabling
+      ? `将禁用本地企业「${item.tenant_name}」，其成员将无法在小程序切换到该企业身份。`
+      : `将重新启用本地企业「${item.tenant_name}」。`,
+    danger: disabling
+  });
+  if (!ok) return;
+  await run(disabling ? "禁用企业" : "启用企业", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(item.tenant_id)}/${disabling ? "disable" : "enable"}`, { method: "POST" }));
+  notify(disabling ? "企业已禁用" : "企业已启用");
+  await loadTenantAuthorizations();
+}
+
+async function deleteLocalEnterprise(item) {
+  if (!requirePermission("platform.tenant.write")) return;
+  const ok = await confirmAction({
+    title: "确认删除企业",
+    body: `将删除本地企业「${item.tenant_name}」（软删除，成员与名片保留但不可再访问）。此操作后成员无法再切换到该企业身份。`,
+    danger: true
+  });
+  if (!ok) return;
+  await run("删除企业", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(item.tenant_id)}`, { method: "DELETE" }));
+  notify("企业已删除");
+  await loadTenantAuthorizations();
 }
 
 function linkButton(label, handler, className = "link-btn") {
@@ -2742,6 +2871,9 @@ $("#tenantAuthorizationSearch").addEventListener("keydown", (event) => {
 $("#tenantAuthorizationStatus").addEventListener("change", () => run("筛选企业授权", () => loadTenantAuthorizations(1)));
 $("#tenantAuthorizationPrev").addEventListener("click", () => run("上一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page - 1)));
 $("#tenantAuthorizationNext").addEventListener("click", () => run("下一页", () => loadTenantAuthorizations(state.tenantAuthorizations.page + 1)));
+$("#createLocalEnterprise").addEventListener("click", () => openCreateLocalEnterprise());
+$("#submitCreateLocalEnterprise").addEventListener("click", () => submitCreateLocalEnterprise());
+$("#cancelCreateLocalEnterprise").addEventListener("click", () => { $("#createLocalEnterprisePanel").hidden = true; });
 $("#loadPlatformWecomEvents").addEventListener("click", () => run("刷新回调", loadPlatformWecomEvents));
 $("#retryPlatformEvents").addEventListener("click", async () => {
   if (!requirePermission("platform.sync.retry")) return;

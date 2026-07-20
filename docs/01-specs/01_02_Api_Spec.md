@@ -199,10 +199,25 @@
 
 | 方法 路径 | 鉴权 | 说明 |
 |-----------|------|------|
-| GET `/api/v1/admin/platform/tenants` | Platform Admin JWT | 分页查询已安装企业，支持 `search`、`status`、`page`、`page_size`；返回授权状态和成员/名片汇总 |
+| GET `/api/v1/admin/platform/tenants` | Platform Admin JWT | 分页查询已安装企业，支持 `search`、`status`、`page`、`page_size`；返回授权状态、`status`、`member_limit`、`creation_source` 和成员/名片汇总。已软删除（`deleted_at` 非空）企业不返回 |
 | GET `/api/v1/admin/platform/tenants/{tenant_id}` | Platform Admin JWT | 查询授权范围、AgentID、授权码/企业 token 配置状态、管理员/成员/名片汇总和最近回调 |
 
 接口仅允许 `account_type=platform` 的管理员访问。响应不得返回 `permanent_code_encrypted`、`corp_access_token_encrypted` 或回调原始密文，只返回是否配置、到期时间和脱敏运行状态。
+
+### 3.9 平台本地企业管理
+
+以下写操作仅允许 `platform_owner`（`platform.tenant.write` 权限点），且仅作用于 `creation_source=local` 且未软删除的企业；企业微信企业（`wecom`）与个人租户为只读，不可通过这些接口创建/改名/禁用/删除。所有写操作写入 `admin_operation_logs` 审计。
+
+| 方法 路径 | 鉴权 | 说明 |
+|-----------|------|------|
+| POST `/api/v1/admin/platform/tenants` | Platform Owner JWT | 创建空壳本地企业。请求体 `{ name(2-255), member_limit?(正整数或省略=不限) }`。返回 `{ tenant_id, tenant_name, member_limit, claim_token, claim_expires_at, claim_path }`，`claim_token` 为一次性认领码（TTL 15 分钟）。企业此时无管理员，需负责人在小程序完成认领 |
+| PATCH `/api/v1/admin/platform/tenants/{tenant_id}` | Platform Owner JWT | 仅修改企业名称。请求体 `{ name(2-255) }` |
+| POST `/api/v1/admin/platform/tenants/{tenant_id}/disable` | Platform Owner JWT | 软禁用企业（`status=disabled`）。成员将无法在小程序切换到该企业身份 |
+| POST `/api/v1/admin/platform/tenants/{tenant_id}/enable` | Platform Owner JWT | 重新启用企业（`status=active`） |
+| DELETE `/api/v1/admin/platform/tenants/{tenant_id}` | Platform Owner JWT | 软删除企业（写入 `deleted_at` 并置 `status=disabled`）。成员与名片保留但不可再访问，也不再出现在列表与登录身份中 |
+| POST `/api/v1/local-enterprises/claim` | Employee Session | 企业负责人凭认领码认领本地企业。请求体 `{ claim_token, display_name }`。校验企业为本地/启用/未删除、认领码未使用未过期、企业无现存管理员、当前账号未绑定该企业后，创建成员+绑定(local_owner)+名片+管理员(auth_source=claim_token) 并消费认领码，返回 `{ tenant_id, tenant_name, member_identity_id, admin_access_token, expires_in }`。限流 15 分钟 10 次 |
+
+> **授权人数说明**：本地企业默认 `member_limit=NULL`（不限）。该字段为将来升级企业微信模式预留，届时按授权接口缴费席位限制人数。当前后端不对本地企业成员数做上限校验。
 
 ## 4. 待核对
 

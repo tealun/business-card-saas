@@ -1,8 +1,21 @@
 <section class="page" data-page="platform-tenants">
           <div class="page-head">
-            <div><h2>企业授权中心</h2><p>查看企业安装、授权健康和成员名片规模。</p></div>
-            <button id="loadTenantAuthorizations" type="button" class="secondary icon-btn" aria-label="刷新">&#x21bb; 刷新</button>
+            <div><h2>企业授权中心</h2><p>查看企业安装、授权健康和成员名片规模；本地企业可在此新建与管理。</p></div>
+            <div class="page-head-actions">
+              <button id="createLocalEnterprise" type="button">新建本地企业</button>
+              <button id="loadTenantAuthorizations" type="button" class="secondary icon-btn" aria-label="刷新">&#x21bb; 刷新</button>
+            </div>
           </div>
+          <article class="panel" id="createLocalEnterprisePanel" hidden>
+            <div class="toolbar">
+              <input id="localEnterpriseCreateName" placeholder="企业名称（2-255 字）" maxlength="255" />
+              <input id="localEnterpriseCreateMemberLimit" type="number" min="1" placeholder="授权人数（留空=不限）" />
+              <button id="submitCreateLocalEnterprise" type="button">创建并生成认领码</button>
+              <button id="cancelCreateLocalEnterprise" type="button" class="secondary">取消</button>
+            </div>
+            <p class="hint">本地企业不绑定企业微信，默认不限制授权人数；如后期升级为企业微信模式，可按缴费席位填写人数上限。创建后请把认领码或认领链接发送给企业负责人，由其在小程序完成认领并成为管理员。</p>
+            <div id="localEnterpriseClaimResult" hidden></div>
+          </article>
           <article class="panel">
             <div class="toolbar">
               <input id="tenantAuthorizationSearch" placeholder="搜索企业名称或 OpenCorpID" />
