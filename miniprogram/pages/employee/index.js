@@ -187,10 +187,14 @@ Page({
     const currentId = currentIdentity && currentIdentity.member_identity_id;
     const identities = (session.identities || app.globalData.identities || []).map((identity) => {
       const isPersonal = identity.identity_type === "personal";
+      const isLocal = identity.identity_type === "local_enterprise";
       return Object.assign({}, identity, {
         optionName: isPersonal
           ? (identity.display_name || "我的名片")
           : (identity.tenant_short_name || identity.short_name || identity.tenant_name || "企业名片"),
+        typeLabel: isPersonal ? "个人名片" : (isLocal ? "本地企业" : "企业名片"),
+        badgeClass: isPersonal ? "badge--brand" : (isLocal ? "badge--warning" : "badge--success"),
+        subtitle: isPersonal ? "微信个人身份" : identity.tenant_name,
         selected: identity.member_identity_id === currentId
       });
     });
