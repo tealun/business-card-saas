@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { AdminSessionTokenService } from "./admin-session-token.service.js";
 import { PlatformAdminService } from "./platform-admin.service.js";
 import type { AdminSession } from "./admin-session.js";
+import { OwnerBootstrapRepository } from "../admin-bootstrap/owner-bootstrap.repository.js";
 
 export interface AdminRequest {
   adminSession?: AdminSession;
@@ -11,7 +12,8 @@ export interface AdminRequest {
 export class AdminAuthGuard implements CanActivate {
   constructor(
     private readonly sessionTokens: AdminSessionTokenService,
-    private readonly platformAdmins: PlatformAdminService
+    private readonly platformAdmins: PlatformAdminService,
+    private readonly tenantAdmins: OwnerBootstrapRepository
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -27,6 +29,11 @@ export class AdminAuthGuard implements CanActivate {
     // deleting a platform admin revokes its outstanding 8h tokens immediately.
     if (session.accountType === "platform") {
       await this.platformAdmins.assertActiveSessionAccount(session);
+    } else {
+      const current=await this.tenantAdmins.findActiveAdmin({tenantId:session.tenantId,openUserid:session.openUserid});
+      if (!current || (current.memberIdentityId!==null && current.memberIdentityId!==session.memberIdentityId) || current.role!==session.role) {
+        throw new UnauthorizedException("tenant administrator session is no longer active");
+      }
     }
     // Attach the client IP for admin operation audit logging; it is request state,
     // not part of the signed token payload. request.ip is Fastify's own resolution,

@@ -24,8 +24,9 @@ describe("AdminAuthGuard", () => {
     const repository = new PlatformAdminRepository();
     const tokens = new AdminSessionTokenService();
     const platformAdmins = new PlatformAdminService(repository, tokens);
-    const guard = new AdminAuthGuard(tokens, platformAdmins);
-    return { repository, tokens, platformAdmins, guard };
+    const tenantAdmins = { findActiveAdmin: jest.fn(async () => ({ tenantId:"tenant-001",memberIdentityId:"member-001",openUserid:"ou-owner",role:"owner" })) };
+    const guard = new AdminAuthGuard(tokens, platformAdmins, tenantAdmins as never);
+    return { repository, tokens, platformAdmins, tenantAdmins, guard };
   }
 
   const tenantSession: AdminSession = {
@@ -60,10 +61,11 @@ describe("AdminAuthGuard", () => {
     } satisfies AdminSession;
   }
 
-  it("allows tenant-session requests with a valid bearer token without a platform account lookup", async () => {
-    const { tokens, guard } = createGuard();
+  it("allows tenant-session requests only while the tenant admin is active", async () => {
+    const { tokens, guard,tenantAdmins } = createGuard();
     const token = tokens.sign(tenantSession);
     await expect(guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
+    expect(tenantAdmins.findActiveAdmin).toHaveBeenCalledWith({tenantId:"tenant-001",openUserid:"ou-owner"});
   });
 
   it("attaches Fastify's resolved client ip to the verified session for audit logging", async () => {
@@ -147,11 +149,24 @@ describe("AdminAuthGuard", () => {
     await expect(setup.guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow(UnauthorizedException);
   });
 
-  it("does not require a platform_admins row for tenant sessions signed before this change", async () => {
+  it("rejects an outstanding tenant token after the tenant admin is disabled", async () => {
     const setup = createGuard();
-    const findByUsername = jest.spyOn(setup.repository, "findByUsername");
+    (setup.tenantAdmins.findActiveAdmin as jest.Mock).mockResolvedValue(null);
     const token = setup.tokens.sign({ ...tenantSession, accountType: "tenant" });
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("rejects an outstanding tenant token after the tenant admin role changes", async () => {
+    const setup = createGuard();
+    setup.tenantAdmins.findActiveAdmin.mockResolvedValue({...await setup.tenantAdmins.findActiveAdmin(),role:"admin"});
+    const token = setup.tokens.sign({ ...tenantSession, accountType: "tenant" });
+    await expect(setup.guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("keeps legacy active tenant admins without a persisted member id compatible",async()=>{
+    const setup=createGuard();
+    setup.tenantAdmins.findActiveAdmin.mockResolvedValue({...await setup.tenantAdmins.findActiveAdmin(),memberIdentityId:null} as never);
+    const token=setup.tokens.sign({...tenantSession,accountType:"tenant"});
     await expect(setup.guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
-    expect(findByUsername).not.toHaveBeenCalled();
   });
 });

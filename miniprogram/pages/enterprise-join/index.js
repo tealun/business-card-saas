@@ -3,7 +3,7 @@ const { request } = require("../../utils/api");
 
 Page({
   data:{token:"",displayName:"",submitting:false,result:"",error:""},
-  onLoad(options){this.setData({token:String(options&&options.token||"")});},
+  onLoad(options){this.setData({token:String(options&&(options.token||options.scene)||"")});},
   onNameInput(event){this.setData({displayName:event.detail.value});},
   async submit(){
     const displayName=String(this.data.displayName||"").trim();

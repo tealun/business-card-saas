@@ -712,9 +712,10 @@ async function inviteLocalMember() {
 
 async function createEnterpriseJoinCode() {
   const result=await run("生成企业加入码",()=>adminRequest("/admin/local-enterprises/join-code",{method:"POST"}));
-  const path=`pages/enterprise-join/index?token=${encodeURIComponent(result.join_token||"")}`;
+  const path=result.join_path||`pages/enterprise-join/index?token=${encodeURIComponent(result.join_token||"")}`;
   $("#joinCodeResult").textContent=`小程序路径：${path}（有效期至 ${formatDate(result.expires_at)}）`;
-  window.prompt("复制小程序加入路径，用微信公众平台生成小程序码",path);
+  if(result.qr_code_data_url){const link=document.createElement("a");link.href=result.qr_code_data_url;link.download="enterprise-join-code.png";link.click();}
+  else window.prompt("当前环境未配置小程序凭据，请复制路径后在微信公众平台生成小程序码",path);
 }
 
 async function loadJoinRequests() {

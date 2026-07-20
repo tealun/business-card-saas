@@ -602,6 +602,9 @@ CREATE INDEX "idx_binding_tenant" ON "account_identity_bindings"("tenant_id");
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_account_identity" ON "account_identity_bindings"("account_id", "member_identity_id");
 
+-- A natural-person account has at most one member identity in one enterprise.
+CREATE UNIQUE INDEX "uk_binding_tenant_account" ON "account_identity_bindings"("tenant_id", "account_id");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_member_identity_binding" ON "account_identity_bindings"("tenant_id", "member_identity_id");
 
@@ -752,6 +755,8 @@ ALTER TABLE "account_identity_bindings" ADD CONSTRAINT "account_identity_binding
 
 -- AddForeignKey
 ALTER TABLE "account_identity_bindings" ADD CONSTRAINT "account_identity_bindings_member_identity_id_fkey" FOREIGN KEY ("member_identity_id") REFERENCES "member_identities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "account_identity_bindings" ADD CONSTRAINT "account_identity_bindings_tenant_member_fkey" FOREIGN KEY ("tenant_id", "member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "account_preferences" ADD CONSTRAINT "account_preferences_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

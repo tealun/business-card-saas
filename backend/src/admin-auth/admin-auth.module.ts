@@ -30,6 +30,6 @@ import { PlatformAdminService } from "./platform-admin.service.js";
     PlatformAdminRepository,
     PlatformAdminService
   ],
-  exports: [AdminAuthGuard, AdminAuthService, AdminSessionTokenService, PlatformAdminService]
+  exports: [AdminAuthGuard, AdminAuthService, AdminSessionTokenService, PlatformAdminService, OwnerBootstrapModule]
 })
 export class AdminAuthModule {}
