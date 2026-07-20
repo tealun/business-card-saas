@@ -79,6 +79,7 @@ Page({
     submitting: false,
     switchingIdentity: false,
     refreshingIdentities: false,
+    creatingEnterprise: false,
     currentIdentity: null,
     identities: [],
     // 初始为未登录演示态；bootstrap/登录成功后按登录态切换。
@@ -421,6 +422,51 @@ Page({
       return;
     }
     wx.navigateTo({ url: "/pages/employee/edit" });
+  },
+
+  // 普通微信用户自助创建本地企业：创建成功后自动成为该企业 owner，
+  // 刷新身份列表即可在弹层中看到并切换到新企业名片。
+  createLocalEnterprise() {
+    if (this.data.creatingEnterprise) {
+      return;
+    }
+    if (!this.ensureLoggedIn("请先登录后创建企业")) {
+      return;
+    }
+    wx.showModal({
+      title: "创建我的企业",
+      editable: true,
+      placeholderText: "请输入企业名称（2-255 字）",
+      confirmText: "创建",
+      success: (res) => {
+        if (!res.confirm) {
+          return;
+        }
+        const name = String(res.content || "").trim();
+        if (name.length < 2 || name.length > 255) {
+          wx.showToast({ title: "企业名称需 2-255 个字", icon: "none" });
+          return;
+        }
+        this.submitCreateLocalEnterprise(name);
+      }
+    });
+  },
+
+  async submitCreateLocalEnterprise(name) {
+    this.setData({ creatingEnterprise: true });
+    wx.showLoading({ title: "正在创建企业", mask: true });
+    try {
+      await request("/local-enterprises", { method: "POST", data: { name } });
+      const session = await ensureSession({ force: true });
+      this.syncIdentityState(session);
+      await this.loadPreview();
+      wx.showToast({ title: "企业已创建，可在下方切换", icon: "none" });
+    } catch (error) {
+      wx.showToast({ title: (error && error.message) || "创建失败，请稍后重试", icon: "none" });
+    } finally {
+      wx.hideLoading();
+      this.setData({ creatingEnterprise: false });
+    }
   },
 
   openIdentityInfo() {

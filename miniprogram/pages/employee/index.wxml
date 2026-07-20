@@ -284,7 +284,10 @@
     <view class="btn btn--soft btn--sm btn--block identity-refresh" catchtap="refreshIdentities">
       {{refreshingIdentities ? "正在刷新身份..." : "刷新企业身份"}}
     </view>
-    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "看不到自己的企业？企业授权接入后，点击“刷新企业身份”重新拉取。"}}</view>
+    <view class="btn btn--primary btn--sm btn--block identity-create" catchtap="createLocalEnterprise">
+      {{creatingEnterprise ? "正在创建企业..." : "＋ 创建我的企业"}}
+    </view>
+    <view class="sheet__tip">{{switchingIdentity ? "正在切换当前发送身份..." : "看不到自己的企业？企业授权接入后点击“刷新企业身份”；想自建团队可点击“创建我的企业”。"}}</view>
   </view>
 
   <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>

@@ -125,9 +125,10 @@ function decorateIdentity(identity, currentMemberIdentityId) {
     return null;
   }
   const isPersonal = identity.identity_type === "personal";
+  const isLocal = identity.identity_type === "local_enterprise";
   return Object.assign({}, identity, {
-    typeLabel: isPersonal ? "个人名片" : "企业名片",
-    badgeClass: isPersonal ? "badge--brand" : "badge--success",
+    typeLabel: isPersonal ? "个人名片" : (isLocal ? "本地企业" : "企业名片"),
+    badgeClass: isPersonal ? "badge--brand" : (isLocal ? "badge--warning" : "badge--success"),
     subtitle: isPersonal ? "微信个人身份" : identity.tenant_name,
     selected: currentMemberIdentityId
       ? identity.member_identity_id === currentMemberIdentityId

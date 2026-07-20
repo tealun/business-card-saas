@@ -29,6 +29,19 @@ describe("PersonalIdentityRepository", () => {
     ]);
   });
 
+  it("maps locally created enterprises to the local_enterprise identity type", async () => {
+    const repository = new PersonalIdentityRepository(new IdentityTypeDatabaseService() as unknown as DatabaseService);
+
+    const identities = await repository.listAccountIdentities("acct-1");
+
+    const personal = identities.find((identity) => identity.tenantId === "tenant-personal");
+    const local = identities.find((identity) => identity.tenantId === "tenant-local");
+    const wecom = identities.find((identity) => identity.tenantId === "tenant-enterprise");
+    expect(personal?.identityType).toBe("personal");
+    expect(local?.identityType).toBe("local_enterprise");
+    expect(wecom?.identityType).toBe("wecom_member");
+  });
+
   it("uses the current login identity over a stale personal preference", async () => {
     const db = new LoginIdentityDatabaseService();
     const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
@@ -140,6 +153,54 @@ describe("PersonalIdentityRepository", () => {
 class FakeDatabaseService {
   async transaction<T>(callback: (tx: FakeTransaction) => Promise<T>): Promise<T> {
     return callback(new FakeTransaction());
+  }
+}
+
+class IdentityTypeDatabaseService {
+  async transaction<T>(callback: (tx: IdentityTypeTransaction) => Promise<T>): Promise<T> {
+    return callback(new IdentityTypeTransaction());
+  }
+}
+
+class IdentityTypeTransaction {
+  async query<T>(text: string): Promise<{ rows: T[] }> {
+    if (text.includes("FROM account_identity_bindings b")) {
+      return {
+        rows: [
+          {
+            tenant_id: "tenant-personal",
+            tenant_name: "个人名片",
+            tenant_type: "personal",
+            creation_source: null,
+            member_identity_id: "member-personal",
+            display_name: "我的名片",
+            open_userid: "wx:openid-1",
+            public_id: "pub_personal"
+          },
+          {
+            tenant_id: "tenant-local",
+            tenant_name: "本地企业",
+            tenant_type: "enterprise",
+            creation_source: "local",
+            member_identity_id: "member-local",
+            display_name: "创始人",
+            open_userid: "account:10",
+            public_id: "pub_local"
+          },
+          {
+            tenant_id: "tenant-enterprise",
+            tenant_name: "Pilot Corp",
+            tenant_type: "enterprise",
+            creation_source: "wecom",
+            member_identity_id: "member-enterprise",
+            display_name: "Ada",
+            open_userid: "ou-1",
+            public_id: "pub_enterprise"
+          }
+        ] as T[]
+      };
+    }
+    return { rows: [] };
   }
 }
 

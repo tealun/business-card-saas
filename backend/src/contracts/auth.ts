@@ -15,7 +15,7 @@ export const switchIdentityRequestSchema = z.object({
 });
 
 export const identitySummarySchema = z.object({
-  identity_type: z.enum(["personal", "wecom_member"]),
+  identity_type: z.enum(["personal", "wecom_member", "local_enterprise"]),
   tenant_id: z.string(),
   tenant_name: z.string(),
   member_identity_id: z.string(),

@@ -24,6 +24,7 @@ interface IdentityRow extends QueryResultRow {
   tenant_id: string | number | bigint;
   tenant_name: string;
   tenant_type: "personal" | "enterprise";
+  creation_source: string | null;
   member_identity_id: string | number | bigint;
   display_name: string;
   open_userid: string | null;
@@ -502,6 +503,7 @@ export class PersonalIdentityRepository {
           b.tenant_id,
           t.name AS tenant_name,
           COALESCE(t.tenant_type, 'enterprise') AS tenant_type,
+          t.creation_source,
           b.member_identity_id,
           m.name AS display_name,
           m.open_userid,
@@ -525,7 +527,12 @@ export class PersonalIdentityRepository {
       const memberIdentityId = String(row.member_identity_id);
       return {
         accountId,
-        identityType: row.tenant_type === "personal" ? "personal" : "wecom_member",
+        identityType:
+          row.tenant_type === "personal"
+            ? "personal"
+            : row.creation_source === "local"
+              ? "local_enterprise"
+              : "wecom_member",
         tenantId,
         tenantName: row.tenant_name,
         memberIdentityId,

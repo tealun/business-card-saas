@@ -497,6 +497,10 @@
   margin-top: 20rpx;
 }
 
+.identity-create {
+  margin-top: 16rpx;
+}
+
 .identity-option {
   display: flex;
   align-items: center;
