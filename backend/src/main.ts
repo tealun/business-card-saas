@@ -72,7 +72,7 @@ async function bootstrap() {
       callback(new Error("CORS origin not allowed"), false);
     },
     allowedHeaders: ["authorization", "content-type"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
 
   await app.listen({ port: config.port, host: config.host });

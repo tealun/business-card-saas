@@ -6,10 +6,12 @@ import { PlatformTenantRepository } from "./platform-tenant.repository.js";
 import { PlatformTenantService } from "./platform-tenant.service.js";
 import { AdminOperationLogModule } from "../admin-operation-log/admin-operation-log.module.js";
 import { OwnerBootstrapModule } from "../admin-bootstrap/owner-bootstrap.module.js";
+import { ConfigModule } from "../config/config.module.js";
+import { WechatJoinQrService } from "../local-enterprise/wechat-join-qr.service.js";
 
 @Module({
-  imports: [AdminAuthModule, WecomModule, AdminOperationLogModule, OwnerBootstrapModule],
+  imports: [AdminAuthModule, WecomModule, AdminOperationLogModule, OwnerBootstrapModule, ConfigModule],
   controllers: [PlatformTenantController],
-  providers: [PlatformTenantRepository, PlatformTenantService]
+  providers: [PlatformTenantRepository, PlatformTenantService, WechatJoinQrService]
 })
 export class PlatformTenantModule {}

@@ -1885,6 +1885,48 @@ button.metric:active {
   margin-top: 4px;
 }
 
+.claim-dialog {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.claim-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialog-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.claim-qr-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 268px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+}
+
+.claim-qr-wrap img {
+  width: min(240px, 70vw);
+  aspect-ratio: 1;
+  display: block;
+  border: 10px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(17, 24, 39, 0.08);
+}
+
+.claim-qr-empty {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* ---------- 联调输出 ---------- */
 
 .output {

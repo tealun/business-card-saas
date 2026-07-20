@@ -2305,7 +2305,6 @@ async function openCreateLocalEnterprise() {
   if (!requirePermission("platform.tenant.write")) return;
   const panel = $("#createLocalEnterprisePanel");
   panel.hidden = false;
-  $("#localEnterpriseClaimResult").hidden = true;
   $("#localEnterpriseCreateName").value = "";
   $("#localEnterpriseCreateMemberLimit").value = "";
   $("#localEnterpriseCreateName").focus();
@@ -2330,23 +2329,37 @@ async function submitCreateLocalEnterprise() {
   }
   const res = await run("创建本地企业", () => adminRequest("/admin/platform/tenants", { method: "POST", body }));
   notify(`本地企业「${name}」已创建`);
-  const result = $("#localEnterpriseClaimResult");
-  if (res && res.claim_token) {
-    result.hidden = false;
-    result.innerHTML = `
-      <div class="kv-list">
-        <div class="kv-row"><span>企业 ID</span><strong><code>${escapeHtml(String(res.tenant_id))}</code></strong></div>
-        <div class="kv-row"><span>认领码</span><strong><code>${escapeHtml(res.claim_token)}</code></strong></div>
-        <div class="kv-row"><span>认领链接</span><strong><code>${escapeHtml(res.claim_path || "--")}</code></strong></div>
-        <div class="kv-row"><span>有效期至</span><strong>${escapeHtml(formatDate(res.claim_expires_at))}</strong></div>
-      </div>
-      <p class="hint">请尽快将认领码或认领链接发送给企业负责人；认领码 15 分钟内有效，过期后可删除该企业重建，或在详情中重新生成。</p>`;
-  } else {
-    result.hidden = true;
-  }
+  if (res && res.claim_path) showLocalEnterpriseClaimDialog(res);
   $("#localEnterpriseCreateName").value = "";
   $("#localEnterpriseCreateMemberLimit").value = "";
+  $("#createLocalEnterprisePanel").hidden = true;
   await loadTenantAuthorizations(1);
+}
+
+function showLocalEnterpriseClaimDialog(result) {
+  const dialog = $("#localEnterpriseClaimDialog");
+  $("#localEnterpriseClaimTitle").textContent = `「${result.tenant_name || result.tenant_id}」认领二维码`;
+  $("#localEnterpriseClaimMeta").textContent = `企业 ID ${result.tenant_id} · 有效期至 ${formatDate(result.claim_expires_at)}`;
+  const qrWrap = $("#localEnterpriseClaimQrWrap");
+  const copyPathButton = $("#copyLocalEnterpriseClaimPath");
+  qrWrap.replaceChildren();
+  if (result.claim_qr_code_data_url) {
+    const image = document.createElement("img");
+    image.src = result.claim_qr_code_data_url;
+    image.alt = "本地企业认领二维码";
+    qrWrap.append(image);
+    copyPathButton.hidden = true;
+    $("#localEnterpriseClaimHint").textContent = "请企业负责人使用微信扫描二维码，在小程序内完成认领。二维码 15 分钟内有效。";
+  } else {
+    const empty = document.createElement("div");
+    empty.className = "claim-qr-empty";
+    empty.textContent = "二维码暂不可用";
+    qrWrap.append(empty);
+    copyPathButton.hidden = false;
+    $("#localEnterpriseClaimHint").textContent = "当前环境未配置微信小程序凭据，无法自动生成二维码。可先复制小程序路径用于排障或临时生成小程序码。";
+  }
+  dialog.dataset.claimPath = result.claim_path || "";
+  dialog.showModal();
 }
 
 async function renameLocalEnterprise(item) {
@@ -2874,6 +2887,17 @@ $("#tenantAuthorizationNext").addEventListener("click", () => run("下一页", (
 $("#createLocalEnterprise").addEventListener("click", () => openCreateLocalEnterprise());
 $("#submitCreateLocalEnterprise").addEventListener("click", () => submitCreateLocalEnterprise());
 $("#cancelCreateLocalEnterprise").addEventListener("click", () => { $("#createLocalEnterprisePanel").hidden = true; });
+$("#closeLocalEnterpriseClaimDialog").addEventListener("click", () => $("#localEnterpriseClaimDialog").close());
+$("#copyLocalEnterpriseClaimPath").addEventListener("click", async () => {
+  const path = $("#localEnterpriseClaimDialog").dataset.claimPath || "";
+  if (!path) return;
+  try {
+    await navigator.clipboard.writeText(path);
+    notify("小程序路径已复制");
+  } catch (_) {
+    window.prompt("复制小程序路径", path);
+  }
+});
 $("#loadPlatformWecomEvents").addEventListener("click", () => run("刷新回调", loadPlatformWecomEvents));
 $("#retryPlatformEvents").addEventListener("click", async () => {
   if (!requirePermission("platform.sync.retry")) return;

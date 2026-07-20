@@ -225,6 +225,24 @@
       </form>
     </dialog>
 
+    <dialog id="localEnterpriseClaimDialog" class="confirm-dialog claim-dialog">
+      <form method="dialog">
+        <div class="claim-dialog-head">
+          <div>
+            <h3 id="localEnterpriseClaimTitle">本地企业已创建</h3>
+            <p id="localEnterpriseClaimMeta" class="hint"></p>
+          </div>
+          <button id="closeLocalEnterpriseClaimDialog" type="button" class="ghost dialog-close" aria-label="关闭">&times;</button>
+        </div>
+        <div id="localEnterpriseClaimQrWrap" class="claim-qr-wrap"></div>
+        <p id="localEnterpriseClaimHint" class="hint"></p>
+        <div class="dialog-actions">
+          <button id="copyLocalEnterpriseClaimPath" type="button" class="secondary">复制小程序路径</button>
+          <button type="submit">完成</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="./config.js"></script>
     <script src="./js/admin-partials.js?v=20260718-modular1"></script>
     <script src="./js/admin-login.js?v=20260720-localscan1"></script>

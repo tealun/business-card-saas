@@ -10,11 +10,10 @@
             <div class="toolbar">
               <input id="localEnterpriseCreateName" placeholder="企业名称（2-255 字）" maxlength="255" />
               <input id="localEnterpriseCreateMemberLimit" type="number" min="1" placeholder="授权人数（留空=不限）" />
-              <button id="submitCreateLocalEnterprise" type="button">创建并生成认领码</button>
+              <button id="submitCreateLocalEnterprise" type="button">创建并生成二维码</button>
               <button id="cancelCreateLocalEnterprise" type="button" class="secondary">取消</button>
             </div>
-            <p class="hint">本地企业不绑定企业微信，默认不限制授权人数；如后期升级为企业微信模式，可按缴费席位填写人数上限。创建后请把认领码或认领链接发送给企业负责人，由其在小程序完成认领并成为管理员。</p>
-            <div id="localEnterpriseClaimResult" hidden></div>
+            <p class="hint">本地企业不绑定企业微信，默认不限制授权人数；如后期升级为企业微信模式，可按缴费席位填写人数上限。创建后会弹出认领二维码，企业负责人扫码后在小程序完成认领并成为管理员。</p>
           </article>
           <article class="panel">
             <div class="toolbar">

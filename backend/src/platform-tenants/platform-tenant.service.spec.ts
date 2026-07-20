@@ -87,11 +87,15 @@ function createService(repository = createRepository(), contactSync = createCont
       expires_at: new Date(Date.now() + 900_000).toISOString()
     }))
   };
+  const claimQr = {
+    generateScene: jest.fn(async () => "data:image/png;base64,Y2xhaW0=")
+  };
   return {
-    service: new PlatformTenantService(repository as never, contactSync as never, ownerBootstrap as never),
+    service: new PlatformTenantService(repository as never, contactSync as never, ownerBootstrap as never, claimQr as never),
     repository,
     contactSync,
-    ownerBootstrap
+    ownerBootstrap,
+    claimQr
   };
 }
 
@@ -163,16 +167,18 @@ describe("PlatformTenantService", () => {
     expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
   });
 
-  it("creates a local enterprise shell and returns a claim token", async () => {
-    const { service, repository, ownerBootstrap } = createService();
+  it("creates a local enterprise shell and returns a claim QR code", async () => {
+    const { service, repository, ownerBootstrap, claimQr } = createService();
     const result = await service.createLocalEnterprise(platformSession, { name: "新本地企业", memberLimit: null });
     expect(repository.createLocalTenant).toHaveBeenCalledWith({ name: "新本地企业", memberLimit: null });
     expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "10" });
+    expect(claimQr.generateScene).toHaveBeenCalledWith("admclaim_test", "pages/enterprise-claim/index");
     expect(result).toMatchObject({
       tenant_id: "10",
       tenant_name: "新本地企业",
       member_limit: null,
-      claim_token: "admclaim_test"
+      claim_token: "admclaim_test",
+      claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
     expect(result.claim_path).toContain("admclaim_test");
   });

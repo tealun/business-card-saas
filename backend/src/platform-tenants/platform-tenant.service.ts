@@ -5,6 +5,7 @@ import { WecomContactSyncService } from "../wecom/wecom-contact-sync.service.js"
 import { PlatformTenantRepository, type PlatformTenantDetailRecord, type PlatformTenantListRecord } from "./platform-tenant.repository.js";
 import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import { OwnerBootstrapService } from "../admin-bootstrap/owner-bootstrap.service.js";
+import { WechatJoinQrService } from "../local-enterprise/wechat-join-qr.service.js";
 
 @Injectable()
 export class PlatformTenantService {
@@ -12,6 +13,7 @@ export class PlatformTenantService {
     private readonly repository: PlatformTenantRepository,
     private readonly contactSync: WecomContactSyncService,
     private readonly ownerBootstrap: OwnerBootstrapService,
+    private readonly claimQr: WechatJoinQrService,
     @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
@@ -114,13 +116,19 @@ export class PlatformTenantService {
     }
     const created = await this.repository.createLocalTenant({ name, memberLimit: input.memberLimit });
     const claim = await this.ownerBootstrap.bootstrapOwner({ tenant_id: created.tenantId });
+    const claimPath = claim.mode === "claim_token_created"
+      ? `pages/enterprise-claim/index?token=${encodeURIComponent(claim.claim_token)}`
+      : null;
+    const claimQrCodeDataUrl = claim.mode === "claim_token_created"
+      ? await this.claimQr.generateScene(claim.claim_token, "pages/enterprise-claim/index").catch(() => null)
+      : null;
     await this.operationLogs?.record({
       session,
       action: "platform.tenant.create",
       tenantId: created.tenantId,
       targetType: "tenant",
       targetId: created.tenantId,
-      detail: { name: created.name, member_limit: input.memberLimit }
+      detail: { name: created.name, member_limit: input.memberLimit, qr_generated: Boolean(claimQrCodeDataUrl) }
     });
     return {
       tenant_id: created.tenantId,
@@ -128,7 +136,8 @@ export class PlatformTenantService {
       member_limit: input.memberLimit,
       claim_token: claim.mode === "claim_token_created" ? claim.claim_token : null,
       claim_expires_at: claim.mode === "claim_token_created" ? claim.expires_at : null,
-      claim_path: claim.mode === "claim_token_created" ? `pages/enterprise-claim/index?token=${encodeURIComponent(claim.claim_token)}` : null
+      claim_path: claimPath,
+      claim_qr_code_data_url: claimQrCodeDataUrl
     };
   }
 
