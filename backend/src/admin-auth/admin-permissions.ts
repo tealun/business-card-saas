@@ -101,6 +101,16 @@ function platformCapabilities(role: AdminRole | PlatformAdminRole): AdminCapabil
     menuScopes.add("platform.ops");
   }
 
+  if (
+    platformRole === "platform_owner" ||
+    platformRole === "ops" ||
+    platformRole === "engineer" ||
+    platformRole === "support" ||
+    platformRole === "finance"
+  ) {
+    permissions.add("platform.sync.retry");
+  }
+
   if (platformRole === "platform_owner" || platformRole === "ops") {
     permissions.add("platform.feature.write");
   }

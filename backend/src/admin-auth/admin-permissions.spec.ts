@@ -41,6 +41,7 @@ describe("adminCapabilities", () => {
     const capabilities = adminCapabilities({ ...basePlatformSession, role: "auditor" });
 
     expect(capabilities.permissions).toEqual(expect.arrayContaining(["platform.tenant.read", "platform.audit.read"]));
+    expect(capabilities.permissions).not.toContain("platform.sync.retry");
     expect(capabilities.permissions).not.toContain("platform.feature.write");
     expect(capabilities.permissions).not.toContain("platform.database.migrate");
     expect(capabilities.menuScopes).not.toContain("platform.ops");
@@ -81,7 +82,12 @@ describe("platform role capabilities (01_08 matrix, M1 subset)", () => {
     const capabilities = adminCapabilities({ ...basePlatform, role: "ops" });
 
     expect(capabilities.permissions).toEqual(
-      expect.arrayContaining(["platform.feature.write", "platform.ops.read", "platform.database.read"])
+      expect.arrayContaining([
+        "platform.feature.write",
+        "platform.ops.read",
+        "platform.database.read",
+        "platform.sync.retry"
+      ])
     );
     expect(capabilities.permissions).not.toContain("platform.account.write");
     expect(capabilities.permissions).not.toContain("platform.database.migrate");
@@ -94,6 +100,7 @@ describe("platform role capabilities (01_08 matrix, M1 subset)", () => {
     const capabilities = adminCapabilities({ ...basePlatform, role: "support" });
 
     expect(capabilities.permissions).toContain("platform.commercial.read");
+    expect(capabilities.permissions).toContain("platform.sync.retry");
     expect(capabilities.permissions).not.toContain("platform.commercial.write");
     expect(capabilities.permissions).not.toContain("platform.feature.write");
     expect(capabilities.permissions).not.toContain("platform.account.write");
