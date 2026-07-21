@@ -1,4 +1,5 @@
 (function () {
+  const PARTIAL_VERSION = "20260721-localui1";
   const PAGE_PARTIALS = [
     "tenant-dashboard",
     "tenant-members",
@@ -23,6 +24,10 @@
   const hosts = Array.from(document.querySelectorAll("[data-admin-partial]"));
   const pageHost = document.querySelector("[data-admin-page-partials]");
 
+  function versionedPath(partialPath) {
+    return `${partialPath}${partialPath.includes("?") ? "&" : "?"}v=${PARTIAL_VERSION}`;
+  }
+
   function loadPartial(partialPath) {
     const request = new XMLHttpRequest();
     request.open("GET", partialPath, false);
@@ -36,11 +41,11 @@
   }
 
   if (pageHost) {
-    pageHost.innerHTML = PAGE_PARTIALS.map((page) => loadPartial(`./partials/pages/${page}.html`)).join("\n");
+    pageHost.innerHTML = PAGE_PARTIALS.map((page) => loadPartial(versionedPath(`./partials/pages/${page}.html`))).join("\n");
   }
 
   for (const host of hosts) {
     const partialPath = host.getAttribute("data-admin-partial");
-    if (partialPath) host.innerHTML = loadPartial(partialPath);
+    if (partialPath) host.innerHTML = loadPartial(versionedPath(partialPath));
   }
 })();

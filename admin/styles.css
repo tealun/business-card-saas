@@ -1648,6 +1648,25 @@ button.metric:active {
   grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.5fr) minmax(0, 1fr) auto;
 }
 
+.editor-row.feature-row {
+  grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.4fr) minmax(150px, 0.7fr) auto;
+}
+
+.editor-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.editor-main strong {
+  overflow-wrap: anywhere;
+}
+
+.editor-main code {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .inline-actions {
   justify-content: flex-start;
   flex-wrap: wrap;
@@ -2124,7 +2143,8 @@ body:not(.dev-mode) [data-dev-only] {
   .editor-row,
   .editor-row.service,
   .editor-row.intro,
-  .editor-row.honor {
+  .editor-row.honor,
+  .editor-row.feature-row {
     grid-template-columns: 1fr;
   }
 

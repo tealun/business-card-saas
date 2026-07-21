@@ -9,7 +9,7 @@
     />
     <title>智云名片 · 管理后台</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234a5ac2'/%3E%3Cpath d='M9 10h14v3H9zm0 5h10v3H9zm0 5h14v3H9z' fill='white'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=20260718-modular1" />
+    <link rel="stylesheet" href="./styles.css?v=20260721-localui1" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -195,6 +195,19 @@
       </form>
     </dialog>
 
+    <dialog id="textInputDialog" class="confirm-dialog">
+      <form id="textInputForm" method="dialog">
+        <h3 id="textInputTitle">填写信息</h3>
+        <p id="textInputBody"></p>
+        <label><span id="textInputLabel">内容</span><input id="textInputValue" autocomplete="off" /></label>
+        <p id="textInputError" class="form-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="textInputCancel" value="cancel" type="button" class="secondary">取消</button>
+          <button id="textInputOk" value="ok" type="button">确认</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="passwordDialog" class="confirm-dialog">
       <form id="passwordForm" method="dialog">
         <h3>修改密码</h3>
@@ -244,8 +257,8 @@
     </dialog>
 
     <script src="./config.js"></script>
-    <script src="./js/admin-partials.js?v=20260718-modular1"></script>
+    <script src="./js/admin-partials.js?v=20260721-localui1"></script>
     <script src="./js/admin-login.js?v=20260720-localscan1"></script>
-    <script src="./app.js?v=20260720-localscan1"></script>
+    <script src="./app.js?v=20260721-localui1"></script>
   </body>
 </html>

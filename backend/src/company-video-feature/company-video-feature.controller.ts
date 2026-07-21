@@ -37,6 +37,7 @@ export class PlatformVideoFeatureController {
   list(
     @Req() req: AdminRequest,
     @Query("search") search = "",
+    @Query("scope") scope = "overrides",
     @Query("page") page = "1",
     @Query("page_size") pageSize = "20"
   ) {
@@ -44,7 +45,8 @@ export class PlatformVideoFeatureController {
       requireAdminSession(req),
       search,
       Math.max(1, Number(page) || 1),
-      Math.min(100, Math.max(1, Number(pageSize) || 20))
+      Math.min(100, Math.max(1, Number(pageSize) || 20)),
+      { onlyOverrides: scope !== "all" }
     );
   }
 

@@ -1,7 +1,7 @@
 import { ForbiddenException } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import type { AdminRequest } from "../admin-auth/admin-auth.guard.js";
-import { CompanyVideoFeatureController } from "./company-video-feature.controller.js";
+import { CompanyVideoFeatureController, PlatformVideoFeatureController } from "./company-video-feature.controller.js";
 import { CompanyVideoFeatureService } from "./company-video-feature.service.js";
 
 // A71-P1-3: unlike the platform controller (whose role checks live in the service, per
@@ -45,5 +45,16 @@ describe("CompanyVideoFeatureController", () => {
     await controller.get(requestFor(tenantAuditor));
 
     expect(service.capability).toHaveBeenCalledWith("2");
+  });
+
+  it("lists configured tenant overrides by default and all tenants when requested", async () => {
+    const service = { listTenants: jest.fn() } as unknown as CompanyVideoFeatureService;
+    const controller = new PlatformVideoFeatureController(service);
+
+    await controller.list(requestFor(platformSession), "Pilot", undefined as unknown as string, "2", "50");
+    await controller.list(requestFor(platformSession), "Pilot", "all", "1", "20");
+
+    expect(service.listTenants).toHaveBeenNthCalledWith(1, platformSession, "Pilot", 2, 50, { onlyOverrides: true });
+    expect(service.listTenants).toHaveBeenNthCalledWith(2, platformSession, "Pilot", 1, 20, { onlyOverrides: false });
   });
 });

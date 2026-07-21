@@ -70,6 +70,7 @@ const state = {
   wecomSettings: null,
   selectedTemplateId: "",
   tenantFeatures: [],
+  tenantFeatureSearchResults: [],
   tenantAuthorizations: { items: [], total: 0, page: 1, pageSize: 20 },
   auditView: "operations",
   platformAuditView: "operations",
@@ -107,6 +108,12 @@ const confirmTitle = $("#confirmTitle");
 const confirmBody = $("#confirmBody");
 const confirmReasonLabel = $("#confirmReasonLabel");
 const confirmReason = $("#confirmReason");
+const textInputDialog = $("#textInputDialog");
+const textInputTitle = $("#textInputTitle");
+const textInputBody = $("#textInputBody");
+const textInputLabel = $("#textInputLabel");
+const textInputValue = $("#textInputValue");
+const textInputError = $("#textInputError");
 
 apiBaseInput.value = defaultApiBase();
 apiBaseInput.addEventListener("change", () => localStorage.setItem("bc_api_base", apiBaseInput.value.trim()));
@@ -2364,19 +2371,25 @@ function showLocalEnterpriseClaimDialog(result) {
 
 async function renameLocalEnterprise(item) {
   if (!requirePermission("platform.tenant.write")) return;
-  const next = await confirmAction({
+  const currentName = item.tenant_name || "";
+  const next = await promptTextInput({
     title: "修改企业名称",
-    body: `将修改本地企业「${item.tenant_name}」的名称，请在下方输入新的企业名称。`,
-    reason: true
+    body: `将修改本地企业「${currentName}」的显示名称。`,
+    label: "新企业名称",
+    value: currentName,
+    placeholder: "请输入新的企业名称",
+    minLength: 2,
+    maxLength: 255,
+    validate: (value) => value.length > 255 ? "企业名称最多 255 个字" : ""
   });
   if (next === false) return;
   const trimmed = String(next || "").trim();
-  if (trimmed.length < 2) {
-    notify("企业名称至少 2 个字", "danger");
+  if (trimmed === currentName) {
+    notify("企业名称未变化", "warning");
     return;
   }
   await run("修改企业名称", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(item.tenant_id)}`, { method: "PATCH", body: { name: trimmed } }));
-  notify("企业名称已修改");
+  notify(`企业名称已修改为「${trimmed}」`);
   await loadTenantAuthorizations();
 }
 
@@ -2427,7 +2440,44 @@ function maskAgentId(value) {
 
 async function openTenantDetail(tenantId) {
   const item = await run("读取企业授权详情", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(tenantId)}`));
+  const metricsHtml = `
+    <div class="drawer-metrics">
+      <div class="drawer-metric"><span>成员</span><strong>${formatCount(item.active_member_count)}<small> / ${formatCount(item.member_count)}</small></strong></div>
+      <div class="drawer-metric"><span>名片</span><strong>${formatCount(item.active_card_count)}<small> / ${formatCount(item.card_count)}</small></strong></div>
+      <div class="drawer-metric"><span>管理员</span><strong>${formatCount(item.active_admin_count)}<small> / ${formatCount(item.admin_count)}</small></strong></div>
+    </div>
+  `;
   drawerTitle.textContent = item.tenant_name;
+  const isWecomConnected = item.creation_source === "wecom" && Boolean(item.open_corpid);
+  if (!isWecomConnected) {
+    const memberLimit = item.member_limit === null || item.member_limit === undefined ? "不限" : `${formatCount(item.member_limit)} 人`;
+    drawerSubtitle.textContent = "本地企业 · 未接入企业微信";
+    drawerBody.innerHTML = `
+      <section class="drawer-section">
+        <h3>本地企业</h3>
+        <div class="kv-list">
+          <div class="kv-row"><span>类型</span><strong>${tag("本地企业", "brand")}</strong></div>
+          <div class="kv-row"><span>状态</span><strong>${item.status === "disabled" ? tag("已禁用", "danger") : tag("本地启用", "success")}</strong></div>
+          <div class="kv-row"><span>成员上限</span><strong>${escapeHtml(memberLimit)}</strong></div>
+          <div class="kv-row"><span>更新时间</span><strong>${escapeHtml(formatDate(item.updated_at))}</strong></div>
+        </div>
+      </section>
+      <section class="drawer-section">
+        <h3>企业微信接入</h3>
+        <div class="kv-list">
+          <div class="kv-row"><span>连接状态</span><strong>${tag("未接入", "muted")}</strong></div>
+        </div>
+        <p class="info-banner">未接入企业微信，企微专属授权、通讯录同步和回调信息已隐藏。</p>
+      </section>
+      <section class="drawer-section">
+        <h3>企业规模</h3>
+        ${metricsHtml}
+      </section>
+    `;
+    drawerFooter.replaceChildren();
+    showDrawer();
+    return;
+  }
   drawerSubtitle.textContent = item.open_corpid;
   drawerBody.innerHTML = `
     <section class="drawer-section">
@@ -2457,11 +2507,7 @@ async function openTenantDetail(tenantId) {
     </section>
     <section class="drawer-section">
       <h3>企业规模</h3>
-      <div class="drawer-metrics">
-        <div class="drawer-metric"><span>成员</span><strong>${item.active_member_count}<small> / ${item.member_count}</small></strong></div>
-        <div class="drawer-metric"><span>名片</span><strong>${item.active_card_count}<small> / ${item.card_count}</small></strong></div>
-        <div class="drawer-metric"><span>管理员</span><strong>${item.active_admin_count}<small> / ${item.admin_count}</small></strong></div>
-      </div>
+      ${metricsHtml}
     </section>
     <section class="drawer-section">
       <h3>最近回调</h3>
@@ -2529,16 +2575,16 @@ function memberSyncResultMessage(result) {
 }
 
 async function loadVideoFeatures() {
-  const search = $("#tenantFeatureSearch").value.trim();
   const [platform, tenants] = await Promise.all([
     adminRequest("/admin/platform/features/company-video"),
-    adminRequest(`/admin/platform/features/company-video/tenants?search=${encodeURIComponent(search)}`)
+    adminRequest("/admin/platform/features/company-video/tenants?scope=overrides&page_size=100")
   ]);
   $("#platformVideoEnabled").checked = platform.enabled;
   $("#platformVideoLimit").value = platform.default_limit_mb;
   state.tenantFeatures = tenants.items || [];
-  const overrideCount = state.tenantFeatures.filter((item) => item.source === "tenant_override").length;
-  $("#platformVideoOverrideCount").textContent = search.trim() ? `${overrideCount}+` : String(overrideCount);
+  const overrideCount = Number(tenants.total ?? state.tenantFeatures.length);
+  $("#platformVideoOverrideCount").textContent = String(overrideCount);
+  $("#tenantFeatureOverrideTotal").textContent = `${overrideCount} 家`;
   renderTenantFeatures();
   return { platform, tenants };
 }
@@ -2546,14 +2592,13 @@ async function loadVideoFeatures() {
 function renderTenantFeatures() {
   const root = $("#tenantFeatureEditor");
   if (!state.tenantFeatures.length) {
-    root.innerHTML = `<p class="hint">暂无企业 override</p>`;
+    root.innerHTML = `<p class="hint">暂无已授权企业</p>`;
     return;
   }
   root.replaceChildren(...state.tenantFeatures.map((item, index) => {
     const row = document.createElement("div");
-    row.className = "editor-row";
-    const name = document.createElement("strong");
-    name.textContent = item.tenant_name;
+    row.className = "editor-row feature-row";
+    const name = tenantFeatureNameCell(item);
     const enabledLabel = document.createElement("label");
     enabledLabel.className = "check-line";
     const enabled = document.createElement("input");
@@ -2576,6 +2621,73 @@ function renderTenantFeatures() {
     row.append(name, enabledLabel, limit, save);
     return row;
   }));
+}
+
+function tenantFeatureNameCell(item) {
+  const name = document.createElement("div");
+  name.className = "editor-main";
+  name.innerHTML = `<strong>${escapeHtml(item.tenant_name)}</strong><code>${escapeHtml(item.tenant_id)}</code>`;
+  return name;
+}
+
+function tenantFeatureLimitText(item) {
+  const limitBytes = item.limit_bytes ?? item.effective_limit_bytes;
+  const limitMb = Number.isFinite(Number(limitBytes)) ? Math.round(Number(limitBytes) / 1048576) : "--";
+  return item.limit_bytes === null ? `继承默认 ${limitMb} MB` : `${limitMb} MB`;
+}
+
+async function loadTenantFeatureCandidates() {
+  const search = $("#tenantFeatureSearch").value.trim();
+  if (!search) {
+    state.tenantFeatureSearchResults = [];
+    renderTenantFeatureSearchResults();
+    return null;
+  }
+  const tenants = await adminRequest(`/admin/platform/features/company-video/tenants?scope=all&search=${encodeURIComponent(search)}&page_size=20`);
+  state.tenantFeatureSearchResults = tenants.items || [];
+  renderTenantFeatureSearchResults();
+  return tenants;
+}
+
+function renderTenantFeatureSearchResults() {
+  const root = $("#tenantFeatureSearchResults");
+  const search = $("#tenantFeatureSearch").value.trim();
+  if (!search) {
+    root.innerHTML = `<p class="hint">请输入企业名称后查询。</p>`;
+    return;
+  }
+  if (!state.tenantFeatureSearchResults.length) {
+    root.innerHTML = `<p class="hint">未找到匹配企业</p>`;
+    return;
+  }
+  root.replaceChildren(...state.tenantFeatureSearchResults.map((item) => {
+    const row = document.createElement("div");
+    row.className = "editor-row feature-row";
+    const status = document.createElement("div");
+    status.innerHTML = item.source === "tenant_override"
+      ? tag(item.enabled ? "已授权" : "已配置", item.enabled ? "success" : "muted")
+      : tag("未授权", "muted");
+    const limit = document.createElement("span");
+    limit.className = "muted-cell";
+    limit.textContent = tenantFeatureLimitText(item);
+    const action = item.source === "tenant_override"
+      ? actionButton("已在列表", () => {}, "secondary")
+      : actionButton("授权", () => grantTenantVideoFeature(item), "secondary", "platform.feature.write");
+    if (item.source === "tenant_override") action.disabled = true;
+    row.append(tenantFeatureNameCell(item), status, limit, action);
+    return row;
+  }));
+}
+
+async function grantTenantVideoFeature(item) {
+  if (!requirePermission("platform.feature.write")) return;
+  const updated = await run("授权企业功能", () => adminRequest(`/admin/platform/features/company-video/tenants/${encodeURIComponent(item.tenant_id)}`, {
+    method: "PUT",
+    body: { enabled: true, limit_bytes: null }
+  }));
+  notify(`已授权「${updated.tenant_name}」企业视频`);
+  await loadVideoFeatures();
+  await loadTenantFeatureCandidates();
 }
 
 async function loadDatabaseMigrations() {
@@ -2629,8 +2741,10 @@ function confirmAction({ title, body, reason = false, danger = false }) {
   return new Promise((resolve) => {
     confirmTitle.textContent = title;
     confirmBody.textContent = body;
+    $("span", confirmReasonLabel).textContent = "原因";
     confirmReasonLabel.classList.toggle("hidden", !reason);
     confirmReason.value = "";
+    confirmDialog.returnValue = "cancel";
     $("#confirmOk").className = danger ? "danger-lite secondary" : "";
     const handler = (event) => {
       confirmDialog.removeEventListener("close", handler);
@@ -2638,6 +2752,58 @@ function confirmAction({ title, body, reason = false, danger = false }) {
     };
     confirmDialog.addEventListener("close", handler);
     confirmDialog.showModal();
+  });
+}
+
+function promptTextInput({ title, body, label, value = "", placeholder = "", minLength = 0, maxLength = 255, validate }) {
+  return new Promise((resolve) => {
+    textInputTitle.textContent = title;
+    textInputBody.textContent = body;
+    textInputLabel.textContent = label;
+    textInputValue.value = value;
+    textInputValue.placeholder = placeholder;
+    textInputValue.minLength = minLength;
+    textInputValue.maxLength = maxLength;
+    textInputValue.required = minLength > 0;
+    textInputError.textContent = "";
+    textInputDialog.returnValue = "cancel";
+    $("#textInputOk").className = "";
+
+    const submit = () => {
+      const next = textInputValue.value.trim();
+      if (minLength && next.length < minLength) {
+        textInputError.textContent = `${label}至少 ${minLength} 个字`;
+        textInputValue.focus();
+        return;
+      }
+      const error = validate?.(next);
+      if (error) {
+        textInputError.textContent = error;
+        textInputValue.focus();
+        return;
+      }
+      textInputValue.value = next;
+      textInputDialog.close("ok");
+    };
+    $("#textInputCancel").onclick = () => textInputDialog.close("cancel");
+    $("#textInputOk").onclick = submit;
+    textInputValue.onkeydown = (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submit();
+      }
+    };
+
+    const handler = () => {
+      textInputDialog.removeEventListener("close", handler);
+      $("#textInputCancel").onclick = null;
+      $("#textInputOk").onclick = null;
+      textInputValue.onkeydown = null;
+      resolve(textInputDialog.returnValue === "ok" ? textInputValue.value.trim() : false);
+    };
+    textInputDialog.addEventListener("close", handler);
+    textInputDialog.showModal();
+    textInputValue.select();
   });
 }
 
@@ -2949,7 +3115,13 @@ $("#createQuotaAdjustment").addEventListener("click", async () => {
   }
 });
 $("#loadVideoFeatures").addEventListener("click", () => run("读取功能开关", loadVideoFeatures));
-$("#searchTenantFeatures").addEventListener("click", () => run("搜索企业功能", loadVideoFeatures));
+$("#searchTenantFeatures").addEventListener("click", () => run("查询企业", loadTenantFeatureCandidates));
+$("#tenantFeatureSearch").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    run("查询企业", loadTenantFeatureCandidates);
+  }
+});
 $("#saveVideoFeatures").addEventListener("click", async () => {
   if (!requirePermission("platform.feature.write")) return;
   await run("保存平台功能", () => adminRequest("/admin/platform/features/company-video", {

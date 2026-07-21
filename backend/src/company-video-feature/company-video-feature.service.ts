@@ -27,7 +27,7 @@ export class CompanyVideoFeatureService {
       enabled: platform.enabled && Boolean(tenant?.enabled),
       effective_limit_bytes: limit,
       effective_limit_mb: limit / 1048576,
-      source: tenant?.limitBytes === null || tenant?.limitBytes === undefined ? "platform_default" : "tenant_override"
+      source: tenant?.hasOverride ? "tenant_override" : "platform_default"
     });
   }
 
@@ -48,10 +48,16 @@ export class CompanyVideoFeatureService {
     return updated;
   }
 
-  async listTenants(session: AdminSession, search: string, page: number, pageSize: number) {
+  async listTenants(
+    session: AdminSession,
+    search: string,
+    page: number,
+    pageSize: number,
+    options: { onlyOverrides?: boolean } = {}
+  ) {
     this.requirePlatform(session);
     const platform = await this.repository.getPlatform();
-    const result = await this.repository.listTenants(search, pageSize, (page - 1) * pageSize);
+    const result = await this.repository.listTenants(search, pageSize, (page - 1) * pageSize, options);
     return {
       page,
       page_size: pageSize,
@@ -111,7 +117,7 @@ export class CompanyVideoFeatureService {
       effective_enabled: platformEnabled && item.enabled,
       limit_bytes: item.limitBytes,
       effective_limit_bytes: limit,
-      source: item.limitBytes === null ? "platform_default" : "tenant_override",
+      source: item.hasOverride ? "tenant_override" : "platform_default",
       updated_at: item.updatedAt?.toISOString() ?? null
     });
   }

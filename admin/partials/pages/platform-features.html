@@ -23,8 +23,12 @@
             </div>
           </article>
           <article class="panel">
-            <div class="panel-head"><h3>企业 override</h3></div>
-            <div class="toolbar"><input id="tenantFeatureSearch" placeholder="搜索企业" /><button id="searchTenantFeatures" type="button">搜索</button></div>
+            <div class="panel-head"><h3>已授权企业</h3><span id="tenantFeatureOverrideTotal" class="status-chip muted">-- 家</span></div>
             <div id="tenantFeatureEditor" class="editor-stack"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h3>查询企业并授权</h3><p>查询目标企业后单独开通企业视频能力。</p></div>
+            <div class="toolbar"><input id="tenantFeatureSearch" placeholder="输入企业名称" /><button id="searchTenantFeatures" type="button">查询企业</button></div>
+            <div id="tenantFeatureSearchResults" class="editor-stack feature-search-results"><p class="hint">请输入企业名称后查询。</p></div>
           </article>
         </section>
