@@ -1195,29 +1195,9 @@ label span,
 
 /* ---------- 登录页：扫码框精确稿 ---------- */
 
-.login-shell {
-  justify-content: center;
-  min-height: 100vh;
-  background: #f3f5f9;
-}
-
-.login-visual {
-  display: none;
-}
-
-.login-form-panel {
-  width: 548px;
-  max-width: 100%;
-  min-height: 100vh;
-  display: block;
-  padding: 0 23px;
-  background: #f3f5f9;
-  overflow: visible;
-}
-
 .login-form {
   position: relative;
-  width: 100%;
+  width: min(502px, 100%);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -2639,29 +2619,19 @@ body:not(.dev-mode) [data-dev-only] {
 }
 
 @media (max-width: 900px) {
-  .login-shell {
-    justify-content: center;
-    background: #f3f5f9;
-  }
-
-  .login-visual {
-    display: none;
-  }
-
   .login-visual {
     display: none;
   }
 
   .login-form-panel {
     min-height: 100vh;
-    display: block;
-    width: 548px;
-    padding: 0 23px;
-    background: #f3f5f9;
+    align-items: start;
+    justify-items: center;
+    padding: 18px 16px 28px;
   }
 
   .login-form {
-    width: 100%;
+    width: min(502px, 100%);
     padding: 0;
   }
 
