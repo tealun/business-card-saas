@@ -63,11 +63,28 @@
       </div>
       <div class="login-form-panel">
         <div class="login-form">
+          <div class="login-panel-top">
+            <div class="login-panel-brand">
+              <img src="./assets/mark-color-144.png" alt="" />
+              <div>
+                <strong>智云名片</strong>
+                <small>管理后台登录</small>
+              </div>
+            </div>
+            <span class="login-panel-chip">企业级安全</span>
+          </div>
           <h1>欢迎回来</h1>
           <p class="login-sub">登录以继续管理您的企业数字名片</p>
+          <div class="login-section-label">账号身份</div>
           <div class="login-role-tabs" role="tablist" aria-label="账号类型">
-            <button type="button" class="active" data-login-role="tenant" role="tab" aria-selected="true">企业管理员</button>
-            <button type="button" data-login-role="platform" role="tab" aria-selected="false">系统管理员</button>
+            <button type="button" class="active" data-login-role="tenant" role="tab" aria-selected="true">
+              <span>企业管理员</span>
+              <small>微信小程序 / 企业微信扫码</small>
+            </button>
+            <button type="button" data-login-role="platform" role="tab" aria-selected="false">
+              <span>系统管理员</span>
+              <small>账号密码登录</small>
+            </button>
           </div>
           <form id="gatePasswordForm" class="stack-form hidden">
             <label>
@@ -94,18 +111,41 @@
               <span class="login-spinner" aria-hidden="true"></span><span>登录</span>
             </button>
           </form>
+          <div class="login-section-label">登录方式</div>
           <div class="login-scan-section">
             <div class="login-scan-tabs" role="tablist" aria-label="扫码登录方式">
-              <button type="button" class="active" data-scan-mode="local" role="tab" aria-selected="true">小程序扫码</button>
-              <button type="button" data-scan-mode="wecom" role="tab" aria-selected="false">企业微信扫码</button>
+              <button type="button" class="active" data-scan-mode="local" role="tab" aria-selected="true">
+                <span>小程序扫码</span>
+                <small>推荐 · 本地企业</small>
+              </button>
+              <button type="button" data-scan-mode="wecom" role="tab" aria-selected="false">
+                <span>企业微信扫码</span>
+                <small>跳转企业微信</small>
+              </button>
             </div>
             <div class="login-scan-card" id="localScanLoginBox">
-              <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="196" height="196" />
+              <div class="login-scan-head">
+                <div>
+                  <strong>微信小程序扫码</strong>
+                  <p>打开小程序后确认管理员登录。</p>
+                </div>
+                <span class="login-scan-badge">推荐</span>
+              </div>
+              <div class="login-qr-shell">
+                <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="208" height="208" />
+              </div>
               <p id="gateLocalScanHint">正在生成微信小程序登录码…</p>
-              <button id="gateLocalScanRefresh" type="button" class="secondary">刷新登录码</button>
+              <button id="gateLocalScanRefresh" type="button" class="secondary login-scan-refresh">刷新登录码</button>
             </div>
             <div class="login-scan-card hidden" id="wecomScanLoginBox">
-              <p class="login-scan-copy">点击后将跳转到企业微信扫码登录页面。</p>
+              <div class="login-scan-head">
+                <div>
+                  <strong>企业微信扫码登录</strong>
+                  <p>将跳转到企业微信授权页面完成管理员登录。</p>
+                </div>
+                <span class="login-scan-badge alt">跳转</span>
+              </div>
+              <p class="login-scan-copy">适合已经接入企业微信的企业，点击后会打开企业微信扫码页。</p>
               <button id="gateWecomScanLogin" type="button" class="secondary">企业微信扫码登录</button>
             </div>
           </div>
