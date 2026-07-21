@@ -8,6 +8,7 @@
 # - DEPLOY_SSH_KEY or SSH_PRIVATE_KEY or SSH_KEY: optional private key for key-based auth
 # - DEPLOY_PASSWORD or SSH_PASSWORD: optional password fallback when no key is configured
 # - DEPLOY_RESTART_COMMAND: optional server-side restart script
+# - BACKEND_PUBLIC_ORIGIN and ADMIN_PUBLIC_ORIGIN: optional public URLs for post-deploy CORS preflight verification
 #
 # Auth selection:
 # - If DEPLOY_SSH_KEY/SSH_PRIVATE_KEY/SSH_KEY is present, rsync uses that key.
@@ -242,3 +243,17 @@ jobs:
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           fi
+
+      - name: Verify deployed CORS preflight
+        env:
+          BACKEND_PUBLIC_ORIGIN: ${{ secrets.BACKEND_PUBLIC_ORIGIN }}
+          ADMIN_PUBLIC_ORIGIN: ${{ secrets.ADMIN_PUBLIC_ORIGIN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BACKEND_PUBLIC_ORIGIN:-}" ] || [ -z "${ADMIN_PUBLIC_ORIGIN:-}" ]; then
+            echo "BACKEND_PUBLIC_ORIGIN or ADMIN_PUBLIC_ORIGIN is empty; skipping deployed CORS preflight check."
+            exit 0
+          fi
+
+          node backend/scripts/verify-cors.mjs "$BACKEND_PUBLIC_ORIGIN" "$ADMIN_PUBLIC_ORIGIN"

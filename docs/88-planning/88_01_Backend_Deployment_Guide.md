@@ -45,6 +45,13 @@ Optional restart:
 |--------|----------|-------|
 | `DEPLOY_RESTART_COMMAND` | no | Server-side shell script run after sync from `${DEPLOY_PATH}`. If empty, CI only syncs files. |
 
+Optional post-deploy verification:
+
+| Secret | Required | Notes |
+|--------|----------|-------|
+| `BACKEND_PUBLIC_ORIGIN` | no | Public backend origin for CORS verification, for example `https://your-backend-domain.example`. |
+| `ADMIN_PUBLIC_ORIGIN` | no | Public admin origin expected in `CORS_ORIGINS`, for example `https://your-admin-domain.example`. |
+
 Authentication priority:
 
 1. Use `DEPLOY_SSH_KEY`, `SSH_PRIVATE_KEY`, or `SSH_KEY` when present.
@@ -193,6 +200,14 @@ https://your-backend-domain.example/api/v1/health/live
 https://your-backend-domain.example/api/v1/health/ready
 ```
 
+Also verify the admin cross-origin preflight, especially after adding or changing mutating admin endpoints:
+
+```bash
+npm run verify:cors -- https://your-backend-domain.example https://your-admin-domain.example
+```
+
+This check must report that the admin origin may `PATCH` the backend. A failure means the running backend build or proxy CORS policy is stale or incomplete.
+
 Enterprise WeChat callback verification requires the public HTTPS URLs to be reachable from the internet. A local-only domain, IP-only URL, or HTTP-only URL is not enough for production callback setup.
 
 ### BaoTa Files That Must Stay On Server
@@ -304,6 +319,7 @@ Do not put secret values in `DEPLOY_RESTART_COMMAND`; read them from the server-
 5. In GitHub Actions, confirm `Deploy Backend` passes verification and sync.
 6. On the server, confirm the backend is built/restarted by the panel or `DEPLOY_RESTART_COMMAND`.
 7. Verify `/api/v1/health/ready`.
+8. Verify CORS preflight with `npm run verify:cors -- https://your-backend-domain.example https://your-admin-domain.example`.
 
 ## Rollback
 
