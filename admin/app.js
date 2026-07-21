@@ -223,8 +223,10 @@ function completeLogin(accessToken, admin) {
   const adminTokenInput = $("#adminToken");
   if (adminTokenInput) adminTokenInput.value = accessToken;
   applyAdminIdentity(admin);
-  $("#gatePassword").value = "";
-  $("#gateTokenInput").value = "";
+  const gateUsername = $("#gateUsername");
+  if (gateUsername) gateUsername.value = "";
+  const gatePassword = $("#gatePassword");
+  if (gatePassword) gatePassword.value = "";
   showConsole();
 }
 
@@ -720,10 +722,52 @@ async function inviteLocalMember() {
 
 async function createEnterpriseJoinCode() {
   const result=await run("生成企业加入码",()=>adminRequest("/admin/local-enterprises/join-code",{method:"POST"}));
-  const path=result.join_path||`pages/enterprise-join/index?token=${encodeURIComponent(result.join_token||"")}`;
-  $("#joinCodeResult").textContent=`小程序路径：${path}（有效期至 ${formatDate(result.expires_at)}）`;
-  if(result.qr_code_data_url){const link=document.createElement("a");link.href=result.qr_code_data_url;link.download="enterprise-join-code.png";link.click();}
-  else window.prompt("当前环境未配置小程序凭据，请复制路径后在微信公众平台生成小程序码",path);
+  renderJoinCode(result);
+}
+
+function renderJoinCode(result) {
+  const root = $("#joinCodeResult");
+  root.replaceChildren();
+  const shell = document.createElement("div");
+  shell.className = "join-code-shell";
+
+  const qrWrap = document.createElement("div");
+  qrWrap.className = "join-code-qr";
+  if (result.qr_code_data_url) {
+    const image = document.createElement("img");
+    image.src = result.qr_code_data_url;
+    image.alt = "企业加入二维码";
+    qrWrap.append(image);
+  } else {
+    const empty = document.createElement("div");
+    empty.className = "join-code-qr-empty";
+    empty.textContent = "二维码暂不可用";
+    qrWrap.append(empty);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "join-code-meta";
+  const title = document.createElement("strong");
+  title.textContent = "企业加入码";
+  const hint = document.createElement("p");
+  hint.textContent = result.qr_code_data_url ? "请使用微信扫码加入企业。" : "当前环境未配置微信小程序凭据，无法生成二维码。";
+  const expiry = document.createElement("span");
+  expiry.textContent = `有效期至 ${formatDate(result.expires_at)}`;
+  meta.append(title, hint, expiry);
+
+  const actions = document.createElement("div");
+  actions.className = "row-actions join-code-actions";
+  if (result.qr_code_data_url) {
+    actions.append(actionButton("下载二维码", () => {
+      const link = document.createElement("a");
+      link.href = result.qr_code_data_url;
+      link.download = "enterprise-join-code.png";
+      link.click();
+    }, "secondary"));
+  }
+
+  shell.append(qrWrap, meta, actions);
+  root.append(shell);
 }
 
 async function loadJoinRequests() {

@@ -1,5 +1,5 @@
 (function () {
-  const PARTIAL_VERSION = "20260721-localui1";
+  const PARTIAL_VERSION = "20260721-joinqr1";
   const PAGE_PARTIALS = [
     "tenant-dashboard",
     "tenant-members",

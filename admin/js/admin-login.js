@@ -5,6 +5,10 @@
     return $(".login-role-tabs [data-login-role].active")?.dataset.loginRole || "tenant";
   }
 
+  function selectedScanMode($) {
+    return $(".login-scan-tabs [data-scan-mode].active")?.dataset.scanMode || "local";
+  }
+
   function bindPasswordLogin(context) {
     const { $, request, completeLogin, gateError } = context;
     $("#gatePasswordForm").addEventListener("submit", async (event) => {
@@ -27,28 +31,6 @@
         gateError.textContent = error.message || "登录失败";
       } finally {
         $("#gatePasswordLogin").disabled = false;
-      }
-    });
-  }
-
-  function bindWecomCodeLogin(context) {
-    const { $, request, run, completeLogin, gateError } = context;
-    $("#gateLogin").addEventListener("click", async () => {
-      const code = $("#gateLoginCode").value.trim();
-      const claimToken = $("#gateClaimToken").value.trim();
-      if (!code) {
-        gateError.textContent = "请输入企业微信登录 Code";
-        return;
-      }
-      const body = { code };
-      if (claimToken) body.claim_token = claimToken;
-      try {
-        const result = await run("企业微信登录", () =>
-          request("/admin/auth/qy-login", { method: "POST", auth: false, body })
-        );
-        completeLogin(result.access_token, result.admin);
-      } catch (error) {
-        gateError.textContent = error.message || "登录失败";
       }
     });
   }
@@ -90,35 +72,38 @@
 
   function bindLocalScanLogin(context){$("#gateLocalScanRefresh")?.addEventListener("click",()=>startLocalScan(context));}
 
-  function bindTokenLogin(context) {
-    const { $, request, completeLogin, gateError } = context;
-    $("#gateTokenLogin").addEventListener("click", async () => {
-      const token = $("#gateTokenInput").value.trim();
-      if (!token) {
-        gateError.textContent = "请输入访问令牌";
-        return;
-      }
-      try {
-        const result = await request("/admin/session/me", { token });
-        completeLogin(token, result.admin);
-      } catch (error) {
-        gateError.textContent = error.message || "令牌无效";
-      }
-    });
-  }
-
   function bindLoginRoleUi(context) {
     const { $, $$, gateError } = context;
     const passwordForm = $("#gatePasswordForm");
+    const scanSection = $(".login-scan-section");
     const localScanLoginBox = $("#localScanLoginBox");
-    const loginAlt = $(".login-alt");
+    const wecomScanLoginBox = $("#wecomScanLoginBox");
     const accountLabel = $("#gateAccountLabel");
     const usernameInput = $("#gateUsername");
     const passwordInput = $("#gatePassword");
+    const scanTabs = $$(".login-scan-tabs [data-scan-mode]");
     const roleCopy = {
       tenant: { label: "企业管理员", placeholder: "" },
       platform: { label: "平台账号", placeholder: "请输入平台账号" }
     };
+
+    function resetGateError() {
+      if (gateError && gateError.dataset.preserve !== "true") gateError.textContent = "";
+      if (gateError) delete gateError.dataset.preserve;
+    }
+
+    function applyScanMode(mode) {
+      const isWecom = mode === "wecom";
+      scanTabs.forEach((tab) => {
+        const active = tab.dataset.scanMode === mode;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      localScanLoginBox?.classList.toggle("hidden", isWecom);
+      wecomScanLoginBox?.classList.toggle("hidden", !isWecom);
+      if (isWecom) stopLocalScan(); else startLocalScan(context);
+      resetGateError();
+    }
 
     function applyLoginRole(role) {
       const isPlatform = role === "platform";
@@ -134,11 +119,9 @@
         if (!isPlatform) passwordInput.value = "";
       }
       passwordForm?.classList.toggle("hidden", !isPlatform);
-      localScanLoginBox?.classList.toggle("hidden", isPlatform);
-      loginAlt?.classList.toggle("hidden", isPlatform);
-      if(isPlatform) stopLocalScan(); else startLocalScan(context);
-      if (gateError && gateError.dataset.preserve !== "true") gateError.textContent = "";
-      if (gateError) delete gateError.dataset.preserve;
+      scanSection?.classList.toggle("hidden", isPlatform);
+      if (isPlatform) stopLocalScan(); else applyScanMode(selectedScanMode($));
+      resetGateError();
     }
 
     $$("[data-login-role]").forEach((tab) => {
@@ -151,6 +134,11 @@
         applyLoginRole(tab.dataset.loginRole);
       });
     });
+
+    scanTabs.forEach((tab) => {
+      tab.addEventListener("click", () => applyScanMode(tab.dataset.scanMode));
+    });
+
     applyLoginRole(selectedLoginRole($));
   }
 
@@ -209,10 +197,8 @@
   window.AdminLogin = {
     bind(context) {
       bindPasswordLogin(context);
-      bindWecomCodeLogin(context);
       bindWecomScanLogin(context);
       bindLocalScanLogin(context);
-      bindTokenLogin(context);
       bindLoginRoleUi(context);
       bindPasswordVisibility(context);
       bindRememberToggle(context);

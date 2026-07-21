@@ -1,8 +1,10 @@
-import { BadRequestException, Injectable, NotImplementedException, NotFoundException } from "@nestjs/common";
-import { createReadStream, type ReadStream } from "node:fs";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { createReadStream } from "node:fs";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { AppConfig } from "../config/app-config.js";
 
 type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "wechat-qrcodes" | "company-images" | "videos" | "honors" | "templates";
@@ -13,9 +15,14 @@ interface StoredObject {
 }
 
 interface LocalObject {
-  stream: ReadStream;
+  stream: Readable;
   contentType: string;
   contentLength: number;
+}
+
+interface RemoteStorage {
+  client: S3Client;
+  bucket: string;
 }
 
 const MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
@@ -27,29 +34,18 @@ const MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
 
 @Injectable()
 export class StorageService {
-  constructor(private readonly config: AppConfig) {}
+  private readonly remoteStorage: RemoteStorage | null;
+
+  constructor(private readonly config: AppConfig) {
+    this.remoteStorage = this.createRemoteStorage();
+  }
 
   async storeImageDataUrl(input: { tenantId: string; category: StorageCategory; dataUrl: string }): Promise<StoredObject> {
     const parsed = parseImageDataUrl(input.dataUrl);
     if (parsed.buffer.length > this.config.storageMaxUploadBytes) {
       throw new BadRequestException("uploaded image exceeds STORAGE_MAX_UPLOAD_BYTES");
     }
-    if (this.config.storageDriver === "aliyun_oss") {
-      throw new NotImplementedException("Alibaba Cloud OSS storage is configured but its upload adapter is not installed yet");
-    }
-    if (this.config.storageDriver === "s3") {
-      throw new NotImplementedException("S3-compatible storage is configured but its upload adapter is not installed yet");
-    }
-
-    const fileName = `${Date.now()}-${randomUUID()}.${parsed.ext}`;
-    const storageKey = `tenant/${safeSegment(input.tenantId)}/${safeSegment(input.category)}/${fileName}`;
-    const absolutePath = this.resolveLocalKey(storageKey);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, parsed.buffer);
-    return {
-      storageKey,
-      publicUrl: `${this.config.storagePublicBaseUrl}/${storageKey}`
-    };
+    return this.storeBuffer(input.tenantId, input.category, parsed.ext, parsed.contentType, parsed.buffer);
   }
 
   async storeTrustedRemoteImage(input: {
@@ -72,27 +68,110 @@ export class StorageService {
     if (buffer.length > this.config.storageMaxUploadBytes) {
       throw new BadRequestException("WeCom image exceeds STORAGE_MAX_UPLOAD_BYTES");
     }
-    return this.storeImageDataUrl({
-      tenantId: input.tenantId,
-      category: input.category,
-      dataUrl: `data:${format.contentType};base64,${buffer.toString("base64")}`
-    });
+    return this.storeBuffer(input.tenantId, input.category, format.ext, format.contentType, buffer);
   }
 
   async readLocalObject(input: { tenantId: string; category: string; fileName: string }): Promise<LocalObject> {
-    if (this.config.storageDriver !== "local") {
-      throw new NotFoundException("local storage is not enabled");
+    const storageKey = buildStorageKey(input.tenantId, input.category, input.fileName);
+    if (this.config.storageDriver === "local") {
+      const absolutePath = this.resolveLocalKey(storageKey);
+      const info = await stat(absolutePath).catch(() => null);
+      if (!info || !info.isFile()) {
+        throw new NotFoundException("stored object not found");
+      }
+      return {
+        stream: createReadStream(absolutePath),
+        contentType: contentTypeForFile(input.fileName),
+        contentLength: info.size
+      };
     }
-    const storageKey = `tenant/${safeSegment(input.tenantId)}/${safeSegment(input.category)}/${safeSegment(input.fileName)}`;
-    const absolutePath = this.resolveLocalKey(storageKey);
-    const info = await stat(absolutePath).catch(() => null);
-    if (!info || !info.isFile()) {
-      throw new NotFoundException("stored object not found");
+    if (!this.remoteStorage) {
+      throw new NotFoundException("remote storage is not enabled");
     }
+    try {
+      const response = await this.remoteStorage.client.send(new GetObjectCommand({
+        Bucket: this.remoteStorage.bucket,
+        Key: storageKey
+      }));
+      const body = response.Body;
+      if (!body) {
+        throw new NotFoundException("stored object not found");
+      }
+      const stream = body instanceof Readable ? body : Readable.fromWeb(body as globalThis.ReadableStream<Uint8Array>);
+      return {
+        stream,
+        contentType: response.ContentType ?? contentTypeForFile(input.fileName),
+        contentLength: Number(response.ContentLength ?? 0)
+      };
+    } catch (error) {
+      if (isMissingStorageObject(error)) {
+        throw new NotFoundException("stored object not found");
+      }
+      throw error;
+    }
+  }
+
+  private async storeBuffer(tenantId: string, category: StorageCategory, ext: string, contentType: string, buffer: Buffer): Promise<StoredObject> {
+    const fileName = `${Date.now()}-${randomUUID()}.${ext}`;
+    const storageKey = buildStorageKey(tenantId, category, fileName);
+    await this.writeObject(storageKey, buffer, contentType);
     return {
-      stream: createReadStream(absolutePath),
-      contentType: contentTypeForFile(input.fileName),
-      contentLength: info.size
+      storageKey,
+      publicUrl: this.resolvePublicUrl(storageKey)
+    };
+  }
+
+  private async writeObject(storageKey: string, buffer: Buffer, contentType: string): Promise<void> {
+    if (!this.remoteStorage) {
+      const absolutePath = this.resolveLocalKey(storageKey);
+      await mkdir(path.dirname(absolutePath), { recursive: true });
+      await writeFile(absolutePath, buffer);
+      return;
+    }
+    await this.remoteStorage.client.send(new PutObjectCommand({
+      Bucket: this.remoteStorage.bucket,
+      Key: storageKey,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable"
+    }));
+  }
+
+  private resolvePublicUrl(storageKey: string): string {
+    return this.config.storagePublicBaseUrl ? `${this.config.storagePublicBaseUrl}/${storageKey}` : `/api/v1/storage/${storageKey}`;
+  }
+
+  private createRemoteStorage(): RemoteStorage | null {
+    if (this.config.storageDriver === "local") {
+      return null;
+    }
+    if (this.config.storageDriver === "aliyun_oss") {
+      const remote = this.config.aliyunOssConfig;
+      return {
+        bucket: remote.bucket,
+        client: new S3Client({
+          region: remote.region,
+          endpoint: remote.endpoint,
+          credentials: {
+            accessKeyId: remote.accessKeyId,
+            secretAccessKey: remote.accessKeySecret
+          },
+          forcePathStyle: true
+        })
+      };
+    }
+    const remote = this.config.s3Config;
+    return {
+      bucket: remote.bucket,
+      client: new S3Client({
+        region: remote.region,
+        endpoint: remote.endpoint,
+        credentials: {
+          accessKeyId: remote.accessKeyId,
+          secretAccessKey: remote.secretAccessKey
+        },
+        forcePathStyle: remote.forcePathStyle
+      })
     };
   }
 
@@ -154,4 +233,14 @@ function assertTrustedWecomImageUrl(value: string): void {
   if (url.protocol !== "https:" || !trusted) {
     throw new BadRequestException("untrusted WeCom image URL");
   }
+}
+
+function buildStorageKey(tenantId: string, category: string, fileName: string): string {
+  return `tenant/${safeSegment(tenantId)}/${safeSegment(category)}/${safeSegment(fileName)}`;
+}
+
+function isMissingStorageObject(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } };
+  return candidate.name === "NoSuchKey" || candidate.name === "NotFound" || candidate.$metadata?.httpStatusCode === 404;
 }

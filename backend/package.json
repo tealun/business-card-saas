@@ -15,6 +15,7 @@
     "verify:cors": "node scripts/verify-cors.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1091.0",
     "@fastify/helmet": "13.0.2",
     "@nestjs/common": "11.1.27",
     "@nestjs/config": "4.0.4",

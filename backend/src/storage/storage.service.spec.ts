@@ -1,6 +1,8 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { S3Client } from "@aws-sdk/client-s3";
 import { AppConfig } from "../config/app-config.js";
 import { StorageService } from "./storage.service.js";
 
@@ -10,6 +12,7 @@ describe("StorageService", () => {
   let tempDir = "";
 
   afterEach(async () => {
+    jest.restoreAllMocks();
     process.env = { ...originalEnv };
     global.fetch = originalFetch;
     if (tempDir) {
@@ -99,5 +102,58 @@ describe("StorageService", () => {
     });
 
     expect(stored.publicUrl).toMatch(/^\/api\/v1\/storage\/tenant\/tenant-001\/logos\/.+\.png$/);
+  });
+
+  it("stores image data URLs into Alibaba Cloud OSS-compatible storage", async () => {
+    process.env.STORAGE_DRIVER = "aliyun_oss";
+    process.env.ALIYUN_OSS_BUCKET = "bc-bucket";
+    process.env.ALIYUN_OSS_REGION = "oss-cn-hangzhou";
+    process.env.ALIYUN_OSS_ENDPOINT = "https://oss-cn-hangzhou.aliyuncs.com";
+    process.env.ALIYUN_OSS_ACCESS_KEY_ID = "oss-key";
+    process.env.ALIYUN_OSS_ACCESS_KEY_SECRET = "oss-secret";
+    delete process.env.STORAGE_PUBLIC_BASE_URL;
+    const send = jest.spyOn(S3Client.prototype, "send").mockResolvedValue({} as never);
+    const service = new StorageService(new AppConfig());
+
+    const stored = await service.storeImageDataUrl({
+      tenantId: "tenant-001",
+      category: "logos",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(stored.storageKey).toMatch(/^tenant\/tenant-001\/logos\/.+\.png$/);
+    expect(stored.publicUrl).toMatch(/^\/api\/v1\/storage\/tenant\/tenant-001\/logos\/.+\.png$/);
+  });
+
+  it("reads remote objects from S3-compatible storage", async () => {
+    process.env.STORAGE_DRIVER = "s3";
+    process.env.S3_BUCKET = "bc-bucket";
+    process.env.S3_REGION = "ap-southeast-1";
+    process.env.S3_ENDPOINT = "https://s3.example.com";
+    process.env.S3_ACCESS_KEY_ID = "s3-key";
+    process.env.S3_SECRET_ACCESS_KEY = "s3-secret";
+    process.env.S3_FORCE_PATH_STYLE = "true";
+    const send = jest.spyOn(S3Client.prototype, "send").mockResolvedValueOnce({
+      Body: Readable.from([Buffer.from("hello")]),
+      ContentType: "image/jpeg",
+      ContentLength: 5
+    } as never);
+    const service = new StorageService(new AppConfig());
+
+    const object = await service.readLocalObject({
+      tenantId: "tenant-001",
+      category: "avatars",
+      fileName: "avatar.jpg"
+    });
+    const chunks: Buffer[] = [];
+    for await (const chunk of object.stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(Buffer.concat(chunks).toString("utf8")).toBe("hello");
+    expect(object.contentType).toBe("image/jpeg");
+    expect(object.contentLength).toBe(5);
   });
 });

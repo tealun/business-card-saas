@@ -9,7 +9,7 @@
     />
     <title>智云名片 · 管理后台</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234a5ac2'/%3E%3Cpath d='M9 10h14v3H9zm0 5h10v3H9zm0 5h14v3H9z' fill='white'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=20260721-localui1" />
+    <link rel="stylesheet" href="./styles.css?v=20260721-loginux1" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -94,31 +94,21 @@
               <span class="login-spinner" aria-hidden="true"></span><span>登录</span>
             </button>
           </form>
-          <div class="wecom-scan-login" id="localScanLoginBox">
-            <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="196" height="196" />
-            <p id="gateLocalScanHint">正在生成微信小程序登录码…</p>
-            <button id="gateLocalScanRefresh" type="button" class="secondary">刷新登录码</button>
+          <div class="login-scan-section">
+            <div class="login-scan-tabs" role="tablist" aria-label="扫码登录方式">
+              <button type="button" class="active" data-scan-mode="local" role="tab" aria-selected="true">小程序扫码</button>
+              <button type="button" data-scan-mode="wecom" role="tab" aria-selected="false">企业微信扫码</button>
+            </div>
+            <div class="login-scan-card" id="localScanLoginBox">
+              <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="196" height="196" />
+              <p id="gateLocalScanHint">正在生成微信小程序登录码…</p>
+              <button id="gateLocalScanRefresh" type="button" class="secondary">刷新登录码</button>
+            </div>
+            <div class="login-scan-card hidden" id="wecomScanLoginBox">
+              <p class="login-scan-copy">点击后将跳转到企业微信扫码登录页面。</p>
+              <button id="gateWecomScanLogin" type="button" class="secondary">企业微信扫码登录</button>
+            </div>
           </div>
-          <details class="login-alt">
-            <summary>已连接企业微信？使用企业微信登录</summary>
-            <button id="gateWecomScanLogin" type="button" class="secondary">企业微信扫码登录</button>
-            <div class="alt-divider"></div>
-            <label>
-              <span>企业微信登录 Code</span>
-              <input id="gateLoginCode" autocomplete="off" />
-            </label>
-            <label>
-              <span>Owner Claim Token</span>
-              <input id="gateClaimToken" autocomplete="off" placeholder="首次认领企业 owner 时填写" />
-            </label>
-            <button id="gateLogin" type="button" class="secondary">企业微信 Code 登录</button>
-            <div class="alt-divider"></div>
-            <label>
-              <span>访问令牌</span>
-              <input id="gateTokenInput" autocomplete="off" />
-            </label>
-            <button id="gateTokenLogin" type="button" class="secondary">令牌登录</button>
-          </details>
           <p class="login-footer">© 2026 智云名片 · 企业级安全登录</p>
         </div>
       </div>
@@ -257,8 +247,8 @@
     </dialog>
 
     <script src="./config.js"></script>
-    <script src="./js/admin-partials.js?v=20260721-localui1"></script>
-    <script src="./js/admin-login.js?v=20260720-localscan1"></script>
-    <script src="./app.js?v=20260721-localui1"></script>
+    <script src="./js/admin-partials.js?v=20260721-joinqr1"></script>
+    <script src="./js/admin-login.js?v=20260721-loginux1"></script>
+    <script src="./app.js?v=20260721-loginux1"></script>
   </body>
 </html>
