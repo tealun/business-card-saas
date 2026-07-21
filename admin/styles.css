@@ -1436,6 +1436,86 @@ label span,
   color: #4f63d8;
 }
 
+.wecom-auth-panel {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: 248px;
+  margin: 2px 0 18px;
+  padding: 30px 28px;
+  border: 1px solid #e4e8f0;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(239, 242, 255, 0.72), rgba(255, 255, 255, 0.96)),
+    #ffffff;
+  text-align: center;
+}
+
+.wecom-auth-mark {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #25c76f, #16a85d);
+  box-shadow: 0 14px 28px rgba(22, 168, 93, 0.18);
+}
+
+.wecom-auth-mark::before,
+.wecom-auth-mark::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.wecom-auth-mark::before {
+  width: 34px;
+  height: 24px;
+  left: 14px;
+  top: 18px;
+}
+
+.wecom-auth-mark::after {
+  width: 11px;
+  height: 11px;
+  left: 38px;
+  top: 35px;
+  box-shadow: -20px -10px 0 -3px #16a85d, -8px -10px 0 -3px #16a85d;
+  transform: rotate(45deg);
+}
+
+.wecom-auth-panel strong {
+  color: #151c2c;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 24px;
+}
+
+.wecom-auth-panel p {
+  max-width: 324px;
+  margin-top: 8px;
+  color: #687286;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.wecom-scan-submit {
+  min-height: 51px;
+  border-color: #d9def8;
+  background: #f2f4ff;
+  color: #4f63d8;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.wecom-scan-submit:hover {
+  border-color: #c9d2ff;
+  background: #eef1ff;
+  color: #4257cc;
+}
+
 .login-qr-shell {
   width: 232px;
   height: 232px;
