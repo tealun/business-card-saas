@@ -119,16 +119,16 @@ export class PlatformTenantService {
     const claimPath = claim.mode === "claim_token_created"
       ? `pages/enterprise-claim/index?token=${encodeURIComponent(claim.claim_token)}`
       : null;
-    const claimQrCodeDataUrl = claim.mode === "claim_token_created"
-      ? await this.claimQr.generateScene(claim.claim_token, "pages/enterprise-claim/index").catch(() => null)
-      : null;
+    const claimQr = claim.mode === "claim_token_created"
+      ? await this.generateClaimQr(claim.claim_token)
+      : { dataUrl: null, error: "" };
     await this.operationLogs?.record({
       session,
       action: "platform.tenant.create",
       tenantId: created.tenantId,
       targetType: "tenant",
       targetId: created.tenantId,
-      detail: { name: created.name, member_limit: input.memberLimit, qr_generated: Boolean(claimQrCodeDataUrl) }
+      detail: { name: created.name, member_limit: input.memberLimit, qr_generated: Boolean(claimQr.dataUrl), qr_error: claimQr.error || undefined }
     });
     return {
       tenant_id: created.tenantId,
@@ -137,7 +137,8 @@ export class PlatformTenantService {
       claim_token: claim.mode === "claim_token_created" ? claim.claim_token : null,
       claim_expires_at: claim.mode === "claim_token_created" ? claim.expires_at : null,
       claim_path: claimPath,
-      claim_qr_code_data_url: claimQrCodeDataUrl
+      claim_qr_code_data_url: claimQr.dataUrl,
+      claim_qr_error: claimQr.error || null
     };
   }
 
@@ -230,17 +231,27 @@ export class PlatformTenantService {
     const claimPath = claim.mode === "claim_token_created"
       ? `pages/enterprise-claim/index?token=${encodeURIComponent(claim.claim_token)}`
       : null;
-    const claimQrCodeDataUrl = claim.mode === "claim_token_created"
-      ? await this.claimQr.generateScene(claim.claim_token, "pages/enterprise-claim/index").catch(() => null)
-      : null;
+    const claimQr = claim.mode === "claim_token_created"
+      ? await this.generateClaimQr(claim.claim_token)
+      : { dataUrl: null, error: "" };
     return {
       tenant_id: tenantId,
       tenant_name: tenantName,
       claim_token: claim.mode === "claim_token_created" ? claim.claim_token : null,
       claim_expires_at: claim.mode === "claim_token_created" ? claim.expires_at : null,
       claim_path: claimPath,
-      claim_qr_code_data_url: claimQrCodeDataUrl
+      claim_qr_code_data_url: claimQr.dataUrl,
+      claim_qr_error: claimQr.error || null
     };
+  }
+
+  private async generateClaimQr(claimToken: string): Promise<{ dataUrl: string | null; error: string }> {
+    try {
+      const dataUrl = await this.claimQr.generateScene(claimToken, "pages/enterprise-claim/index");
+      return { dataUrl, error: dataUrl ? "" : "wechat_miniprogram_credentials_missing" };
+    } catch (error) {
+      return { dataUrl: null, error: error instanceof Error ? error.message : String(error) };
+    }
   }
 
   private formatListItem(item: PlatformTenantListRecord) {

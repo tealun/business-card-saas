@@ -2438,10 +2438,18 @@ function showLocalEnterpriseClaimDialog(result) {
     empty.textContent = "二维码暂不可用";
     qrWrap.append(empty);
     copyPathButton.hidden = false;
-    $("#localEnterpriseClaimHint").textContent = "当前环境未配置微信小程序凭据，无法自动生成二维码。可先复制小程序路径用于排障或临时生成小程序码。";
+    $("#localEnterpriseClaimHint").textContent = localEnterpriseClaimQrFailureHint(result);
   }
   dialog.dataset.claimPath = result.claim_path || "";
   dialog.showModal();
+}
+
+function localEnterpriseClaimQrFailureHint(result) {
+  const error = String(result.claim_qr_error || "").trim();
+  if (!error || error === "wechat_miniprogram_credentials_missing") {
+    return "当前后端进程未读取到微信小程序凭据，无法自动生成二维码。请确认服务器 .env 已配置并重启后端。可先复制小程序路径用于排障。";
+  }
+  return `微信小程序码生成失败：${error}。可先复制小程序路径用于排障，修复配置后重新生成。`;
 }
 
 async function renameLocalEnterprise(item) {

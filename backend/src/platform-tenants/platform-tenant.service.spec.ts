@@ -209,6 +209,16 @@ describe("PlatformTenantService", () => {
     });
   });
 
+  it("returns the Mini Program QR generation error for an existing local claim token", async () => {
+    const { service, claimQr } = createService();
+    claimQr.generateScene.mockRejectedValueOnce(new Error("WeChat QR failed: 40001 invalid credential"));
+    await expect(service.createLocalEnterpriseClaimToken(platformSession, "2")).resolves.toMatchObject({
+      tenant_id: "2",
+      claim_qr_code_data_url: null,
+      claim_qr_error: "WeChat QR failed: 40001 invalid credential"
+    });
+  });
+
   it("rejects fresh claim QR creation when the local enterprise already has an owner", async () => {
     const repository = createRepository();
     repository.getLocalWritable.mockResolvedValueOnce({ tenantId: "2", name: "本地企业", status: "active", activeOwnerCount: 1 });
