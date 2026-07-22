@@ -28,6 +28,7 @@ export interface PlatformTenantDetailRecord extends PlatformTenantListRecord {
   cancelAuthTime: Date | null;
   adminCount: number;
   activeAdminCount: number;
+  admins: PlatformTenantAdminRecord[];
   lastCallback: {
     eventType: string;
     changeType: string | null;
@@ -37,6 +38,18 @@ export interface PlatformTenantDetailRecord extends PlatformTenantListRecord {
     retryCount: number;
     lastError: string | null;
   } | null;
+}
+
+export interface PlatformTenantAdminRecord {
+  adminId: string;
+  memberId: string | null;
+  name: string | null;
+  openUserid: string;
+  role: "owner" | "admin" | "operator" | "auditor";
+  status: string;
+  authSource: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface TenantListRow extends QueryResultRow {
@@ -80,6 +93,18 @@ interface TenantDetailRow extends TenantListRow {
   callback_processed_at: Date | string | null;
   callback_retry_count: number | null;
   callback_last_error: string | null;
+}
+
+interface TenantAdminRow extends QueryResultRow {
+  admin_id: string | number | bigint;
+  member_identity_id: string | number | bigint | null;
+  member_name: string | null;
+  open_userid: string;
+  role: "owner" | "admin" | "operator" | "auditor";
+  status: string;
+  auth_source: string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
 }
 
 @Injectable()
@@ -200,6 +225,7 @@ export class PlatformTenantRepository {
     if (!row) {
       return null;
     }
+    const admins = await this.listAdmins(tenantId);
     return {
       ...this.toListRecord(row),
       authScope: row.auth_scope_json ?? null,
@@ -209,6 +235,7 @@ export class PlatformTenantRepository {
       cancelAuthTime: row.cancel_auth_time ? new Date(row.cancel_auth_time) : null,
       adminCount: Number(row.admin_count),
       activeAdminCount: Number(row.active_admin_count),
+      admins,
       lastCallback: row.callback_event_type && row.callback_status && row.callback_received_at
         ? {
             eventType: row.callback_event_type,
@@ -221,6 +248,44 @@ export class PlatformTenantRepository {
           }
         : null
     };
+  }
+
+  private async listAdmins(tenantId: string): Promise<PlatformTenantAdminRecord[]> {
+    const result = await this.database.query<TenantAdminRow>(
+      `
+        SELECT
+          a.id AS admin_id,
+          a.member_identity_id,
+          m.name AS member_name,
+          a.open_userid,
+          a.role,
+          a.status,
+          a.auth_source,
+          a.created_at,
+          a.updated_at
+        FROM tenant_admins a
+        LEFT JOIN member_identities m ON m.tenant_id = a.tenant_id AND m.id = a.member_identity_id
+        WHERE a.tenant_id = $1
+        ORDER BY
+          CASE a.status WHEN 'active' THEN 0 ELSE 1 END,
+          CASE a.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'operator' THEN 2 ELSE 3 END,
+          a.created_at DESC,
+          a.id DESC
+        LIMIT 100
+      `,
+      [tenantId]
+    );
+    return result.rows.map((row) => ({
+      adminId: String(row.admin_id),
+      memberId: row.member_identity_id === null || row.member_identity_id === undefined ? null : String(row.member_identity_id),
+      name: row.member_name,
+      openUserid: row.open_userid,
+      role: row.role,
+      status: row.status,
+      authSource: row.auth_source,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at)
+    }));
   }
 
   private toListRecord(row: TenantListRow): PlatformTenantListRecord {

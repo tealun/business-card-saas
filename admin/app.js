@@ -2352,6 +2352,37 @@ function buildLocalEnterpriseActions(item) {
   return wrap;
 }
 
+function adminRoleLabel(role) {
+  return ({ owner: "Owner", admin: "管理员", operator: "运营", auditor: "审计" })[role] || role || "--";
+}
+
+function adminStatusTag(status) {
+  return status === "active" ? tag("启用", "success") : tag(status || "未知", "muted");
+}
+
+function renderTenantAdmins(admins) {
+  const items = Array.isArray(admins) ? admins : [];
+  if (!items.length) {
+    return `<div class="empty-block">暂无管理员。请生成管理员认领二维码，由企业负责人扫码完成绑定。</div>`;
+  }
+  return `
+    <div class="admin-list">
+      ${items.map((admin) => `
+        <div class="admin-list-item">
+          <div class="admin-list-item__main">
+            <strong>${escapeHtml(admin.name || admin.open_userid || "--")}</strong>
+            <span>${escapeHtml(admin.open_userid || "--")}</span>
+          </div>
+          <div class="admin-list-item__meta">
+            ${tag(adminRoleLabel(admin.role), admin.role === "owner" ? "brand" : "muted")}
+            ${adminStatusTag(admin.status)}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 async function openCreateLocalEnterprise() {
   if (!requirePermission("platform.tenant.write")) return;
   const panel = $("#createLocalEnterprisePanel");
@@ -2466,6 +2497,18 @@ async function deleteLocalEnterprise(item) {
   await loadTenantAuthorizations();
 }
 
+async function createLocalEnterpriseClaimToken(item) {
+  if (!requirePermission("platform.tenant.write")) return;
+  const ok = await confirmAction({
+    title: "生成管理员认领码",
+    body: `将为本地企业「${item.tenant_name}」生成一个 15 分钟有效的管理员认领二维码。适用于尚未绑定 Owner 的本地企业。`
+  });
+  if (!ok) return;
+  const result = await run("生成管理员认领码", () => adminRequest(`/admin/platform/tenants/${encodeURIComponent(item.tenant_id)}/claim-token`, { method: "POST" }));
+  showLocalEnterpriseClaimDialog(result);
+  await openTenantDetail(item.tenant_id);
+}
+
 function linkButton(label, handler, className = "link-btn") {
   const button = document.createElement("button");
   button.type = "button";
@@ -2517,8 +2560,19 @@ async function openTenantDetail(tenantId) {
         <h3>企业规模</h3>
         ${metricsHtml}
       </section>
+      <section class="drawer-section">
+        <div class="section-head-inline">
+          <h3>管理员</h3>
+          ${item.active_admin_count > 0 ? "" : `<span class="hint">尚未绑定</span>`}
+        </div>
+        ${renderTenantAdmins(item.admins)}
+      </section>
     `;
-    drawerFooter.replaceChildren();
+    const footerActions = [];
+    if (hasPermission("platform.tenant.write") && Number(item.active_admin_count || 0) === 0) {
+      footerActions.push(actionButton("生成管理员认领码", () => createLocalEnterpriseClaimToken(item), "secondary"));
+    }
+    drawerFooter.replaceChildren(...footerActions);
     showDrawer();
     return;
   }

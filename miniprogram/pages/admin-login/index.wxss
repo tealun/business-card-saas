@@ -1,1 +1,169 @@
-.login-page{min-height:100vh;padding:48rpx 28rpx;background:#f4f6fa;box-sizing:border-box}.login-card{background:#fff;border-radius:28rpx;padding:40rpx;box-shadow:0 18rpx 50rpx rgba(37,50,92,.1)}.title{font-size:38rpx;font-weight:700;color:#182033;margin-bottom:28rpx}.hint{color:#697386;line-height:1.7;margin:18rpx 0}.error{color:#c33;padding:20rpx;background:#fff2f2;border-radius:16rpx}.success{color:#16794b;padding:24rpx;background:#effaf5;border-radius:16rpx;line-height:1.7}.tenant-button{margin-top:18rpx;background:#4e5fc7;color:#fff;border-radius:16rpx}
+.admin-login-page {
+  padding-top: 40rpx;
+}
+
+.admin-login-hero {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  margin-bottom: 28rpx;
+}
+
+.admin-login-hero__icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 24rpx;
+  background: var(--brand-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.admin-login-hero__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-login-hero__eyebrow {
+  font-size: 24rpx;
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.admin-login-hero__title {
+  margin-top: 8rpx;
+  font-size: 40rpx;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-login-hero__desc {
+  margin-top: 10rpx;
+  font-size: 25rpx;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.admin-login-card {
+  padding: 38rpx 32rpx;
+}
+
+.admin-login-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.admin-login-state__mark {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 26rpx;
+}
+
+.admin-login-state__mark .icon {
+  width: 58rpx;
+  height: 58rpx;
+}
+
+.admin-login-state__mark--loading {
+  background: var(--brand-tint);
+}
+
+.admin-login-state__mark--success {
+  background: var(--success);
+}
+
+.admin-login-state__mark--danger {
+  background: var(--danger-tint);
+}
+
+.admin-login-state__mark--danger .icon {
+  background-color: var(--danger);
+}
+
+.admin-login-state__title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-login-state__desc {
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.admin-login-message {
+  width: 100%;
+  margin-top: 24rpx;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.status-bar--success {
+  color: #047857;
+  background: var(--success-tint);
+}
+
+.status-bar--danger {
+  color: var(--danger);
+  background: var(--danger-tint);
+}
+
+.admin-login-section-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-login-section-desc {
+  margin-top: 12rpx;
+  margin-bottom: 22rpx;
+  font-size: 25rpx;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.tenant-button {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  width: 100%;
+  min-height: 108rpx;
+  padding: 22rpx 24rpx;
+  margin-top: 16rpx;
+  border-radius: var(--r-card);
+  border: 2rpx solid var(--divider);
+  background: var(--bg-surface);
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.tenant-button__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.tenant-button__name {
+  font-size: 30rpx;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenant-button__role {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--brand);
+}

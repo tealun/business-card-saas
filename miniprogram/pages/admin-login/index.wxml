@@ -1,1 +1,50 @@
-<view class="login-page"><view class="login-card"><view class="title">企业后台登录确认</view><view wx:if="{{loading}}" class="hint">正在验证微信账号和管理员权限…</view><view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{success}}" class="success">{{success}}</view><block wx:if="{{tenants.length}}"><view class="hint">请选择本次要管理的企业</view><button wx:for="{{tenants}}" wx:key="tenant_id" data-id="{{item.tenant_id}}" bindtap="choose" class="tenant-button">{{item.tenant_name}} · {{item.role}}</button></block></view></view>
+<view class="page admin-login-page">
+  <view class="admin-login-hero">
+    <view class="admin-login-hero__icon">
+      <text class="icon icon-building"></text>
+    </view>
+    <view class="admin-login-hero__body">
+      <view class="admin-login-hero__eyebrow">企业后台</view>
+      <view class="admin-login-hero__title">确认管理员登录</view>
+      <view class="admin-login-hero__desc">请确认这是你正在电脑端发起的登录请求。</view>
+    </view>
+  </view>
+
+  <view class="card admin-login-card">
+    <view wx:if="{{loading}}" class="admin-login-state">
+      <view class="admin-login-state__mark admin-login-state__mark--loading">
+        <text class="icon icon-reload"></text>
+      </view>
+      <view class="admin-login-state__title">正在验证身份</view>
+      <view class="admin-login-state__desc">正在刷新微信登录态并校验管理员权限。</view>
+    </view>
+
+    <view wx:if="{{error}}" class="admin-login-state">
+      <view class="admin-login-state__mark admin-login-state__mark--danger">
+        <text class="icon icon-lock"></text>
+      </view>
+      <view class="admin-login-state__title">无法确认登录</view>
+      <view class="status-bar status-bar--danger admin-login-message">{{error}}</view>
+    </view>
+
+    <view wx:if="{{success}}" class="admin-login-state">
+      <view class="admin-login-state__mark admin-login-state__mark--success">
+        <text class="icon icon-check"></text>
+      </view>
+      <view class="admin-login-state__title">登录已确认</view>
+      <view class="status-bar status-bar--success admin-login-message">{{success}}</view>
+    </view>
+
+    <block wx:if="{{tenants.length}}">
+      <view class="admin-login-section-title">选择管理企业</view>
+      <view class="admin-login-section-desc">当前微信账号拥有多个企业管理员身份，请选择本次要进入的企业。</view>
+      <button wx:for="{{tenants}}" wx:key="tenant_id" data-id="{{item.tenant_id}}" bindtap="choose" class="tenant-button">
+        <view class="tenant-button__main">
+          <view class="tenant-button__name">{{item.tenant_name}}</view>
+          <view class="tenant-button__role">{{item.role}}</view>
+        </view>
+        <text class="icon icon-arrow"></text>
+      </button>
+    </block>
+  </view>
+</view>

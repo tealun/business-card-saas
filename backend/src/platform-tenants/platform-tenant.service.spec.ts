@@ -44,6 +44,17 @@ function createRepository() {
       cancelAuthTime: null,
       adminCount: 1,
       activeAdminCount: 1,
+      admins: [{
+        adminId: "8",
+        memberId: "30",
+        name: "张三",
+        openUserid: "account:10",
+        role: "owner" as const,
+        status: "active",
+        authSource: "claim_token",
+        createdAt: new Date("2026-07-16T01:00:00.000Z"),
+        updatedAt: new Date("2026-07-16T01:00:00.000Z")
+      }],
       lastCallback: {
         eventType: "create_auth",
         changeType: null,
@@ -123,7 +134,8 @@ describe("PlatformTenantService", () => {
       tenant_id: "2",
       authorization_healthy: true,
       permanent_code_configured: true,
-      last_callback: { event_type: "create_auth", status: "done" }
+      last_callback: { event_type: "create_auth", status: "done" },
+      admins: [{ admin_id: "8", name: "张三", role: "owner", status: "active" }]
     });
     expect(result).not.toHaveProperty("permanent_code_encrypted");
     expect(result).not.toHaveProperty("corp_access_token_encrypted");
@@ -181,6 +193,29 @@ describe("PlatformTenantService", () => {
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
     expect(result.claim_path).toContain("admclaim_test");
+  });
+
+  it("creates a fresh local enterprise claim QR code from an existing tenant", async () => {
+    const { service, repository, ownerBootstrap, claimQr } = createService();
+    const result = await service.createLocalEnterpriseClaimToken(platformSession, "2");
+    expect(repository.getLocalWritable).toHaveBeenCalledWith("2");
+    expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "2" });
+    expect(claimQr.generateScene).toHaveBeenCalledWith("admclaim_test", "pages/enterprise-claim/index");
+    expect(result).toMatchObject({
+      tenant_id: "2",
+      tenant_name: "本地企业",
+      claim_token: "admclaim_test",
+      claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
+    });
+  });
+
+  it("rejects fresh claim QR creation when the local enterprise already has an owner", async () => {
+    const repository = createRepository();
+    repository.getLocalWritable.mockResolvedValueOnce({ tenantId: "2", name: "本地企业", status: "active", activeOwnerCount: 1 });
+    const { service, ownerBootstrap, claimQr } = createService(repository);
+    await expect(service.createLocalEnterpriseClaimToken(platformSession, "2")).rejects.toBeInstanceOf(BadRequestException);
+    expect(ownerBootstrap.bootstrapOwner).not.toHaveBeenCalled();
+    expect(claimQr.generateScene).not.toHaveBeenCalled();
   });
 
   it("rejects a create with too short a name", async () => {

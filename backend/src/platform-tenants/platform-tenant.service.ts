@@ -141,6 +141,24 @@ export class PlatformTenantService {
     };
   }
 
+  async createLocalEnterpriseClaimToken(session: AdminSession, tenantId: string) {
+    requirePlatformAdminRole(session, "owner");
+    const record = await this.getWritableOrThrow(tenantId);
+    if (record.activeOwnerCount > 0) {
+      throw new BadRequestException("local enterprise already has an active owner");
+    }
+    const claim = await this.createClaimPayload(record.tenantId, record.name);
+    await this.operationLogs?.record({
+      session,
+      action: "platform.tenant.claim_token.create",
+      tenantId: record.tenantId,
+      targetType: "tenant",
+      targetId: record.tenantId,
+      detail: { qr_generated: Boolean(claim.claim_qr_code_data_url) }
+    });
+    return claim;
+  }
+
   async renameLocalEnterprise(session: AdminSession, tenantId: string, name: string) {
     requirePlatformAdminRole(session, "owner");
     const trimmed = name.trim();
@@ -207,6 +225,24 @@ export class PlatformTenantService {
     return record;
   }
 
+  private async createClaimPayload(tenantId: string, tenantName: string) {
+    const claim = await this.ownerBootstrap.bootstrapOwner({ tenant_id: tenantId });
+    const claimPath = claim.mode === "claim_token_created"
+      ? `pages/enterprise-claim/index?token=${encodeURIComponent(claim.claim_token)}`
+      : null;
+    const claimQrCodeDataUrl = claim.mode === "claim_token_created"
+      ? await this.claimQr.generateScene(claim.claim_token, "pages/enterprise-claim/index").catch(() => null)
+      : null;
+    return {
+      tenant_id: tenantId,
+      tenant_name: tenantName,
+      claim_token: claim.mode === "claim_token_created" ? claim.claim_token : null,
+      claim_expires_at: claim.mode === "claim_token_created" ? claim.expires_at : null,
+      claim_path: claimPath,
+      claim_qr_code_data_url: claimQrCodeDataUrl
+    };
+  }
+
   private formatListItem(item: PlatformTenantListRecord) {
     return {
       tenant_id: item.tenantId,
@@ -237,6 +273,17 @@ export class PlatformTenantService {
       cancel_auth_time: item.cancelAuthTime?.toISOString() ?? null,
       admin_count: item.adminCount,
       active_admin_count: item.activeAdminCount,
+      admins: item.admins.map((admin) => ({
+        admin_id: admin.adminId,
+        member_identity_id: admin.memberId,
+        name: admin.name,
+        open_userid: admin.openUserid,
+        role: admin.role,
+        status: admin.status,
+        auth_source: admin.authSource,
+        created_at: admin.createdAt.toISOString(),
+        updated_at: admin.updatedAt.toISOString()
+      })),
       authorization_healthy: item.authStatus === "active" && item.permanentCodeConfigured,
       last_callback: item.lastCallback
         ? {

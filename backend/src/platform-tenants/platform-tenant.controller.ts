@@ -47,6 +47,12 @@ export class PlatformTenantController {
     });
   }
 
+  @Post(":tenantId/claim-token")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createLocalClaimToken(@Req() req: AdminRequest, @Param("tenantId") tenantId: string) {
+    return this.service.createLocalEnterpriseClaimToken(requireAdminSession(req), tenantId);
+  }
+
   @Patch(":tenantId")
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   renameLocal(@Req() req: AdminRequest, @Param("tenantId") tenantId: string, @Body() body: unknown) {
