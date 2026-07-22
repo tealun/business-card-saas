@@ -140,12 +140,16 @@
               <div class="login-scan-head">
                 <div>
                   <strong>企业微信扫码登录</strong>
-                  <p>将跳转到企业微信授权页面完成管理员登录。</p>
+                  <p>打开企业微信授权页后扫码确认管理员身份。</p>
                 </div>
-                <span class="login-scan-badge alt">跳转</span>
+                <span class="login-scan-badge alt">安全跳转</span>
               </div>
-              <p class="login-scan-copy">适合已经接入企业微信的企业，点击后会打开企业微信扫码页。</p>
-              <button id="gateWecomScanLogin" type="button" class="secondary">企业微信扫码登录</button>
+              <div class="wecom-auth-panel">
+                <div class="wecom-auth-mark" aria-hidden="true"></div>
+                <strong>前往企业微信完成授权</strong>
+                <p>适合已接入企业微信的企业。点击后会打开企业微信扫码页，请使用企业微信管理员账号完成确认。</p>
+              </div>
+              <button id="gateWecomScanLogin" type="button" class="secondary wecom-scan-submit">企业微信扫码登录</button>
             </div>
           </div>
           <p class="login-footer">© 2026 智云名片 · 企业级安全登录</p>
