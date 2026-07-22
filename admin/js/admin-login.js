@@ -78,6 +78,7 @@
     const scanSection = $(".login-scan-section");
     const localScanLoginBox = $("#localScanLoginBox");
     const wecomScanLoginBox = $("#wecomScanLoginBox");
+    const roleTabs = $(".login-role-tabs");
     const accountLabel = $("#gateAccountLabel");
     const usernameInput = $("#gateUsername");
     const passwordInput = $("#gatePassword");
@@ -108,6 +109,7 @@
     function applyLoginRole(role) {
       const isPlatform = role === "platform";
       const copy = roleCopy[role] || roleCopy.tenant;
+      if (roleTabs) roleTabs.dataset.activeRole = role;
       if (accountLabel) accountLabel.textContent = copy.label;
       if (usernameInput) {
         usernameInput.placeholder = copy.placeholder;

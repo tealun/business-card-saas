@@ -9,7 +9,7 @@
     />
     <title>智云名片 · 管理后台</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234a5ac2'/%3E%3Cpath d='M9 10h14v3H9zm0 5h10v3H9zm0 5h14v3H9z' fill='white'/%3E%3C/svg%3E" />
-    <link rel="stylesheet" href="./styles.css?v=20260721-loginux1" />
+    <link rel="stylesheet" href="./styles.css?v=20260722-loginux2" />
   </head>
   <body>
     <section id="authGate" class="login-shell hidden" aria-label="管理员登录">
@@ -57,7 +57,6 @@
           </div>
           <div class="login-tagline">
             <strong>连接企业与客户的<br /><em>智能数字名片</em>云平台</strong>
-            <span>授权同步　·　数据洞察　·　企业级安全</span>
           </div>
         </div>
       </div>
@@ -71,12 +70,12 @@
                 <small>管理后台登录</small>
               </div>
             </div>
-            <span class="login-panel-chip">企业级安全</span>
           </div>
           <h1>欢迎回来</h1>
           <p class="login-sub">登录以继续管理您的企业数字名片</p>
           <div class="login-section-label">账号身份</div>
           <div class="login-role-tabs" role="tablist" aria-label="账号类型">
+            <span class="login-role-slider" aria-hidden="true"></span>
             <button type="button" class="active" data-login-role="tenant" role="tab" aria-selected="true">
               <span>企业管理员</span>
               <small>微信小程序 / 企业微信扫码</small>
@@ -116,7 +115,7 @@
             <div class="login-scan-tabs" role="tablist" aria-label="扫码登录方式">
               <button type="button" class="active" data-scan-mode="local" role="tab" aria-selected="true">
                 <span>小程序扫码</span>
-                <small>推荐 · 本地企业</small>
+                <small>本地企业</small>
               </button>
               <button type="button" data-scan-mode="wecom" role="tab" aria-selected="false">
                 <span>企业微信扫码</span>
@@ -129,7 +128,7 @@
                   <strong>微信小程序扫码</strong>
                   <p>打开小程序后确认管理员登录。</p>
                 </div>
-                <span class="login-scan-badge">推荐</span>
+                <span class="login-scan-badge">推荐 · 本地企业</span>
               </div>
               <div class="login-qr-shell">
                 <img id="gateLocalScanQr" class="hidden" alt="微信小程序管理员登录二维码" width="208" height="208" />
@@ -288,7 +287,7 @@
 
     <script src="./config.js"></script>
     <script src="./js/admin-partials.js?v=20260721-joinqr1"></script>
-    <script src="./js/admin-login.js?v=20260721-loginux1"></script>
-    <script src="./app.js?v=20260721-loginux1"></script>
+    <script src="./js/admin-login.js?v=20260722-loginux2"></script>
+    <script src="./app.js?v=20260722-loginux2"></script>
   </body>
 </html>
