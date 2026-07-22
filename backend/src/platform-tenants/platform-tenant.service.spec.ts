@@ -94,7 +94,7 @@ function createService(repository = createRepository(), contactSync = createCont
     bootstrapOwner: jest.fn(async () => ({
       mode: "claim_token_created" as const,
       tenant_id: "2",
-      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
       expires_at: new Date(Date.now() + 900_000).toISOString()
     }))
   };
@@ -184,15 +184,16 @@ describe("PlatformTenantService", () => {
     const result = await service.createLocalEnterprise(platformSession, { name: "新本地企业", memberLimit: null });
     expect(repository.createLocalTenant).toHaveBeenCalledWith({ name: "新本地企业", memberLimit: null });
     expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "10" });
-    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwx", "pages/enterprise-claim/index");
+    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwxyz123456", "pages/enterprise-claim/index");
+    expect(((claimQr.generateScene.mock.calls[0] as unknown[] | undefined)?.[0] as string)).toHaveLength(32);
     expect(result).toMatchObject({
       tenant_id: "10",
       tenant_name: "新本地企业",
       member_limit: null,
-      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
-    expect(result.claim_path).toContain("admclaim_abcdefghijklmnopqrstuvwx");
+    expect(result.claim_path).toContain("admclaim_abcdefghijklmnopqrstuvwxyz123456");
   });
 
   it("creates a fresh local enterprise claim QR code from an existing tenant", async () => {
@@ -200,11 +201,12 @@ describe("PlatformTenantService", () => {
     const result = await service.createLocalEnterpriseClaimToken(platformSession, "2");
     expect(repository.getLocalWritable).toHaveBeenCalledWith("2");
     expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "2" });
-    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwx", "pages/enterprise-claim/index");
+    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwxyz123456", "pages/enterprise-claim/index");
+    expect(((claimQr.generateScene.mock.calls[0] as unknown[] | undefined)?.[0] as string)).toHaveLength(32);
     expect(result).toMatchObject({
       tenant_id: "2",
       tenant_name: "本地企业",
-      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
   });

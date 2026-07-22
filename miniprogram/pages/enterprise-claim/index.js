@@ -37,7 +37,7 @@ Page({
 
 function normalizeClaimToken(value) {
   const token = String(value || "").trim();
-  if (/^[A-Za-z0-9_-]{24}$/.test(token)) {
+  if (/^[A-Za-z0-9_-]{24,32}$/.test(token)) {
     return "admclaim_" + token;
   }
   return token;
