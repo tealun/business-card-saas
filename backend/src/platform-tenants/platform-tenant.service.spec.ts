@@ -94,7 +94,7 @@ function createService(repository = createRepository(), contactSync = createCont
     bootstrapOwner: jest.fn(async () => ({
       mode: "claim_token_created" as const,
       tenant_id: "2",
-      claim_token: "admclaim_test",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
       expires_at: new Date(Date.now() + 900_000).toISOString()
     }))
   };
@@ -184,15 +184,15 @@ describe("PlatformTenantService", () => {
     const result = await service.createLocalEnterprise(platformSession, { name: "新本地企业", memberLimit: null });
     expect(repository.createLocalTenant).toHaveBeenCalledWith({ name: "新本地企业", memberLimit: null });
     expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "10" });
-    expect(claimQr.generateScene).toHaveBeenCalledWith("admclaim_test", "pages/enterprise-claim/index");
+    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwx", "pages/enterprise-claim/index");
     expect(result).toMatchObject({
       tenant_id: "10",
       tenant_name: "新本地企业",
       member_limit: null,
-      claim_token: "admclaim_test",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
-    expect(result.claim_path).toContain("admclaim_test");
+    expect(result.claim_path).toContain("admclaim_abcdefghijklmnopqrstuvwx");
   });
 
   it("creates a fresh local enterprise claim QR code from an existing tenant", async () => {
@@ -200,11 +200,11 @@ describe("PlatformTenantService", () => {
     const result = await service.createLocalEnterpriseClaimToken(platformSession, "2");
     expect(repository.getLocalWritable).toHaveBeenCalledWith("2");
     expect(ownerBootstrap.bootstrapOwner).toHaveBeenCalledWith({ tenant_id: "2" });
-    expect(claimQr.generateScene).toHaveBeenCalledWith("admclaim_test", "pages/enterprise-claim/index");
+    expect(claimQr.generateScene).toHaveBeenCalledWith("abcdefghijklmnopqrstuvwx", "pages/enterprise-claim/index");
     expect(result).toMatchObject({
       tenant_id: "2",
       tenant_name: "本地企业",
-      claim_token: "admclaim_test",
+      claim_token: "admclaim_abcdefghijklmnopqrstuvwx",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
   });

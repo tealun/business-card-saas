@@ -247,11 +247,15 @@ export class PlatformTenantService {
 
   private async generateClaimQr(claimToken: string): Promise<{ dataUrl: string | null; error: string }> {
     try {
-      const dataUrl = await this.claimQr.generateScene(claimToken, "pages/enterprise-claim/index");
+      const dataUrl = await this.claimQr.generateScene(this.claimScene(claimToken), "pages/enterprise-claim/index");
       return { dataUrl, error: dataUrl ? "" : "wechat_miniprogram_credentials_missing" };
     } catch (error) {
       return { dataUrl: null, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  private claimScene(claimToken: string): string {
+    return claimToken.startsWith("admclaim_") ? claimToken.slice("admclaim_".length) : claimToken;
   }
 
   private formatListItem(item: PlatformTenantListRecord) {

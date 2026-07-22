@@ -4,7 +4,7 @@ const { request } = require("../../utils/api");
 Page({
   data: { token: "", displayName: "", submitting: false, result: "", error: "" },
   onLoad(options) {
-    this.setData({ token: String((options && (options.token || options.scene)) || "") });
+    this.setData({ token: normalizeClaimToken(options && (options.token || options.scene)) });
   },
   onNameInput(event) {
     this.setData({ displayName: event.detail.value });
@@ -34,3 +34,11 @@ Page({
     }
   }
 });
+
+function normalizeClaimToken(value) {
+  const token = String(value || "").trim();
+  if (/^[A-Za-z0-9_-]{24}$/.test(token)) {
+    return "admclaim_" + token;
+  }
+  return token;
+}
