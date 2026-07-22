@@ -4,7 +4,6 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { AppConfig } from "../config/app-config.js";
 
 type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "wechat-qrcodes" | "company-images" | "videos" | "honors" | "templates";
@@ -21,8 +20,28 @@ interface LocalObject {
 }
 
 interface RemoteStorage {
-  client: S3Client;
+  client: RemoteStorageClient;
   bucket: string;
+  commands: RemoteStorageCommands;
+}
+
+interface RemoteStorageClient {
+  send(command: unknown): Promise<RemoteStorageObjectResponse | unknown>;
+}
+
+interface RemoteStorageObjectResponse {
+  Body?: unknown;
+  ContentType?: string;
+  ContentLength?: number;
+}
+
+interface RemoteStorageCommands {
+  GetObjectCommand: new(input: Record<string, unknown>) => unknown;
+  PutObjectCommand: new(input: Record<string, unknown>) => unknown;
+}
+
+interface RemoteStorageSdk extends RemoteStorageCommands {
+  S3Client: new(input: Record<string, unknown>) => RemoteStorageClient;
 }
 
 const MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
@@ -89,10 +108,10 @@ export class StorageService {
       throw new NotFoundException("remote storage is not enabled");
     }
     try {
-      const response = await this.remoteStorage.client.send(new GetObjectCommand({
+      const response = await this.remoteStorage.client.send(new this.remoteStorage.commands.GetObjectCommand({
         Bucket: this.remoteStorage.bucket,
         Key: storageKey
-      }));
+      })) as RemoteStorageObjectResponse;
       const body = response.Body;
       if (!body) {
         throw new NotFoundException("stored object not found");
@@ -128,7 +147,7 @@ export class StorageService {
       await writeFile(absolutePath, buffer);
       return;
     }
-    await this.remoteStorage.client.send(new PutObjectCommand({
+    await this.remoteStorage.client.send(new this.remoteStorage.commands.PutObjectCommand({
       Bucket: this.remoteStorage.bucket,
       Key: storageKey,
       Body: buffer,
@@ -145,11 +164,13 @@ export class StorageService {
     if (this.config.storageDriver === "local") {
       return null;
     }
+    const sdk = loadRemoteStorageSdk();
     if (this.config.storageDriver === "aliyun_oss") {
       const remote = this.config.aliyunOssConfig;
       return {
         bucket: remote.bucket,
-        client: new S3Client({
+        commands: sdk,
+        client: new sdk.S3Client({
           region: remote.region,
           endpoint: remote.endpoint,
           credentials: {
@@ -163,7 +184,8 @@ export class StorageService {
     const remote = this.config.s3Config;
     return {
       bucket: remote.bucket,
-      client: new S3Client({
+      commands: sdk,
+      client: new sdk.S3Client({
         region: remote.region,
         endpoint: remote.endpoint,
         credentials: {
@@ -243,4 +265,18 @@ function isMissingStorageObject(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const candidate = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } };
   return candidate.name === "NoSuchKey" || candidate.name === "NotFound" || candidate.$metadata?.httpStatusCode === 404;
+}
+
+function loadRemoteStorageSdk(): RemoteStorageSdk {
+  try {
+    // Keep local-storage deployments buildable even when the optional S3-compatible
+    // runtime dependency is absent from the target node_modules.
+    return require("@aws-sdk/client-s3") as RemoteStorageSdk;
+  } catch (error) {
+    const missingDependency = error && typeof error === "object" && (error as { code?: unknown }).code === "MODULE_NOT_FOUND";
+    if (missingDependency) {
+      throw new Error("@aws-sdk/client-s3 is required when STORAGE_DRIVER is s3 or aliyun_oss");
+    }
+    throw error;
+  }
 }
