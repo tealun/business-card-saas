@@ -53,6 +53,7 @@ export class WecomEmployeeProvisioningRepository {
     }
 
     return this.database.transaction(async (tx) => {
+      await this.setTenantRlsContext(input.tenantId, tx);
       const memberResult = await tx.query<MemberIdentityRow>(
         `
           INSERT INTO member_identities (tenant_id, open_userid, name, status, created_at, updated_at)
@@ -84,6 +85,7 @@ export class WecomEmployeeProvisioningRepository {
           throw new Error("failed to create account for WeCom member");
         }
         accountId = String(createdAccountId);
+        await this.setAccountRlsContext(accountId, tx);
         const bindingResult = await tx.query<BindingRow>(
           `
             INSERT INTO account_identity_bindings (
@@ -111,6 +113,7 @@ export class WecomEmployeeProvisioningRepository {
         }
       }
 
+      await this.setAccountRlsContext(accountId, tx);
       await tx.query(
         `
           INSERT INTO account_preferences (
@@ -175,6 +178,7 @@ export class WecomEmployeeProvisioningRepository {
     memberIdentityId: string,
     tx: { query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }> }
   ): Promise<string | null> {
+    await this.setTenantRlsContext(tenantId, tx);
     const bindingResult = await tx.query<BindingRow>(
       `
         SELECT account_id
@@ -197,6 +201,7 @@ export class WecomEmployeeProvisioningRepository {
     },
     tx: { query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }> }
   ): Promise<CardRow> {
+    await this.setTenantRlsContext(input.tenantId, tx);
     const existing = await tx.query<CardRow>(
       `
         SELECT id, public_id
@@ -275,6 +280,20 @@ export class WecomEmployeeProvisioningRepository {
 
   private memoryKey(tenantId: string, openUserid: string): string {
     return `${tenantId}:${openUserid}`;
+  }
+
+  private async setTenantRlsContext(
+    tenantId: string,
+    tx: { query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }> }
+  ): Promise<void> {
+    await tx.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+  }
+
+  private async setAccountRlsContext(
+    accountId: string,
+    tx: { query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<{ rows: T[] }> }
+  ): Promise<void> {
+    await tx.query("SELECT set_config('app.account_id', $1, true)", [accountId]);
   }
 
   private hasDatabase(): boolean {

@@ -30,7 +30,8 @@ describe("PersonalIdentityRepository", () => {
   });
 
   it("maps locally created enterprises to the local_enterprise identity type", async () => {
-    const repository = new PersonalIdentityRepository(new IdentityTypeDatabaseService() as unknown as DatabaseService);
+    const db = new IdentityTypeDatabaseService();
+    const repository = new PersonalIdentityRepository(db as unknown as DatabaseService);
 
     const identities = await repository.listAccountIdentities("acct-1");
 
@@ -40,6 +41,18 @@ describe("PersonalIdentityRepository", () => {
     expect(personal?.identityType).toBe("personal");
     expect(local?.identityType).toBe("local_enterprise");
     expect(wecom?.identityType).toBe("wecom_member");
+
+    const texts = db.tx.queries.map((query) => query.text);
+    const accountContext = texts.findIndex((text) => text.includes("set_config") && text.includes("app.account_id"));
+    const bindingQuery = texts.findIndex((text) => text.includes("FROM account_identity_bindings b"));
+    expect(accountContext).toBeLessThan(bindingQuery);
+    expect(db.tx.queries
+      .filter((query) => query.text.includes("set_config") && query.text.includes("app.tenant_id"))
+      .map((query) => query.values)).toEqual([
+        ["tenant-personal"],
+        ["tenant-local"],
+        ["tenant-enterprise"]
+      ]);
   });
 
   it("uses the current login identity over a stale personal preference", async () => {
@@ -150,6 +163,81 @@ describe("PersonalIdentityRepository", () => {
   });
 });
 
+interface IdentityFixture {
+  tenant_id: string;
+  tenant_name: string;
+  tenant_type: "personal" | "enterprise";
+  creation_source: string | null;
+  member_identity_id: string;
+  display_name: string;
+  open_userid: string | null;
+  public_id: string | null;
+}
+
+class IdentityListTransaction {
+  readonly queries: Array<{ text: string; values?: unknown[] }> = [];
+  private accountContext = "";
+  private tenantContext = "";
+
+  constructor(
+    private readonly identities: IdentityFixture[],
+    private readonly preference: { last_member_identity_id: string; default_member_identity_id: string } | null = null
+  ) {}
+
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    this.queries.push(values === undefined ? { text } : { text, values });
+    if (text.includes("set_config") && text.includes("app.account_id")) {
+      this.accountContext = String(values?.[0] ?? "");
+      return { rows: [] };
+    }
+    if (text.includes("set_config") && text.includes("app.tenant_id")) {
+      this.tenantContext = String(values?.[0] ?? "");
+      return { rows: [] };
+    }
+    if (text.includes("FROM account_identity_bindings b")) {
+      if (this.accountContext !== "acct-1") {
+        return { rows: [] };
+      }
+      return {
+        rows: this.identities.map((identity) => ({
+          tenant_id: identity.tenant_id,
+          tenant_name: identity.tenant_name,
+          tenant_type: identity.tenant_type,
+          creation_source: identity.creation_source,
+          member_identity_id: identity.member_identity_id
+        })) as T[]
+      };
+    }
+    if (text.includes("FROM member_identities m")) {
+      const tenantId = String(values?.[0] ?? "");
+      const memberIdentityId = String(values?.[1] ?? "");
+      if (this.tenantContext !== tenantId) {
+        return { rows: [] };
+      }
+      const identity = this.identities.find((item) =>
+        item.tenant_id === tenantId && item.member_identity_id === memberIdentityId
+      );
+      if (!identity) {
+        return { rows: [] };
+      }
+      return {
+        rows: [{
+          display_name: identity.display_name,
+          open_userid: identity.open_userid,
+          public_id: identity.public_id
+        } as T]
+      };
+    }
+    if (text.includes("FROM account_preferences")) {
+      if (!this.preference || this.accountContext !== "acct-1") {
+        return { rows: [] };
+      }
+      return { rows: [this.preference as T] };
+    }
+    return { rows: [] };
+  }
+}
+
 class FakeDatabaseService {
   async transaction<T>(callback: (tx: FakeTransaction) => Promise<T>): Promise<T> {
     return callback(new FakeTransaction());
@@ -157,90 +245,77 @@ class FakeDatabaseService {
 }
 
 class IdentityTypeDatabaseService {
+  readonly tx = new IdentityTypeTransaction();
+
   async transaction<T>(callback: (tx: IdentityTypeTransaction) => Promise<T>): Promise<T> {
-    return callback(new IdentityTypeTransaction());
+    return callback(this.tx);
   }
 }
 
-class IdentityTypeTransaction {
-  async query<T>(text: string): Promise<{ rows: T[] }> {
-    if (text.includes("FROM account_identity_bindings b")) {
-      return {
-        rows: [
-          {
-            tenant_id: "tenant-personal",
-            tenant_name: "个人名片",
-            tenant_type: "personal",
-            creation_source: null,
-            member_identity_id: "member-personal",
-            display_name: "我的名片",
-            open_userid: "wx:openid-1",
-            public_id: "pub_personal"
-          },
-          {
-            tenant_id: "tenant-local",
-            tenant_name: "本地企业",
-            tenant_type: "enterprise",
-            creation_source: "local",
-            member_identity_id: "member-local",
-            display_name: "创始人",
-            open_userid: "account:10",
-            public_id: "pub_local"
-          },
-          {
-            tenant_id: "tenant-enterprise",
-            tenant_name: "Pilot Corp",
-            tenant_type: "enterprise",
-            creation_source: "wecom",
-            member_identity_id: "member-enterprise",
-            display_name: "Ada",
-            open_userid: "ou-1",
-            public_id: "pub_enterprise"
-          }
-        ] as T[]
-      };
-    }
-    return { rows: [] };
+class IdentityTypeTransaction extends IdentityListTransaction {
+  constructor() {
+    super([
+      {
+        tenant_id: "tenant-personal",
+        tenant_name: "个人名片",
+        tenant_type: "personal",
+        creation_source: null,
+        member_identity_id: "member-personal",
+        display_name: "我的名片",
+        open_userid: "wx:openid-1",
+        public_id: "pub_personal"
+      },
+      {
+        tenant_id: "tenant-local",
+        tenant_name: "本地企业",
+        tenant_type: "enterprise",
+        creation_source: "local",
+        member_identity_id: "member-local",
+        display_name: "创始人",
+        open_userid: "account:10",
+        public_id: "pub_local"
+      },
+      {
+        tenant_id: "tenant-enterprise",
+        tenant_name: "Pilot Corp",
+        tenant_type: "enterprise",
+        creation_source: "wecom",
+        member_identity_id: "member-enterprise",
+        display_name: "Ada",
+        open_userid: "ou-1",
+        public_id: "pub_enterprise"
+      }
+    ]);
   }
 }
 
-class FakeTransaction {
-  async query<T>(text: string): Promise<{ rows: T[] }> {
-    if (text.includes("FROM account_identity_bindings b")) {
-      return {
-        rows: [
-          {
-            tenant_id: "tenant-personal",
-            tenant_name: "个人名片",
-            tenant_type: "personal",
-            member_identity_id: "member-personal",
-            display_name: "我的名片",
-            open_userid: "wx:openid-1",
-            public_id: "pub_personal"
-          },
-          {
-            tenant_id: "tenant-enterprise",
-            tenant_name: "Pilot Corp",
-            tenant_type: "enterprise",
-            member_identity_id: "member-enterprise",
-            display_name: "Ada",
-            open_userid: "ou-1",
-            public_id: "pub_enterprise"
-          }
-        ] as T[]
-      };
-    }
-    if (text.includes("FROM account_preferences")) {
-      return {
-        rows: [
-          {
-            last_member_identity_id: "member-enterprise",
-            default_member_identity_id: "member-personal"
-          } as T
-        ]
-      };
-    }
-    return { rows: [] };
+class FakeTransaction extends IdentityListTransaction {
+  constructor() {
+    super([
+      {
+        tenant_id: "tenant-personal",
+        tenant_name: "个人名片",
+        tenant_type: "personal",
+        creation_source: null,
+        member_identity_id: "member-personal",
+        display_name: "我的名片",
+        open_userid: "wx:openid-1",
+        public_id: "pub_personal"
+      },
+      {
+        tenant_id: "tenant-enterprise",
+        tenant_name: "Pilot Corp",
+        tenant_type: "enterprise",
+        creation_source: "wecom",
+        member_identity_id: "member-enterprise",
+        display_name: "Ada",
+        open_userid: "ou-1",
+        public_id: "pub_enterprise"
+      }
+    ], {
+      last_member_identity_id: "member-enterprise",
+      default_member_identity_id: "member-personal"
+    });
   }
 }
 
@@ -252,36 +327,30 @@ class LoginIdentityDatabaseService {
   }
 }
 
-class LoginIdentityTransaction {
-  readonly queries: Array<{ text: string; values?: unknown[] }> = [];
-
-  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
-    this.queries.push(values === undefined ? { text } : { text, values });
-    if (text.includes("FROM account_identity_bindings b")) {
-      return {
-        rows: [
-          {
-            tenant_id: "tenant-personal",
-            tenant_name: "涓汉鍚嶇墖",
-            tenant_type: "personal",
-            member_identity_id: "member-personal",
-            display_name: "鎴戠殑鍚嶇墖",
-            open_userid: "wx:openid-1",
-            public_id: "pub_personal"
-          },
-          {
-            tenant_id: "tenant-enterprise",
-            tenant_name: "Pilot Corp",
-            tenant_type: "enterprise",
-            member_identity_id: "member-enterprise",
-            display_name: "Ada",
-            open_userid: "ou-1",
-            public_id: "pub_enterprise"
-          }
-        ] as T[]
-      };
-    }
-    return { rows: [] };
+class LoginIdentityTransaction extends IdentityListTransaction {
+  constructor() {
+    super([
+      {
+        tenant_id: "tenant-personal",
+        tenant_name: "个人名片",
+        tenant_type: "personal",
+        creation_source: null,
+        member_identity_id: "member-personal",
+        display_name: "我的名片",
+        open_userid: "wx:openid-1",
+        public_id: "pub_personal"
+      },
+      {
+        tenant_id: "tenant-enterprise",
+        tenant_name: "Pilot Corp",
+        tenant_type: "enterprise",
+        creation_source: "wecom",
+        member_identity_id: "member-enterprise",
+        display_name: "Ada",
+        open_userid: "ou-1",
+        public_id: "pub_enterprise"
+      }
+    ]);
   }
 }
 

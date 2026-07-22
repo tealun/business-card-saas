@@ -48,22 +48,41 @@ describe("WecomEmployeeProvisioningRepository", () => {
     expect(database.preferenceUpsertSql).toContain(
       "last_member_identity_id = COALESCE(account_preferences.last_member_identity_id, EXCLUDED.last_member_identity_id)"
     );
+    const texts = database.tx.queries.map((query) => query.text);
+    const indexOf = (needle: string) => texts.findIndex((text) => text.includes(needle));
+    const firstTenantContext = texts.findIndex((text) => text.includes("set_config") && text.includes("app.tenant_id"));
+    const newAccountContext = database.tx.queries.findIndex((query) =>
+      query.text.includes("set_config") && query.text.includes("app.account_id") && query.values?.[0] === "acct-new"
+    );
+    const preferenceWrite = indexOf("INSERT INTO account_preferences");
+    const accountContextsBeforePreference = database.tx.queries
+      .slice(0, preferenceWrite)
+      .filter((query) => query.text.includes("set_config") && query.text.includes("app.account_id"))
+      .map((query) => query.values);
+
+    expect(firstTenantContext).toBeLessThan(indexOf("INSERT INTO member_identities"));
+    expect(newAccountContext).toBeLessThan(indexOf("INSERT INTO account_identity_bindings"));
+    expect(accountContextsBeforePreference[accountContextsBeforePreference.length - 1]).toEqual(["acct-existing"]);
   });
 });
 
 class FakeDatabaseService {
+  readonly tx = new FakeTransaction(this);
   bindingLookupCount = 0;
   preferenceUpsertSql = "";
 
   async transaction<T>(callback: (tx: FakeTransaction) => Promise<T>): Promise<T> {
-    return callback(new FakeTransaction(this));
+    return callback(this.tx);
   }
 }
 
 class FakeTransaction {
+  readonly queries: Array<{ text: string; values?: unknown[] }> = [];
+
   constructor(private readonly database: FakeDatabaseService) {}
 
-  async query<T>(text: string): Promise<{ rows: T[] }> {
+  async query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }> {
+    this.queries.push(values === undefined ? { text } : { text, values });
     if (text.includes("INSERT INTO member_identities")) {
       return { rows: [{ id: "member-1", name: "ou-001" } as T] };
     }

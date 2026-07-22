@@ -42,6 +42,19 @@ async function switchIdentity(memberIdentityId) {
   return applySession(session);
 }
 
+async function refreshSessionIdentities() {
+  const globalData = getGlobalData();
+  if (!globalData.token) {
+    throw new Error("请先登录后刷新身份");
+  }
+  const session = await request("/auth/identities");
+  return applySession({
+    access_token: globalData.token,
+    current_identity: session.current_identity,
+    identities: session.identities
+  });
+}
+
 function currentSession() {
   const globalData = getGlobalData();
   return {
@@ -138,6 +151,7 @@ function decorateIdentity(identity, currentMemberIdentityId) {
 
 module.exports = {
   ensureSession,
+  refreshSessionIdentities,
   switchIdentity,
   restoreSession
 };

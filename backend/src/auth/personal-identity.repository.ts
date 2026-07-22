@@ -26,6 +26,9 @@ interface IdentityRow extends QueryResultRow {
   tenant_type: "personal" | "enterprise";
   creation_source: string | null;
   member_identity_id: string | number | bigint;
+}
+
+interface IdentityDetailRow extends QueryResultRow {
   display_name: string;
   open_userid: string | null;
   public_id: string | null;
@@ -274,8 +277,12 @@ export class PersonalIdentityRepository {
   }
 
   private async setRlsContext(input: { accountId: string; tenantId: string }, tx: Tx): Promise<void> {
-    await tx.query("SELECT set_config('app.account_id', $1, true)", [input.accountId]);
+    await this.setAccountRlsContext(input.accountId, tx);
     await tx.query("SELECT set_config('app.tenant_id', $1, true)", [input.tenantId]);
+  }
+
+  private async setAccountRlsContext(accountId: string, tx: Tx): Promise<void> {
+    await tx.query("SELECT set_config('app.account_id', $1, true)", [accountId]);
   }
 
   private async lockAccountIdentity(input: { openid: string; unionid: string | null }, tx: Tx): Promise<void> {
@@ -434,6 +441,7 @@ export class PersonalIdentityRepository {
   }
 
   private async setLastIdentity(input: { accountId: string; memberIdentityId: string }, tx: Tx): Promise<void> {
+    await this.setAccountRlsContext(input.accountId, tx);
     await tx.query(
       `
         INSERT INTO account_preferences (
@@ -453,6 +461,7 @@ export class PersonalIdentityRepository {
   }
 
   private async ensureDefaultIdentity(input: { accountId: string; memberIdentityId: string }, tx: Tx): Promise<void> {
+    await this.setAccountRlsContext(input.accountId, tx);
     await tx.query(
       `
         INSERT INTO account_preferences (
@@ -477,6 +486,7 @@ export class PersonalIdentityRepository {
     identities: LoginIdentity[];
     tx: Tx;
   }): Promise<LoginIdentity | null> {
+    await this.setAccountRlsContext(input.accountId, input.tx);
     const preferences = await input.tx.query<{ last_member_identity_id: string | number | bigint | null; default_member_identity_id: string | number | bigint | null }>(
       `
         SELECT last_member_identity_id, default_member_identity_id
@@ -497,6 +507,7 @@ export class PersonalIdentityRepository {
   }
 
   private async listAccountIdentitiesInTx(accountId: string, tx: Tx): Promise<LoginIdentity[]> {
+    await this.setAccountRlsContext(accountId, tx);
     const result = await tx.query<IdentityRow>(
       `
         SELECT
@@ -504,17 +515,9 @@ export class PersonalIdentityRepository {
           t.name AS tenant_name,
           COALESCE(t.tenant_type, 'enterprise') AS tenant_type,
           t.creation_source,
-          b.member_identity_id,
-          m.name AS display_name,
-          m.open_userid,
-          c.public_id
+          b.member_identity_id
         FROM account_identity_bindings b
         JOIN tenants t ON t.id = b.tenant_id
-        JOIN member_identities m ON m.id = b.member_identity_id
-        LEFT JOIN cards c ON c.tenant_id = b.tenant_id
-          AND c.member_identity_id = b.member_identity_id
-          AND c.card_type = 'primary'
-          AND c.deleted_at IS NULL
         WHERE b.account_id = $1
           AND t.deleted_at IS NULL
           AND t.status <> 'disabled'
@@ -524,10 +527,33 @@ export class PersonalIdentityRepository {
       `,
       [accountId]
     );
-    return result.rows.map((row) => {
+    const identities: LoginIdentity[] = [];
+    for (const row of result.rows) {
       const tenantId = String(row.tenant_id);
       const memberIdentityId = String(row.member_identity_id);
-      return {
+      await tx.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+      const detail = await tx.query<IdentityDetailRow>(
+        `
+        SELECT
+          m.name AS display_name,
+          m.open_userid,
+          c.public_id
+        FROM member_identities m
+        LEFT JOIN cards c ON c.tenant_id = m.tenant_id
+          AND c.member_identity_id = m.id
+          AND c.card_type = 'primary'
+          AND c.deleted_at IS NULL
+        WHERE m.tenant_id = $1
+          AND m.id = $2
+        LIMIT 1
+      `,
+        [tenantId, memberIdentityId]
+      );
+      const detailRow = detail.rows[0];
+      if (!detailRow) {
+        continue;
+      }
+      identities.push({
         accountId,
         identityType:
           row.tenant_type === "personal"
@@ -538,11 +564,12 @@ export class PersonalIdentityRepository {
         tenantId,
         tenantName: row.tenant_name,
         memberIdentityId,
-        displayName: row.display_name,
-        openUserid: row.open_userid,
-        publicId: row.public_id ?? defaultEmployeePublicId({ tenantId, memberIdentityId })
-      };
-    });
+        displayName: detailRow.display_name,
+        openUserid: detailRow.open_userid,
+        publicId: detailRow.public_id ?? defaultEmployeePublicId({ tenantId, memberIdentityId })
+      });
+    }
+    return identities;
   }
 
   private hasDatabase(): boolean {

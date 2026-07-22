@@ -1,5 +1,5 @@
 const app = getApp();
-const { ensureSession, switchIdentity } = require("../../utils/auth");
+const { ensureSession, refreshSessionIdentities, switchIdentity } = require("../../utils/auth");
 const { request, isWeComRuntime } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
@@ -198,7 +198,9 @@ Page({
         selected: identity.member_identity_id === currentId
       });
     });
-    identities.push(demoIdentity(false));
+    if (!identities.some(isRealEnterpriseIdentity)) {
+      identities.push(demoIdentity(false));
+    }
     this.setData({ currentIdentity, identities });
   },
 
@@ -399,8 +401,8 @@ Page({
     }
   },
 
-  // 重新走一次登录（企业微信内为 qy-login），把最新的企业授权/成员绑定拉回身份列表。
-  // 用于修复“企业已接入但本地还留着旧会话，看不到企业身份”的场景。
+  // 企业微信环境下升级到最新企业登录；其他情况下只重新拉当前账号的身份列表，
+  // 这样不会把已登录的企业身份意外冲回普通微信态。
   async refreshIdentities() {
     if (this.data.refreshingIdentities || this.data.switchingIdentity) {
       return;
@@ -410,7 +412,9 @@ Page({
     }
     this.setData({ refreshingIdentities: true });
     try {
-      const session = await ensureSession({ force: true });
+      const session = shouldRefreshWeComSession(this.data.currentIdentity)
+        ? await ensureSession({ force: true })
+        : await refreshSessionIdentities();
       this.syncIdentityState(session);
       await this.loadPreview();
       wx.showToast({ title: "身份已刷新", icon: "success" });
@@ -794,6 +798,10 @@ function fallbackCardFromIdentity(identity) {
 
 function shouldRefreshWeComSession(identity) {
   return isWeComRuntime() && identity && identity.identity_type === "personal";
+}
+
+function isRealEnterpriseIdentity(identity) {
+  return identity && (identity.identity_type === "wecom_member" || identity.identity_type === "local_enterprise");
 }
 
 function defaultWecomSensitiveStatus() {
