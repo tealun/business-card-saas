@@ -132,7 +132,7 @@ jobs:
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -T 5 -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 644 ~/.ssh/known_hosts
 
           ssh_key="${DEPLOY_SSH_KEY_SECRET:-${SSH_PRIVATE_KEY_SECRET:-${SSH_KEY_SECRET:-}}}"
@@ -185,17 +185,18 @@ jobs:
             ssh -i ~/.ssh/deploy_key \
               -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "mkdir -p '${DEPLOY_PATH}' '${DEPLOY_PATH}/database'"
 
             rsync -az --delete \
-              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
               "${excludes[@]}" \
               backend/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
 
             rsync -az --delete \
-              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
               "${excludes[@]}" \
               database/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
@@ -203,17 +204,18 @@ jobs:
             export SSHPASS="${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}"
             sshpass -e ssh \
               -p "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "mkdir -p '${DEPLOY_PATH}' '${DEPLOY_PATH}/database'"
 
             sshpass -e rsync -az --delete \
-              -e "ssh -p ${DEPLOY_PORT}" \
+              -e "ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new" \
               "${excludes[@]}" \
               backend/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
 
             sshpass -e rsync -az --delete \
-              -e "ssh -p ${DEPLOY_PORT}" \
+              -e "ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new" \
               "${excludes[@]}" \
               database/ \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
@@ -237,12 +239,14 @@ jobs:
               -i ~/.ssh/deploy_key \
               -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           else
             export SSHPASS="${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}"
             printf '%s\n' "$DEPLOY_RESTART_COMMAND" | sshpass -e ssh \
               -p "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           fi

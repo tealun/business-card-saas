@@ -77,6 +77,8 @@ The deploy job tries `rsync --delete` first, and falls back to a tar-over-SSH sy
 - `data/`, `cache/`, `storage/`, `tmp/`, `runtime/`
 - `.git/`, `.vscode/`
 
+The workflow pre-seeds `known_hosts` when the target is reachable, but SSH calls also use `StrictHostKeyChecking=accept-new` so a transient host-key scan failure does not abort the deploy before the real sync step.
+
 Keep admin runtime configuration in browser storage or server-side web server config. Do not commit environment-specific secrets into `admin/`.
 
 ## Suggested Server Setup

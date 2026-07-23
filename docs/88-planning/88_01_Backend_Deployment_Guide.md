@@ -78,6 +78,8 @@ Because `dist/` and `node_modules/` are protected, the server should build/insta
 
 The backend rsync also excludes the separately synced `${DEPLOY_PATH}/database/` tree and the server-side `.npm-cache/` used by `backend/package.json`'s `start:prod` script.
 
+The workflow pre-seeds `known_hosts` when the target is reachable, but SSH calls also use `StrictHostKeyChecking=accept-new` so a transient host-key scan failure does not abort the deploy before the real sync step.
+
 ## Suggested Server Setup
 
 Create the target directory once. Example:

@@ -103,7 +103,7 @@ jobs:
 
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -T 5 -p "$port" "$host" >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 644 ~/.ssh/known_hosts
 
           ssh_key="${ADMIN_DEPLOY_SSH_KEY_SECRET:-${DEPLOY_SSH_KEY_SECRET:-${SSH_PRIVATE_KEY_SECRET:-${SSH_KEY_SECRET:-}}}}"
@@ -155,30 +155,32 @@ jobs:
           remote_archive="/tmp/admin-static.${GITHUB_RUN_ID:-$$}.${GITHUB_RUN_ATTEMPT:-1}.tar.gz"
 
           deploy_with_rsync() {
-            if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
-              ssh -i ~/.ssh/deploy_key \
-                -p "$DEPLOY_PORT" \
-                -o IdentitiesOnly=yes \
-                "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                "mkdir -p '${DEPLOY_PATH}'"
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            ssh -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
 
-              rsync -az --delete \
-                -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
-                "${excludes[@]}" \
-                admin/ \
-                "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
-            else
-              export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
-              sshpass -e ssh \
-                -p "$DEPLOY_PORT" \
-                "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                "mkdir -p '${DEPLOY_PATH}'"
+            rsync -az --delete \
+              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+              "${excludes[@]}" \
+              admin/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          else
+            export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+            sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "mkdir -p '${DEPLOY_PATH}'"
 
-              sshpass -e rsync -az --delete \
-                -e "ssh -p ${DEPLOY_PORT}" \
-                "${excludes[@]}" \
-                admin/ \
-                "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+            sshpass -e rsync -az --delete \
+              -e "ssh -p ${DEPLOY_PORT} -o StrictHostKeyChecking=accept-new" \
+              "${excludes[@]}" \
+              admin/ \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
             fi
           }
 
@@ -188,18 +190,20 @@ jobs:
 
             tar -C admin "${excludes[@]}" -czf "$archive" .
 
-            if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
-              scp -i ~/.ssh/deploy_key \
-                -P "$DEPLOY_PORT" \
-                -o IdentitiesOnly=yes \
-                "$archive" \
-                "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+            scp -i ~/.ssh/deploy_key \
+              -P "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "$archive" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
 
-              ssh -i ~/.ssh/deploy_key \
-                -p "$DEPLOY_PORT" \
-                -o IdentitiesOnly=yes \
-                "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
+            ssh -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
 set -euo pipefail
 mkdir -p "$DEPLOY_PATH"
 find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
@@ -229,17 +233,19 @@ find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
 tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
 rm -f "$ARCHIVE"
 REMOTE
-            else
-              export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
-              sshpass -e scp \
-                -P "$DEPLOY_PORT" \
-                "$archive" \
-                "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+          else
+            export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+            sshpass -e scp \
+              -P "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
+              "$archive" \
+              "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
 
-              sshpass -e ssh \
-                -p "$DEPLOY_PORT" \
-                "${DEPLOY_USER}@${DEPLOY_HOST}" \
-                "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
+            sshpass -e ssh \
+              -p "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
 set -euo pipefail
 mkdir -p "$DEPLOY_PATH"
 find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
@@ -298,12 +304,14 @@ REMOTE
               -i ~/.ssh/deploy_key \
               -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           else
             export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
             printf '%s\n' "$ADMIN_DEPLOY_RESTART_COMMAND" | sshpass -e ssh \
               -p "$DEPLOY_PORT" \
+              -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           fi
