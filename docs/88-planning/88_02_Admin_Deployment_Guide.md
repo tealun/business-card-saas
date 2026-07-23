@@ -7,7 +7,7 @@ This guide documents the GitHub Actions static deployment flow for the `admin/` 
 - Workflow: `.github/workflows/deploy-admin.yml`
 - Trigger: push to `main` when `admin/**` or the workflow changes; manual `workflow_dispatch`
 - Target path: configured by GitHub Actions secret `ADMIN_DEPLOY_PATH`
-- Sync strategy: `rsync --delete` from local `admin/` to `${ADMIN_DEPLOY_PATH}/`
+- Sync strategy: `rsync --delete` first, with tar-over-SSH fallback from local `admin/` to `${ADMIN_DEPLOY_PATH}/`
 - Runtime model: static hosting through Nginx, BaoTa static site, COS, or any equivalent web root
 
 ## Variable Strategy
@@ -63,13 +63,18 @@ Optional reload:
 
 ## Protected Server Files
 
-The deploy job uses `rsync --delete`, but excludes common server-owned files:
+The deploy job tries `rsync --delete` first, and falls back to a tar-over-SSH sync when the target shell rejects rsync. Both paths exclude common server-owned files:
 
-- `.env`, `.env.local`, `.env.*.local`
+- `config.js`
+- `node_modules/`
+- `dist/`
+- `.npm-cache/`
+- `database/`
+- `.env`, `.env.local`, `.env.*.local`, `.env.production`, `.env.staging`
 - `*.log`, `logs/`
 - `certs/`
-- `uploads/`
-- `cache/`, `tmp/`
+- `public/uploads/`, `uploads/`
+- `data/`, `cache/`, `storage/`, `tmp/`, `runtime/`
 - `.git/`, `.vscode/`
 
 Keep admin runtime configuration in browser storage or server-side web server config. Do not commit environment-specific secrets into `admin/`.

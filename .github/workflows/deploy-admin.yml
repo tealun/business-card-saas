@@ -129,43 +129,154 @@ jobs:
 
           excludes=(
             --exclude='config.js'
+            --exclude='node_modules/'
+            --exclude='dist/'
+            --exclude='.npm-cache/'
+            --exclude='database/'
             --exclude='.env'
             --exclude='.env.local'
             --exclude='.env.*.local'
+            --exclude='.env.production'
+            --exclude='.env.staging'
             --exclude='*.log'
             --exclude='logs/'
             --exclude='certs/'
+            --exclude='public/uploads/'
             --exclude='uploads/'
+            --exclude='data/'
             --exclude='cache/'
             --exclude='tmp/'
+            --exclude='storage/'
+            --exclude='runtime/'
             --exclude='.git/'
             --exclude='.vscode/'
           )
 
-          if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
-            ssh -i ~/.ssh/deploy_key \
-              -p "$DEPLOY_PORT" \
-              -o IdentitiesOnly=yes \
-              "${DEPLOY_USER}@${DEPLOY_HOST}" \
-              "mkdir -p '${DEPLOY_PATH}'"
+          remote_archive="/tmp/admin-static.${GITHUB_RUN_ID:-$$}.${GITHUB_RUN_ATTEMPT:-1}.tar.gz"
 
-            rsync -az --delete \
-              -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
-              "${excludes[@]}" \
-              admin/ \
-              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
-          else
-            export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
-            sshpass -e ssh \
-              -p "$DEPLOY_PORT" \
-              "${DEPLOY_USER}@${DEPLOY_HOST}" \
-              "mkdir -p '${DEPLOY_PATH}'"
+          deploy_with_rsync() {
+            if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+              ssh -i ~/.ssh/deploy_key \
+                -p "$DEPLOY_PORT" \
+                -o IdentitiesOnly=yes \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                "mkdir -p '${DEPLOY_PATH}'"
 
-            sshpass -e rsync -az --delete \
-              -e "ssh -p ${DEPLOY_PORT}" \
-              "${excludes[@]}" \
-              admin/ \
-              "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+              rsync -az --delete \
+                -e "ssh -i ~/.ssh/deploy_key -p ${DEPLOY_PORT} -o IdentitiesOnly=yes" \
+                "${excludes[@]}" \
+                admin/ \
+                "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+            else
+              export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+              sshpass -e ssh \
+                -p "$DEPLOY_PORT" \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                "mkdir -p '${DEPLOY_PATH}'"
+
+              sshpass -e rsync -az --delete \
+                -e "ssh -p ${DEPLOY_PORT}" \
+                "${excludes[@]}" \
+                admin/ \
+                "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+            fi
+          }
+
+          deploy_with_tar() {
+            local archive
+            archive="$(mktemp "${RUNNER_TEMP:-/tmp}/admin-static.XXXXXX.tar.gz")"
+
+            tar -C admin "${excludes[@]}" -czf "$archive" .
+
+            if [ "$DEPLOY_AUTH_MODE" = "key" ]; then
+              scp -i ~/.ssh/deploy_key \
+                -P "$DEPLOY_PORT" \
+                -o IdentitiesOnly=yes \
+                "$archive" \
+                "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+
+              ssh -i ~/.ssh/deploy_key \
+                -p "$DEPLOY_PORT" \
+                -o IdentitiesOnly=yes \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
+set -euo pipefail
+mkdir -p "$DEPLOY_PATH"
+find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
+  ! -name 'config.js' \
+  ! -name '.env' \
+  ! -name '.env.local' \
+  ! -name '.env.*.local' \
+  ! -name '.env.production' \
+  ! -name '.env.staging' \
+  ! -name '*.log' \
+  ! -name 'logs' \
+  ! -name 'certs' \
+  ! -name 'public' \
+  ! -name 'uploads' \
+  ! -name 'data' \
+  ! -name 'cache' \
+  ! -name 'storage' \
+  ! -name 'tmp' \
+  ! -name 'runtime' \
+  ! -name 'node_modules' \
+  ! -name 'dist' \
+  ! -name '.npm-cache' \
+  ! -name 'database' \
+  ! -name '.git' \
+  ! -name '.vscode' \
+  -exec rm -rf {} +
+tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
+rm -f "$ARCHIVE"
+REMOTE
+            else
+              export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
+              sshpass -e scp \
+                -P "$DEPLOY_PORT" \
+                "$archive" \
+                "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
+
+              sshpass -e ssh \
+                -p "$DEPLOY_PORT" \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" \
+                "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
+set -euo pipefail
+mkdir -p "$DEPLOY_PATH"
+find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
+  ! -name 'config.js' \
+  ! -name '.env' \
+  ! -name '.env.local' \
+  ! -name '.env.*.local' \
+  ! -name '.env.production' \
+  ! -name '.env.staging' \
+  ! -name '*.log' \
+  ! -name 'logs' \
+  ! -name 'certs' \
+  ! -name 'public' \
+  ! -name 'uploads' \
+  ! -name 'data' \
+  ! -name 'cache' \
+  ! -name 'storage' \
+  ! -name 'tmp' \
+  ! -name 'runtime' \
+  ! -name 'node_modules' \
+  ! -name 'dist' \
+  ! -name '.npm-cache' \
+  ! -name 'database' \
+  ! -name '.git' \
+  ! -name '.vscode' \
+  -exec rm -rf {} +
+tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
+rm -f "$ARCHIVE"
+REMOTE
+            fi
+
+            rm -f "$archive"
+          }
+
+          if ! deploy_with_rsync; then
+            echo "rsync deploy failed; falling back to tar sync" >&2
+            deploy_with_tar
           fi
 
       - name: Run optional admin reload command
