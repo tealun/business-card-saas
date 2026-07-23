@@ -16,8 +16,9 @@
 # - The workflow fails if neither key nor password is configured.
 #
 # Server files protected from deletion/overwrite:
-# node_modules, dist, real runtime env files such as .env/.env.production,
+# node_modules, dist, .npm-cache, real runtime env files such as .env/.env.production,
 # logs, certs, uploads, data/cache/storage/tmp/runtime files.
+# The backend rsync also excludes the separately synced database/ tree.
 # backend/.env.example is intentionally deployed to the target root as an operator template.
 
 name: Deploy Backend
@@ -157,6 +158,8 @@ jobs:
           excludes=(
             --exclude='node_modules/'
             --exclude='dist/'
+            --exclude='database/'
+            --exclude='.npm-cache/'
             --exclude='.env'
             --exclude='.env.local'
             --exclude='.env.*.local'

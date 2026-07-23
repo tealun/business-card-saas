@@ -76,6 +76,8 @@ Because `dist/` and `node_modules/` are protected, the server should build/insta
 
 `backend/.env.example` is deliberately not protected by the exclude list. It is safe to sync as a template because it contains placeholders only, and it lets the server root keep an up-to-date example file beside the real `.env`.
 
+The backend rsync also excludes the separately synced `${DEPLOY_PATH}/database/` tree and the server-side `.npm-cache/` used by `backend/package.json`'s `start:prod` script.
+
 ## Suggested Server Setup
 
 Create the target directory once. Example:
