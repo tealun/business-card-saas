@@ -40,6 +40,52 @@ describe("StorageService", () => {
     expect(file.toString("utf8")).toBe("hello");
   });
 
+  it("stores raw image uploads under the configured local root", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    const service = new StorageService(new AppConfig());
+
+    const stored = await service.storeImageBuffer({
+      tenantId: "tenant-001",
+      category: "company-images",
+      fileName: "cover.webp",
+      contentType: "application/octet-stream",
+      buffer: Buffer.from("image")
+    });
+
+    expect(stored.storageKey).toMatch(/^tenant\/tenant-001\/company-images\/.+\.webp$/);
+    const file = await readFile(path.join(tempDir, stored.storageKey));
+    expect(file.toString("utf8")).toBe("image");
+  });
+
+  it("stores raw video uploads and enforces the effective limit", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    process.env.STORAGE_MAX_VIDEO_UPLOAD_BYTES = "20";
+    const service = new StorageService(new AppConfig());
+
+    const stored = await service.storeVideoBuffer({
+      tenantId: "tenant-001",
+      category: "videos",
+      fileName: "intro.mp4",
+      contentType: "video/mp4",
+      buffer: Buffer.from("video"),
+      maxBytes: 10
+    });
+
+    expect(stored.storageKey).toMatch(/^tenant\/tenant-001\/videos\/.+\.mp4$/);
+    await expect(service.storeVideoBuffer({
+      tenantId: "tenant-001",
+      category: "videos",
+      fileName: "intro.mp4",
+      contentType: "video/mp4",
+      buffer: Buffer.from("this is too long"),
+      maxBytes: 10
+    })).rejects.toThrow("uploaded video exceeds configured limit");
+  });
+
   it("serves local objects from the configured storage root", async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
     process.env.STORAGE_DRIVER = "local";

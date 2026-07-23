@@ -18,6 +18,8 @@ describe("AdminConfigService", () => {
     await expect(service.updateCompanyProfile(session, {})).rejects.toThrow(ForbiddenException);
     await expect(service.listCompanyHonors(session)).rejects.toThrow(ForbiddenException);
     await expect(service.createCompanyHonor(session, { title: "x" })).rejects.toThrow(ForbiddenException);
+    await expect(service.listCompanyVideos(session)).rejects.toThrow(ForbiddenException);
+    await expect(service.createCompanyVideo(session, { title: "x", video_url: "https://example.com/a.mp4" })).rejects.toThrow(ForbiddenException);
     await expect(service.listTemplates(session)).rejects.toThrow(ForbiddenException);
     await expect(service.createTemplate(session, { name: "x" })).rejects.toThrow(ForbiddenException);
   });
@@ -131,6 +133,44 @@ describe("AdminConfigService", () => {
     await expect(service.listCompanyHonors(adminSession())).resolves.toMatchObject({ items: [] });
   });
 
+  it("creates, updates, deletes, and references published company videos", async () => {
+    const repository = new AdminConfigRepository();
+    const service = createService(undefined, repository, videoFeatureEnabled());
+    const created = await service.createCompanyVideo(adminSession(), {
+      title: "企业介绍视频",
+      video_url: "https://example.com/company.mp4",
+      cover_url: "https://example.com/company.jpg",
+      sort_order: 10
+    });
+    const updated = await service.updateCompanyVideo(adminSession(), created.video_id, {
+      title: "企业介绍视频 v2",
+      status: "published",
+      visible: true
+    });
+    const profile = await service.updateCompanyProfile(adminSession(), {
+      intro_blocks: [{ type: "video", video_id: updated.video_id }]
+    });
+
+    expect(created.video_id).toBe("1");
+    expect(updated.title).toBe("企业介绍视频 v2");
+    expect((await service.listCompanyVideos(adminSession())).items).toHaveLength(1);
+    expect(profile.intro_blocks).toEqual([{ type: "video", video_id: "1" }]);
+
+    await service.deleteCompanyVideo(adminSession(), created.video_id);
+
+    await expect(service.listCompanyVideos(adminSession())).resolves.toMatchObject({ items: [] });
+    await expect(service.getCompanyProfile(adminSession())).resolves.toMatchObject({ intro_blocks: [] });
+  });
+
+  it("rejects company video writes when the video feature is disabled", async () => {
+    const service = createService(undefined, new AdminConfigRepository(), videoFeatureDisabled());
+
+    await expect(service.createCompanyVideo(adminSession(), {
+      title: "企业介绍视频",
+      video_url: "https://example.com/company.mp4"
+    })).rejects.toThrow(ForbiddenException);
+  });
+
   it("normalizes legacy persisted company profile JSON before response validation", async () => {
     const originalDatabaseUrl = process.env.DATABASE_URL;
     process.env.DATABASE_URL = "postgres://unit-test";
@@ -242,8 +282,24 @@ describe("AdminConfigService", () => {
   });
 });
 
-function createService(operationLogs?: { record: jest.Mock }) {
-  return new AdminConfigService(new AdminConfigRepository(), undefined, operationLogs as never);
+function createService(
+  operationLogs?: { record: jest.Mock },
+  repository = new AdminConfigRepository(),
+  videoFeatures?: { capability: (tenantId: string) => Promise<{ enabled: boolean; effective_limit_bytes: number; effective_limit_mb: number; source: string }> }
+) {
+  return new AdminConfigService(repository, videoFeatures as never, operationLogs as never);
+}
+
+function videoFeatureEnabled() {
+  return {
+    capability: async () => ({ enabled: true, effective_limit_bytes: 524288000, effective_limit_mb: 500, source: "tenant_override" })
+  };
+}
+
+function videoFeatureDisabled() {
+  return {
+    capability: async () => ({ enabled: false, effective_limit_bytes: 524288000, effective_limit_mb: 500, source: "platform_default" })
+  };
 }
 
 function fakeTenantTx(): TenantTx {

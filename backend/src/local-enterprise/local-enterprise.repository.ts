@@ -70,7 +70,7 @@ export class LocalEnterpriseRepository {
       await this.createCard(tx, tenantId, memberId, input.displayName);
       const openUserid = `account:${input.accountId}`;
       await tx.query(`INSERT INTO tenant_admins (tenant_id,member_identity_id,open_userid,role,status,auth_source,created_at,updated_at) VALUES ($1,$2,$3,'owner','active','claim_token',now(),now())`, [tenantId, memberId, openUserid]);
-      await tx.query(`UPDATE admin_claim_tokens SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL`, [tokenHash]);
+      await tx.query(`UPDATE admin_claim_tokens SET used_at=now() WHERE tenant_id=$1 AND used_at IS NULL AND expires_at>now()`, [tenantId]);
       return { tenantId, memberId, tenantName: row.tenant_name, openUserid };
     });
   }

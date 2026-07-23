@@ -33,13 +33,16 @@ describe("OwnerBootstrapService", () => {
       throw new Error("expected claim token result");
     }
     expect(result.claim_token).toMatch(/^admclaim_/);
+    expect(result.claim_code).toMatch(/^[A-Za-z0-9]{8}$/);
     const tokenHash = service.hashClaimToken(result.claim_token);
+    const codeHash = service.hashClaimToken(result.claim_code);
     expect(repository.findClaimToken(tokenHash)?.usedAt).toBeNull();
+    expect(repository.findClaimToken(codeHash)?.usedAt).toBeNull();
     expect(result).not.toHaveProperty("token_hash");
     expect(new Date(result.expires_at).getTime()).toBeGreaterThan(Date.now());
   });
 
-  it("claims owner with a short-lived token and marks the token used", async () => {
+  it("claims owner with a short-lived claim code and marks all tenant claim credentials used", async () => {
     const repository = new OwnerBootstrapRepository();
     const service = new OwnerBootstrapService(repository);
 
@@ -50,7 +53,7 @@ describe("OwnerBootstrapService", () => {
 
     const owner = await service.claimOwner({
       tenant_id: "2",
-      claim_token: created.claim_token,
+      claim_token: created.claim_code,
       member_identity_id: "20",
       open_userid: "ou_claimed"
     });
@@ -62,6 +65,7 @@ describe("OwnerBootstrapService", () => {
       memberIdentityId: "20"
     });
     expect(repository.findClaimToken(service.hashClaimToken(created.claim_token))?.usedAt).toBeInstanceOf(Date);
+    expect(repository.findClaimToken(service.hashClaimToken(created.claim_code))?.usedAt).toBeInstanceOf(Date);
   });
 
   it("rejects creating a second owner for the same tenant", async () => {

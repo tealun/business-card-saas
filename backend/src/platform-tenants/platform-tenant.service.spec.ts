@@ -95,6 +95,7 @@ function createService(repository = createRepository(), contactSync = createCont
       mode: "claim_token_created" as const,
       tenant_id: "2",
       claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
+      claim_code: "aK3x9Bd7",
       expires_at: new Date(Date.now() + 900_000).toISOString()
     }))
   };
@@ -191,6 +192,7 @@ describe("PlatformTenantService", () => {
       tenant_name: "新本地企业",
       member_limit: null,
       claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
+      claim_code: "aK3x9Bd7",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
     expect(result.claim_path).toContain("admclaim_abcdefghijklmnopqrstuvwxyz123456");
@@ -207,6 +209,7 @@ describe("PlatformTenantService", () => {
       tenant_id: "2",
       tenant_name: "本地企业",
       claim_token: "admclaim_abcdefghijklmnopqrstuvwxyz123456",
+      claim_code: "aK3x9Bd7",
       claim_qr_code_data_url: "data:image/png;base64,Y2xhaW0="
     });
   });

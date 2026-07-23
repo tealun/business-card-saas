@@ -45,6 +45,11 @@ export class LocalEnterpriseService {
     return {requires_selection:false,approved:true,tenant_id:selected.tenantId,tenant_name:selected.tenantName};
   }
 
+  async listAdminTenants(session: EmployeeSession) {
+    const admins = await this.repository.listLocalAdminsForAccount(session.accountId);
+    return {items: admins.map((item) => ({tenant_id: item.tenantId, tenant_name: item.tenantName, role: item.role}))};
+  }
+
   async pollAdminScanChallenge(token:string){
     if(!/^adm_[A-Za-z0-9_-]{28}$/.test(token)) throw new ForbiddenException("invalid login challenge");
     const result=await this.repository.consumeAdminScanChallenge(this.hash(token));
@@ -66,8 +71,12 @@ export class LocalEnterpriseService {
   accept(session: EmployeeSession, token: string) { return this.repository.acceptInvitation(session.accountId, token); }
 
   // 认领平台创建的空壳本地企业：普通微信账号消费认领码成为该企业首个 owner，返回后台会话。
-  async claim(session: EmployeeSession, token: string, displayName: string) {
-    const created = await this.repository.claimEnterprise({ accountId: session.accountId, rawToken: token, displayName });
+  async claim(session: EmployeeSession, token: string, displayName?: string) {
+    const created = await this.repository.claimEnterprise({
+      accountId: session.accountId,
+      rawToken: token,
+      displayName: displayName || session.displayName || "企业管理员"
+    });
     const adminSession: AdminSession = { tenantId: created.tenantId, tenantName: created.tenantName, memberIdentityId: created.memberId, openUserid: created.openUserid, role: "owner", accountType: "tenant" };
     return { tenant_id: created.tenantId, tenant_name: created.tenantName, member_identity_id: created.memberId, admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
   }

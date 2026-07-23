@@ -639,6 +639,10 @@ Page({
     await this.showSharePreview("code", "名片码");
   },
 
+  goEnterpriseAdmin() {
+    wx.navigateTo({ url: "/pages/enterprise-admin/index" });
+  },
+
   async showSharePreview(mode, title) {
     if (!this.ensureLoggedIn("请先登录后发名片")) {
       return;

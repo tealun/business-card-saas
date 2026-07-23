@@ -14,6 +14,7 @@ export class LocalEnterpriseController {
   @Post("admin-session") @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } }) adminSession(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=createLocalEnterpriseAdminSessionSchema.parse(body); return this.service.createAdminSession(req.employeeSession!, input.tenant_id); }
   @Post("invitations/accept") accept(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=acceptMemberInvitationSchema.parse(body); return this.service.accept(req.employeeSession!, input.invitation_token); }
   @Post("claim") @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } }) claim(@Req() req: EmployeeRequest, @Body() body: unknown) { const input=claimLocalEnterpriseSchema.parse(body); return this.service.claim(req.employeeSession!, input.claim_token, input.display_name); }
+  @Get("admin-tenants") adminTenants(@Req() req: EmployeeRequest) { return this.service.listAdminTenants(req.employeeSession!); }
   @Post("join-requests") join(@Req() req:EmployeeRequest,@Body() body:unknown){const input=submitJoinRequestSchema.parse(body);return this.service.submitJoinRequest(req.employeeSession!,input.join_token,input.display_name);}
   @Post("admin-scan/confirm") @Throttle({default:{ttl:60_000,limit:20}}) confirmAdminScan(@Req() req:EmployeeRequest,@Body() body:unknown){const input=localAdminScanConfirmSchema.parse(body);return this.service.confirmAdminScan(req.employeeSession!,input.challenge_token,input.tenant_id);}
 }

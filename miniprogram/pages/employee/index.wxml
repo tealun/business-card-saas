@@ -115,6 +115,10 @@
           <view class="icon icon-qrcode"></view>
           <text>名片码</text>
         </view>
+        <view class="tool-grid__item" bindtap="goEnterpriseAdmin">
+          <view class="icon icon-building"></view>
+          <text>企业管理</text>
+        </view>
         <view class="tool-grid__item" bindtap="openSheet">
           <view class="icon icon-grid"></view>
           <text>全部</text>

@@ -5,8 +5,10 @@ import { requireAdminSession } from "../admin-auth/admin-session.util.js";
 import {
   createAdminTemplateRequestSchema,
   createAdminCompanyHonorRequestSchema,
+  createAdminCompanyVideoRequestSchema,
   updateAdminCompanyProfileRequestSchema,
   updateAdminCompanyHonorRequestSchema,
+  updateAdminCompanyVideoRequestSchema,
   updateAdminFieldSettingsRequestSchema,
   updateAdminTemplateRequestSchema
 } from "../contracts/admin-config.js";
@@ -74,6 +76,37 @@ export class AdminConfigController {
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   deleteCompanyHonor(@Req() request: AdminRequest, @Param("honorId") honorId: string) {
     return this.config.deleteCompanyHonor(requireAdminSession(request), honorId);
+  }
+
+  @Get("company-videos")
+  listCompanyVideos(@Req() request: AdminRequest) {
+    return this.config.listCompanyVideos(requireAdminSession(request));
+  }
+
+  @Post("company-videos")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createCompanyVideo(@Req() request: AdminRequest, @Body() body: unknown) {
+    return this.config.createCompanyVideo(
+      requireAdminSession(request),
+      createAdminCompanyVideoRequestSchema.parse(body)
+    );
+  }
+
+  @Put("company-videos/:videoId")
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  updateCompanyVideo(@Req() request: AdminRequest, @Param("videoId") videoId: string, @Body() body: unknown) {
+    return this.config.updateCompanyVideo(
+      requireAdminSession(request),
+      videoId,
+      updateAdminCompanyVideoRequestSchema.parse(body)
+    );
+  }
+
+  @Delete("company-videos/:videoId")
+  @HttpCode(204)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  deleteCompanyVideo(@Req() request: AdminRequest, @Param("videoId") videoId: string) {
+    return this.config.deleteCompanyVideo(requireAdminSession(request), videoId);
   }
 
   @Get("templates")

@@ -180,8 +180,8 @@ DEMO_AUTH_ENABLED=0
 | 类型 | 域名 |
 |------|------|
 | request 合法域名 | `https://api.example.com` |
-| uploadFile 合法域名 | 后续如有上传能力再填 |
-| downloadFile 合法域名 | 后续如有素材下载再填 |
+| uploadFile 合法域名 | 当前媒体上传走 `wx.request` 二进制请求，保持与 request 域名一致即可；若后续改为 `wx.uploadFile` 再填同域名 |
+| downloadFile 合法域名 | `https://api.example.com`，用于展示 `/api/v1/storage/...` 图片和视频 |
 | socket 合法域名 | 当前不用 |
 
 注意：

@@ -1,10 +1,95 @@
-<view class="claim-page">
-  <view class="claim-card">
-    <view class="claim-title">认领企业管理员</view>
-    <view class="claim-desc">认领成功后，您将成为该企业的管理员，可管理成员与名片。请确认由平台提供的认领码后再提交。</view>
-    <input class="claim-input" placeholder="请输入真实姓名" value="{{displayName}}" bindinput="onNameInput" maxlength="128" />
-    <button class="claim-button" type="primary" loading="{{submitting}}" disabled="{{submitting||result}}" bindtap="submit">确认认领</button>
-    <view wx:if="{{result}}" class="claim-success">{{result}}</view>
-    <view wx:if="{{error}}" class="claim-error">{{error}}</view>
-  </view>
+<view class="claim-page {{result ? 'claim-page--done' : ''}}">
+  <block wx:if="{{!result}}">
+    <view class="claim-hero">
+      <view class="claim-hero__top">
+        <view class="claim-back" bindtap="goHome"><view class="icon icon-back icon--sm"></view></view>
+        <view class="claim-nav-title">认领企业</view>
+        <view class="claim-nav-space"></view>
+      </view>
+      <view class="claim-hero__title">认领企业管理员</view>
+      <view class="claim-hero__desc">输入平台下发的认领码，认领成功后将成为该企业的管理员。</view>
+    </view>
+
+    <view class="claim-form-card">
+      <view class="claim-label">认领码</view>
+      <view class="claim-input-shell {{inputFocused ? 'claim-input-shell--focus' : ''}}">
+        <view class="claim-code-mark">&lt;/&gt;</view>
+        <input
+          class="claim-input"
+          value="{{claimCode}}"
+          placeholder="{{inputPlaceholder}}"
+          maxlength="64"
+          confirm-type="done"
+          bindinput="onClaimInput"
+          bindfocus="onInputFocus"
+          bindblur="onInputBlur"
+        />
+        <view wx:if="{{claimCode}}" class="claim-clear" bindtap="clearClaimCode">
+          <view class="icon icon-close icon--sm"></view>
+        </view>
+      </view>
+      <view class="claim-tip">8 位认领码（字母+数字），由平台管理员提供</view>
+      <button
+        class="claim-submit {{submitting || (!token && !claimCode) ? 'claim-submit--disabled' : ''}}"
+        loading="{{submitting}}"
+        disabled="{{submitting || (!token && !claimCode)}}"
+        bindtap="submit"
+      >确认认领</button>
+      <view wx:if="{{error}}" class="claim-message claim-message--error">{{error}}</view>
+    </view>
+
+    <view class="claim-ability-card">
+      <view class="claim-section-title">认领后你可以</view>
+      <view class="claim-ability">
+        <view class="claim-ability__icon"><view class="icon icon-wecom icon--sm"></view></view>
+        <view>
+          <view class="claim-ability__title">管理企业成员</view>
+          <view class="claim-ability__desc">邀请、审核与停用成员</view>
+        </view>
+      </view>
+      <view class="claim-ability">
+        <view class="claim-ability__icon"><view class="icon icon-paper icon--sm"></view></view>
+        <view>
+          <view class="claim-ability__title">统一维护名片</view>
+          <view class="claim-ability__desc">企业信息与员工名片集中管理</view>
+        </view>
+      </view>
+      <view class="claim-ability">
+        <view class="claim-ability__icon"><view class="icon icon-rank icon--sm"></view></view>
+        <view>
+          <view class="claim-ability__title">查看数据统计</view>
+          <view class="claim-ability__desc">名片浏览、客户回连一目了然</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="claim-success-page">
+      <view class="claim-success-nav">认领企业</view>
+      <view class="claim-success-mark">
+        <view class="claim-success-mark__halo"></view>
+        <view class="claim-success-mark__inner"><view class="icon icon-check"></view></view>
+      </view>
+      <view class="claim-success-title">认领成功</view>
+      <view class="claim-success-desc">
+        <view>你已成为「{{result.tenantName}}」的管理员</view>
+        <view>可开始管理成员与名片</view>
+      </view>
+
+      <view class="claim-company-card">
+        <view class="claim-company-logo">{{result.initial}}</view>
+        <view class="claim-company-main">
+          <view class="claim-company-name">{{result.tenantName}}</view>
+          <view class="claim-company-role">管理员</view>
+        </view>
+        <view class="claim-company-badge">已认领</view>
+      </view>
+
+      <view class="claim-success-actions">
+        <button class="claim-primary-action" bindtap="goManage">进入企业管理</button>
+        <button class="claim-secondary-action" bindtap="goHome">返回首页</button>
+      </view>
+    </view>
+  </block>
 </view>

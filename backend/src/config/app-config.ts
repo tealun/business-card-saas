@@ -86,6 +86,7 @@ const appConfigSchema = z
     STORAGE_LOCAL_ROOT: z.string().min(1).optional().or(z.literal("")),
     STORAGE_PUBLIC_BASE_URL: z.string().min(1).optional().or(z.literal("")),
     STORAGE_MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+    STORAGE_MAX_VIDEO_UPLOAD_BYTES: z.coerce.number().int().positive().default(500 * 1024 * 1024),
     ALIYUN_OSS_BUCKET: z.string().min(1).optional().or(z.literal("")),
     ALIYUN_OSS_REGION: z.string().min(1).optional().or(z.literal("")),
     ALIYUN_OSS_ENDPOINT: z.string().min(1).optional().or(z.literal("")),
@@ -285,6 +286,10 @@ export class AppConfig {
 
   get storageMaxUploadBytes(): number {
     return this.values.STORAGE_MAX_UPLOAD_BYTES;
+  }
+
+  get storageMaxVideoUploadBytes(): number {
+    return this.values.STORAGE_MAX_VIDEO_UPLOAD_BYTES;
   }
 
   get aliyunOssConfig(): {

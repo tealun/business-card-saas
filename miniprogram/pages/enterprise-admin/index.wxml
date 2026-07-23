@@ -1,0 +1,531 @@
+<view class="admin-page" style="{{themeStyle}}">
+  <block wx:if="{{loading && stage !== 'manage'}}">
+    <view class="admin-state">
+      <view class="skeleton admin-state__mark"></view>
+      <view class="admin-state__title">正在打开企业管理</view>
+      <view class="admin-state__desc">正在校验当前微信账号的管理权限</view>
+    </view>
+  </block>
+
+  <block wx:elif="{{stage === 'select'}}">
+    <view class="admin-select-head">
+      <view class="admin-select-title">选择管理企业</view>
+      <view class="admin-select-desc">当前微信账号拥有多个企业管理权限</view>
+    </view>
+    <view class="tenant-option" wx:for="{{tenants}}" wx:key="tenant_id" data-id="{{item.tenant_id}}" bindtap="selectTenant">
+      <view class="tenant-option__logo">{{item.initial}}</view>
+      <view class="tenant-option__main">
+        <view class="tenant-option__name">{{item.tenant_name}}</view>
+        <view class="tenant-option__role">{{item.roleLabel}}</view>
+      </view>
+      <view class="icon icon-arrow icon--sm"></view>
+    </view>
+  </block>
+
+  <block wx:elif="{{stage === 'empty'}}">
+    <view class="admin-state">
+      <view class="admin-state__icon"><view class="icon icon-lock"></view></view>
+      <view class="admin-state__title">暂无企业管理权限</view>
+      <view class="admin-state__desc">请使用企业管理员微信账号进入，或先完成企业认领。</view>
+      <button class="admin-primary" bindtap="goHome">返回首页</button>
+    </view>
+  </block>
+
+  <block wx:elif="{{stage === 'error'}}">
+    <view class="admin-state">
+      <view class="admin-state__icon admin-state__icon--danger"><view class="icon icon-close"></view></view>
+      <view class="admin-state__title">无法打开</view>
+      <view class="admin-state__desc">{{error}}</view>
+      <button class="admin-primary" bindtap="prepare">重新进入</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="admin-hero">
+      <view class="admin-hero__top">
+        <view class="admin-icon-btn" bindtap="goHome"><view class="icon icon-home icon--sm"></view></view>
+        <view class="admin-icon-btn" bindtap="refresh"><view class="icon icon-reload icon--sm"></view></view>
+      </view>
+      <view class="admin-tenant">
+        <view class="admin-tenant__logo">{{tenant.initial}}</view>
+        <view class="admin-tenant__main">
+          <view class="admin-tenant__name">{{tenant.tenant_name}}</view>
+          <view class="admin-tenant__meta">{{tenant.roleLabel}} · 企业管理</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="admin-tabs">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="admin-tab {{activeTab === item.key ? 'admin-tab--active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="switchTab"
+      >{{item.label}}</view>
+    </view>
+
+    <view wx:if="{{error}}" class="admin-inline-error">{{error}}</view>
+
+    <block wx:if="{{activeTab === 'overview'}}">
+      <view class="admin-stats">
+        <view class="admin-stat">
+          <view class="admin-stat__num">{{overview.member_count || 0}}</view>
+          <view class="admin-stat__label">成员</view>
+        </view>
+        <view class="admin-stat">
+          <view class="admin-stat__num">{{overview.card_count || 0}}</view>
+          <view class="admin-stat__label">名片</view>
+        </view>
+        <view class="admin-stat">
+          <view class="admin-stat__num">{{overview.active_card_count || 0}}</view>
+          <view class="admin-stat__label">启用</view>
+        </view>
+      </view>
+
+      <view class="admin-section-head">
+        <view>快捷维护</view>
+        <text>{{permissions.canAdmin ? '可编辑' : '只读'}}</text>
+      </view>
+      <view class="admin-action-grid">
+        <view class="admin-action" bindtap="openProfilePanel">
+          <view class="icon icon-building"></view>
+          <text>企业信息</text>
+        </view>
+        <view class="admin-action" bindtap="openTemplatePanel">
+          <view class="icon icon-style"></view>
+          <text>名片模板</text>
+        </view>
+        <view class="admin-action" bindtap="openIntroPanel">
+          <view class="icon icon-text"></view>
+          <text>企业介绍</text>
+        </view>
+        <view class="admin-action" bindtap="openInvitePanel">
+          <view class="icon icon-plus"></view>
+          <text>邀请成员</text>
+        </view>
+      </view>
+
+      <view wx:if="{{joinRequests.length}}" class="admin-section-head">
+        <view>待审核申请</view>
+        <text>{{joinRequests.length}} 条</text>
+      </view>
+      <view wx:for="{{joinRequests}}" wx:key="id" class="join-request">
+        <view class="join-request__main">
+          <view class="join-request__name">{{item.displayName}}</view>
+          <view class="join-request__meta">{{item.status}} · {{item.createdAt}}</view>
+        </view>
+        <button class="mini-btn mini-btn--ghost" data-id="{{item.id}}" data-decision="rejected" bindtap="reviewJoinRequest">拒绝</button>
+        <button class="mini-btn mini-btn--primary" data-id="{{item.id}}" data-decision="approved" bindtap="reviewJoinRequest">通过</button>
+      </view>
+    </block>
+
+    <block wx:elif="{{activeTab === 'members'}}">
+      <view class="member-toolbar">
+        <view class="member-search">
+          <view class="icon icon-search icon--sm"></view>
+          <input value="{{memberSearch}}" placeholder="搜索成员姓名、手机、邮箱" bindinput="onMemberSearch" confirm-type="search" bindconfirm="refreshMembers" />
+        </view>
+        <button class="mini-btn mini-btn--primary" bindtap="refreshMembers">搜索</button>
+      </view>
+
+      <view class="member-status-tabs">
+        <view
+          wx:for="{{memberStatusOptions}}"
+          wx:key="value"
+          class="member-status {{memberStatus === item.value ? 'member-status--active' : ''}}"
+          data-status="{{item.value}}"
+          bindtap="setMemberStatus"
+        >{{item.label}}</view>
+      </view>
+
+      <view class="member-actions">
+        <button class="mini-btn mini-btn--ghost" bindtap="syncMembers">同步成员</button>
+        <button class="mini-btn mini-btn--ghost" bindtap="createJoinCode">入企码</button>
+        <button class="mini-btn mini-btn--primary" bindtap="openInvitePanel">邀请成员</button>
+      </view>
+
+      <view wx:if="{{joinCode}}" class="join-code-box">
+        <view>
+          <view class="join-code-box__title">入企路径已生成</view>
+          <view class="join-code-box__meta">{{joinCode.expires_at}}</view>
+        </view>
+        <button class="mini-btn mini-btn--ghost" bindtap="copyJoinPath">复制</button>
+      </view>
+
+      <view wx:if="{{!members.length}}" class="empty-list">暂无成员</view>
+      <view wx:for="{{members}}" wx:key="member_identity_id" class="member-card">
+        <view class="member-card__top">
+          <view class="member-avatar">{{item.initial}}</view>
+          <view class="member-main">
+            <view class="member-name">{{item.display_name}}</view>
+            <view class="member-meta">{{item.title || '未填写职位'}} · {{item.department || '未分组'}}</view>
+          </view>
+          <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
+        </view>
+        <view class="member-contact">{{item.mobile || item.email || '暂无联系方式'}}</view>
+        <view class="member-card__actions">
+          <button class="mini-btn mini-btn--ghost" data-id="{{item.member_identity_id}}" bindtap="openMemberEditor">编辑</button>
+          <button class="mini-btn mini-btn--ghost" data-id="{{item.member_identity_id}}" data-status="{{item.card_status}}" bindtap="toggleMemberStatus">{{item.card_status === 'active' ? '停用' : '启用'}}</button>
+          <button class="mini-btn mini-btn--danger" data-id="{{item.member_identity_id}}" bindtap="deleteMember">删除</button>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="settings-list">
+        <view class="settings-item" bindtap="openProfilePanel">
+          <view class="settings-item__icon"><view class="icon icon-building icon--sm"></view></view>
+          <view class="settings-item__main">
+            <view class="settings-item__title">企业基本信息</view>
+            <view class="settings-item__desc">{{profile.display_name || tenant.tenant_name}}</view>
+          </view>
+          <view class="icon icon-arrow icon--sm"></view>
+        </view>
+        <view class="settings-item" bindtap="openTemplatePanel">
+          <view class="settings-item__icon"><view class="icon icon-style icon--sm"></view></view>
+          <view class="settings-item__main">
+            <view class="settings-item__title">名片模板与版式</view>
+            <view class="settings-item__desc">{{templates.length}} 套模板</view>
+          </view>
+          <view class="icon icon-arrow icon--sm"></view>
+        </view>
+        <view class="settings-item" bindtap="openIntroPanel">
+          <view class="settings-item__icon"><view class="icon icon-text icon--sm"></view></view>
+          <view class="settings-item__main">
+            <view class="settings-item__title">企业介绍与主页模块</view>
+            <view class="settings-item__desc">服务、简介、视频、荣誉集中配置</view>
+          </view>
+          <view class="icon icon-arrow icon--sm"></view>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <view wx:if="{{panel}}" class="admin-sheet-mask" catchtap="closePanel"></view>
+  <view wx:if="{{panel}}" class="admin-sheet">
+    <view class="admin-sheet__head">
+      <view class="admin-sheet__title">
+        <text wx:if="{{panel === 'profile'}}">企业基本信息</text>
+        <text wx:elif="{{panel === 'template'}}">名片模板</text>
+        <text wx:elif="{{panel === 'intro'}}">企业介绍</text>
+        <text wx:elif="{{panel === 'member'}}">人员名片</text>
+        <text wx:else>邀请成员</text>
+      </view>
+      <view class="admin-sheet__close" bindtap="closePanel"><view class="icon icon-close icon--sm"></view></view>
+    </view>
+
+    <scroll-view scroll-y class="admin-sheet__body">
+      <block wx:if="{{panel === 'profile'}}">
+        <view class="form-row"><text>企业名称</text><input value="{{profileDraft.display_name}}" data-key="display_name" bindinput="onProfileInput" /></view>
+        <view class="form-row"><text>企业简称</text><input value="{{profileDraft.short_name}}" data-key="short_name" bindinput="onProfileInput" /></view>
+        <view class="upload-field">
+          <view class="upload-field__head">
+            <text>企业 Logo</text>
+            <view class="upload-actions">
+              <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadProfileLogo">上传</button>
+              <button wx:if="{{profileDraft.logo_url}}" class="mini-btn mini-btn--ghost" bindtap="clearProfileLogo">清除</button>
+            </view>
+          </view>
+          <image wx:if="{{profileDraft.logo_url}}" class="upload-preview upload-preview--logo" src="{{profileDraft.logo_url}}" mode="aspectFill" />
+        </view>
+        <view class="form-row"><text>官网</text><input value="{{profileDraft.website_url}}" data-key="website_url" bindinput="onProfileInput" /></view>
+        <view class="form-row"><text>地址</text><input value="{{profileDraft.address}}" data-key="address" bindinput="onProfileInput" /></view>
+        <view class="switch-row"><text>展示企业主页</text><switch checked="{{profileDraft.visible}}" color="#5272d6" bindchange="onProfileVisible" /></view>
+        <view class="seg-row">
+          <view class="{{profileDraft.status === 'draft' ? 'seg seg--active' : 'seg'}}" data-status="draft" bindtap="setProfileStatus">草稿</view>
+          <view class="{{profileDraft.status === 'published' ? 'seg seg--active' : 'seg'}}" data-status="published" bindtap="setProfileStatus">发布</view>
+        </view>
+        <button class="sheet-primary" loading="{{saving}}" bindtap="saveProfile">保存企业信息</button>
+      </block>
+
+      <block wx:elif="{{panel === 'template'}}">
+        <view class="template-list">
+          <view wx:for="{{templates}}" wx:key="template_id" class="template-chip {{templateDraft.template_id === item.template_id ? 'template-chip--active' : ''}}" data-id="{{item.template_id}}" bindtap="chooseTemplate">
+            <view class="template-chip__swatch" style="background: {{item.primary}}"></view>
+            <view>
+              <view class="template-chip__name">{{item.name}}</view>
+              <view class="template-chip__meta">{{item.variantLabel}}{{item.is_default ? ' · 默认' : ''}}</view>
+            </view>
+          </view>
+        </view>
+        <view class="form-row"><text>模板名称</text><input value="{{templateDraft.name}}" data-key="name" bindinput="onTemplateInput" /></view>
+        <view class="upload-field">
+          <view class="upload-field__head">
+            <text>模板 Logo</text>
+            <view class="upload-actions">
+              <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadTemplateLogo">上传</button>
+              <button wx:if="{{templateDraft.logo_url}}" class="mini-btn mini-btn--ghost" bindtap="clearTemplateLogo">清除</button>
+            </view>
+          </view>
+          <image wx:if="{{templateDraft.logo_url}}" class="upload-preview upload-preview--logo" src="{{templateDraft.logo_url}}" mode="aspectFill" />
+        </view>
+        <view class="upload-field">
+          <view class="upload-field__head">
+            <text>模板背景</text>
+            <view class="upload-actions">
+              <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadTemplateBackground">上传</button>
+              <button wx:if="{{templateDraft.background_url}}" class="mini-btn mini-btn--ghost" bindtap="clearTemplateBackground">清除</button>
+            </view>
+          </view>
+          <image wx:if="{{templateDraft.background_url}}" class="upload-preview" src="{{templateDraft.background_url}}" mode="aspectFill" />
+        </view>
+        <view class="field-title">版式选择</view>
+        <view class="variant-grid">
+          <view wx:for="{{templateVariants}}" wx:key="value" class="variant {{templateDraft.variant === item.value ? 'variant--active' : ''}}" data-variant="{{item.value}}" bindtap="chooseVariant">{{item.label}}</view>
+        </view>
+        <view class="field-title">品牌色</view>
+        <view class="swatch-row">
+          <view wx:for="{{colorSwatches}}" wx:key="*this" class="swatch {{templateDraft.primary === item ? 'swatch--active' : ''}}" style="background: {{item}}" data-color="{{item}}" bindtap="chooseColor"></view>
+        </view>
+        <button class="sheet-primary" loading="{{saving}}" bindtap="saveTemplate">保存模板</button>
+        <button class="sheet-secondary" loading="{{saving}}" bindtap="setDefaultTemplate">设为默认模板</button>
+      </block>
+
+      <block wx:elif="{{panel === 'intro'}}">
+        <view class="field-title">主页模块</view>
+        <view wx:for="{{introDraft.display_modules}}" wx:key="key" class="module-row">
+          <view class="module-row__main">
+            <view class="module-row__title">{{item.title}}</view>
+            <picker mode="selector" range="{{moduleLayouts}}" range-key="label" data-index="{{index}}" bindchange="chooseModuleLayout">
+              <view class="module-row__layout">{{item.layoutLabel || item.layout}}</view>
+            </picker>
+          </view>
+          <switch checked="{{item.visible}}" color="#5272d6" data-index="{{index}}" bindchange="toggleIntroModule" />
+        </view>
+
+        <view class="field-title">版块内容</view>
+        <view class="content-tabs">
+          <view
+            wx:for="{{introSections}}"
+            wx:key="value"
+            class="content-tab {{introDraft.activeSection === item.value ? 'content-tab--active' : ''}}"
+            data-section="{{item.value}}"
+            bindtap="switchIntroSection"
+          >{{item.label}}</view>
+        </view>
+
+        <block wx:if="{{introDraft.activeSection === 'profile'}}">
+          <view class="block-type-tabs">
+            <view
+              wx:for="{{introBlockTypes}}"
+              wx:key="value"
+              class="block-type {{introDraft.blockType === item.value ? 'block-type--active' : ''}}"
+              data-type="{{item.value}}"
+              bindtap="setIntroBlockType"
+            >{{item.label}}</view>
+          </view>
+
+          <input wx:if="{{introDraft.blockType === 'heading'}}" class="intro-input" value="{{introDraft.text}}" data-key="text" placeholder="标题内容" bindinput="onIntroInput" />
+          <textarea wx:elif="{{introDraft.blockType === 'paragraph'}}" class="intro-textarea" value="{{introDraft.text}}" data-key="text" placeholder="正文段落" bindinput="onIntroInput"></textarea>
+          <textarea wx:elif="{{introDraft.blockType === 'quote'}}" class="intro-textarea" value="{{introDraft.text}}" data-key="text" placeholder="引用文案" bindinput="onIntroInput"></textarea>
+          <textarea wx:elif="{{introDraft.blockType === 'list'}}" class="intro-textarea" value="{{introDraft.listText}}" data-key="listText" placeholder="列表项，每行一条" bindinput="onIntroInput"></textarea>
+          <block wx:elif="{{introDraft.blockType === 'image'}}">
+            <view class="upload-field">
+              <view class="upload-field__head">
+                <text>正文图片</text>
+                <view class="upload-actions">
+                  <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadIntroImage">上传</button>
+                  <button wx:if="{{introDraft.imageUrl}}" class="mini-btn mini-btn--ghost" bindtap="clearIntroImage">清除</button>
+                </view>
+              </view>
+              <image wx:if="{{introDraft.imageUrl}}" class="upload-preview" src="{{introDraft.imageUrl}}" mode="aspectFill" />
+            </view>
+            <view class="form-row"><text>说明</text><input value="{{introDraft.imageCaption}}" data-key="imageCaption" bindinput="onIntroInput" /></view>
+          </block>
+          <block wx:elif="{{introDraft.blockType === 'gallery'}}">
+            <view class="upload-field">
+              <view class="upload-field__head">
+                <text>图集图片</text>
+                <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadIntroGallery">批量上传</button>
+              </view>
+              <view wx:if="{{introDraft.galleryImages.length}}" class="media-editor-list">
+                <view wx:for="{{introDraft.galleryImages}}" wx:key="url" class="media-editor">
+                  <image class="media-editor__thumb" src="{{item.url}}" mode="aspectFill" />
+                  <view class="media-editor__main">
+                    <input class="media-editor__input" value="{{item.caption}}" data-index="{{index}}" data-key="caption" placeholder="图片说明" bindinput="onGalleryImageInput" />
+                    <button class="mini-btn mini-btn--danger media-editor__delete" data-index="{{index}}" bindtap="removeGalleryImage">删除</button>
+                  </view>
+                </view>
+              </view>
+              <view wx:else class="upload-empty">上传图片后可逐张补充说明</view>
+            </view>
+          </block>
+          <view wx:else class="form-row"><text>视频 ID</text><input value="{{introDraft.videoId}}" data-key="videoId" bindinput="onIntroInput" /></view>
+
+          <button class="sheet-secondary" bindtap="upsertIntroBlock">{{introDraft.editingBlockIndex >= 0 ? '保存内容块' : '添加内容块'}}</button>
+          <button wx:if="{{introDraft.editingBlockIndex >= 0}}" class="sheet-tertiary" bindtap="cancelIntroBlockEdit">取消编辑</button>
+
+          <view wx:for="{{introDraft.intro_blocks}}" wx:key="index" class="content-card intro-block">
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <view class="content-card__main">
+              <view class="content-card__title">{{item._label}}</view>
+              <view class="content-card__desc">{{item._summary}}</view>
+            </view>
+            <view class="content-card__actions">
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" bindtap="editIntroBlock">编辑</button>
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" data-direction="up" bindtap="moveIntroBlock">上移</button>
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" data-direction="down" bindtap="moveIntroBlock">下移</button>
+              <button class="mini-btn mini-btn--danger" data-index="{{index}}" bindtap="removeIntroBlock">删除</button>
+            </view>
+          </view>
+        </block>
+
+        <block wx:elif="{{introDraft.activeSection === 'services'}}">
+          <view class="form-row"><text>服务名称</text><input value="{{introDraft.serviceDraft.title}}" data-key="title" bindinput="onServiceInput" /></view>
+          <view class="upload-field">
+            <view class="upload-field__head">
+              <text>服务图片</text>
+              <view class="upload-actions">
+                <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadServiceImage">上传</button>
+                <button wx:if="{{introDraft.serviceDraft.image_url}}" class="mini-btn mini-btn--ghost" bindtap="clearServiceImage">清除</button>
+              </view>
+            </view>
+            <image wx:if="{{introDraft.serviceDraft.image_url}}" class="upload-preview" src="{{introDraft.serviceDraft.image_url}}" mode="aspectFill" />
+          </view>
+          <textarea class="intro-textarea" value="{{introDraft.serviceDraft.description}}" data-key="description" placeholder="服务描述" bindinput="onServiceInput"></textarea>
+          <view class="form-row"><text>排序</text><input type="number" value="{{introDraft.serviceDraft.sort_order}}" data-key="sort_order" bindinput="onServiceInput" /></view>
+          <view class="switch-row"><text>展示服务</text><switch checked="{{introDraft.serviceDraft.visible}}" color="#5272d6" bindchange="onServiceVisible" /></view>
+          <button class="sheet-secondary" bindtap="upsertServiceItem">{{introDraft.editingServiceIndex >= 0 ? '保存服务' : '添加服务'}}</button>
+          <button wx:if="{{introDraft.editingServiceIndex >= 0}}" class="sheet-tertiary" bindtap="cancelServiceEdit">取消编辑</button>
+
+          <view wx:for="{{introDraft.service_items}}" wx:key="id" class="content-card">
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <view class="content-card__main">
+              <view class="content-card__title">{{item.title || '未命名服务'}}</view>
+              <view class="content-card__desc">{{item._summary}}</view>
+              <view class="content-card__meta">{{item._visibleLabel}}</view>
+            </view>
+            <view class="content-card__actions">
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" bindtap="editServiceItem">编辑</button>
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" data-direction="up" bindtap="moveServiceItem">上移</button>
+              <button class="mini-btn mini-btn--ghost" data-index="{{index}}" data-direction="down" bindtap="moveServiceItem">下移</button>
+              <button class="mini-btn mini-btn--danger" data-index="{{index}}" bindtap="removeServiceItem">删除</button>
+            </view>
+          </view>
+        </block>
+
+        <block wx:elif="{{introDraft.activeSection === 'videos'}}">
+          <view class="video-feature {{videoFeature && videoFeature.enabled ? '' : 'video-feature--off'}}">
+            <text>{{videoFeature && videoFeature.enabled ? '视频功能已开通' : '视频功能未开通'}}</text>
+            <text wx:if="{{videoFeature && videoFeature.enabled}}">{{videoFeature.effective_limit_mb}} MB</text>
+          </view>
+          <view class="form-row"><text>视频标题</text><input value="{{introDraft.videoDraft.title}}" data-key="title" bindinput="onVideoInput" /></view>
+          <view class="upload-field">
+            <view class="upload-field__head">
+              <text>视频文件</text>
+              <view class="upload-actions">
+                <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadVideoFile">上传</button>
+                <button wx:if="{{introDraft.videoDraft.video_url}}" class="mini-btn mini-btn--ghost" bindtap="clearVideoFile">清除</button>
+              </view>
+            </view>
+            <view wx:if="{{introDraft.videoDraft.video_url}}" class="uploaded-path">已上传视频文件</view>
+          </view>
+          <view class="upload-field">
+            <view class="upload-field__head">
+              <text>视频封面</text>
+              <view class="upload-actions">
+                <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadVideoCover">上传</button>
+                <button wx:if="{{introDraft.videoDraft.cover_url}}" class="mini-btn mini-btn--ghost" bindtap="clearVideoCover">清除</button>
+              </view>
+            </view>
+            <image wx:if="{{introDraft.videoDraft.cover_url}}" class="upload-preview" src="{{introDraft.videoDraft.cover_url}}" mode="aspectFill" />
+          </view>
+          <view class="form-row"><text>时长秒</text><input type="number" value="{{introDraft.videoDraft.duration_seconds}}" data-key="duration_seconds" bindinput="onVideoInput" /></view>
+          <view class="form-row"><text>排序</text><input type="number" value="{{introDraft.videoDraft.sort_order}}" data-key="sort_order" bindinput="onVideoInput" /></view>
+          <view class="switch-row"><text>展示视频</text><switch checked="{{introDraft.videoDraft.visible}}" color="#5272d6" bindchange="onVideoVisible" /></view>
+          <view class="seg-row">
+            <view class="{{introDraft.videoDraft.status === 'draft' ? 'seg seg--active' : 'seg'}}" data-status="draft" bindtap="setVideoStatus">草稿</view>
+            <view class="{{introDraft.videoDraft.status === 'published' ? 'seg seg--active' : 'seg'}}" data-status="published" bindtap="setVideoStatus">发布</view>
+          </view>
+          <button class="sheet-secondary" loading="{{saving}}" bindtap="saveVideoDraft">{{introDraft.editingVideoId ? '保存视频' : '添加视频'}}</button>
+          <button wx:if="{{introDraft.editingVideoId}}" class="sheet-tertiary" bindtap="cancelVideoEdit">取消编辑</button>
+
+          <view wx:for="{{videos}}" wx:key="video_id" class="content-card">
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <view class="content-card__main">
+              <view class="content-card__title">{{item.title}}</view>
+              <view class="content-card__desc">{{item._summary}}</view>
+              <view class="content-card__meta">{{item._visibleLabel}} · ID {{item.video_id}}</view>
+            </view>
+            <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
+            <view class="content-card__actions content-card__actions--full">
+              <button class="mini-btn mini-btn--ghost" data-id="{{item.video_id}}" bindtap="editVideoItem">编辑</button>
+              <button class="mini-btn mini-btn--ghost" data-id="{{item.video_id}}" bindtap="addVideoBlockFromList">引用</button>
+              <button class="mini-btn mini-btn--danger" data-id="{{item.video_id}}" bindtap="deleteVideoItem">删除</button>
+            </view>
+          </view>
+        </block>
+
+        <block wx:else>
+          <view class="form-row"><text>荣誉标题</text><input value="{{introDraft.honorDraft.title}}" data-key="title" bindinput="onHonorInput" /></view>
+          <textarea class="intro-textarea" value="{{introDraft.honorDraft.body}}" data-key="body" placeholder="荣誉说明" bindinput="onHonorInput"></textarea>
+          <view class="upload-field">
+            <view class="upload-field__head">
+              <text>荣誉图片</text>
+              <button class="mini-btn mini-btn--ghost" loading="{{uploading}}" bindtap="uploadHonorImages">批量上传</button>
+            </view>
+            <view wx:if="{{introDraft.honorDraft.images.length}}" class="media-editor-list">
+              <view wx:for="{{introDraft.honorDraft.images}}" wx:key="image_url" class="media-editor">
+                <image class="media-editor__thumb" src="{{item.image_url}}" mode="aspectFill" />
+                <view class="media-editor__main">
+                  <input class="media-editor__input" value="{{item.title}}" data-index="{{index}}" data-key="title" placeholder="图片标题" bindinput="onHonorImageInput" />
+                  <input class="media-editor__input" value="{{item.caption}}" data-index="{{index}}" data-key="caption" placeholder="图片说明" bindinput="onHonorImageInput" />
+                  <button class="mini-btn mini-btn--danger media-editor__delete" data-index="{{index}}" bindtap="removeHonorImage">删除</button>
+                </view>
+              </view>
+            </view>
+            <view wx:else class="upload-empty">上传图片后可逐张补充标题和说明</view>
+          </view>
+          <view class="form-row"><text>排序</text><input type="number" value="{{introDraft.honorDraft.sort_order}}" data-key="sort_order" bindinput="onHonorInput" /></view>
+          <view class="switch-row"><text>展示荣誉</text><switch checked="{{introDraft.honorDraft.visible}}" color="#5272d6" bindchange="onHonorVisible" /></view>
+          <view class="seg-row">
+            <view class="{{introDraft.honorDraft.status === 'draft' ? 'seg seg--active' : 'seg'}}" data-status="draft" bindtap="setHonorStatus">草稿</view>
+            <view class="{{introDraft.honorDraft.status === 'published' ? 'seg seg--active' : 'seg'}}" data-status="published" bindtap="setHonorStatus">发布</view>
+          </view>
+          <button class="sheet-secondary" loading="{{saving}}" bindtap="saveHonorDraft">{{introDraft.editingHonorId ? '保存荣誉' : '添加荣誉'}}</button>
+          <button wx:if="{{introDraft.editingHonorId}}" class="sheet-tertiary" bindtap="cancelHonorEdit">取消编辑</button>
+
+          <view wx:for="{{honors}}" wx:key="honor_id" class="content-card">
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <view class="content-card__main">
+              <view class="content-card__title">{{item.title}}</view>
+              <view class="content-card__desc">{{item._summary}}</view>
+              <view class="content-card__meta">{{item._visibleLabel}}</view>
+            </view>
+            <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
+            <view class="content-card__actions content-card__actions--full">
+              <button class="mini-btn mini-btn--ghost" data-id="{{item.honor_id}}" bindtap="editHonorItem">编辑</button>
+              <button class="mini-btn mini-btn--danger" data-id="{{item.honor_id}}" bindtap="deleteHonorItem">删除</button>
+            </view>
+          </view>
+        </block>
+
+        <button class="sheet-primary" loading="{{saving}}" bindtap="saveIntro">保存主页配置</button>
+      </block>
+
+      <block wx:elif="{{panel === 'member'}}">
+        <view class="form-row"><text>姓名</text><input value="{{memberDraft.display_name}}" data-key="display_name" bindinput="onMemberDraftInput" /></view>
+        <view class="form-row"><text>职位</text><input value="{{memberDraft.title}}" data-key="title" bindinput="onMemberDraftInput" /></view>
+        <view class="form-row"><text>部门</text><input value="{{memberDraft.department}}" data-key="department" bindinput="onMemberDraftInput" /></view>
+        <view class="form-row"><text>手机</text><input value="{{memberDraft.mobile}}" data-key="mobile" bindinput="onMemberDraftInput" /></view>
+        <view class="form-row"><text>邮箱</text><input value="{{memberDraft.email}}" data-key="email" bindinput="onMemberDraftInput" /></view>
+        <view class="seg-row">
+          <view class="{{memberDraft.status === 'active' ? 'seg seg--active' : 'seg'}}" data-status="active" bindtap="setMemberDraftStatus">启用</view>
+          <view class="{{memberDraft.status === 'disabled' ? 'seg seg--active' : 'seg'}}" data-status="disabled" bindtap="setMemberDraftStatus">停用</view>
+        </view>
+        <button class="sheet-primary" loading="{{saving}}" bindtap="saveMember">保存人员名片</button>
+      </block>
+
+      <block wx:else>
+        <view class="form-row"><text>成员姓名</text><input value="{{inviteDraft.displayName}}" bindinput="onInviteInput" /></view>
+        <button class="sheet-primary" loading="{{saving}}" bindtap="createInvitation">生成邀请</button>
+        <view wx:if="{{inviteDraft.token}}" class="invite-token">
+          <view class="invite-token__label">邀请 token</view>
+          <view class="invite-token__value">{{inviteDraft.token}}</view>
+          <button class="sheet-secondary" bindtap="copyInviteToken">复制邀请 token</button>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+</view>

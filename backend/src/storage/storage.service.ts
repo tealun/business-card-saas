@@ -6,9 +6,9 @@ import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { AppConfig } from "../config/app-config.js";
 
-type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "wechat-qrcodes" | "company-images" | "videos" | "honors" | "templates";
+export type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "wechat-qrcodes" | "company-images" | "videos" | "honors" | "templates";
 
-interface StoredObject {
+export interface StoredObject {
   publicUrl: string;
   storageKey: string;
 }
@@ -44,11 +44,14 @@ interface RemoteStorageSdk extends RemoteStorageCommands {
   S3Client: new(input: Record<string, unknown>) => RemoteStorageClient;
 }
 
-const MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
+const IMAGE_MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
   "image/jpeg": { ext: "jpg", contentType: "image/jpeg" },
   "image/jpg": { ext: "jpg", contentType: "image/jpeg" },
   "image/png": { ext: "png", contentType: "image/png" },
   "image/webp": { ext: "webp", contentType: "image/webp" }
+};
+const VIDEO_MIME_EXTENSIONS: Record<string, { ext: string; contentType: string }> = {
+  "video/mp4": { ext: "mp4", contentType: "video/mp4" }
 };
 
 @Injectable()
@@ -67,6 +70,44 @@ export class StorageService {
     return this.storeBuffer(input.tenantId, input.category, parsed.ext, parsed.contentType, parsed.buffer);
   }
 
+  async storeImageBuffer(input: {
+    tenantId: string;
+    category: StorageCategory;
+    fileName?: string;
+    contentType: string;
+    buffer: Buffer;
+  }): Promise<StoredObject> {
+    const format = IMAGE_MIME_EXTENSIONS[normalizeContentType(input.contentType)]
+      ?? formatFromFileName(input.fileName, IMAGE_MIME_EXTENSIONS);
+    if (!format) {
+      throw new BadRequestException("unsupported image type");
+    }
+    if (input.buffer.length > this.config.storageMaxUploadBytes) {
+      throw new BadRequestException("uploaded image exceeds STORAGE_MAX_UPLOAD_BYTES");
+    }
+    return this.storeBuffer(input.tenantId, input.category, format.ext, format.contentType, input.buffer);
+  }
+
+  async storeVideoBuffer(input: {
+    tenantId: string;
+    category: "videos";
+    fileName?: string;
+    contentType: string;
+    buffer: Buffer;
+    maxBytes?: number;
+  }): Promise<StoredObject> {
+    const format = VIDEO_MIME_EXTENSIONS[normalizeContentType(input.contentType)]
+      ?? formatFromFileName(input.fileName, VIDEO_MIME_EXTENSIONS);
+    if (!format) {
+      throw new BadRequestException("unsupported video type");
+    }
+    const maxBytes = Math.min(input.maxBytes ?? this.config.storageMaxVideoUploadBytes, this.config.storageMaxVideoUploadBytes);
+    if (input.buffer.length > maxBytes) {
+      throw new BadRequestException("uploaded video exceeds configured limit");
+    }
+    return this.storeBuffer(input.tenantId, input.category, format.ext, format.contentType, input.buffer);
+  }
+
   async storeTrustedRemoteImage(input: {
     tenantId: string;
     category: "avatars" | "wechat-qrcodes";
@@ -77,7 +118,7 @@ export class StorageService {
     if (!response.ok) throw new BadRequestException("WeCom image download failed");
     assertTrustedWecomImageUrl(response.url);
     const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
-    const format = MIME_EXTENSIONS[contentType];
+    const format = IMAGE_MIME_EXTENSIONS[contentType];
     if (!format) throw new BadRequestException("WeCom returned an unsupported image type");
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
     if (declaredLength > this.config.storageMaxUploadBytes) {
@@ -213,7 +254,7 @@ function parseImageDataUrl(dataUrl: string): { buffer: Buffer; ext: string; cont
     throw new BadRequestException("invalid image data URL");
   }
   const contentType = match[1]!.toLowerCase();
-  const format = MIME_EXTENSIONS[contentType];
+  const format = IMAGE_MIME_EXTENSIONS[contentType];
   if (!format) {
     throw new BadRequestException("unsupported image type");
   }
@@ -255,6 +296,19 @@ function assertTrustedWecomImageUrl(value: string): void {
   if (url.protocol !== "https:" || !trusted) {
     throw new BadRequestException("untrusted WeCom image URL");
   }
+}
+
+function normalizeContentType(value: string): string {
+  return String(value || "").split(";")[0]!.trim().toLowerCase();
+}
+
+function formatFromFileName(
+  fileName: string | undefined,
+  formats: Record<string, { ext: string; contentType: string }>
+): { ext: string; contentType: string } | null {
+  const ext = path.extname(String(fileName || "")).replace(/^\./, "").toLowerCase();
+  if (!ext) return null;
+  return Object.values(formats).find((format) => format.ext === ext || (format.ext === "jpg" && ext === "jpeg")) ?? null;
 }
 
 function buildStorageKey(tenantId: string, category: string, fileName: string): string {

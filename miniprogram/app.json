@@ -6,6 +6,7 @@
     "pages/wecom-sensitive/index",
     "pages/enterprise-join/index",
     "pages/enterprise-claim/index",
+    "pages/enterprise-admin/index",
     "pages/admin-login/index",
     "pages/public/card",
     "pages/card-wallet/index",

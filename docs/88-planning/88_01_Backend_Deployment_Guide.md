@@ -233,6 +233,10 @@ WECOM_INSTALL_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/auth
 WECOM_SENSITIVE_REDIRECT_URI=https://your-backend-domain.example/api/v1/wecom/member-sensitive/callback
 WECOM_ADMIN_LOGIN_REDIRECT_URI=https://your-admin-domain.example/
 WECOM_INSTALL_BASE_URL=https://open.work.weixin.qq.com/3rdapp/install
+STORAGE_DRIVER=local
+STORAGE_LOCAL_ROOT=/data/business-card-saas/uploads
+STORAGE_MAX_UPLOAD_BYTES=5242880
+STORAGE_MAX_VIDEO_UPLOAD_BYTES=524288000
 ```
 
 `WECOM_ADMIN_LOGIN_REDIRECT_URI` is the public admin web page that receives WeCom `code` and `state`, not the backend JSON exchange endpoint. The admin page then calls `/api/v1/admin/auth/wecom/scan-callback` to complete the login.
@@ -244,6 +248,8 @@ CORS_ORIGINS=https://your-admin-domain.example
 ```
 
 If the admin UI is not deployed yet, keep the final admin domain blank until it exists; WeCom server-to-server callbacks do not depend on browser CORS.
+
+For local file storage, `STORAGE_LOCAL_ROOT` is optional. If it is empty or missing, the backend stores uploaded files under `storage/uploads` relative to the process working directory. In production, set it to a persistent server path and make sure the app process can create and write that directory. `STORAGE_MAX_UPLOAD_BYTES` controls ordinary image/media uploads, and `STORAGE_MAX_VIDEO_UPLOAD_BYTES` controls video uploads; the video API also respects each tenant's enabled video capability and effective size limit.
 
 ## WeCom Third-Party SaaS Configuration
 

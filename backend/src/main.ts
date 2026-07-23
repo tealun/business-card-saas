@@ -12,22 +12,29 @@ import { AppConfig } from "./config/app-config.js";
 // larger, route-scoped limit so anonymous routes cannot be used for large-body abuse.
 const DEFAULT_BODY_LIMIT_BYTES = 1 * 1024 * 1024;
 const UPLOAD_BODY_LIMIT_BYTES = 8 * 1024 * 1024;
-const UPLOAD_ROUTE_MATCHERS = [
-  /\/employee\/cards\/current(\/style)?$/,
-  /\/admin\/company-profile$/,
-  /\/admin\/templates(\/[^/]+)?$/,
-  /\/admin\/members\/[^/]+\/card$/
+const IMAGE_UPLOAD_BODY_LIMIT_BYTES = envPositiveInt("STORAGE_MAX_UPLOAD_BYTES", 5 * 1024 * 1024);
+const VIDEO_UPLOAD_BODY_LIMIT_BYTES = envPositiveInt("STORAGE_MAX_VIDEO_UPLOAD_BYTES", 500 * 1024 * 1024);
+const UPLOAD_ROUTE_LIMITS = [
+  { matcher: /\/employee\/cards\/current(\/style)?$/, bytes: UPLOAD_BODY_LIMIT_BYTES },
+  { matcher: /\/admin\/company-profile$/, bytes: UPLOAD_BODY_LIMIT_BYTES },
+  { matcher: /\/admin\/templates(\/[^/]+)?$/, bytes: UPLOAD_BODY_LIMIT_BYTES },
+  { matcher: /\/admin\/members\/[^/]+\/card$/, bytes: UPLOAD_BODY_LIMIT_BYTES },
+  { matcher: /\/admin\/uploads\/images$/, bytes: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
+  { matcher: /\/admin\/uploads\/videos$/, bytes: VIDEO_UPLOAD_BODY_LIMIT_BYTES }
 ];
+const RAW_MEDIA_CONTENT_TYPES = ["application/octet-stream", "image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"];
 
 async function bootstrap() {
   const adapter = new FastifyAdapter({ bodyLimit: DEFAULT_BODY_LIMIT_BYTES, trustProxy: "loopback" });
   adapter.getInstance().addHook("onRoute", (routeOptions) => {
     const methods = Array.isArray(routeOptions.method) ? routeOptions.method : [routeOptions.method];
     const isWrite = methods.some((method) => method === "POST" || method === "PUT");
-    if (isWrite && UPLOAD_ROUTE_MATCHERS.some((matcher) => matcher.test(routeOptions.url))) {
-      routeOptions.bodyLimit = UPLOAD_BODY_LIMIT_BYTES;
+    const limit = UPLOAD_ROUTE_LIMITS.find((item) => item.matcher.test(routeOptions.url));
+    if (isWrite && limit) {
+      routeOptions.bodyLimit = limit.bytes;
     }
   });
+  registerRawMediaBodyParser(adapter);
   registerXmlBodyParser(adapter);
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: true,
@@ -85,3 +92,20 @@ bootstrap().catch((error: unknown) => {
   console.error(`[FATAL] Backend startup failed: ${message}`);
   process.exitCode = 1;
 });
+
+function envPositiveInt(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
+}
+
+function registerRawMediaBodyParser(adapter: FastifyAdapter): void {
+  for (const contentType of RAW_MEDIA_CONTENT_TYPES) {
+    adapter.getInstance().addContentTypeParser(
+      contentType,
+      { parseAs: "buffer" },
+      (_request: unknown, body: unknown, done: (error: Error | null, value?: Buffer) => void) => {
+        done(null, Buffer.isBuffer(body) ? body : Buffer.from([]));
+      }
+    );
+  }
+}

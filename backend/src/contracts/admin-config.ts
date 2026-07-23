@@ -54,6 +54,9 @@ export const companyModuleLayoutSchema = z.enum(["text", "image", "graphic", "gr
 const backendImageSourceSchema = z.string().refine((value) => /^https?:\/\//.test(value) || value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/"), {
   message: "image URL must use http(s) or a backend asset path"
 });
+const backendMediaSourceSchema = z.string().refine((value) => /^https?:\/\//.test(value) || value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/"), {
+  message: "media URL must use http(s) or a backend asset path"
+});
 export const companyModuleSchema = z.object({
   key: companyModuleKeySchema,
   title: z.string().min(1).max(32),
@@ -135,6 +138,34 @@ export const adminCompanyHonorListResponseSchema = z.object({
   items: z.array(adminCompanyHonorSchema)
 });
 
+export const adminCompanyVideoSchema = z.object({
+  video_id: z.string(),
+  title: z.string().min(1).max(255),
+  video_url: backendMediaSourceSchema,
+  cover_url: backendImageSourceSchema.nullable(),
+  duration_seconds: z.number().int().min(0).max(86_400).nullable(),
+  sort_order: z.number().int().min(0).max(999),
+  visible: z.boolean(),
+  status: z.enum(["draft", "published"])
+});
+
+export const adminCompanyVideoListResponseSchema = z.object({
+  tenant_id: z.string(),
+  items: z.array(adminCompanyVideoSchema)
+});
+
+export const createAdminCompanyVideoRequestSchema = z.object({
+  title: z.string().min(1).max(255),
+  video_url: backendMediaSourceSchema,
+  cover_url: backendImageSourceSchema.nullable().optional(),
+  duration_seconds: z.number().int().min(0).max(86_400).nullable().optional(),
+  sort_order: z.number().int().min(0).max(999).optional(),
+  visible: z.boolean().optional(),
+  status: z.enum(["draft", "published"]).optional()
+});
+
+export const updateAdminCompanyVideoRequestSchema = createAdminCompanyVideoRequestSchema.partial();
+
 export const createAdminCompanyHonorRequestSchema = z.object({
   title: z.string().min(1).max(255),
   body: z.string().max(2000).nullable().optional(),
@@ -207,3 +238,7 @@ export type AdminCompanyHonor = z.infer<typeof adminCompanyHonorSchema>;
 export type AdminCompanyHonorListResponse = z.infer<typeof adminCompanyHonorListResponseSchema>;
 export type CreateAdminCompanyHonorRequest = z.infer<typeof createAdminCompanyHonorRequestSchema>;
 export type UpdateAdminCompanyHonorRequest = z.infer<typeof updateAdminCompanyHonorRequestSchema>;
+export type AdminCompanyVideo = z.infer<typeof adminCompanyVideoSchema>;
+export type AdminCompanyVideoListResponse = z.infer<typeof adminCompanyVideoListResponseSchema>;
+export type CreateAdminCompanyVideoRequest = z.infer<typeof createAdminCompanyVideoRequestSchema>;
+export type UpdateAdminCompanyVideoRequest = z.infer<typeof updateAdminCompanyVideoRequestSchema>;

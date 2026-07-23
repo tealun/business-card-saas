@@ -85,6 +85,62 @@ function request(path, options = {}) {
   return run();
 }
 
+function uploadBinary(path, filePath, options = {}) {
+  const baseUrl = apiBase();
+  const timeout = options.timeout || 120000;
+
+  return readFileAsArrayBuffer(filePath).then((buffer) => new Promise((resolve, reject) => {
+    const app = getAppInstance();
+    const globalData = app && app.globalData ? app.globalData : {};
+    const headers = {
+      "content-type": options.contentType || "application/octet-stream",
+      ...(options.header || {})
+    };
+    if (options.auth !== false && globalData.token) {
+      headers.authorization = `Bearer ${globalData.token}`;
+    }
+
+    wx.request({
+      url: `${baseUrl}${path}`,
+      method: "POST",
+      data: buffer,
+      header: headers,
+      timeout,
+      success(response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          const payload = response.data && typeof response.data === "object" && "data" in response.data
+            ? response.data.data
+            : response.data;
+          resolve(sanitizeApiData(payload, baseUrl));
+          return;
+        }
+        if (response.statusCode === 401) {
+          clearSessionState();
+        }
+        reject(new Error((response.data && response.data.message) || `HTTP ${response.statusCode}`));
+      },
+      fail: reject
+    });
+  }));
+}
+
+function readFileAsArrayBuffer(filePath) {
+  return new Promise((resolve, reject) => {
+    const fs = wx.getFileSystemManager && wx.getFileSystemManager();
+    if (!fs || typeof fs.readFile !== "function") {
+      reject(new Error("文件系统不可用"));
+      return;
+    }
+    fs.readFile({
+      filePath,
+      success(result) {
+        resolve(result.data);
+      },
+      fail: reject
+    });
+  });
+}
+
 // WeChat and DevTools expose selected images through http://tmp, wxfile, or a
 // loopback /**tmp**/ URL. Those URLs belong to one process and become invalid after the temp file is
 // cleared. Filter historical values at the API boundary so no page can hand a
@@ -230,6 +286,7 @@ function maybeDemoCode(type = "qy") {
 
 module.exports = {
   request,
+  uploadBinary,
   qyLoginCode,
   wxLoginCode,
   isWeComRuntime,

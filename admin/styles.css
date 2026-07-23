@@ -2652,6 +2652,34 @@ button.metric:active {
   font-size: 14px;
 }
 
+.claim-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 12px;
+  background: #eff6ff;
+}
+
+.claim-code-wrap[hidden] {
+  display: none;
+}
+
+.claim-code-wrap span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.claim-code-wrap strong {
+  flex: 1;
+  color: #1d4ed8;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+
 /* ---------- 联调输出 ---------- */
 
 .output {

@@ -5,19 +5,25 @@ import {
   adminCompanyProfileSchema,
   adminCompanyHonorListResponseSchema,
   adminCompanyHonorSchema,
+  adminCompanyVideoListResponseSchema,
+  adminCompanyVideoSchema,
   adminFieldSettingsResponseSchema,
   adminTemplateListResponseSchema,
   adminTemplateSchema,
   type AdminCompanyHonor,
   type AdminCompanyHonorListResponse,
   type AdminCompanyProfile,
+  type AdminCompanyVideo,
+  type AdminCompanyVideoListResponse,
   type AdminFieldSettingsResponse,
   type AdminTemplate,
   type AdminTemplateListResponse,
   type CreateAdminCompanyHonorRequest,
+  type CreateAdminCompanyVideoRequest,
   type CreateAdminTemplateRequest,
   type UpdateAdminCompanyProfileRequest,
   type UpdateAdminCompanyHonorRequest,
+  type UpdateAdminCompanyVideoRequest,
   type UpdateAdminFieldSettingsRequest,
   type UpdateAdminTemplateRequest
 } from "../contracts/admin-config.js";
@@ -143,6 +149,58 @@ export class AdminConfigService {
     });
   }
 
+  async listCompanyVideos(session: AdminSession): Promise<AdminCompanyVideoListResponse> {
+    requireTenantAdminRole(session, "auditor");
+    return adminCompanyVideoListResponseSchema.parse({
+      tenant_id: session.tenantId,
+      items: await this.repository.listCompanyVideos(session.tenantId)
+    });
+  }
+
+  async createCompanyVideo(
+    session: AdminSession,
+    request: CreateAdminCompanyVideoRequest
+  ): Promise<AdminCompanyVideo> {
+    requireTenantAdminRole(session, "admin");
+    await this.requireVideoCapability(session.tenantId);
+    const video = adminCompanyVideoSchema.parse(await this.repository.createCompanyVideo(session.tenantId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "company.video.create",
+      targetType: "company_video",
+      targetId: video.video_id
+    });
+    return video;
+  }
+
+  async updateCompanyVideo(
+    session: AdminSession,
+    videoId: string,
+    request: UpdateAdminCompanyVideoRequest
+  ): Promise<AdminCompanyVideo> {
+    requireTenantAdminRole(session, "admin");
+    await this.requireVideoCapability(session.tenantId);
+    const video = adminCompanyVideoSchema.parse(await this.repository.updateCompanyVideo(session.tenantId, videoId, request));
+    await this.operationLogs?.record({
+      session,
+      action: "company.video.update",
+      targetType: "company_video",
+      targetId: videoId
+    });
+    return video;
+  }
+
+  async deleteCompanyVideo(session: AdminSession, videoId: string): Promise<void> {
+    requireTenantAdminRole(session, "admin");
+    await this.repository.deleteCompanyVideo(session.tenantId, videoId);
+    await this.operationLogs?.record({
+      session,
+      action: "company.video.delete",
+      targetType: "company_video",
+      targetId: videoId
+    });
+  }
+
   async listTemplates(session: AdminSession): Promise<AdminTemplateListResponse> {
     requireTenantAdminRole(session, "auditor");
     return adminTemplateListResponseSchema.parse({
@@ -189,5 +247,10 @@ export class AdminConfigService {
       targetId: templateId
     });
     return template;
+  }
+
+  private async requireVideoCapability(tenantId: string): Promise<void> {
+    const capability = await this.videoFeatures?.capability(tenantId);
+    if (!capability?.enabled) throw new ForbiddenException("company video feature is not enabled");
   }
 }

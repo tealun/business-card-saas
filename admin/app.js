@@ -2424,14 +2424,21 @@ function showLocalEnterpriseClaimDialog(result) {
   $("#localEnterpriseClaimMeta").textContent = `企业 ID ${result.tenant_id} · 有效期至 ${formatDate(result.claim_expires_at)}`;
   const qrWrap = $("#localEnterpriseClaimQrWrap");
   const copyPathButton = $("#copyLocalEnterpriseClaimPath");
+  const codeWrap = $("#localEnterpriseClaimCodeWrap");
+  const codeValue = $("#localEnterpriseClaimCode");
   qrWrap.replaceChildren();
+  const claimCode = String(result.claim_code || "").trim();
+  codeWrap.hidden = !claimCode;
+  codeValue.textContent = claimCode;
   if (result.claim_qr_code_data_url) {
     const image = document.createElement("img");
     image.src = result.claim_qr_code_data_url;
     image.alt = "本地企业认领二维码";
     qrWrap.append(image);
     copyPathButton.hidden = true;
-    $("#localEnterpriseClaimHint").textContent = "请企业负责人使用微信扫描二维码，在小程序内完成认领。二维码 15 分钟内有效。";
+    $("#localEnterpriseClaimHint").textContent = claimCode
+      ? "请企业负责人使用微信扫描二维码，或在小程序认领页输入 8 位认领码。二维码与认领码 15 分钟内有效。"
+      : "请企业负责人使用微信扫描二维码，在小程序内完成认领。二维码 15 分钟内有效。";
   } else {
     const empty = document.createElement("div");
     empty.className = "claim-qr-empty";
@@ -2446,6 +2453,11 @@ function showLocalEnterpriseClaimDialog(result) {
 
 function localEnterpriseClaimQrFailureHint(result) {
   const error = String(result.claim_qr_error || "").trim();
+  if (String(result.claim_code || "").trim()) {
+    return error
+      ? `微信小程序码生成失败：${error}。认领码仍可直接使用，也可先复制小程序路径用于排障。`
+      : "二维码暂不可用，但认领码仍可直接使用。也可先复制小程序路径用于排障。";
+  }
   if (!error || error === "wechat_miniprogram_credentials_missing") {
     return "当前后端进程未读取到微信小程序凭据，无法自动生成二维码。请确认服务器 .env 已配置并重启后端。可先复制小程序路径用于排障。";
   }
@@ -3168,6 +3180,16 @@ $("#copyLocalEnterpriseClaimPath").addEventListener("click", async () => {
     notify("小程序路径已复制");
   } catch (_) {
     window.prompt("复制小程序路径", path);
+  }
+});
+$("#copyLocalEnterpriseClaimCode").addEventListener("click", async () => {
+  const code = $("#localEnterpriseClaimCode").textContent.trim();
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    notify("认领码已复制");
+  } catch (_) {
+    window.prompt("复制认领码", code);
   }
 });
 $("#loadPlatformWecomEvents").addEventListener("click", () => run("刷新回调", loadPlatformWecomEvents));

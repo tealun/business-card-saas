@@ -5,12 +5,15 @@ import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.se
 import type {
   AdminCompanyProfile,
   AdminCompanyHonor,
+  AdminCompanyVideo,
   AdminFieldRule,
   AdminTemplate,
   CreateAdminCompanyHonorRequest,
+  CreateAdminCompanyVideoRequest,
   CreateAdminTemplateRequest,
   UpdateAdminCompanyProfileRequest,
   UpdateAdminCompanyHonorRequest,
+  UpdateAdminCompanyVideoRequest,
   UpdateAdminFieldSettingsRequest,
   UpdateAdminTemplateRequest
 } from "../contracts/admin-config.js";
@@ -59,6 +62,17 @@ interface HonorRow extends QueryResultRow {
   image_sort_order: number | null;
 }
 
+interface CompanyVideoRow extends QueryResultRow {
+  id: string | number | bigint;
+  title: string;
+  video_url: string;
+  cover_url: string | null;
+  duration_seconds: number | null;
+  sort_order: number;
+  visible: boolean;
+  status: "draft" | "published";
+}
+
 interface CountRow extends QueryResultRow {
   count: string;
 }
@@ -68,6 +82,7 @@ export class AdminConfigRepository {
   private readonly fieldSettings = new Map<string, AdminFieldRule[]>();
   private readonly companyProfiles = new Map<string, AdminCompanyProfile>();
   private readonly companyHonors = new Map<string, AdminCompanyHonor[]>();
+  private readonly companyVideos = new Map<string, AdminCompanyVideo[]>();
   private readonly templates = new Map<string, AdminTemplate[]>();
 
   constructor(@Optional() private readonly tenantTx?: TenantTx) {}
@@ -379,6 +394,173 @@ export class AdminConfigRepository {
     this.companyHonors.set(tenantId, cloneCompanyHonors(next));
   }
 
+  async listCompanyVideos(tenantId: string): Promise<AdminCompanyVideo[]> {
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, (tx) =>
+        tx.query<CompanyVideoRow>(
+          `
+            SELECT id, title, video_url, cover_url, duration_seconds, sort_order, visible, status
+            FROM company_videos
+            WHERE tenant_id = $1
+              AND deleted_at IS NULL
+            ORDER BY sort_order ASC, id ASC
+          `,
+          [tenantId]
+        )
+      );
+      return result.rows.map(rowToCompanyVideo);
+    }
+
+    const current = this.companyVideos.get(tenantId) ?? [];
+    this.companyVideos.set(tenantId, cloneCompanyVideos(current));
+    return cloneCompanyVideos(current);
+  }
+
+  async createCompanyVideo(tenantId: string, request: CreateAdminCompanyVideoRequest): Promise<AdminCompanyVideo> {
+    if (this.hasDatabase()) {
+      const result = await this.tenantTx!.run(tenantId, (tx) =>
+        tx.query<CompanyVideoRow>(
+          `
+            INSERT INTO company_videos (
+              tenant_id, title, video_url, cover_url, duration_seconds, sort_order, visible, status, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+            RETURNING id, title, video_url, cover_url, duration_seconds, sort_order, visible, status
+          `,
+          [
+            tenantId,
+            request.title,
+            request.video_url,
+            request.cover_url ?? null,
+            request.duration_seconds ?? null,
+            request.sort_order ?? 0,
+            request.visible ?? true,
+            request.status ?? "draft"
+          ]
+        )
+      );
+      return rowToCompanyVideo(result.rows[0]);
+    }
+
+    const current = await this.listCompanyVideos(tenantId);
+    const video: AdminCompanyVideo = {
+      video_id: nextVideoId(current),
+      title: request.title,
+      video_url: request.video_url,
+      cover_url: request.cover_url ?? null,
+      duration_seconds: request.duration_seconds ?? null,
+      sort_order: request.sort_order ?? (current.length + 1) * 10,
+      visible: request.visible ?? true,
+      status: request.status ?? "draft"
+    };
+    current.push(video);
+    this.companyVideos.set(tenantId, cloneCompanyVideos(current));
+    return { ...video };
+  }
+
+  async updateCompanyVideo(
+    tenantId: string,
+    videoId: string,
+    request: UpdateAdminCompanyVideoRequest
+  ): Promise<AdminCompanyVideo> {
+    if (this.hasDatabase()) {
+      const current = await this.getCompanyVideoRow(tenantId, videoId);
+      const result = await this.tenantTx!.run(tenantId, (tx) =>
+        tx.query<CompanyVideoRow>(
+          `
+            UPDATE company_videos
+            SET title = $3,
+                video_url = $4,
+                cover_url = $5,
+                duration_seconds = $6,
+                sort_order = $7,
+                visible = $8,
+                status = $9,
+                updated_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+            RETURNING id, title, video_url, cover_url, duration_seconds, sort_order, visible, status
+          `,
+          [
+            tenantId,
+            videoId,
+            request.title ?? current.title,
+            request.video_url ?? current.video_url,
+            request.cover_url !== undefined ? request.cover_url : current.cover_url,
+            request.duration_seconds !== undefined ? request.duration_seconds : current.duration_seconds,
+            request.sort_order ?? current.sort_order,
+            request.visible ?? current.visible,
+            request.status ?? current.status
+          ]
+        )
+      );
+      return rowToCompanyVideo(result.rows[0]);
+    }
+
+    const current = await this.listCompanyVideos(tenantId);
+    const index = current.findIndex((video) => video.video_id === videoId);
+    if (index < 0) {
+      throw new NotFoundException("video not found");
+    }
+    const existing = current[index]!;
+    const updated: AdminCompanyVideo = {
+      video_id: existing.video_id,
+      title: request.title ?? existing.title,
+      video_url: request.video_url ?? existing.video_url,
+      cover_url: request.cover_url !== undefined ? request.cover_url : existing.cover_url,
+      duration_seconds: request.duration_seconds !== undefined ? request.duration_seconds : existing.duration_seconds,
+      sort_order: request.sort_order ?? existing.sort_order,
+      visible: request.visible ?? existing.visible,
+      status: request.status ?? existing.status
+    };
+    current[index] = updated;
+    this.companyVideos.set(tenantId, cloneCompanyVideos(current));
+    return { ...updated };
+  }
+
+  async deleteCompanyVideo(tenantId: string, videoId: string): Promise<void> {
+    if (this.hasDatabase()) {
+      await this.tenantTx!.run(tenantId, async (tx) => {
+        const result = await tx.query(
+          `
+            UPDATE company_videos
+            SET deleted_at = now(), visible = false, status = 'draft', updated_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+          `,
+          [tenantId, videoId]
+        );
+        if (result.rowCount === 0) {
+          throw new NotFoundException("video not found");
+        }
+        await tx.query(
+          `
+            UPDATE company_profiles
+            SET intro_json = (
+              SELECT COALESCE(jsonb_agg(block), '[]'::jsonb)
+              FROM jsonb_array_elements(COALESCE(intro_json, '[]'::jsonb)) AS block
+              WHERE NOT (block->>'type' = 'video' AND block->>'video_id' = $2)
+            ),
+            updated_at = now()
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+          `,
+          [tenantId, videoId]
+        );
+      });
+      return;
+    }
+
+    const current = await this.listCompanyVideos(tenantId);
+    const next = current.filter((video) => video.video_id !== videoId);
+    if (next.length === current.length) {
+      throw new NotFoundException("video not found");
+    }
+    this.companyVideos.set(tenantId, cloneCompanyVideos(next));
+    const profile = this.companyProfiles.get(tenantId);
+    if (profile) {
+      profile.intro_blocks = profile.intro_blocks.filter((block) => !(block.type === "video" && block.video_id === videoId));
+      this.companyProfiles.set(tenantId, cloneCompanyProfile(profile));
+    }
+  }
+
   async publishedVideoExists(tenantId: string, videoId: string): Promise<boolean> {
     if (!/^\d+$/.test(videoId)) {
       return false;
@@ -402,7 +584,8 @@ export class AdminConfigRepository {
       );
       return Boolean(result.rows[0]?.exists);
     }
-    return true;
+    const current = await this.listCompanyVideos(tenantId);
+    return current.some((video) => video.video_id === videoId && video.visible && video.status === "published");
   }
 
   async listTemplates(tenantId: string): Promise<AdminTemplate[]> {
@@ -632,6 +815,25 @@ export class AdminConfigRepository {
     return row;
   }
 
+  private async getCompanyVideoRow(tenantId: string, videoId: string): Promise<CompanyVideoRow> {
+    const result = await this.tenantTx!.run(tenantId, (tx) =>
+      tx.query<CompanyVideoRow>(
+        `
+          SELECT id, title, video_url, cover_url, duration_seconds, sort_order, visible, status
+          FROM company_videos
+          WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+          LIMIT 1
+        `,
+        [tenantId, videoId]
+      )
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException("video not found");
+    }
+    return row;
+  }
+
   private async getCompanyHonor(
     tx: TenantTransactionClient,
     tenantId: string,
@@ -829,6 +1031,22 @@ function rowToTemplate(row: TemplateRow | undefined): AdminTemplate {
   };
 }
 
+function rowToCompanyVideo(row: CompanyVideoRow | undefined): AdminCompanyVideo {
+  if (!row) {
+    throw new Error("company video row missing");
+  }
+  return {
+    video_id: String(row.id),
+    title: row.title,
+    video_url: row.video_url,
+    cover_url: row.cover_url,
+    duration_seconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    sort_order: Number(row.sort_order),
+    visible: row.visible,
+    status: row.status
+  };
+}
+
 function normalizeRecord(value: unknown): Record<string, unknown> {
   const parsed = parseJsonValue(value);
   return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? { ...(parsed as Record<string, unknown>) } : {};
@@ -963,6 +1181,18 @@ function cloneCompanyHonor(honor: AdminCompanyHonor): AdminCompanyHonor {
 
 function cloneCompanyHonors(honors: AdminCompanyHonor[]): AdminCompanyHonor[] {
   return honors.map(cloneCompanyHonor);
+}
+
+function cloneCompanyVideos(videos: AdminCompanyVideo[]): AdminCompanyVideo[] {
+  return videos.map((video) => ({ ...video }));
+}
+
+function nextVideoId(videos: AdminCompanyVideo[]): string {
+  const maxId = videos.reduce((max, video) => {
+    const value = Number(video.video_id);
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0);
+  return String(maxId + 1);
 }
 
 function defaultDisplayModules(): AdminCompanyProfile["display_modules"] {

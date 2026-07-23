@@ -49,6 +49,19 @@ describe("LocalEnterpriseService", () => {
     expect(repository.findLocalAdminForAccount).toHaveBeenCalledWith("10","20");
   });
 
+  it("lists manageable local enterprises for any active tenant admin role",async()=>{
+    const repository={listLocalAdminsForAccount:jest.fn(async()=>[
+      {tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"admin"},
+      {tenantId:"21",tenantName:"分公司",memberId:"31",openUserid:"account:10",role:"operator"}
+    ])};
+    const service=new LocalEnterpriseService(repository as never,{} as never,audit as never,joinQr as never);
+    await expect(service.listAdminTenants(employee)).resolves.toEqual({items:[
+      {tenant_id:"20",tenant_name:"本地企业",role:"admin"},
+      {tenant_id:"21",tenant_name:"分公司",role:"operator"}
+    ]});
+    expect(repository.listLocalAdminsForAccount).toHaveBeenCalledWith("10");
+  });
+
   it("creates and consumes a one-time local admin scan challenge",async()=>{
     const repository={
       createAdminScanChallenge:jest.fn(async()=>undefined),

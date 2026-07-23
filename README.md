@@ -81,10 +81,14 @@ $env:WECOM_INSTALL_REDIRECT_URI="https://api.example.com/api/v1/wecom/authorizat
 $env:CORS_ORIGINS="https://admin.example.com"
 $env:STORAGE_DRIVER="local"
 $env:STORAGE_LOCAL_ROOT="/data/business-card-saas/uploads"
+$env:STORAGE_MAX_UPLOAD_BYTES="5242880"
+$env:STORAGE_MAX_VIDEO_UPLOAD_BYTES="524288000"
 # 本地存储无需配置 STORAGE_PUBLIC_BASE_URL；仅独立 CDN/OSS 时配置。
 npm run build
 npm start
 ```
+
+`STORAGE_LOCAL_ROOT` 可不配置；未配置时后端默认使用运行目录下的 `storage/uploads`。生产环境建议配置到服务器持久化目录，并按业务需要调整 `STORAGE_MAX_UPLOAD_BYTES`（图片等普通媒体）和 `STORAGE_MAX_VIDEO_UPLOAD_BYTES`（视频上传上限，默认 500MB）。
 
 生产库只执行 `database/schema.sql` + `database/rls.sql` 初始化，或通过管理后台的数据库迁移入口由 owner 手动触发 `database` 子项目中的 `npm run migrate`；不要执行 `database` ? `verify`。非本地一次性测试库运行 `database` ? `verify` 时需要额外设置 `DB_VERIFY_ALLOW_NONLOCAL=1`。管理后台迁移入口依赖后端 `.env` 中的 `DATABASE_DIR`，部署布局通常填 `database`，本地从 `backend/` 启动时填 `../database`。
 

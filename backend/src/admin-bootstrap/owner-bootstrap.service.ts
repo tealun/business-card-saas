@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { createHash } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import {
   bootstrapOwnerResultSchema,
   type BootstrapOwnerInput,
@@ -34,17 +34,19 @@ export class OwnerBootstrapService {
     }
 
     const claimToken = randomToken("admclaim", 24);
-    const tokenHash = this.hashClaimToken(claimToken);
+    const claimCode = randomClaimCode();
     const expiresAt = new Date(Date.now() + this.claimTokenTtlMs);
-    const record = await this.repository.createClaimToken({
+    const records = await this.repository.createClaimTokens({
       tenantId: input.tenant_id,
-      tokenHash,
+      tokenHashes: [this.hashClaimToken(claimToken), this.hashClaimToken(claimCode)],
       expiresAt
     });
+    const record = records[0]!;
     return bootstrapOwnerResultSchema.parse({
       mode: "claim_token_created",
       tenant_id: record.tenantId,
       claim_token: claimToken,
+      claim_code: claimCode,
       expires_at: record.expiresAt.toISOString()
     });
   }
@@ -69,4 +71,13 @@ export class OwnerBootstrapService {
     }
     return this.repository.claimOwner(ownerInput);
   }
+}
+
+function randomClaimCode(): string {
+  const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let code = "";
+  for (let index = 0; index < 8; index += 1) {
+    code += alphabet[randomInt(alphabet.length)];
+  }
+  return code;
 }

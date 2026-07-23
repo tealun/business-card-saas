@@ -138,8 +138,8 @@
 
 .tool-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12rpx;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18rpx 12rpx;
 }
 
 .tool-grid__item {

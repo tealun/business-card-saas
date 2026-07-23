@@ -74,10 +74,20 @@ describe("AppConfig", () => {
     delete process.env.STORAGE_DRIVER;
     delete process.env.STORAGE_LOCAL_ROOT;
     delete process.env.STORAGE_PUBLIC_BASE_URL;
+    delete process.env.STORAGE_MAX_VIDEO_UPLOAD_BYTES;
     const config = new AppConfig();
     expect(config.storageDriver).toBe("local");
     expect(config.storageLocalRoot).toContain("storage");
     expect(config.storagePublicBaseUrl).toBe("/api/v1/storage");
+    expect(config.storageMaxVideoUploadBytes).toBe(500 * 1024 * 1024);
+  });
+
+  it("uses a configured local storage root before falling back to the default path", () => {
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = "custom-local-storage";
+    const config = new AppConfig();
+
+    expect(config.storageLocalRoot).toContain("custom-local-storage");
   });
 
   it("requires Alibaba Cloud OSS connection settings when aliyun_oss storage is selected", () => {

@@ -105,6 +105,15 @@ export class OwnerBootstrapRepository {
   }
 
   async createClaimToken(input: { tenantId: string; tokenHash: string; expiresAt: Date }): Promise<AdminClaimTokenRecord> {
+    return (await this.createClaimTokens({ tenantId: input.tenantId, tokenHashes: [input.tokenHash], expiresAt: input.expiresAt }))[0]!;
+  }
+
+  async createClaimTokens(input: { tenantId: string; tokenHashes: string[]; expiresAt: Date }): Promise<AdminClaimTokenRecord[]> {
+    const tokenHashes = [...new Set(input.tokenHashes.map((hash) => hash.trim()).filter(Boolean))];
+    if (!tokenHashes.length) {
+      throw new ConflictException("admin claim token is required");
+    }
+
     if (this.hasDatabase()) {
       if (await this.hasOwner(input.tenantId)) {
         throw new ConflictException("tenant owner already exists");
@@ -120,17 +129,21 @@ export class OwnerBootstrapRepository {
                 used_at,
                 created_at
               )
-              VALUES ($1, $2, $3, NULL, now())
+              SELECT $1, token_hash, $3, NULL, now()
+              FROM unnest($2::text[]) AS token_hash
               RETURNING tenant_id, token_hash, expires_at, used_at
             `,
-            [input.tenantId, input.tokenHash, input.expiresAt]
+            [input.tenantId, tokenHashes, input.expiresAt]
           )
         );
-        const record = this.rowToClaimToken(result.rows[0]);
-        if (!record) {
+        const records = result.rows.flatMap((row) => {
+          const record = this.rowToClaimToken(row);
+          return record ? [record] : [];
+        });
+        if (records.length !== tokenHashes.length) {
           throw new Error("failed to create admin claim token");
         }
-        return record;
+        return records;
       } catch (error) {
         if (isUniqueViolation(error)) {
           throw new ConflictException("admin claim token already exists");
@@ -142,17 +155,17 @@ export class OwnerBootstrapRepository {
     if (this.hasOwnerInMemory(input.tenantId)) {
       throw new ConflictException("tenant owner already exists");
     }
-    if (this.claimTokens.has(input.tokenHash)) {
+    if (tokenHashes.some((tokenHash) => this.claimTokens.has(tokenHash))) {
       throw new ConflictException("admin claim token already exists");
     }
-    const record: AdminClaimTokenRecord = {
+    const records = tokenHashes.map((tokenHash) => ({
       tenantId: input.tenantId,
-      tokenHash: input.tokenHash,
+      tokenHash,
       expiresAt: input.expiresAt,
       usedAt: null
-    };
-    this.claimTokens.set(input.tokenHash, record);
-    return record;
+    }));
+    records.forEach((record) => this.claimTokens.set(record.tokenHash, record));
+    return records;
   }
 
   async claimOwner(input: ClaimOwnerInput): Promise<TenantAdminRecord | null> {
@@ -194,9 +207,16 @@ export class OwnerBootstrapRepository {
               UPDATE admin_claim_tokens
               SET used_at = now()
               WHERE tenant_id = $1
-                AND token_hash = $2
                 AND used_at IS NULL
                 AND expires_at > now()
+                AND EXISTS (
+                  SELECT 1
+                  FROM admin_claim_tokens
+                  WHERE tenant_id = $1
+                    AND token_hash = $2
+                    AND used_at IS NULL
+                    AND expires_at > now()
+                )
               RETURNING tenant_id, token_hash, expires_at, used_at
             `,
             [input.tenantId, input.tokenHash]
@@ -243,8 +263,12 @@ export class OwnerBootstrapRepository {
     }
 
     const owner = this.createOwnerInMemory(input);
-    token.usedAt = new Date();
-    this.claimTokens.set(input.tokenHash, token);
+    const usedAt = new Date();
+    for (const [hash, record] of this.claimTokens.entries()) {
+      if (record.tenantId === input.tenantId && !record.usedAt && record.expiresAt.getTime() > Date.now()) {
+        this.claimTokens.set(hash, { ...record, usedAt });
+      }
+    }
     return owner;
   }
 
