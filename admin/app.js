@@ -482,6 +482,20 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function normalizeWebsiteUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) return text;
+  if (text.startsWith("//")) return `https:${text}`;
+  const candidate = `https://${text}`;
+  try {
+    new URL(candidate);
+    return candidate;
+  } catch (_error) {
+    return text;
+  }
+}
+
 function formatDate(value) {
   if (!value) return "--";
   const date = new Date(value);
@@ -1065,7 +1079,7 @@ function companyPayloadFromForm() {
     display_name: form.display_name.value.trim(),
     short_name: form.short_name.value.trim() || null,
     logo_url: form.logo_url.value.trim() || null,
-    website_url: form.website_url.value.trim() || null,
+    website_url: normalizeWebsiteUrl(form.website_url.value),
     address: form.address.value.trim() || null,
     visible: form.visible.checked,
     status: form.status.value,

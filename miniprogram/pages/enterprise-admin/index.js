@@ -1,6 +1,7 @@
 const { ensureSession } = require("../../utils/auth");
 const { request, uploadBinary } = require("../../utils/api");
 const { setPageTheme } = require("../../utils/theme");
+const { normalizeWebsiteUrl } = require("../../utils/website-url");
 const ADMIN_BOOTSTRAP_STORAGE_KEY = "wecomcard.admin.bootstrap.v1";
 
 const ROLE_LABELS = {
@@ -425,7 +426,7 @@ Page({
           display_name: textOrNull(draft.display_name) || "企业",
           short_name: textOrNull(draft.short_name),
           logo_url: textOrNull(draft.logo_url),
-          website_url: textOrNull(draft.website_url),
+          website_url: normalizeWebsiteUrl(draft.website_url),
           address: textOrNull(draft.address),
           visible: Boolean(draft.visible),
           status: draft.status === "published" ? "published" : "draft"
