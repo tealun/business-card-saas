@@ -198,41 +198,41 @@ jobs:
               "$archive" \
               "${DEPLOY_USER}@${DEPLOY_HOST}:${remote_archive}"
 
-            ssh -i ~/.ssh/deploy_key \
+          ssh -i ~/.ssh/deploy_key \
               -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes \
               -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
-set -euo pipefail
-mkdir -p "$DEPLOY_PATH"
-find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
-  ! -name 'config.js' \
-  ! -name '.env' \
-  ! -name '.env.local' \
-  ! -name '.env.*.local' \
-  ! -name '.env.production' \
-  ! -name '.env.staging' \
-  ! -name '*.log' \
-  ! -name 'logs' \
-  ! -name 'certs' \
-  ! -name 'public' \
-  ! -name 'uploads' \
-  ! -name 'data' \
-  ! -name 'cache' \
-  ! -name 'storage' \
-  ! -name 'tmp' \
-  ! -name 'runtime' \
-  ! -name 'node_modules' \
-  ! -name 'dist' \
-  ! -name '.npm-cache' \
-  ! -name 'database' \
-  ! -name '.git' \
-  ! -name '.vscode' \
-  -exec rm -rf {} +
-tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
-rm -f "$ARCHIVE"
-REMOTE
+          set -euo pipefail
+          mkdir -p "$DEPLOY_PATH"
+          find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
+            ! -name 'config.js' \
+            ! -name '.env' \
+            ! -name '.env.local' \
+            ! -name '.env.*.local' \
+            ! -name '.env.production' \
+            ! -name '.env.staging' \
+            ! -name '*.log' \
+            ! -name 'logs' \
+            ! -name 'certs' \
+            ! -name 'public' \
+            ! -name 'uploads' \
+            ! -name 'data' \
+            ! -name 'cache' \
+            ! -name 'storage' \
+            ! -name 'tmp' \
+            ! -name 'runtime' \
+            ! -name 'node_modules' \
+            ! -name 'dist' \
+            ! -name '.npm-cache' \
+            ! -name 'database' \
+            ! -name '.git' \
+            ! -name '.vscode' \
+            -exec rm -rf {} +
+          tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
+          rm -f "$ARCHIVE"
+          REMOTE
           else
             export SSHPASS="${ADMIN_DEPLOY_PASSWORD_SECRET:-${DEPLOY_PASSWORD_SECRET:-${SSH_PASSWORD_SECRET:-}}}"
             sshpass -e scp \
@@ -246,35 +246,35 @@ REMOTE
               -o StrictHostKeyChecking=accept-new \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "DEPLOY_PATH='${DEPLOY_PATH}' ARCHIVE='${remote_archive}' bash -s" <<'REMOTE'
-set -euo pipefail
-mkdir -p "$DEPLOY_PATH"
-find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
-  ! -name 'config.js' \
-  ! -name '.env' \
-  ! -name '.env.local' \
-  ! -name '.env.*.local' \
-  ! -name '.env.production' \
-  ! -name '.env.staging' \
-  ! -name '*.log' \
-  ! -name 'logs' \
-  ! -name 'certs' \
-  ! -name 'public' \
-  ! -name 'uploads' \
-  ! -name 'data' \
-  ! -name 'cache' \
-  ! -name 'storage' \
-  ! -name 'tmp' \
-  ! -name 'runtime' \
-  ! -name 'node_modules' \
-  ! -name 'dist' \
-  ! -name '.npm-cache' \
-  ! -name 'database' \
-  ! -name '.git' \
-  ! -name '.vscode' \
-  -exec rm -rf {} +
-tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
-rm -f "$ARCHIVE"
-REMOTE
+          set -euo pipefail
+          mkdir -p "$DEPLOY_PATH"
+          find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 \
+            ! -name 'config.js' \
+            ! -name '.env' \
+            ! -name '.env.local' \
+            ! -name '.env.*.local' \
+            ! -name '.env.production' \
+            ! -name '.env.staging' \
+            ! -name '*.log' \
+            ! -name 'logs' \
+            ! -name 'certs' \
+            ! -name 'public' \
+            ! -name 'uploads' \
+            ! -name 'data' \
+            ! -name 'cache' \
+            ! -name 'storage' \
+            ! -name 'tmp' \
+            ! -name 'runtime' \
+            ! -name 'node_modules' \
+            ! -name 'dist' \
+            ! -name '.npm-cache' \
+            ! -name 'database' \
+            ! -name '.git' \
+            ! -name '.vscode' \
+            -exec rm -rf {} +
+          tar -xzf "$ARCHIVE" -C "$DEPLOY_PATH"
+          rm -f "$ARCHIVE"
+          REMOTE
             fi
 
             rm -f "$archive"
