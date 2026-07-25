@@ -2,6 +2,7 @@ const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { setPageTheme } = require("../../utils/theme");
+const PORTRAIT_TEMPLATE_ID = "tpl_portrait_photo";
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
@@ -40,6 +41,8 @@ Page({
     editable: {},
     themeBrand: "",
     themeStyle: "",
+    templateId: "",
+    portraitPhotoTemplate: false,
     identityLabel: "",
     tags: [],
     privacy: {
@@ -80,6 +83,7 @@ Page({
         : (Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS);
       const fields = card.fields || {};
       const template = preview && preview.template ? preview.template : {};
+      const templateId = normalizeTemplateId((template && template.template_id) || (template.layout && template.layout.variant));
       this.setData({
         form: {
           avatar_url: card.avatar_url || "",
@@ -99,6 +103,8 @@ Page({
         },
         editable: editableMap(editableFields),
         selfService: Object.assign({}, this.data.selfService, card.employee_self_service || {}),
+        templateId,
+        portraitPhotoTemplate: isPortraitTemplate(templateId),
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
           ? app.globalData.currentIdentity.typeLabel
           : "当前名片",
@@ -140,14 +146,47 @@ Page({
     }
   },
 
-  setAvatarFromPath(path) {
-    pathToDataUrl(path)
-      .then((avatarUrl) => {
-        this.setData({ "form.avatar_url": avatarUrl });
-      })
-      .catch(() => {
-        wx.showToast({ title: "头像读取失败，请重新选择", icon: "none" });
-      });
+  choosePortraitAvatarFromAlbum() {
+    if (!this.canEdit("avatar_url")) {
+      this.lockedTip();
+      return;
+    }
+    if (typeof wx.chooseMedia !== "function") {
+      wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
+      return;
+    }
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album"],
+      sizeType: ["original"],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        if (file && file.tempFilePath) {
+          this.setAvatarFromPath(file.tempFilePath);
+        }
+      }
+    });
+  },
+
+  async setAvatarFromPath(path) {
+    try {
+      let info = null;
+      try {
+        info = await getImageInfo(path);
+      } catch (error) {
+        if (this.data.portraitPhotoTemplate) {
+          throw error;
+        }
+      }
+      if (this.data.portraitPhotoTemplate) {
+        validatePortraitPhoto(info);
+      }
+      const avatarUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
+      this.setData({ "form.avatar_url": avatarUrl });
+    } catch (error) {
+      wx.showToast({ title: error.message || "头像读取失败，请重新选择", icon: "none" });
+    }
   },
 
   onAvatarImageError() {
@@ -182,12 +221,14 @@ Page({
   },
 
   setLogoFromPath(path) {
-    pathToDataUrl(path)
+    getImageInfo(path)
+      .catch(() => null)
+      .then((info) => pathToDataUrl(path, info ? imageMime(info) : "image/jpeg"))
       .then((logoUrl) => {
         this.setData({ "form.logo_url": logoUrl });
       })
-      .catch(() => {
-        wx.showToast({ title: "LOGO读取失败，请重新选择", icon: "none" });
+      .catch((error) => {
+        wx.showToast({ title: error.message || "LOGO读取失败，请重新选择", icon: "none" });
       });
   },
 
@@ -322,7 +363,22 @@ function validateCardForm(form, editable) {
   }
 }
 
-function pathToDataUrl(path) {
+function normalizeTemplateId(templateId) {
+  const value = String(templateId || "").trim();
+  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  if (value === PORTRAIT_TEMPLATE_ID || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
+    return PORTRAIT_TEMPLATE_ID;
+  }
+  return value || "tpl_horizontal_business";
+}
+
+function isPortraitTemplate(templateId) {
+  return normalizeTemplateId(templateId) === PORTRAIT_TEMPLATE_ID;
+}
+
+function pathToDataUrl(path, mime = "image/jpeg") {
   if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
     return Promise.resolve(path);
   }
@@ -336,11 +392,49 @@ function pathToDataUrl(path) {
       filePath: path,
       encoding: "base64",
       success(result) {
-        resolve(`data:image/jpeg;base64,${result.data}`);
+        resolve(`data:${mime};base64,${result.data}`);
       },
       fail: reject
     });
   });
+}
+
+function getImageInfo(src) {
+  return new Promise((resolve, reject) => {
+    wx.getImageInfo({
+      src,
+      success: resolve,
+      fail: reject
+    });
+  });
+}
+
+function imageMime(info) {
+  const type = String(info && info.type || "").toLowerCase();
+  if (type === "png") return "image/png";
+  if (type === "jpg" || type === "jpeg") return "image/jpeg";
+  if (type === "webp") return "image/webp";
+  const path = String(info && info.path || "").toLowerCase();
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+}
+
+function validatePortraitPhoto(info) {
+  if (imageMime(info) !== "image/png") {
+    throw new Error("照片版仅支持 PNG 图片");
+  }
+  if (!info || !info.width || !info.height) {
+    throw new Error("无法读取图片尺寸");
+  }
+  const ratio = info.width / info.height;
+  if (ratio < 0.72 || ratio > 0.78) {
+    throw new Error("照片版请使用 3:4 竖图");
+  }
+  if (info.width < 900 || info.height < 1200) {
+    throw new Error("照片版请上传不小于 900×1200 的图片");
+  }
 }
 
 function isTemporaryImageUrl(value) {

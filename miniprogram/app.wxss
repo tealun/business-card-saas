@@ -274,6 +274,41 @@ button::after { border: none; }
   flex-shrink: 0;
   overflow: hidden;
 }
+.biz-card--portrait .biz-card__body {
+  align-items: center;
+  gap: 24rpx;
+}
+
+.biz-card--portrait .biz-card__info {
+  padding-right: 4rpx;
+}
+
+.biz-card--portrait .biz-card__name {
+  font-size: 42rpx;
+}
+
+.biz-card--portrait .biz-card__role {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+}
+
+.biz-card--portrait .biz-card__contact {
+  margin-top: 18rpx;
+}
+
+.biz-card--portrait .biz-card__avatar {
+  width: 146rpx;
+  height: 188rpx;
+  border-radius: 28rpx;
+  background: #eef0f3;
+  border: 4rpx solid rgba(255,255,255,.82);
+  box-shadow: 0 12rpx 24rpx rgba(16, 24, 40, .12);
+}
+
+.biz-card--portrait .avatar-placeholder {
+  border-radius: 20rpx;
+}
+
 .biz-card__contact { margin-top: 24rpx; font-size: 24rpx; color: var(--text-secondary); line-height: 1.7; }
 .biz-card__status { position: absolute; right: 32rpx; bottom: 28rpx; }
 .biz-card__type-corner {

@@ -22,6 +22,7 @@ const TEMPLATE_VARIANTS = [
   { value: "horizontal-business", label: "横版商务", desc: "企业级默认模板" },
   { value: "minimal", label: "极简", desc: "信息更克制" },
   { value: "brand-image", label: "品牌图", desc: "适合强品牌露出" },
+  { value: "portrait-photo", label: "照片版", desc: "右侧形象照 · PNG 900×1200" },
   { value: "dark", label: "深色", desc: "高对比展示" },
   { value: "campaign", label: "活动版", desc: "短期推广使用" }
 ];
@@ -70,6 +71,7 @@ const TEMPLATE_STYLE_META = {
   "horizontal-business": { className: "biz-card--horizontal", backgroundId: "light-wave" },
   minimal: { className: "biz-card--minimal", backgroundId: "light-geometry" },
   "brand-image": { className: "biz-card--brand-image", backgroundId: "blue-dot", opacity: 100 },
+  "portrait-photo": { className: "biz-card--portrait", backgroundId: "light-wave" },
   dark: { className: "biz-card--dark", backgroundId: "dark-dot", opacity: 100 },
   campaign: { className: "biz-card--campaign", backgroundId: "", opacity: 100 }
 };
@@ -1999,6 +2001,9 @@ function normalizeTemplateVariant(value) {
   }
   if (value === "tpl_brand_image") {
     return "brand-image";
+  }
+  if (value === "tpl_portrait_photo" || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
+    return "portrait-photo";
   }
   if (value === "tpl_dark") {
     return "dark";

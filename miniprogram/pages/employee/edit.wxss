@@ -45,6 +45,19 @@
   overflow: hidden;
 }
 
+.edit-avatar-btn.edit-avatar-btn--portrait {
+  width: 96rpx;
+  height: 128rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+}
+
+.edit-avatar--portrait {
+  width: 96rpx;
+  height: 128rpx;
+  border-radius: 18rpx;
+}
+
 .edit-logo-row {
   display: flex;
   align-items: center;

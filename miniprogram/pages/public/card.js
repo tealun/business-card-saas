@@ -123,6 +123,7 @@ const TEMPLATE_BACKGROUNDS = {
   tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
   tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
   tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
+  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-wave.webp",
   tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
   tpl_campaign: ""
 };
@@ -609,6 +610,7 @@ function cardTemplateClass(templateId) {
     tpl_horizontal_business: "biz-card--horizontal",
     tpl_minimal: "biz-card--minimal",
     tpl_brand_image: "biz-card--brand-image",
+    tpl_portrait_photo: "biz-card--portrait",
     tpl_dark: "biz-card--dark",
     tpl_campaign: "biz-card--campaign"
   };
@@ -618,6 +620,9 @@ function cardTemplateClass(templateId) {
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
+  }
+  if (templateId === "tpl_portrait_photo" || templateId === "tpl_photo_portrait" || templateId === "portrait-photo" || templateId === "photo-portrait") {
+    return "tpl_portrait_photo";
   }
   return templateId || "tpl_horizontal_business";
 }

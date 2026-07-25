@@ -19,6 +19,18 @@
         <text>头像</text>
       </view>
       <button
+        wx:if="{{portraitPhotoTemplate}}"
+        class="edit-avatar-btn edit-avatar-btn--portrait"
+        bindtap="choosePortraitAvatarFromAlbum"
+        disabled="{{!editable.avatar_url}}"
+      >
+        <view class="edit-avatar edit-avatar--portrait">
+          <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" binderror="onAvatarImageError" />
+          <view wx:else class="avatar-placeholder"></view>
+        </view>
+      </button>
+      <button
+        wx:else
         class="edit-avatar-btn"
         open-type="chooseAvatar"
         bindchooseavatar="chooseAvatar"
@@ -30,6 +42,7 @@
         </view>
       </button>
     </view>
+    <text wx:if="{{portraitPhotoTemplate}}" class="edit-section-help">照片版请上传 PNG 竖图，建议 900×1200（3:4），右侧会以形象照展示。</text>
     <view class="field-row {{editable.display_name ? '' : 'field-row--locked'}}" data-key="display_name" bindtap="onLockedFieldTap">
       <view class="field-row__label">
         <view wx:if="{{!editable.display_name}}" class="icon icon-lock icon--sm"></view>

@@ -24,6 +24,7 @@ const TEMPLATE_META = {
   tpl_minimal: { className: "biz-card--minimal", backgroundId: "light-geometry" },
   tpl_brand_image: { className: "biz-card--brand-image", backgroundId: "blue-dot", opacity: 100 },
   tpl_dark: { className: "biz-card--dark", backgroundId: "dark-dot", opacity: 100 },
+  tpl_portrait_photo: { className: "biz-card--portrait", backgroundId: "light-wave" },
   tpl_campaign: { className: "biz-card--campaign", backgroundId: "", opacity: 100 }
 };
 
@@ -39,6 +40,7 @@ const stylePage = {
       { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
       { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
       { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
+      { id: "tpl_portrait_photo", name: "照片版", desc: "右侧形象照 · PNG 900×1200" },
       { id: "tpl_dark", name: "深色", desc: "高对比展示" },
       { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
     ],
@@ -240,6 +242,9 @@ function templateClass(templateId) {
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
+  }
+  if (templateId === "tpl_portrait_photo" || templateId === "tpl_photo_portrait" || templateId === "portrait-photo" || templateId === "photo-portrait") {
+    return "tpl_portrait_photo";
   }
   return TEMPLATE_META[templateId] ? templateId : "tpl_horizontal_business";
 }

@@ -32,6 +32,7 @@ const TEMPLATE_BACKGROUNDS = {
   tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
   tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
   tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
+  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-wave.webp",
   tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
   tpl_campaign: ""
 };
@@ -613,7 +614,11 @@ Page({
           return;
         }
         try {
-          const dataUrl = await pathToDataUrl(tempPath);
+          let info = null;
+          try {
+            info = await getImageInfo(tempPath);
+          } catch (_error) {}
+          const dataUrl = await pathToDataUrl(tempPath, info ? imageMime(info) : "image/jpeg");
           const result = await request("/employee/cards/current/wechat-qrcode", {
             method: "PUT",
             data: { qrcode_url: dataUrl }
@@ -859,7 +864,7 @@ function cacheCurrentWechatQr(qrUrl, identityType, source) {
   app.globalData.currentCard = Object.assign({}, currentCard, { fields });
 }
 
-function pathToDataUrl(path) {
+function pathToDataUrl(path, mime = "image/jpeg") {
   if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
     return Promise.resolve(path);
   }
@@ -873,11 +878,33 @@ function pathToDataUrl(path) {
       filePath: path,
       encoding: "base64",
       success(result) {
-        resolve(`data:image/jpeg;base64,${result.data}`);
+        resolve(`data:${mime};base64,${result.data}`);
       },
       fail: reject
     });
   });
+}
+
+function getImageInfo(src) {
+  return new Promise((resolve, reject) => {
+    wx.getImageInfo({
+      src,
+      success: resolve,
+      fail: reject
+    });
+  });
+}
+
+function imageMime(info) {
+  const type = String(info && info.type || "").toLowerCase();
+  if (type === "png") return "image/png";
+  if (type === "jpg" || type === "jpeg") return "image/jpeg";
+  if (type === "webp") return "image/webp";
+  const path = String(info && info.path || "").toLowerCase();
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
 }
 
 function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
@@ -898,6 +925,7 @@ function cardTemplateClass(templateId) {
     tpl_horizontal_business: "biz-card--horizontal",
     tpl_minimal: "biz-card--minimal",
     tpl_brand_image: "biz-card--brand-image",
+    tpl_portrait_photo: "biz-card--portrait",
     tpl_dark: "biz-card--dark",
     tpl_campaign: "biz-card--campaign"
   };
@@ -907,6 +935,9 @@ function cardTemplateClass(templateId) {
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
+  }
+  if (templateId === "tpl_portrait_photo" || templateId === "tpl_photo_portrait" || templateId === "portrait-photo" || templateId === "photo-portrait") {
+    return "tpl_portrait_photo";
   }
   return templateId || "tpl_horizontal_business";
 }

@@ -58,6 +58,7 @@ function drawShareCard(ctx, options) {
   const meta = options.meta || {};
   const dark = isDarkTemplate(options.templateClass || "");
   const brandImage = isBrandTemplate(options.templateClass || "");
+  const portrait = isPortraitTemplate(options.templateClass || "");
   const surface = dark ? "#161b22" : brandImage ? theme.brand : "#ffffff";
   const primary = dark || brandImage ? "#ffffff" : "#1f2329";
   const secondary = dark ? "#a8c5ff" : brandImage ? "rgba(255,255,255,0.82)" : "#697282";
@@ -112,41 +113,53 @@ function drawShareCard(ctx, options) {
     .map(text)
     .filter(Boolean)
     .slice(0, 3);
+  const companyMaxWidth = portrait ? 196 : 224;
+  const nameMaxWidth = portrait ? 188 : 210;
+  const titleMaxWidth = portrait ? 188 : 210;
+  const contactMaxWidth = portrait ? 224 : 252;
 
   if (shortName) {
     ctx.fillStyle = secondary;
     ctx.font = "20px sans-serif";
-    drawText(ctx, shortName, contentX, contentY, 224);
+    drawText(ctx, shortName, contentX, contentY, companyMaxWidth);
   }
 
   let infoY = contentY + (shortName ? 50 : 22);
   if (company) {
     ctx.fillStyle = primary;
     ctx.font = "bold 22px sans-serif";
-    drawText(ctx, company, contentX, infoY, 224);
+    drawText(ctx, company, contentX, infoY, companyMaxWidth);
     infoY += 30;
   }
 
   ctx.fillStyle = primary;
   ctx.font = "bold 32px sans-serif";
-  drawText(ctx, name, contentX, infoY, 210);
+  drawText(ctx, name, contentX, infoY, nameMaxWidth);
   infoY += 36;
 
   if (title) {
     ctx.fillStyle = secondary;
     ctx.font = "21px sans-serif";
-    drawText(ctx, title, contentX, infoY, 210);
+    drawText(ctx, title, contentX, infoY, titleMaxWidth);
     infoY += 29;
   }
 
   ctx.fillStyle = secondary;
   ctx.font = "18px sans-serif";
   contact.forEach((line) => {
-    drawText(ctx, line, contentX, infoY, 252);
+    drawText(ctx, line, contentX, infoY, contactMaxWidth);
     infoY += 24;
   });
 
-  drawAvatar(ctx, CARD_X + CARD_W - 104, CARD_Y + 68, 76, dark || brandImage);
+  drawAvatar(
+    ctx,
+    portrait ? CARD_X + CARD_W - 116 : CARD_X + CARD_W - 104,
+    portrait ? CARD_Y + 44 : CARD_Y + 68,
+    portrait ? 96 : 76,
+    portrait ? 128 : 76,
+    dark || brandImage,
+    portrait
+  );
   drawCorner(ctx, theme.brand, dark || brandImage);
 }
 
@@ -179,23 +192,38 @@ function drawShareBackground(ctx, theme) {
   ctx.fillRect(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
 }
 
-function drawAvatar(ctx, x, y, size, inverse) {
+function drawAvatar(ctx, x, y, width, height, inverse, portrait = false) {
   const fill = inverse ? "rgba(255,255,255,0.16)" : "#eef0f3";
   const mark = inverse ? "rgba(255,255,255,0.72)" : "#a9b2c1";
   ctx.save();
-  circle(ctx, x + size / 2, y + size / 2, size / 2);
+  if (portrait) {
+    roundedRect(ctx, x, y, width, height, 18);
+  } else {
+    circle(ctx, x + width / 2, y + height / 2, width / 2);
+  }
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.clip();
   ctx.fillStyle = mark;
-  circle(ctx, x + size / 2, y + size * 0.36, size * 0.2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(x + size * 0.18, y + size);
-  ctx.quadraticCurveTo(x + size / 2, y + size * 0.62, x + size * 0.82, y + size);
-  ctx.lineTo(x + size * 0.18, y + size);
-  ctx.closePath();
-  ctx.fill();
+  if (portrait) {
+    circle(ctx, x + width / 2, y + height * 0.34, Math.min(width, height) * 0.18);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + width * 0.18, y + height);
+    ctx.quadraticCurveTo(x + width / 2, y + height * 0.64, x + width * 0.82, y + height);
+    ctx.lineTo(x + width * 0.18, y + height);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    circle(ctx, x + width / 2, y + height * 0.36, width * 0.2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + width * 0.18, y + height);
+    ctx.quadraticCurveTo(x + width / 2, y + height * 0.62, x + width * 0.82, y + height);
+    ctx.lineTo(x + width * 0.18, y + height);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -264,6 +292,10 @@ function isMinimalTemplate(templateClass) {
 
 function isBrandTemplate(templateClass) {
   return templateClass.indexOf("biz-card--brand-image") >= 0;
+}
+
+function isPortraitTemplate(templateClass) {
+  return templateClass.indexOf("biz-card--portrait") >= 0;
 }
 
 function isDarkTemplate(templateClass) {
