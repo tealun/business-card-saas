@@ -1,6 +1,6 @@
 const { ensureSession } = require("../../utils/auth");
 const { request, uploadBinary } = require("../../utils/api");
-const { setPageTheme } = require("../../utils/theme");
+const { DEFAULT_BRAND, buildTheme, setPageTheme, themeStyle: buildThemeStyle } = require("../../utils/theme");
 const { normalizeWebsiteUrl } = require("../../utils/website-url");
 const ADMIN_BOOTSTRAP_STORAGE_KEY = "wecomcard.admin.bootstrap.v1";
 
@@ -49,6 +49,30 @@ const INTRO_BLOCK_TYPES = [
   { value: "gallery", label: "图集" },
   { value: "video", label: "视频" }
 ];
+const BACKGROUND_LIMIT_BYTES = 2 * 1024 * 1024;
+const BACKGROUND_MIN_RATIO = 1.5;
+const BACKGROUND_MAX_RATIO = 2;
+const DEFAULT_BACKGROUND_OPACITY = 100;
+const BACKGROUND_TYPES = {
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp"
+};
+const BACKGROUND_PRESETS = [
+  { id: "light-wave", name: "浅色波纹", url: "/assets/card-backgrounds/bg-light-wave.webp" },
+  { id: "light-geometry", name: "浅色几何", url: "/assets/card-backgrounds/bg-light-geometry.webp" },
+  { id: "light-cubes", name: "浅色立方", url: "/assets/card-backgrounds/bg-light-cubes.webp" },
+  { id: "blue-dot", name: "蓝色点阵", url: "/assets/card-backgrounds/bg-blue-dot.webp" },
+  { id: "dark-dot", name: "深色点阵", url: "/assets/card-backgrounds/bg-dark-dot.webp" }
+];
+const TEMPLATE_STYLE_META = {
+  "horizontal-business": { className: "biz-card--horizontal", backgroundId: "light-wave" },
+  minimal: { className: "biz-card--minimal", backgroundId: "light-geometry" },
+  "brand-image": { className: "biz-card--brand-image", backgroundId: "blue-dot", opacity: 100 },
+  dark: { className: "biz-card--dark", backgroundId: "dark-dot", opacity: 100 },
+  campaign: { className: "biz-card--campaign", backgroundId: "", opacity: 100 }
+};
 
 Page({
   data: {
@@ -82,6 +106,22 @@ Page({
     panel: "",
     profileDraft: {},
     templateDraft: {},
+    templateId: "",
+    templateClass: "biz-card--horizontal",
+    primary: DEFAULT_BRAND,
+    customColor: DEFAULT_BRAND,
+    customHex: DEFAULT_BRAND,
+    customHexError: "",
+    customColorExpanded: false,
+    card: { display_name: "", title: "", company: "", company_short_name: "", fields: {}, show_avatar: true },
+    logoUrl: "",
+    backgroundUrl: "",
+    backgroundPresetId: "",
+    backgroundPresets: BACKGROUND_PRESETS,
+    backgroundOpacity: DEFAULT_BACKGROUND_OPACITY,
+    backgroundPreviewStyle: "",
+    backgroundError: "",
+    presets: [DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"],
     introDraft: emptyIntroDraft(),
     memberDraft: {},
     inviteDraft: { displayName: "", token: "", expiresAt: "" },
@@ -387,8 +427,7 @@ Page({
         logo_url: profile.logo_url || "",
         website_url: profile.website_url || "",
         address: profile.address || "",
-        visible: profile.visible !== false,
-        status: profile.status || "draft"
+        visible: profile.visible !== false
       }
     });
   },
@@ -400,10 +439,6 @@ Page({
 
   onProfileVisible(event) {
     this.setData({ profileDraft: { ...this.data.profileDraft, visible: event.detail.value } });
-  },
-
-  setProfileStatus(event) {
-    this.setData({ profileDraft: { ...this.data.profileDraft, status: event.currentTarget.dataset.status } });
   },
 
   uploadProfileLogo() {
@@ -428,8 +463,7 @@ Page({
           logo_url: textOrNull(draft.logo_url),
           website_url: normalizeWebsiteUrl(draft.website_url),
           address: textOrNull(draft.address),
-          visible: Boolean(draft.visible),
-          status: draft.status === "published" ? "published" : "draft"
+          visible: Boolean(draft.visible)
         }
       });
       this.setData({ profile, panel: "" });
@@ -438,45 +472,145 @@ Page({
 
   openTemplatePanel() {
     const selected = this.data.templates.find((item) => item.is_default) || this.data.templates[0] || {};
-    this.setData({ panel: "template", templateDraft: draftFromTemplate(selected) });
+    this.applyTemplateEditor(selected);
   },
 
   chooseTemplate(event) {
     const template = this.data.templates.find((item) => item.template_id === event.currentTarget.dataset.id);
-    if (template) this.setData({ templateDraft: draftFromTemplate(template) });
+    if (template) this.applyTemplateEditor(template);
   },
 
-  onTemplateInput(event) {
-    const key = event.currentTarget.dataset.key;
-    this.setData({ templateDraft: { ...this.data.templateDraft, [key]: event.detail.value } });
-  },
-
-  chooseVariant(event) {
-    this.setData({ templateDraft: { ...this.data.templateDraft, variant: event.currentTarget.dataset.variant } });
+  applyTemplateEditor(template) {
+    const state = buildTemplateEditorState(template, this.data.profile, this.data.members, this.data.tenant);
+    this.setData({
+      panel: "template",
+      ...state
+    });
   },
 
   chooseColor(event) {
-    this.setData({ templateDraft: { ...this.data.templateDraft, primary: event.currentTarget.dataset.color } });
-  },
-
-  uploadTemplateLogo() {
-    this.uploadSingleImage("logos", (url) => {
-      this.setData({ "templateDraft.logo_url": url });
+    this.previewTemplateColor(String(event.currentTarget.dataset.color || DEFAULT_BRAND), {
+      customHexError: "",
+      customColorExpanded: false
     });
   },
 
-  clearTemplateLogo() {
-    this.setData({ "templateDraft.logo_url": "" });
-  },
-
-  uploadTemplateBackground() {
-    this.uploadSingleImage("templates", (url) => {
-      this.setData({ "templateDraft.background_url": url });
+  onCustomHexInput(event) {
+    const customHex = String(event.detail.value || "").trim();
+    const normalized = normalizeHexInput(customHex);
+    if (!normalized) {
+      this.setData({ customHex, customHexError: customHex ? "请输入 6 位 HEX 色值" : "" });
+      return;
+    }
+    this.previewTemplateColor(normalized, {
+      customColor: normalized,
+      customHex: normalized,
+      customHexError: "",
+      customColorExpanded: true
     });
   },
 
-  clearTemplateBackground() {
-    this.setData({ "templateDraft.background_url": "" });
+  selectCustomColor() {
+    const normalized = normalizeHexInput(this.data.customHex) || this.data.customColor || DEFAULT_BRAND;
+    this.previewTemplateColor(normalized, {
+      customColor: normalized,
+      customHex: normalized,
+      customHexError: "",
+      customColorExpanded: true
+    });
+  },
+
+  previewTemplateColor(primary, extra = {}) {
+    const theme = buildTheme(primary);
+    const patch = {
+      primary: theme.themeBrand,
+      ...theme,
+      themeStyle: buildThemeStyle(theme),
+      ...extra
+    };
+    if (!extra.templateDraft) {
+      patch.templateDraft = { ...this.data.templateDraft, primary: theme.themeBrand };
+    }
+    this.setData(patch);
+  },
+
+  onChooseBackgroundImage() {
+    this.chooseBackgroundImage();
+  },
+
+  async chooseBackgroundImage() {
+    if (this.data.uploading) {
+      return;
+    }
+    this.setData({ uploading: true, backgroundError: "" });
+    try {
+      const files = await chooseLocalMedia(["image"], 1).catch(() => []);
+      const file = files[0];
+      const filePath = tempFilePath(file);
+      if (!filePath) {
+        return;
+      }
+      if (file && file.size && file.size > BACKGROUND_LIMIT_BYTES) {
+        throw new Error("图片不能超过 2MB");
+      }
+      const info = await getImageInfo(filePath);
+      validateBackgroundImage(info);
+      const uploaded = await this.uploadMediaFile({
+        path: filePath,
+        fileName: fileNameFromPath(filePath, "background.jpg"),
+        contentType: imageContentType(filePath),
+        endpoint: "images",
+        category: "templates",
+        timeout: 120000
+      });
+      this.setData({
+        backgroundUrl: uploaded.url,
+        backgroundPresetId: "",
+        backgroundPreviewStyle: backgroundStyle(uploaded.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
+        backgroundError: ""
+      });
+      wx.showToast({ title: "背景图已上传", icon: "success" });
+    } catch (error) {
+      const message = error && error.message ? error.message : "图片不符合要求";
+      this.setData({ backgroundError: message });
+      wx.showToast({ title: message, icon: "none" });
+    } finally {
+      this.setData({ uploading: false });
+    }
+  },
+
+  onSelectPresetBackground(event) {
+    const preset = BACKGROUND_PRESETS.find((item) => item.id === event.currentTarget.dataset.id);
+    if (!preset) {
+      return;
+    }
+    this.setData({
+      backgroundUrl: preset.url,
+      backgroundPresetId: preset.id,
+      backgroundPreviewStyle: backgroundStyle(preset.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
+      backgroundError: ""
+    });
+  },
+
+  onClearBackgroundImage() {
+    this.clearBackgroundImage();
+  },
+
+  clearBackgroundImage() {
+    this.setData({
+      backgroundUrl: "",
+      backgroundPresetId: "",
+      backgroundPreviewStyle: "",
+      backgroundError: ""
+    });
+  },
+
+  onBackgroundOpacityChange(event) {
+    const backgroundOpacity = normalizeOpacity(event.detail.value, DEFAULT_BACKGROUND_OPACITY);
+    this.setData({
+      backgroundOpacity,
+      backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateDraft.variant)
+    });
   },
 
   async saveTemplate() {
@@ -484,33 +618,26 @@ Page({
     const draft = this.data.templateDraft;
     if (!draft.template_id) return;
     await this.saveWithToast(async () => {
+      const backgroundUrl = await backgroundUrlForSave(this.data.backgroundUrl);
+      const primary = buildTheme(this.data.primary || DEFAULT_BRAND).themeBrand;
       const template = await this.adminRequest(`/admin/templates/${encodeURIComponent(draft.template_id)}`, {
         method: "PUT",
         data: {
           name: textOrNull(draft.name) || "企业名片模板",
           logo_url: textOrNull(draft.logo_url),
-          background_url: textOrNull(draft.background_url),
-          color_scheme: { primary: draft.primary || "#5272d6", surface: draft.surface || "#ffffff" },
-          layout: { variant: draft.variant || "horizontal-business" },
+          background_url: backgroundUrl || null,
+          color_scheme: { primary, surface: draft.surface || "#ffffff" },
+          layout: {
+            variant: draft.variant || "horizontal-business",
+            background_opacity: normalizeOpacity(this.data.backgroundOpacity, DEFAULT_BACKGROUND_OPACITY),
+            background_preset_id: this.data.backgroundPresetId || null
+          },
           status: draft.status || "active"
         }
       });
       this.mergeTemplate(template);
-      this.setData({ templateDraft: draftFromTemplate(template) });
+      this.applyTemplateEditor(template);
     }, "模板已保存");
-  },
-
-  async setDefaultTemplate() {
-    if (!this.requireAdmin()) return;
-    const draft = this.data.templateDraft;
-    if (!draft.template_id) return;
-    await this.saveWithToast(async () => {
-      const template = await this.adminRequest(`/admin/templates/${encodeURIComponent(draft.template_id)}/default`, {
-        method: "PUT"
-      });
-      this.mergeTemplate(template);
-      this.setData({ templateDraft: draftFromTemplate(template) });
-    }, "默认模板已更新");
   },
 
   mergeTemplate(template) {
@@ -1206,6 +1333,7 @@ Page({
   },
 
   closePanel() {
+    setPageTheme(this);
     this.setData({ panel: "" });
   },
 
@@ -1662,6 +1790,36 @@ function chooseLocalMedia(mediaType, count) {
   });
 }
 
+function getImageInfo(src) {
+  return new Promise((resolve, reject) => {
+    wx.getImageInfo({
+      src,
+      success: resolve,
+      fail: reject
+    });
+  });
+}
+
+function validateBackgroundImage(info) {
+  const mime = imageMime(info);
+  if (!mime) {
+    throw new Error("仅支持 JPG、PNG、WebP 图片");
+  }
+  const ratio = info.width / info.height;
+  if (ratio < BACKGROUND_MIN_RATIO || ratio > BACKGROUND_MAX_RATIO) {
+    throw new Error("图片比例需在 1.5:1 到 2:1 之间");
+  }
+}
+
+function imageMime(info) {
+  const type = String(info.type || "").toLowerCase();
+  if (BACKGROUND_TYPES[type]) {
+    return BACKGROUND_TYPES[type];
+  }
+  const match = String(info.path || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
+  return match ? BACKGROUND_TYPES[match[1]] || "" : "";
+}
+
 function tempFilePath(file) {
   return file && (file.tempFilePath || file.path || "");
 }
@@ -1711,8 +1869,8 @@ function permissionsFor(role) {
 function decorateTemplates(items) {
   return items.map((item) => ({
     ...item,
-    variant: (item.layout && item.layout.variant) || "horizontal-business",
-    variantLabel: variantLabel((item.layout && item.layout.variant) || "horizontal-business"),
+    variant: normalizeTemplateVariant((item.layout && item.layout.variant) || item.variant || "horizontal-business"),
+    variantLabel: variantLabel((item.layout && item.layout.variant) || item.variant || "horizontal-business"),
     primary: (item.color_scheme && item.color_scheme.primary) || "#5272d6"
   }));
 }
@@ -1734,6 +1892,8 @@ function decorateJoinRequests(items) {
 }
 
 function draftFromTemplate(template) {
+  const layout = template && template.layout && typeof template.layout === "object" ? template.layout : {};
+  const variant = normalizeTemplateVariant((layout && layout.variant) || template.variant || "horizontal-business");
   return {
     template_id: template.template_id || "",
     name: template.name || "",
@@ -1741,15 +1901,139 @@ function draftFromTemplate(template) {
     background_url: template.background_url || "",
     primary: (template.color_scheme && template.color_scheme.primary) || template.primary || "#5272d6",
     surface: (template.color_scheme && template.color_scheme.surface) || "#ffffff",
-    variant: (template.layout && template.layout.variant) || template.variant || "horizontal-business",
+    variant,
+    background_opacity: normalizeOpacity(layout.background_opacity, templateStyleMeta(variant).opacity || DEFAULT_BACKGROUND_OPACITY),
+    background_preset_id: typeof layout.background_preset_id === "string" ? layout.background_preset_id : "",
     status: template.status || "active",
     is_default: Boolean(template.is_default)
   };
 }
 
+function buildTemplateEditorState(template, profile, members, tenant) {
+  const draft = draftFromTemplate(template || {});
+  const variant = draft.variant || "horizontal-business";
+  const meta = templateStyleMeta(variant);
+  const preset = resolveBackgroundPreset(draft.background_preset_id, variant);
+  const backgroundUrl = draft.background_url || (preset ? preset.url : "");
+  const backgroundPresetId = draft.background_url ? "" : (preset ? preset.id : "");
+  const primary = normalizeHexInput(draft.primary) || DEFAULT_BRAND;
+  const theme = buildTheme(primary);
+  const card = buildTemplatePreviewCard(profile, members, tenant);
+  return {
+    templateDraft: { ...draft, primary },
+    templateId: draft.template_id,
+    templateClass: templateClassForVariant(variant),
+    primary: theme.themeBrand,
+    ...theme,
+    themeStyle: buildThemeStyle(theme),
+    customColor: primary,
+    customHex: primary,
+    customHexError: "",
+    customColorExpanded: ![DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"].includes(primary),
+    card,
+    logoUrl: draft.logo_url || ((profile && profile.logo_url) || ""),
+    backgroundUrl,
+    backgroundPresetId,
+    backgroundOpacity: normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY),
+    backgroundPreviewStyle: backgroundStyle(backgroundUrl, normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY), variant),
+    backgroundError: ""
+  };
+}
+
+function buildTemplatePreviewCard(profile, members, tenant) {
+  const currentMember = Array.isArray(members) && members.length ? members[0] : null;
+  const companyName = (profile && profile.display_name) || (tenant && tenant.tenant_name) || "企业";
+  const companyShortName = (profile && profile.short_name) || (tenant && tenant.tenant_name) || "";
+  const mobile = currentMember && currentMember.mobile ? currentMember.mobile : "";
+  return {
+    display_name: (currentMember && currentMember.display_name) || "姓名",
+    title: (currentMember && currentMember.title) || "职位",
+    company: companyName,
+    company_short_name: companyShortName,
+    avatar_url: (currentMember && currentMember.avatar_url) || "",
+    fields: { mobile: mobile || "" },
+    show_avatar: currentMember ? currentMember.show_avatar !== false : true
+  };
+}
+
 function variantLabel(value) {
-  const found = TEMPLATE_VARIANTS.find((item) => item.value === value);
+  const found = TEMPLATE_VARIANTS.find((item) => item.value === normalizeTemplateVariant(value));
   return found ? found.label : "商务横版";
+}
+
+function templateStyleMeta(variant) {
+  return TEMPLATE_STYLE_META[normalizeTemplateVariant(variant)] || TEMPLATE_STYLE_META["horizontal-business"];
+}
+
+function templateClassForVariant(variant) {
+  return templateStyleMeta(variant).className;
+}
+
+function normalizeTemplateVariant(value) {
+  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
+    return "horizontal-business";
+  }
+  if (value === "tpl_minimal") {
+    return "minimal";
+  }
+  if (value === "tpl_brand_image") {
+    return "brand-image";
+  }
+  if (value === "tpl_dark") {
+    return "dark";
+  }
+  if (value === "tpl_campaign") {
+    return "campaign";
+  }
+  return TEMPLATE_STYLE_META[value] ? value : "horizontal-business";
+}
+
+function normalizeOpacity(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(100, Math.round(number)));
+}
+
+function normalizeHexInput(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const prefixed = raw.startsWith("#") ? raw : `#${raw}`;
+  return /^#[0-9a-fA-F]{6}$/.test(prefixed) ? prefixed.toLowerCase() : "";
+}
+
+function resolveBackgroundPreset(presetId, variant) {
+  const found = BACKGROUND_PRESETS.find((item) => item.id === presetId);
+  if (found) {
+    return found;
+  }
+  const fallbackId = templateStyleMeta(variant).backgroundId;
+  return BACKGROUND_PRESETS.find((item) => item.id === fallbackId) || null;
+}
+
+function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, variant = "horizontal-business") {
+  if (!url) {
+    return "";
+  }
+  const alpha = 1 - normalizeOpacity(opacity, DEFAULT_BACKGROUND_OPACITY) / 100;
+  const normalizedVariant = normalizeTemplateVariant(variant);
+  const overlay = normalizedVariant === "brand-image" || normalizedVariant === "dark"
+    ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
+    : `rgba(255,255,255,${alpha.toFixed(2)})`;
+  return `background: linear-gradient(${overlay}, ${overlay}), url("${url}") center / cover no-repeat;`;
+}
+
+function backgroundUrlForSave(url) {
+  if (!url) {
+    return Promise.resolve("");
+  }
+  if (String(url).startsWith("/assets/")) {
+    return Promise.resolve("");
+  }
+  return Promise.resolve(String(url).trim());
 }
 
 function stripModuleLabels(modules) {
