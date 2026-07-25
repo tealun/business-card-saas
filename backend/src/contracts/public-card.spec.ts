@@ -8,6 +8,18 @@ describe("public card contract", () => {
     );
   });
 
+  it("normalizes bare website URLs in public responses", () => {
+    const parsed = publicCardResponseSchema.parse({
+      ...demoPublicCard,
+      company_profile: {
+        ...demoPublicCard.company_profile,
+        website_url: "example.com"
+      }
+    });
+
+    expect(parsed.company_profile.website_url).toBe("https://example.com");
+  });
+
   it("rejects arbitrary intro HTML blocks in public responses", () => {
     const parsed = publicCardResponseSchema.safeParse({
       ...demoPublicCard,

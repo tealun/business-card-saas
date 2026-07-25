@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeWebsiteUrlValue } from "../common/website-url.js";
 
 export const publicIdSchema = z.string().regex(/^pub_[A-Za-z0-9_-]{8,40}$/);
 export const shareIdSchema = z.string().regex(/^shr_[A-Za-z0-9_-]{8,64}$/);
@@ -15,6 +16,7 @@ const mediaSourceSchema = z
   .refine((value) => /^https?:\/\//.test(value) || value.startsWith("/"), {
     message: "media source must be an http(s) URL or absolute path"
   });
+const websiteUrlSchema = z.preprocess(normalizeWebsiteUrlValue, z.string().url().nullable());
 
 const publicContentImageSchema = z.object({
   url: imageSourceSchema,
@@ -91,7 +93,7 @@ export const publicCardResponseSchema = z.object({
       sort_order: z.number().int(),
       layout: z.enum(["text", "image", "graphic", "grid", "carousel"])
     })).default([]),
-    website_url: z.string().url().nullable(),
+    website_url: websiteUrlSchema,
     address: z.string().nullable()
   }),
   videos: z.array(

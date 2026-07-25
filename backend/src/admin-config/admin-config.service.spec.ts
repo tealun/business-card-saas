@@ -41,7 +41,7 @@ describe("AdminConfigService", () => {
     });
     const profile = await service.updateCompanyProfile(adminSession(), {
       display_name: "Pilot Corp Updated",
-      website_url: "https://example.com",
+      website_url: "example.com",
       logo_url: "/api/v1/storage/tenant/demo/logos/a.png"
     });
     const reloaded = await service.getCompanyProfile(adminSession());
@@ -54,6 +54,7 @@ describe("AdminConfigService", () => {
     expect(profile.display_name).toBe("Pilot Corp Updated");
     expect(profile.website_url).toBe("https://example.com");
     expect(profile.logo_url).toBe("/api/v1/storage/tenant/demo/logos/a.png");
+    expect(reloaded.website_url).toBe("https://example.com");
     expect(reloaded.logo_url).toBe("/api/v1/storage/tenant/demo/logos/a.png");
   });
 

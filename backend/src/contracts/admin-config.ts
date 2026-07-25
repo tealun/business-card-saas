@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeWebsiteUrlValue } from "../common/website-url.js";
 
 export const adminFieldKeySchema = z.enum([
   "avatar_url",
@@ -57,6 +58,7 @@ const backendImageSourceSchema = z.string().refine((value) => /^https?:\/\//.tes
 const backendMediaSourceSchema = z.string().refine((value) => /^https?:\/\//.test(value) || value.startsWith("/api/v1/storage/") || value.startsWith("/api/v1/demo-assets/"), {
   message: "media URL must use http(s) or a backend asset path"
 });
+const websiteUrlSchema = z.preprocess(normalizeWebsiteUrlValue, z.string().url().nullable());
 export const companyModuleSchema = z.object({
   key: companyModuleKeySchema,
   title: z.string().min(1).max(32),
@@ -106,7 +108,7 @@ export const adminCompanyProfileSchema = z.object({
   display_name: z.string().min(1).max(255),
   short_name: z.string().max(128).nullable(),
   logo_url: backendImageSourceSchema.nullable(),
-  website_url: z.string().url().nullable(),
+  website_url: websiteUrlSchema,
   address: z.string().max(255).nullable(),
   intro_blocks: z.array(companyIntroBlockSchema).max(60),
   service_items: z.array(companyServiceItemSchema).max(30),
@@ -181,7 +183,7 @@ export const updateAdminCompanyProfileRequestSchema = z.object({
   display_name: z.string().min(1).max(255).optional(),
   short_name: z.string().max(128).nullable().optional(),
   logo_url: backendImageSourceSchema.nullable().optional(),
-  website_url: z.string().url().nullable().optional(),
+  website_url: websiteUrlSchema.optional(),
   address: z.string().max(255).nullable().optional(),
   intro_blocks: z.array(companyIntroBlockSchema).max(60).optional(),
   service_items: z.array(companyServiceItemSchema).max(30).optional(),

@@ -54,6 +54,22 @@ describe("company profile contracts", () => {
       background_url: backgroundUrl
     }).success).toBe(true);
   });
+  it("normalizes bare website URLs for company profile reads and writes", () => {
+    expect(updateAdminCompanyProfileRequestSchema.parse({ website_url: "example.com" }).website_url).toBe("https://example.com");
+    expect(adminCompanyProfileSchema.parse({
+      tenant_id: "tenant_1",
+      display_name: "Pilot Corp",
+      short_name: null,
+      logo_url: null,
+      website_url: "example.com",
+      address: null,
+      intro_blocks: [],
+      service_items: [],
+      display_modules: modules,
+      visible: true,
+      status: "draft"
+    }).website_url).toBe("https://example.com");
+  });
   it("accepts controlled content and rejects HTML blocks and overlong text", () => {
     expect(companyIntroBlockSchema.safeParse({type:"paragraph",text:"介绍"}).success).toBe(true);
     expect(companyIntroBlockSchema.safeParse({type:"html",html:"<script>x</script>"}).success).toBe(false);
