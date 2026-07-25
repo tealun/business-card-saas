@@ -186,7 +186,7 @@
           <view class="settings-item__icon"><view class="icon icon-style icon--sm"></view></view>
           <view class="settings-item__main">
             <view class="settings-item__title">名片模板与版式</view>
-            <view class="settings-item__desc">{{templates.length}} 套模板</view>
+            <view class="settings-item__desc">{{templateVariants.length}} 种版式</view>
           </view>
           <view class="icon icon-arrow icon--sm"></view>
         </view>
@@ -268,20 +268,20 @@
           <text class="card__title">选择模板</text>
           <scroll-view scroll-x class="tpl-scroll" enable-flex>
             <view
-              class="tpl-item {{templateDraft.template_id === item.template_id ? 'tpl-item--active' : ''}}"
-              wx:for="{{templates}}"
-              wx:key="template_id"
-              data-id="{{item.template_id}}"
-              bindtap="chooseTemplate"
+              class="tpl-item {{templateDraft.variant === item.value ? 'tpl-item--active' : ''}}"
+              wx:for="{{templateVariants}}"
+              wx:key="value"
+              data-variant="{{item.value}}"
+              bindtap="chooseVariant"
             >
-              <view class="tpl-item__thumb" style="background: linear-gradient(160deg, {{item.primary}}, {{item.primary}});">
+              <view class="tpl-item__thumb">
                 <view class="tpl-item__line tpl-item__line--name"></view>
                 <view class="tpl-item__line"></view>
                 <view class="tpl-item__dot"></view>
               </view>
-              <text class="tpl-item__name">{{item.name}}</text>
-              <text class="tpl-item__desc">{{item.variantLabel}}{{item.is_default ? ' · 默认' : ''}}</text>
-              <view class="tpl-item__check icon icon-check" wx:if="{{templateDraft.template_id === item.template_id}}"></view>
+              <text class="tpl-item__name">{{item.label}}</text>
+              <text class="tpl-item__desc">{{item.desc}}</text>
+              <view class="tpl-item__check icon icon-check" wx:if="{{templateDraft.variant === item.value}}"></view>
             </view>
           </scroll-view>
         </view>

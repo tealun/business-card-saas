@@ -19,11 +19,11 @@ const ROLE_RANK = {
 };
 
 const TEMPLATE_VARIANTS = [
-  { value: "horizontal-business", label: "商务横版" },
-  { value: "minimal", label: "极简留白" },
-  { value: "brand-image", label: "品牌封面" },
-  { value: "dark", label: "深色质感" },
-  { value: "campaign", label: "活动推广" }
+  { value: "horizontal-business", label: "横版商务", desc: "企业级默认模板" },
+  { value: "minimal", label: "极简", desc: "信息更克制" },
+  { value: "brand-image", label: "品牌图", desc: "适合强品牌露出" },
+  { value: "dark", label: "深色", desc: "高对比展示" },
+  { value: "campaign", label: "活动版", desc: "短期推广使用" }
 ];
 
 const COLOR_SWATCHES = ["#5272d6", "#0f766e", "#c2410c", "#7c3aed", "#111827"];
@@ -478,6 +478,27 @@ Page({
   chooseTemplate(event) {
     const template = this.data.templates.find((item) => item.template_id === event.currentTarget.dataset.id);
     if (template) this.applyTemplateEditor(template);
+  },
+
+  chooseVariant(event) {
+    const variant = normalizeTemplateVariant(event.currentTarget.dataset.variant);
+    const meta = templateStyleMeta(variant);
+    const shouldResetToPreset = !this.data.backgroundUrl || this.data.backgroundPresetId || String(this.data.backgroundUrl).startsWith("/assets/");
+    const preset = resolveBackgroundPreset(this.data.backgroundPresetId, variant);
+    const backgroundUrl = shouldResetToPreset ? (preset ? preset.url : "") : this.data.backgroundUrl;
+    const backgroundPresetId = shouldResetToPreset ? (preset ? preset.id : "") : this.data.backgroundPresetId;
+    const backgroundOpacity = shouldResetToPreset
+      ? normalizeOpacity(meta.opacity, DEFAULT_BACKGROUND_OPACITY)
+      : this.data.backgroundOpacity;
+    this.setData({
+      templateDraft: { ...this.data.templateDraft, variant },
+      templateClass: templateClassForVariant(variant),
+      backgroundUrl,
+      backgroundPresetId,
+      backgroundOpacity,
+      backgroundPreviewStyle: backgroundStyle(backgroundUrl, backgroundOpacity, variant),
+      backgroundError: ""
+    });
   },
 
   applyTemplateEditor(template) {
@@ -1958,7 +1979,7 @@ function buildTemplatePreviewCard(profile, members, tenant) {
 
 function variantLabel(value) {
   const found = TEMPLATE_VARIANTS.find((item) => item.value === normalizeTemplateVariant(value));
-  return found ? found.label : "商务横版";
+  return found ? found.label : "横版商务";
 }
 
 function templateStyleMeta(variant) {
