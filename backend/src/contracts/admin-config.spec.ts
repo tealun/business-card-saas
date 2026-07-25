@@ -1,4 +1,12 @@
-import { companyDisplayModulesSchema, companyIntroBlockSchema, companyServiceItemSchema } from "./admin-config.js";
+import {
+  adminCompanyProfileSchema,
+  createAdminTemplateRequestSchema,
+  companyDisplayModulesSchema,
+  companyIntroBlockSchema,
+  companyServiceItemSchema,
+  updateAdminCompanyProfileRequestSchema,
+  updateAdminTemplateRequestSchema
+} from "./admin-config.js";
 
 const modules = [
   { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
@@ -18,6 +26,33 @@ describe("company profile contracts", () => {
     expect(companyServiceItemSchema.safeParse({id:"service_one",title:"",description:"",image_url:null,visible:true,sort_order:0}).success).toBe(false);
     expect(companyServiceItemSchema.safeParse({id:"service_one",title:"服务",description:"",image_url:"javascript:x",visible:true,sort_order:0}).success).toBe(false);
     expect(companyServiceItemSchema.safeParse({id:"service_one",title:"",description:"",image_url:"/api/v1/storage/tenant/demo/company-images/a.png",visible:true,sort_order:0}).success).toBe(true);
+  });
+  it("accepts backend storage paths for company profile and template images", () => {
+    const logoUrl = "/api/v1/storage/tenant/demo/logos/a.png";
+    const backgroundUrl = "/api/v1/storage/tenant/demo/templates/bg.png";
+    expect(updateAdminCompanyProfileRequestSchema.safeParse({ logo_url: logoUrl }).success).toBe(true);
+    expect(adminCompanyProfileSchema.safeParse({
+      tenant_id: "tenant_1",
+      display_name: "Pilot Corp",
+      short_name: null,
+      logo_url: logoUrl,
+      website_url: "https://example.com",
+      address: null,
+      intro_blocks: [],
+      service_items: [],
+      display_modules: modules,
+      visible: true,
+      status: "draft"
+    }).success).toBe(true);
+    expect(createAdminTemplateRequestSchema.safeParse({
+      name: "Blue Team",
+      logo_url: logoUrl,
+      background_url: backgroundUrl
+    }).success).toBe(true);
+    expect(updateAdminTemplateRequestSchema.safeParse({
+      logo_url: logoUrl,
+      background_url: backgroundUrl
+    }).success).toBe(true);
   });
   it("accepts controlled content and rejects HTML blocks and overlong text", () => {
     expect(companyIntroBlockSchema.safeParse({type:"paragraph",text:"介绍"}).success).toBe(true);

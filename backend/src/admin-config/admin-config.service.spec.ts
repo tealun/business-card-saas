@@ -41,8 +41,10 @@ describe("AdminConfigService", () => {
     });
     const profile = await service.updateCompanyProfile(adminSession(), {
       display_name: "Pilot Corp Updated",
-      website_url: "https://example.com"
+      website_url: "https://example.com",
+      logo_url: "/api/v1/storage/tenant/demo/logos/a.png"
     });
+    const reloaded = await service.getCompanyProfile(adminSession());
 
     expect(fields.fields.find((field) => field.field_key === "display_name")?.locked).toBe(true);
     expect(fields.fields.find((field) => field.field_key === "website")?.employee_editable).toBe(false);
@@ -51,13 +53,17 @@ describe("AdminConfigService", () => {
     expect(fields.fields.find((field) => field.field_key === "mobile")?.employee_editable).toBe(true);
     expect(profile.display_name).toBe("Pilot Corp Updated");
     expect(profile.website_url).toBe("https://example.com");
+    expect(profile.logo_url).toBe("/api/v1/storage/tenant/demo/logos/a.png");
+    expect(reloaded.logo_url).toBe("/api/v1/storage/tenant/demo/logos/a.png");
   });
 
   it("creates, updates, and marks tenant templates as default", async () => {
     const service = createService();
     const created = await service.createTemplate(adminSession(), {
       name: "Blue Team",
-      color_scheme: { primary: "#0052cc" }
+      color_scheme: { primary: "#0052cc" },
+      logo_url: "/api/v1/storage/tenant/demo/logos/template.png",
+      background_url: "/api/v1/storage/tenant/demo/templates/background.png"
     });
     const updated = await service.updateTemplate(adminSession(), created.template_id, {
       name: "Blue Team v2"
@@ -66,6 +72,10 @@ describe("AdminConfigService", () => {
     const templates = (await service.listTemplates(adminSession())).items;
 
     expect(updated.name).toBe("Blue Team v2");
+    expect(created.logo_url).toBe("/api/v1/storage/tenant/demo/logos/template.png");
+    expect(created.background_url).toBe("/api/v1/storage/tenant/demo/templates/background.png");
+    expect(updated.logo_url).toBe("/api/v1/storage/tenant/demo/logos/template.png");
+    expect(updated.background_url).toBe("/api/v1/storage/tenant/demo/templates/background.png");
     expect(defaultTemplate.is_default).toBe(true);
     expect(templates.filter((template) => template.is_default)).toHaveLength(1);
   });

@@ -105,7 +105,7 @@ export const adminCompanyProfileSchema = z.object({
   tenant_id: z.string(),
   display_name: z.string().min(1).max(255),
   short_name: z.string().max(128).nullable(),
-  logo_url: z.string().url().nullable(),
+  logo_url: backendImageSourceSchema.nullable(),
   website_url: z.string().url().nullable(),
   address: z.string().max(255).nullable(),
   intro_blocks: z.array(companyIntroBlockSchema).max(60),
@@ -180,7 +180,7 @@ export const updateAdminCompanyHonorRequestSchema = createAdminCompanyHonorReque
 export const updateAdminCompanyProfileRequestSchema = z.object({
   display_name: z.string().min(1).max(255).optional(),
   short_name: z.string().max(128).nullable().optional(),
-  logo_url: z.string().url().nullable().optional(),
+  logo_url: backendImageSourceSchema.nullable().optional(),
   website_url: z.string().url().nullable().optional(),
   address: z.string().max(255).nullable().optional(),
   intro_blocks: z.array(companyIntroBlockSchema).max(60).optional(),
@@ -194,8 +194,8 @@ export const adminTemplateSchema = z.object({
   template_id: z.string().min(1).max(64),
   name: z.string().min(1).max(128),
   is_default: z.boolean(),
-  background_url: z.string().url().nullable(),
-  logo_url: z.string().url().nullable(),
+  background_url: backendImageSourceSchema.nullable(),
+  logo_url: backendImageSourceSchema.nullable(),
   color_scheme: z.record(z.string(), z.unknown()),
   layout: z.record(z.string(), z.unknown()),
   status: z.enum(["active", "disabled"])
@@ -208,16 +208,16 @@ export const adminTemplateListResponseSchema = z.object({
 
 export const createAdminTemplateRequestSchema = z.object({
   name: z.string().min(1).max(128),
-  background_url: z.string().url().nullable().optional(),
-  logo_url: z.string().url().nullable().optional(),
+  background_url: backendImageSourceSchema.nullable().optional(),
+  logo_url: backendImageSourceSchema.nullable().optional(),
   color_scheme: z.record(z.string(), z.unknown()).optional(),
   layout: z.record(z.string(), z.unknown()).optional()
 });
 
 export const updateAdminTemplateRequestSchema = z.object({
   name: z.string().min(1).max(128).optional(),
-  background_url: z.string().url().nullable().optional(),
-  logo_url: z.string().url().nullable().optional(),
+  background_url: backendImageSourceSchema.nullable().optional(),
+  logo_url: backendImageSourceSchema.nullable().optional(),
   color_scheme: z.record(z.string(), z.unknown()).optional(),
   layout: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(["active", "disabled"]).optional()
