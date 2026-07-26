@@ -4,33 +4,43 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 
-const DEMO_ASSET_DIR = path.resolve(process.cwd(), "assets/demo-company");
+const DEMO_ASSET_DIR = path.resolve(process.cwd(), "assets");
 
-const DEMO_ASSETS: Record<string, string> = {
-  "service-identity.png": "image/png",
-  "service-leads.png": "image/png",
-  "service-brand.png": "image/png",
-  "service-analytics.png": "image/png",
-  "service-integration.png": "image/png",
-  "profile-office.png": "image/png",
-  "profile-team.png": "image/png",
-  "profile-product.png": "image/png",
-  "honor-award.png": "image/png",
-  "honor-ceremony.png": "image/png",
-  "honor-audit.png": "image/png",
-  "video-cover.png": "image/png",
-  "company-intro.mp4": "video/mp4"
+const DEMO_ASSETS: Record<string, Record<string, string>> = {
+  company: {
+    "service-identity.png": "image/png",
+    "service-leads.png": "image/png",
+    "service-brand.png": "image/png",
+    "service-analytics.png": "image/png",
+    "service-integration.png": "image/png",
+    "profile-office.png": "image/png",
+    "profile-team.png": "image/png",
+    "profile-product.png": "image/png",
+    "honor-award.png": "image/png",
+    "honor-ceremony.png": "image/png",
+    "honor-audit.png": "image/png",
+    "video-cover.png": "image/png",
+    "company-intro.mp4": "video/mp4"
+  },
+  "card-portraits": {
+    "default-avatar-square.png": "image/png",
+    "default-female.png": "image/png"
+  }
 };
 
-@Controller("demo-assets/company")
+@Controller("demo-assets")
 export class DemoAssetsController {
-  @Get(":fileName")
-  async readDemoCompanyAsset(@Param("fileName") fileName: string, @Res() reply: FastifyReply) {
-    const contentType = DEMO_ASSETS[fileName];
+  @Get(":assetGroup/:fileName")
+  async readDemoAsset(
+    @Param("assetGroup") assetGroup: string,
+    @Param("fileName") fileName: string,
+    @Res() reply: FastifyReply
+  ) {
+    const contentType = DEMO_ASSETS[assetGroup]?.[fileName];
     if (!contentType) {
       throw demoAssetNotFound(reply);
     }
-    const filePath = path.resolve(DEMO_ASSET_DIR, fileName);
+    const filePath = path.resolve(DEMO_ASSET_DIR, assetGroup, fileName);
     if (!filePath.startsWith(`${DEMO_ASSET_DIR}${path.sep}`)) {
       throw demoAssetNotFound(reply);
     }
