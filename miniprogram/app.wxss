@@ -346,24 +346,24 @@ button::after { border: none; }
 .biz-card--portrait .biz-card__avatar {
   position: absolute;
   right: -8rpx;
-  bottom: 0;
+  bottom: 20rpx;
   z-index: 1;
-  width: 312rpx;
-  height: 416rpx;
+  width: 284rpx;
+  height: 284rpx;
   border: 0;
-  border-radius: 0;
+  border-radius: 28rpx;
   background: transparent;
   box-shadow: none;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   pointer-events: none;
 }
 
 .biz-card--portrait .avatar-placeholder {
-  width: 210rpx;
-  height: 280rpx;
-  margin-top: auto;
-  border-radius: 28rpx 28rpx 0 0;
+  width: 100%;
+  height: 100%;
+  margin-top: 0;
+  border-radius: 28rpx;
 }
 
 .biz-card--portrait .biz-card__status {

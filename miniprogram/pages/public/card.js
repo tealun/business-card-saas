@@ -566,7 +566,10 @@ Page({
     const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
     nextTick(async () => {
       const imageUrl = await buildShareCardImage(this, {
-        card: this.data.card && this.data.card.card,
+        card: Object.assign(
+          { show_avatar: this.data.card && this.data.card.show_avatar !== false },
+          this.data.card && this.data.card.card
+        ),
         templateClass: this.data.cardTemplateClass,
         portraitPhotoUrl: this.data.portraitPhotoUrl || this.data.defaultPortraitPhotoUrl,
         theme: {

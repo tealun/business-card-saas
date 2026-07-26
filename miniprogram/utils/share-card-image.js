@@ -57,6 +57,7 @@ async function drawShareCard(ctx, options) {
   const theme = normalizeTheme(options.theme || {});
   const card = normalizeCard(options.card || {});
   const meta = options.meta || {};
+  const showAvatar = card.show_avatar !== false;
   const dark = isDarkTemplate(options.templateClass || "");
   const brandImage = isBrandTemplate(options.templateClass || "");
   const portrait = isPortraitTemplate(options.templateClass || "");
@@ -152,16 +153,21 @@ async function drawShareCard(ctx, options) {
     infoY += 24;
   });
 
-  await drawAvatar(
-    ctx,
-    portrait ? CARD_X + CARD_W - 116 : CARD_X + CARD_W - 104,
-    portrait ? CARD_Y + 44 : CARD_Y + 68,
-    portrait ? 96 : 76,
-    portrait ? 128 : 76,
-    dark || brandImage,
-    portrait,
-    options.portraitPhotoUrl || ""
-  );
+  if (showAvatar) {
+    const avatarSize = portrait ? 112 : 76;
+    const avatarX = portrait ? CARD_X + CARD_W - avatarSize - 18 : CARD_X + CARD_W - 104;
+    const avatarY = portrait ? CARD_Y + 54 : CARD_Y + 68;
+    await drawAvatar(
+      ctx,
+      avatarX,
+      avatarY,
+      avatarSize,
+      avatarSize,
+      dark || brandImage,
+      portrait,
+      options.portraitPhotoUrl || ""
+    );
+  }
   drawCorner(ctx, theme.brand, dark || brandImage);
 }
 
@@ -299,7 +305,7 @@ function circle(ctx, x, y, radius) {
 }
 
 function normalizeCard(card) {
-  return Object.assign({ display_name: "", title: "", company: "", fields: {} }, card || {});
+  return Object.assign({ display_name: "", title: "", company: "", fields: {}, show_avatar: true }, card || {});
 }
 
 function normalizeTheme(theme) {

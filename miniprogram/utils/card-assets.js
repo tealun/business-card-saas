@@ -1,4 +1,4 @@
-const DEFAULT_PORTRAIT_PHOTO_URL = "/assets/card-portraits/default-female.png";
+const DEFAULT_PORTRAIT_PHOTO_URL = "/assets/card-portraits/default-avatar-square.png";
 
 module.exports = {
   DEFAULT_PORTRAIT_PHOTO_URL

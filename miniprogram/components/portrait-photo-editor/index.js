@@ -1,7 +1,7 @@
 const PORTRAIT_PHOTO_MIN_WIDTH = 900;
-const PORTRAIT_PHOTO_MIN_HEIGHT = 1200;
-const PORTRAIT_PHOTO_MIN_RATIO = 0.72;
-const PORTRAIT_PHOTO_MAX_RATIO = 0.78;
+const PORTRAIT_PHOTO_MIN_HEIGHT = 900;
+const PORTRAIT_PHOTO_MIN_RATIO = 0.95;
+const PORTRAIT_PHOTO_MAX_RATIO = 1.05;
 const MIME_TYPES = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
@@ -26,6 +26,10 @@ Component({
     url: {
       type: String,
       value: ""
+    },
+    defaultPhotoUrl: {
+      type: String,
+      value: ""
     }
   },
 
@@ -35,7 +39,7 @@ Component({
   },
 
   methods: {
-    onChoosePhoto() {
+    async onChoosePhoto() {
       if (!this.data.editable) {
         wx.showToast({ title: this.data.deniedText, icon: "none" });
         return;
@@ -43,39 +47,24 @@ Component({
       if (this.data.choosing) {
         return;
       }
-      if (typeof wx.chooseMedia !== "function") {
-        wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
-        return;
-      }
       this.setData({ choosing: true, error: "" });
-      wx.chooseMedia({
-        count: 1,
-        mediaType: ["image"],
-        sourceType: ["album"],
-        sizeType: ["original"],
-        success: async (result) => {
-          try {
-            const file = result.tempFiles && result.tempFiles[0];
-            const tempFilePath = file && file.tempFilePath;
-            if (!tempFilePath) {
-              throw new Error("未读取到图片");
-            }
-            const info = await getImageInfo(tempFilePath);
-            validatePortraitPhoto(info);
-            const dataUrl = await pathToDataUrl(tempFilePath, imageMime(info));
-            this.setData({ error: "" });
-            this.triggerEvent("change", { url: dataUrl, dirty: true });
-          } catch (error) {
-            const message = error && error.message ? error.message : "形象照不符合要求";
-            this.setData({ error: message });
-            wx.showToast({ title: message, icon: "none" });
-          }
-        },
-        fail: () => {},
-        complete: () => {
-          this.setData({ choosing: false });
+      try {
+        const tempFilePath = await choosePortraitPhoto();
+        if (!tempFilePath) {
+          return;
         }
-      });
+        const info = await getImageInfo(tempFilePath);
+        validatePortraitPhoto(info);
+        const dataUrl = await pathToDataUrl(tempFilePath, imageMime(info));
+        this.setData({ error: "" });
+        this.triggerEvent("change", { url: dataUrl, dirty: true });
+      } catch (error) {
+        const message = error && error.message ? error.message : "形象照不符合要求";
+        this.setData({ error: message });
+        wx.showToast({ title: message, icon: "none" });
+      } finally {
+        this.setData({ choosing: false });
+      }
     },
 
     onClearPhoto() {
@@ -99,6 +88,43 @@ function getImageInfo(src) {
   });
 }
 
+function choosePortraitPhoto() {
+  return new Promise((resolve) => {
+    if (typeof wx.chooseMedia === "function") {
+      wx.chooseMedia({
+        count: 1,
+        mediaType: ["image"],
+        sourceType: ["album"],
+        sizeType: ["original"],
+        success(result) {
+          const file = result.tempFiles && result.tempFiles[0];
+          resolve(file && file.tempFilePath ? file.tempFilePath : "");
+        },
+        fail() {
+          resolve("");
+        }
+      });
+      return;
+    }
+    if (typeof wx.chooseImage === "function") {
+      wx.chooseImage({
+        count: 1,
+        sourceType: ["album"],
+        sizeType: ["original"],
+        success(result) {
+          resolve((result.tempFilePaths && result.tempFilePaths[0]) || "");
+        },
+        fail() {
+          resolve("");
+        }
+      });
+      return;
+    }
+    wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
+    resolve("");
+  });
+}
+
 function validatePortraitPhoto(info) {
   const mime = imageMime(info);
   if (mime !== "image/png") {
@@ -109,10 +135,10 @@ function validatePortraitPhoto(info) {
   }
   const ratio = info.width / info.height;
   if (ratio < PORTRAIT_PHOTO_MIN_RATIO || ratio > PORTRAIT_PHOTO_MAX_RATIO) {
-    throw new Error("形象照请使用 3:4 竖图");
+    throw new Error("形象照请使用 1:1 正方形");
   }
   if (info.width < PORTRAIT_PHOTO_MIN_WIDTH || info.height < PORTRAIT_PHOTO_MIN_HEIGHT) {
-    throw new Error("形象照请上传不小于 900×1200 的图片");
+    throw new Error("形象照请上传不小于 900×900 的图片");
   }
 }
 

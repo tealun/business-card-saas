@@ -53,6 +53,7 @@
   <portrait-photo-editor
     wx:if="{{templateClass === 'biz-card--portrait'}}"
     url="{{portraitPhotoUrl}}"
+    default-photo-url="{{defaultPortraitPhotoUrl}}"
     editable="{{canEditPortraitPhoto}}"
     locked-text="{{accountType === 'enterprise' && !canEditPortraitPhoto ? '当前账号无权限修改此项' : '企业统一维护'}}"
     denied-text="{{accountType === 'enterprise' ? '当前账号无权限修改此项' : '该字段由企业统一维护'}}"

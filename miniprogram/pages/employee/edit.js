@@ -1,8 +1,13 @@
 const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { setPageTheme } = require("../../utils/theme");
 const PORTRAIT_TEMPLATE_ID = "tpl_portrait_photo";
+const PORTRAIT_PHOTO_MIN_WIDTH = 900;
+const PORTRAIT_PHOTO_MIN_HEIGHT = 900;
+const PORTRAIT_PHOTO_MIN_RATIO = 0.95;
+const PORTRAIT_PHOTO_MAX_RATIO = 1.05;
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
@@ -43,6 +48,7 @@ Page({
     themeStyle: "",
     templateId: "",
     portraitPhotoTemplate: false,
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     identityLabel: "",
     tags: [],
     privacy: {
@@ -151,22 +157,36 @@ Page({
       this.lockedTip();
       return;
     }
-    if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
+    if (typeof wx.chooseMedia === "function") {
+      wx.chooseMedia({
+        count: 1,
+        mediaType: ["image"],
+        sourceType: ["album"],
+        sizeType: ["original"],
+        success: (res) => {
+          const file = res.tempFiles && res.tempFiles[0];
+          if (file && file.tempFilePath) {
+            this.setAvatarFromPath(file.tempFilePath);
+          }
+        }
+      });
       return;
     }
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ["image"],
-      sourceType: ["album"],
-      sizeType: ["original"],
-      success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (file && file.tempFilePath) {
-          this.setAvatarFromPath(file.tempFilePath);
+    if (typeof wx.chooseImage === "function") {
+      wx.chooseImage({
+        count: 1,
+        sourceType: ["album"],
+        sizeType: ["original"],
+        success: (res) => {
+          const path = (res.tempFilePaths && res.tempFilePaths[0]) || "";
+          if (path) {
+            this.setAvatarFromPath(path);
+          }
         }
-      }
-    });
+      });
+      return;
+    }
+    wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
   },
 
   async setAvatarFromPath(path) {
@@ -429,11 +449,11 @@ function validatePortraitPhoto(info) {
     throw new Error("无法读取图片尺寸");
   }
   const ratio = info.width / info.height;
-  if (ratio < 0.72 || ratio > 0.78) {
-    throw new Error("照片版请使用 3:4 竖图");
+  if (ratio < PORTRAIT_PHOTO_MIN_RATIO || ratio > PORTRAIT_PHOTO_MAX_RATIO) {
+    throw new Error("照片版请使用 1:1 正方形");
   }
-  if (info.width < 900 || info.height < 1200) {
-    throw new Error("照片版请上传不小于 900×1200 的图片");
+  if (info.width < PORTRAIT_PHOTO_MIN_WIDTH || info.height < PORTRAIT_PHOTO_MIN_HEIGHT) {
+    throw new Error("照片版请上传不小于 900×900 的图片");
   }
 }
 
