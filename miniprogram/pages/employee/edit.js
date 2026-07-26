@@ -4,8 +4,8 @@ const { request } = require("../../utils/api");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { setPageTheme } = require("../../utils/theme");
 const PORTRAIT_TEMPLATE_ID = "tpl_portrait_photo";
-const PORTRAIT_PHOTO_MIN_WIDTH = 900;
-const PORTRAIT_PHOTO_MIN_HEIGHT = 900;
+const PORTRAIT_PHOTO_MIN_WIDTH = 500;
+const PORTRAIT_PHOTO_MIN_HEIGHT = 500;
 const PORTRAIT_PHOTO_MIN_RATIO = 0.95;
 const PORTRAIT_PHOTO_MAX_RATIO = 1.05;
 
@@ -453,7 +453,7 @@ function validatePortraitPhoto(info) {
     throw new Error("照片版请使用 1:1 正方形");
   }
   if (info.width < PORTRAIT_PHOTO_MIN_WIDTH || info.height < PORTRAIT_PHOTO_MIN_HEIGHT) {
-    throw new Error("照片版请上传不小于 900×900 的图片");
+    throw new Error("照片版请上传不小于 500×500 的图片");
   }
 }
 

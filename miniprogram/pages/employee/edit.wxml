@@ -42,7 +42,7 @@
         </view>
       </button>
     </view>
-    <text wx:if="{{portraitPhotoTemplate}}" class="edit-section-help">照片版请上传 PNG 正方形头像，建议 900×900 以上（1:1），右侧会以形象照展示。</text>
+    <text wx:if="{{portraitPhotoTemplate}}" class="edit-section-help">照片版请上传 PNG 正方形头像，建议 500×500 以上（1:1），右侧会以形象照展示。</text>
     <view class="field-row {{editable.display_name ? '' : 'field-row--locked'}}" data-key="display_name" bindtap="onLockedFieldTap">
       <view class="field-row__label">
         <view wx:if="{{!editable.display_name}}" class="icon icon-lock icon--sm"></view>

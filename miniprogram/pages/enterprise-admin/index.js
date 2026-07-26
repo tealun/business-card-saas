@@ -23,7 +23,7 @@ const TEMPLATE_VARIANTS = [
   { value: "horizontal-business", label: "横版商务", desc: "企业级默认模板" },
   { value: "minimal", label: "极简", desc: "信息更克制" },
   { value: "brand-image", label: "品牌图", desc: "适合强品牌露出" },
-  { value: "portrait-photo", label: "照片版", desc: "正方形头像 · PNG 900×900 以上" },
+  { value: "portrait-photo", label: "照片版", desc: "正方形头像 · PNG 500×500 以上" },
   { value: "dark", label: "深色", desc: "高对比展示" },
   { value: "campaign", label: "活动版", desc: "短期推广使用" }
 ];
@@ -31,7 +31,7 @@ const STYLE_TEMPLATES = [
   { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
   { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
   { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
-  { id: "tpl_portrait_photo", name: "照片版", desc: "正方形头像 · PNG 900×900 以上" },
+  { id: "tpl_portrait_photo", name: "照片版", desc: "正方形头像 · PNG 500×500 以上" },
   { id: "tpl_dark", name: "深色", desc: "高对比展示" },
   { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
 ];

@@ -2,7 +2,7 @@
   <view class="row-between portrait-photo-editor__head">
     <view>
       <view class="card__title">形象照</view>
-      <view class="f12 t-secondary portrait-photo-editor__sub">PNG · 900×900 以上 · 正方形头像</view>
+      <view class="f12 t-secondary portrait-photo-editor__sub">PNG · 500×500 以上 · 正方形头像</view>
     </view>
     <view class="btn btn--sm btn--soft {{editable ? '' : 'btn--disabled'}}" bindtap="onChoosePhoto">
       {{url ? "更换" : "上传"}}

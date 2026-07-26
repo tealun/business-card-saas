@@ -23,8 +23,7 @@ const DEMO_ASSETS: Record<string, Record<string, string>> = {
     "company-intro.mp4": "video/mp4"
   },
   "card-portraits": {
-    "default-avatar-square.png": "image/png",
-    "default-female.png": "image/png"
+    "default-avatar-square.png": "image/png"
   }
 };
 
