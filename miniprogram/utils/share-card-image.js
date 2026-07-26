@@ -204,19 +204,20 @@ async function drawAvatar(ctx, x, y, width, height, inverse, portrait = false, p
   const fill = inverse ? "rgba(255,255,255,0.16)" : "#eef0f3";
   const mark = inverse ? "rgba(255,255,255,0.72)" : "#a9b2c1";
   const resolvedPhoto = portrait && portraitPhotoUrl ? await resolveImagePath(portraitPhotoUrl) : "";
-  if (resolvedPhoto) {
-    ctx.drawImage(resolvedPhoto, x, y, width, height);
-    return;
-  }
   ctx.save();
   if (portrait) {
     roundedRect(ctx, x, y, width, height, 18);
   } else {
     circle(ctx, x + width / 2, y + height / 2, width / 2);
   }
+  ctx.clip();
   ctx.fillStyle = fill;
   ctx.fill();
-  ctx.clip();
+  if (resolvedPhoto) {
+    ctx.drawImage(resolvedPhoto, x, y, width, height);
+    ctx.restore();
+    return;
+  }
   ctx.fillStyle = mark;
   if (portrait) {
     circle(ctx, x + width / 2, y + height * 0.34, Math.min(width, height) * 0.18);
