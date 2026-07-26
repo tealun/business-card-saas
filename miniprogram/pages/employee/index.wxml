@@ -63,7 +63,7 @@
             </view>
           </view>
           <view class="biz-card__avatar" wx:if="{{card.show_avatar}}">
-            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFit" class="avatar-img" />
+            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" />
             <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
