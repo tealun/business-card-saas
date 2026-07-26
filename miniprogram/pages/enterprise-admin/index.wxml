@@ -42,27 +42,24 @@
 
   <block wx:else>
     <view class="admin-hero">
-      <view class="admin-hero__top">
-        <view class="admin-icon-btn" bindtap="goHome"><view class="icon icon-home icon--sm"></view></view>
-        <view class="admin-icon-btn" bindtap="refresh"><view class="icon icon-reload icon--sm"></view></view>
-      </view>
       <view class="admin-tenant">
         <view class="admin-tenant__logo">{{tenant.initial}}</view>
         <view class="admin-tenant__main">
           <view class="admin-tenant__name">{{tenant.tenant_name}}</view>
-          <view class="admin-tenant__meta">{{tenant.roleLabel}} · 企业管理</view>
+          <view class="admin-tenant__meta">{{tenant.roleLabel}} · 成员 {{overview.member_count || 0}} 人</view>
         </view>
+        <button class="admin-invite-btn" bindtap="openInvitePanel">＋ 邀请成员</button>
       </view>
-    </view>
 
-    <view class="admin-tabs">
-      <view
-        wx:for="{{tabs}}"
-        wx:key="key"
-        class="admin-tab {{activeTab === item.key ? 'admin-tab--active' : ''}}"
-        data-key="{{item.key}}"
-        bindtap="switchTab"
-      >{{item.label}}</view>
+      <view class="admin-tabs">
+        <view
+          wx:for="{{tabs}}"
+          wx:key="key"
+          class="admin-tab {{activeTab === item.key ? 'admin-tab--active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="switchTab"
+        >{{item.label}}</view>
+      </view>
     </view>
 
     <view wx:if="{{error}}" class="admin-inline-error">{{error}}</view>
@@ -126,7 +123,6 @@
           <view class="icon icon-search icon--sm"></view>
           <input value="{{memberSearch}}" placeholder="搜索成员姓名、手机、邮箱" bindinput="onMemberSearch" confirm-type="search" bindconfirm="refreshMembers" />
         </view>
-        <button class="mini-btn mini-btn--primary" bindtap="refreshMembers">搜索</button>
       </view>
 
       <view class="member-status-tabs">
@@ -139,10 +135,18 @@
         >{{item.label}}</view>
       </view>
 
-      <view class="member-actions">
-        <button class="mini-btn mini-btn--ghost" bindtap="syncMembers">同步成员</button>
-        <button class="mini-btn mini-btn--ghost" bindtap="createJoinCode">入企码</button>
-        <button class="mini-btn mini-btn--primary" bindtap="openInvitePanel">邀请成员</button>
+      <view class="member-list-head">
+        <view class="member-list-head__title">成员列表</view>
+        <view class="member-actions">
+          <view class="member-action-link" bindtap="syncMembers">
+            <view class="member-action-link__sync"></view>
+            <text>同步成员</text>
+          </view>
+          <view class="member-action-link" bindtap="createJoinCode">
+            <view class="member-action-link__grid"></view>
+            <text>入企码</text>
+          </view>
+        </view>
       </view>
 
       <view wx:if="{{joinCode}}" class="join-code-box">
@@ -158,16 +162,29 @@
         <view class="member-card__top">
           <view class="member-avatar">{{item.initial}}</view>
           <view class="member-main">
-            <view class="member-name">{{item.display_name}}</view>
+            <view class="member-title-row">
+              <view class="member-name">{{item.display_name}}</view>
+              <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
+            </view>
             <view class="member-meta">{{item.title || '未填写职位'}} · {{item.department || '未分组'}}</view>
           </view>
-          <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
+          <view class="member-more" data-id="{{item.member_identity_id}}" bindtap="toggleMemberActionMenu">•••</view>
         </view>
         <view class="member-contact">{{item.mobile || item.email || '暂无联系方式'}}</view>
-        <view class="member-card__actions">
-          <button class="mini-btn mini-btn--ghost" data-id="{{item.member_identity_id}}" bindtap="openMemberEditor">编辑</button>
-          <button class="mini-btn mini-btn--ghost" data-id="{{item.member_identity_id}}" data-status="{{item.card_status}}" bindtap="toggleMemberStatus">{{item.card_status === 'active' ? '停用' : '启用'}}</button>
-          <button class="mini-btn mini-btn--danger" data-id="{{item.member_identity_id}}" bindtap="deleteMember">删除</button>
+        <view wx:if="{{memberActionId === item.member_identity_id}}" class="member-menu">
+          <view class="member-menu__item" data-id="{{item.member_identity_id}}" bindtap="openMemberEditor">
+            <view class="member-menu__icon member-menu__icon--edit"></view>
+            <text>编辑资料</text>
+          </view>
+          <view class="member-menu__item" data-id="{{item.member_identity_id}}" data-status="{{item.card_status}}" bindtap="toggleMemberStatus">
+            <view class="member-menu__icon member-menu__icon--disable"></view>
+            <text>{{item.card_status === 'active' ? '停用名片' : '启用名片'}}</text>
+          </view>
+          <view class="member-menu__line"></view>
+          <view class="member-menu__item member-menu__item--danger" data-id="{{item.member_identity_id}}" bindtap="deleteMember">
+            <view class="member-menu__icon member-menu__icon--delete"></view>
+            <text>移除成员</text>
+          </view>
         </view>
       </view>
     </block>

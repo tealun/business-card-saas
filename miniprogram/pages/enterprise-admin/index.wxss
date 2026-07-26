@@ -1,8 +1,9 @@
 .admin-page {
   min-height: 100vh;
-  background: #f3f5f8;
+  background: #f4f6fa;
   color: #111827;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .admin-state {
@@ -120,18 +121,12 @@
 }
 
 .admin-hero {
-  padding: 18rpx 32rpx 24rpx;
+  padding: 30rpx 32rpx 18rpx;
   background:
-    radial-gradient(circle at 16rpx 16rpx, rgba(255,255,255,.18) 0 2rpx, transparent 3rpx) 0 0 / 42rpx 42rpx,
-    linear-gradient(145deg, #3152a9 0%, #5577da 100%);
+    radial-gradient(circle at 17rpx 17rpx, rgba(255,255,255,.14) 0 2rpx, transparent 3rpx) 0 0 / 42rpx 42rpx,
+    linear-gradient(142deg, #2e4fa9 0%, #5a79d8 100%);
   color: #fff;
-}
-
-.admin-hero__top {
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  box-sizing: border-box;
 }
 
 .admin-icon-btn {
@@ -150,17 +145,17 @@
 }
 
 .admin-tenant {
-  margin-top: 34rpx;
   display: flex;
   align-items: center;
-  gap: 22rpx;
+  gap: 20rpx;
 }
 
 .admin-tenant__logo {
   width: 92rpx;
   height: 92rpx;
-  border-radius: 22rpx;
-  background: rgba(255,255,255,.18);
+  border-radius: 18rpx;
+  background: rgba(255,255,255,.16);
+  border: 1rpx solid rgba(255,255,255,.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,37 +170,61 @@
 }
 
 .admin-tenant__name {
-  font-size: 42rpx;
+  font-size: 35rpx;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.18;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-tenant__meta {
-  margin-top: 8rpx;
-  font-size: 26rpx;
+  margin-top: 6rpx;
+  font-size: 25rpx;
   color: rgba(255,255,255,.88);
+}
+
+.admin-invite-btn {
+  flex: none;
+  min-width: 200rpx;
+  height: 68rpx;
+  padding: 0 28rpx;
+  border-radius: 36rpx;
+  background: #fff;
+  color: #5272d6;
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 68rpx;
+  box-shadow: 0 12rpx 24rpx rgba(25, 50, 112, .14);
 }
 
 .admin-tabs {
   display: flex;
-  gap: 18rpx;
-  padding: 22rpx 32rpx 8rpx;
+  gap: 8rpx;
+  margin-top: 30rpx;
+  padding: 8rpx;
+  border-radius: 16rpx;
+  background: rgba(37, 70, 151, .36);
 }
 
 .admin-tab {
-  height: 64rpx;
-  padding: 0 24rpx;
-  border-radius: 16rpx;
-  background: #fff;
-  color: #6b7280;
+  flex: 1;
+  height: 62rpx;
+  padding: 0;
+  border-radius: 12rpx;
+  background: transparent;
+  color: rgba(255,255,255,.86);
   font-size: 26rpx;
-  line-height: 64rpx;
-  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, .04);
+  font-weight: 600;
+  line-height: 62rpx;
+  text-align: center;
+  box-shadow: none;
 }
 
 .admin-tab--active {
-  color: #fff;
-  background: #5272d6;
+  color: #4466c7;
+  background: #fff;
+  box-shadow: 0 8rpx 18rpx rgba(27, 51, 113, .12);
 }
 
 .admin-inline-error {
@@ -315,63 +334,110 @@
 }
 
 .member-toolbar {
-  display: flex;
-  gap: 14rpx;
-  margin: 18rpx 32rpx 0;
+  display: block;
+  margin: 0;
+  padding: 18rpx 32rpx 0;
+  background: #fff;
 }
 
 .member-search {
-  flex: 1;
-  height: 78rpx;
-  padding: 0 20rpx;
-  border-radius: 18rpx;
+  height: 86rpx;
+  padding: 0 24rpx;
+  border-radius: 16rpx;
   background: #fff;
+  border: 1rpx solid #d8dfeb;
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, .06);
+  gap: 14rpx;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 
 .member-search input {
   flex: 1;
   min-width: 0;
-  height: 78rpx;
+  height: 84rpx;
   font-size: 26rpx;
 }
 
 .member-status-tabs {
   display: flex;
-  gap: 12rpx;
-  padding: 18rpx 32rpx 0;
+  gap: 16rpx;
+  padding: 22rpx 32rpx 0;
 }
 
 .member-status {
-  height: 54rpx;
-  padding: 0 22rpx;
-  border-radius: 14rpx;
+  height: 56rpx;
+  padding: 0 26rpx;
+  border-radius: 28rpx;
   background: #fff;
-  color: #6b7280;
+  color: #536172;
   font-size: 24rpx;
-  line-height: 54rpx;
+  line-height: 56rpx;
+  border: 1rpx solid #e1e6ef;
+  box-sizing: border-box;
 }
 
 .member-status--active {
   color: #fff;
   background: #5272d6;
+  border-color: #5272d6;
+}
+
+.member-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 42rpx 32rpx 0;
+}
+
+.member-list-head__title {
+  font-size: 27rpx;
+  font-weight: 800;
+  color: #303b4c;
 }
 
 .member-actions {
   display: flex;
-  gap: 12rpx;
-  padding: 18rpx 32rpx 0;
+  align-items: center;
+  gap: 28rpx;
+}
+
+.member-action-link {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #5272d6;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.member-action-link__sync {
+  width: 22rpx;
+  height: 22rpx;
+  border: 3rpx solid #5272d6;
+  border-right-color: transparent;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.member-action-link__grid {
+  width: 24rpx;
+  height: 24rpx;
+  background:
+    linear-gradient(#5272d6, #5272d6) 0 0 / 8rpx 8rpx no-repeat,
+    linear-gradient(#5272d6, #5272d6) 16rpx 0 / 8rpx 8rpx no-repeat,
+    linear-gradient(#5272d6, #5272d6) 0 16rpx / 8rpx 8rpx no-repeat,
+    linear-gradient(#5272d6, #5272d6) 16rpx 16rpx / 8rpx 8rpx no-repeat;
 }
 
 .member-card {
-  margin: 18rpx 32rpx 0;
-  padding: 24rpx;
+  position: relative;
+  margin: 20rpx 32rpx 0;
+  padding: 28rpx 30rpx;
   border-radius: 22rpx;
   background: #fff;
-  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, .06);
+  box-shadow: 0 16rpx 38rpx rgba(23, 37, 68, .08);
 }
 
 .member-card__top {
@@ -381,12 +447,12 @@
 }
 
 .member-avatar {
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 18rpx;
-  background: #5272d6;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #3155bc, #5c7ce0);
   color: #fff;
-  font-size: 32rpx;
+  font-size: 31rpx;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -399,28 +465,140 @@
   flex: 1;
 }
 
+.member-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+
 .member-name {
-  font-size: 30rpx;
+  max-width: 220rpx;
+  font-size: 29rpx;
   font-weight: 800;
   color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .member-meta {
-  margin-top: 4rpx;
-  font-size: 22rpx;
-  color: #6b7280;
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #8490a0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .member-contact {
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  color: #374151;
+  margin-top: -24rpx;
+  margin-left: 104rpx;
+  padding-right: 60rpx;
+  font-size: 23rpx;
+  color: #8490a0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.member-card__actions {
+.member-more {
+  width: 58rpx;
+  height: 58rpx;
+  border-radius: 16rpx;
+  background: #f3f5f8;
+  color: #8792a2;
+  font-size: 26rpx;
+  font-weight: 800;
+  line-height: 48rpx;
+  text-align: center;
+  flex: none;
+}
+
+.member-menu {
+  position: absolute;
+  right: 0;
+  top: 138rpx;
+  width: 326rpx;
+  padding: 20rpx 0;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 30rpx 70rpx rgba(22, 35, 63, .18);
+  z-index: 20;
+}
+
+.member-menu__item {
+  height: 78rpx;
+  padding: 0 34rpx;
   display: flex;
-  gap: 12rpx;
-  margin-top: 18rpx;
+  align-items: center;
+  gap: 20rpx;
+  color: #111827;
+  font-size: 27rpx;
+  box-sizing: border-box;
+}
+
+.member-menu__item--danger {
+  color: #ff4d5d;
+}
+
+.member-menu__line {
+  height: 1rpx;
+  margin: 8rpx 28rpx;
+  background: #edf0f4;
+}
+
+.member-menu__icon {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+  flex: none;
+  box-sizing: border-box;
+}
+
+.member-menu__icon--edit::before {
+  content: "";
+  position: absolute;
+  left: 5rpx;
+  top: 11rpx;
+  width: 20rpx;
+  height: 5rpx;
+  border-radius: 4rpx;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+
+.member-menu__icon--disable {
+  border: 3rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.member-menu__icon--disable::before {
+  content: "";
+  position: absolute;
+  left: 5rpx;
+  right: 5rpx;
+  top: 11rpx;
+  height: 3rpx;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.member-menu__icon--delete {
+  border: 3rpx solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 5rpx 5rpx;
+}
+
+.member-menu__icon--delete::before {
+  content: "";
+  position: absolute;
+  left: 2rpx;
+  top: -7rpx;
+  width: 24rpx;
+  height: 3rpx;
+  border-radius: 3rpx;
+  background: currentColor;
 }
 
 .settings-list {
@@ -942,8 +1120,8 @@
   display: inline-flex;
   align-items: center;
   height: 36rpx;
-  padding: 0 12rpx;
-  border-radius: 12rpx;
+  padding: 0 10rpx;
+  border-radius: 8rpx;
   font-size: 21rpx;
   white-space: nowrap;
 }

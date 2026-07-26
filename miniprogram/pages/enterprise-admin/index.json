@@ -1,5 +1,8 @@
 {
   "navigationBarTitleText": "企业管理",
+  "navigationBarBackgroundColor": "#5272d6",
+  "navigationBarTextStyle": "white",
+  "backgroundColor": "#5272d6",
   "usingComponents": {
     "card-style-editor": "/components/card-style-editor/index"
   }

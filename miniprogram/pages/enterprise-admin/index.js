@@ -138,6 +138,7 @@ Page({
     presets: [DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"],
     introDraft: emptyIntroDraft(),
     memberDraft: {},
+    memberActionId: "",
     inviteDraft: { displayName: "", token: "", expiresAt: "" },
     joinCode: null,
     styleTemplates: STYLE_TEMPLATES,
@@ -405,7 +406,7 @@ Page({
   },
 
   switchTab(event) {
-    this.setData({ activeTab: event.currentTarget.dataset.key });
+    this.setData({ activeTab: event.currentTarget.dataset.key, memberActionId: "" });
   },
 
   async refresh() {
@@ -418,17 +419,22 @@ Page({
   },
 
   setMemberStatus(event) {
-    this.setData({ memberStatus: event.currentTarget.dataset.status || "all" });
+    this.setData({ memberStatus: event.currentTarget.dataset.status || "all", memberActionId: "" });
     this.refreshMembers();
   },
 
   async refreshMembers() {
     try {
       const members = await this.loadMembersData();
-      this.setData({ members: decorateMembers(members.items || []) });
+      this.setData({ members: decorateMembers(members.items || []), memberActionId: "" });
     } catch (error) {
       wx.showToast({ title: formatError(error, "人员加载失败"), icon: "none" });
     }
+  },
+
+  toggleMemberActionMenu(event) {
+    const memberId = String(event.currentTarget.dataset.id || "");
+    this.setData({ memberActionId: this.data.memberActionId === memberId ? "" : memberId });
   },
 
   openProfilePanel() {
@@ -1240,6 +1246,7 @@ Page({
       return;
     }
     const memberId = event.currentTarget.dataset.id;
+    this.setData({ memberActionId: "" });
     try {
       const card = await this.adminRequest(`/admin/members/${encodeURIComponent(memberId)}/card`);
       this.setData({
@@ -1297,6 +1304,7 @@ Page({
     }
     const memberId = event.currentTarget.dataset.id;
     const status = event.currentTarget.dataset.status === "active" ? "disabled" : "active";
+    this.setData({ memberActionId: "" });
     await this.saveWithToast(async () => {
       await this.adminRequest(`/admin/members/${encodeURIComponent(memberId)}/card`, {
         method: "PUT",
@@ -1309,6 +1317,7 @@ Page({
   async deleteMember(event) {
     if (!this.requireAdmin()) return;
     const memberId = event.currentTarget.dataset.id;
+    this.setData({ memberActionId: "" });
     const ok = await confirm("删除成员", "删除后该成员名片将不可访问。");
     if (!ok) return;
     await this.saveWithToast(async () => {
@@ -1319,6 +1328,7 @@ Page({
 
   async syncMembers() {
     if (!this.requireAdmin()) return;
+    this.setData({ memberActionId: "" });
     await this.saveWithToast(async () => {
       await this.adminRequest("/admin/members/sync", { method: "POST" });
       await this.refreshMembers();
@@ -1327,6 +1337,7 @@ Page({
 
   async createJoinCode() {
     if (!this.requireAdmin()) return;
+    this.setData({ memberActionId: "" });
     await this.saveWithToast(async () => {
       const joinCode = await this.adminRequest("/admin/local-enterprises/join-code", { method: "POST" });
       this.setData({ joinCode: { ...joinCode, expires_at: formatDateTime(joinCode.expires_at) } });
