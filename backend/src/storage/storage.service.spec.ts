@@ -2,9 +2,16 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { S3Client } from "@aws-sdk/client-s3";
 import { AppConfig } from "../config/app-config.js";
 import { StorageService } from "./storage.service.js";
+
+const { S3Client } = jest.requireActual("@aws-sdk/client-s3") as {
+  S3Client: {
+    prototype: {
+      send: (...args: unknown[]) => unknown;
+    };
+  };
+};
 
 describe("StorageService", () => {
   const originalEnv = { ...process.env };

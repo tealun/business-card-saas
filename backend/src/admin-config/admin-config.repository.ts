@@ -647,7 +647,7 @@ export class AdminConfigRepository {
   }
 
   async createTemplate(tenantId: string, request: CreateAdminTemplateRequest): Promise<AdminTemplate> {
-    const materializedRequest = await materializeTemplateStorageFields.call(this, tenantId, request);
+    const materializedRequest = (await materializeTemplateStorageFields.call(this, tenantId, request)) as CreateAdminTemplateRequest;
     if (this.hasDatabase()) {
       const result = await this.tenantTx!.run(tenantId, async (tx) => {
         const count = await tx.query<CountRow>(
@@ -704,7 +704,7 @@ export class AdminConfigRepository {
   }
 
   async updateTemplate(tenantId: string, templateId: string, request: UpdateAdminTemplateRequest): Promise<AdminTemplate> {
-    const materializedRequest = await materializeTemplateStorageFields.call(this, tenantId, request);
+    const materializedRequest = (await materializeTemplateStorageFields.call(this, tenantId, request)) as UpdateAdminTemplateRequest;
     if (this.hasDatabase()) {
       const current = await this.getTemplateRow(tenantId, templateId);
       const result = await this.tenantTx!.run(tenantId, (tx) =>
@@ -1218,6 +1218,16 @@ function cloneTemplates(templates: AdminTemplate[]): AdminTemplate[] {
   }));
 }
 
+async function materializeTemplateStorageFields(
+  this: AdminConfigRepository,
+  tenantId: string,
+  request: CreateAdminTemplateRequest
+): Promise<CreateAdminTemplateRequest>;
+async function materializeTemplateStorageFields(
+  this: AdminConfigRepository,
+  tenantId: string,
+  request: UpdateAdminTemplateRequest
+): Promise<UpdateAdminTemplateRequest>;
 async function materializeTemplateStorageFields(
   this: AdminConfigRepository,
   tenantId: string,
