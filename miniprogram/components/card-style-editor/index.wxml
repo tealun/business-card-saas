@@ -1,0 +1,158 @@
+<view class="card-style-editor">
+  <view class="biz-card style-preview {{templateClass}}" style="{{backgroundPreviewStyle}}">
+    <view class="biz-card__head" wx:if="{{logoUrl || card.company_short_name}}">
+      <view class="biz-card__logo" wx:if="{{logoUrl || card.company_short_name}}">
+        <image wx:if="{{logoUrl}}" class="biz-card__logo-img" src="{{logoUrl}}" mode="aspectFit" />
+        <block wx:else>
+          <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
+          <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
+        </block>
+      </view>
+      <text class="biz-card__company" wx:if="{{card.company_short_name}}">{{card.company_short_name}}</text>
+    </view>
+    <view class="biz-card__body">
+      <view class="biz-card__info">
+        <view class="biz-card__company-full" wx:if="{{card.company}}">{{card.company}}</view>
+        <view class="biz-card__name">{{card.display_name || "姓名"}}</view>
+        <view class="biz-card__role">{{card.title || "职位"}}</view>
+        <view class="biz-card__contact">
+          <view>{{card.fields.mobile || "联系方式未设置"}}</view>
+        </view>
+      </view>
+      <view class="biz-card__avatar" wx:if="{{templateClass === 'biz-card--portrait' || card.show_avatar}}">
+        <image wx:if="{{templateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFit" class="avatar-img" />
+        <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+        <view wx:else class="avatar-placeholder"></view>
+      </view>
+    </view>
+    <text class="badge badge--brand style-preview__tag">实时预览</text>
+  </view>
+
+  <view class="card">
+    <text class="card__title">选择模板</text>
+    <scroll-view scroll-x class="tpl-scroll" enable-flex>
+      <view
+        class="tpl-item {{templateId === item.id ? 'tpl-item--active' : ''}} {{canEditTemplates ? '' : 'tpl-item--disabled'}}"
+        wx:for="{{templates}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onTemplateTap"
+      >
+        <view class="tpl-item__thumb">
+          <view class="tpl-item__line tpl-item__line--name"></view>
+          <view class="tpl-item__line"></view>
+          <view class="tpl-item__dot"></view>
+        </view>
+        <text class="tpl-item__name">{{item.name}}</text>
+        <text class="tpl-item__desc">{{item.desc}}</text>
+        <view class="tpl-item__check icon icon-check" wx:if="{{templateId === item.id}}"></view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <portrait-photo-editor
+    wx:if="{{templateClass === 'biz-card--portrait'}}"
+    url="{{portraitPhotoUrl}}"
+    editable="{{canEditPortraitPhoto}}"
+    locked-text="{{accountType === 'enterprise' && !canEditPortraitPhoto ? '当前账号无权限修改此项' : '企业统一维护'}}"
+    denied-text="{{accountType === 'enterprise' ? '当前账号无权限修改此项' : '该字段由企业统一维护'}}"
+    bindchange="onPortraitPhotoChange"
+  />
+
+  <view class="card">
+    <view class="row-between">
+      <text class="card__title">品牌主色</text>
+      <text class="card__more">企业允许范围</text>
+    </view>
+    <view class="color-row">
+      <view
+        class="color-dot {{primary === item ? 'color-dot--active' : ''}} {{canEditColors ? '' : 'color-dot--disabled'}}"
+        wx:for="{{presets}}"
+        wx:key="*this"
+        style="background: {{item}};"
+        data-color="{{item}}"
+        bindtap="onColorTap"
+      ></view>
+      <view
+        class="color-dot color-dot--custom {{customColorExpanded ? 'color-dot--active' : ''}} {{canEditColors ? '' : 'color-dot--disabled'}}"
+        bindtap="onCustomColorTap"
+      >
+        <text>自</text>
+      </view>
+    </view>
+    <view class="custom-color-row {{customColorExpanded ? '' : 'custom-color-row--hidden'}} {{canEditColors ? '' : 'custom-color-row--disabled'}}">
+      <text class="custom-color-row__label">自定义</text>
+      <input
+        class="custom-color-row__input"
+        value="{{customHex}}"
+        maxlength="7"
+        disabled="{{!canEditColors}}"
+        bindinput="onCustomHexInput"
+        placeholder="#5A70C8"
+      />
+    </view>
+    <view class="custom-color-row__error" wx:if="{{customHexError}}">{{customHexError}}</view>
+  </view>
+
+  <view class="card qrcode-row">
+    <view>
+      <view class="card__title">名片码样式</view>
+      <view class="f12 t-secondary qrcode-row__sub">当前固定使用品牌色角标与居中 logo，暂不开放手动编辑。</view>
+    </view>
+    <view class="qrcode-row__right">
+      <text class="badge badge--muted">默认</text>
+    </view>
+  </view>
+
+  <view class="card background-card">
+    <view class="row-between">
+      <view>
+        <view class="card__title">名片背景图</view>
+        <view class="f12 t-secondary background-card__sub">可使用默认背景，也可上传自定义图。请结合当前版式选择留白位置；JPG、PNG、WebP，≤2MB，比例 1.5:1 到 2:1。</view>
+      </view>
+      <view class="btn btn--sm btn--soft {{canEditBackground ? '' : 'btn--disabled'}}" bindtap="onChooseBackground">{{backgroundUrl ? "更换" : "上传"}}</view>
+    </view>
+    <scroll-view scroll-x class="background-preset-scroll" enable-flex>
+      <view
+        class="background-preset {{backgroundPresetId === item.id ? 'background-preset--active' : ''}} {{canEditBackground ? '' : 'background-preset--disabled'}}"
+        wx:for="{{backgroundPresets}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="onPresetTap"
+      >
+        <image class="background-preset__image" src="{{item.url}}" mode="aspectFill" />
+        <text class="background-preset__name">{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <view class="background-preview {{backgroundUrl ? 'background-preview--filled' : ''}} {{canEditBackground ? '' : 'background-preview--disabled'}}" bindtap="onChooseBackground">
+      <image wx:if="{{backgroundUrl}}" class="background-preview__image" src="{{backgroundUrl}}" mode="aspectFill" />
+      <view wx:else class="background-preview__empty">
+        <view class="icon icon-image"></view>
+        <text>选择背景图</text>
+      </view>
+    </view>
+    <view class="background-opacity-row" wx:if="{{backgroundUrl}}">
+      <view class="row-between">
+        <text class="background-opacity-row__label">背景图透明度</text>
+        <text class="background-opacity-row__value">{{backgroundOpacity}}%</text>
+      </view>
+      <slider
+        class="background-opacity-row__slider"
+        min="0"
+        max="100"
+        step="5"
+        value="{{backgroundOpacity}}"
+        disabled="{{!canEditBackground}}"
+        activeColor="{{primary}}"
+        backgroundColor="#e5e7eb"
+        block-size="20"
+        bindchanging="onBackgroundOpacity"
+        bindchange="onBackgroundOpacity"
+      />
+    </view>
+    <view class="background-card__actions" wx:if="{{backgroundUrl}}">
+      <view class="btn btn--sm btn--muted {{canEditBackground ? '' : 'btn--disabled'}}" bindtap="onClearBackground">清除背景图</view>
+    </view>
+    <view class="custom-color-row__error" wx:if="{{backgroundError}}">{{backgroundError}}</view>
+  </view>
+</view>

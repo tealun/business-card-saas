@@ -1,5 +1,6 @@
 const { ensureSession } = require("../../utils/auth");
 const { request, uploadBinary } = require("../../utils/api");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, setPageTheme, themeStyle: buildThemeStyle } = require("../../utils/theme");
 const { normalizeWebsiteUrl } = require("../../utils/website-url");
 const ADMIN_BOOTSTRAP_STORAGE_KEY = "wecomcard.admin.bootstrap.v1";
@@ -25,6 +26,14 @@ const TEMPLATE_VARIANTS = [
   { value: "portrait-photo", label: "照片版", desc: "右侧形象照 · PNG 900×1200" },
   { value: "dark", label: "深色", desc: "高对比展示" },
   { value: "campaign", label: "活动版", desc: "短期推广使用" }
+];
+const STYLE_TEMPLATES = [
+  { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
+  { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
+  { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
+  { id: "tpl_portrait_photo", name: "照片版", desc: "右侧形象照 · PNG 900×1200" },
+  { id: "tpl_dark", name: "深色", desc: "高对比展示" },
+  { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
 ];
 
 const COLOR_SWATCHES = ["#5272d6", "#0f766e", "#c2410c", "#7c3aed", "#111827"];
@@ -109,6 +118,7 @@ Page({
     profileDraft: {},
     templateDraft: {},
     templateId: "",
+    styleTemplateId: "tpl_horizontal_business",
     templateClass: "biz-card--horizontal",
     primary: DEFAULT_BRAND,
     customColor: DEFAULT_BRAND,
@@ -123,12 +133,14 @@ Page({
     backgroundOpacity: DEFAULT_BACKGROUND_OPACITY,
     backgroundPreviewStyle: "",
     backgroundError: "",
+    portraitPhotoUrl: "",
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     presets: [DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"],
     introDraft: emptyIntroDraft(),
     memberDraft: {},
     inviteDraft: { displayName: "", token: "", expiresAt: "" },
     joinCode: null,
-    templateVariants: TEMPLATE_VARIANTS,
+    styleTemplates: STYLE_TEMPLATES,
     colorSwatches: COLOR_SWATCHES,
     moduleLayouts: MODULE_LAYOUTS,
     introSections: INTRO_CONTENT_SECTIONS,
@@ -483,7 +495,10 @@ Page({
   },
 
   chooseVariant(event) {
-    const variant = normalizeTemplateVariant(event.currentTarget.dataset.variant);
+    if (!this.requireAdmin()) return;
+    const detail = event.detail || {};
+    const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+    const variant = normalizeTemplateVariant(detail.templateId || dataset.variant);
     const meta = templateStyleMeta(variant);
     const shouldResetToPreset = !this.data.backgroundUrl || this.data.backgroundPresetId || String(this.data.backgroundUrl).startsWith("/assets/");
     const preset = resolveBackgroundPreset(this.data.backgroundPresetId, variant);
@@ -494,6 +509,7 @@ Page({
       : this.data.backgroundOpacity;
     this.setData({
       templateDraft: { ...this.data.templateDraft, variant },
+      styleTemplateId: templateIdForVariant(variant),
       templateClass: templateClassForVariant(variant),
       backgroundUrl,
       backgroundPresetId,
@@ -512,13 +528,17 @@ Page({
   },
 
   chooseColor(event) {
-    this.previewTemplateColor(String(event.currentTarget.dataset.color || DEFAULT_BRAND), {
+    if (!this.requireAdmin()) return;
+    const detail = event.detail || {};
+    const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+    this.previewTemplateColor(String(detail.color || dataset.color || DEFAULT_BRAND), {
       customHexError: "",
       customColorExpanded: false
     });
   },
 
   onCustomHexInput(event) {
+    if (!this.requireAdmin()) return;
     const customHex = String(event.detail.value || "").trim();
     const normalized = normalizeHexInput(customHex);
     if (!normalized) {
@@ -534,6 +554,7 @@ Page({
   },
 
   selectCustomColor() {
+    if (!this.requireAdmin()) return;
     const normalized = normalizeHexInput(this.data.customHex) || this.data.customColor || DEFAULT_BRAND;
     this.previewTemplateColor(normalized, {
       customColor: normalized,
@@ -562,7 +583,7 @@ Page({
   },
 
   async chooseBackgroundImage() {
-    if (this.data.uploading) {
+    if (!this.requireAdmin() || this.data.uploading) {
       return;
     }
     this.setData({ uploading: true, backgroundError: "" });
@@ -603,7 +624,11 @@ Page({
   },
 
   onSelectPresetBackground(event) {
-    const preset = BACKGROUND_PRESETS.find((item) => item.id === event.currentTarget.dataset.id);
+    if (!this.requireAdmin()) return;
+    const detail = event.detail || {};
+    const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+    const presetId = detail.presetId || dataset.id;
+    const preset = BACKGROUND_PRESETS.find((item) => item.id === presetId);
     if (!preset) {
       return;
     }
@@ -620,6 +645,7 @@ Page({
   },
 
   clearBackgroundImage() {
+    if (!this.requireAdmin()) return;
     this.setData({
       backgroundUrl: "",
       backgroundPresetId: "",
@@ -629,10 +655,18 @@ Page({
   },
 
   onBackgroundOpacityChange(event) {
+    if (!this.requireAdmin()) return;
     const backgroundOpacity = normalizeOpacity(event.detail.value, DEFAULT_BACKGROUND_OPACITY);
     this.setData({
       backgroundOpacity,
       backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateDraft.variant)
+    });
+  },
+
+  onPortraitPhotoChange(event) {
+    if (!this.requireAdmin()) return;
+    this.setData({
+      portraitPhotoUrl: String(event.detail && event.detail.url ? event.detail.url : "")
     });
   },
 
@@ -653,7 +687,8 @@ Page({
           layout: {
             variant: draft.variant || "horizontal-business",
             background_opacity: normalizeOpacity(this.data.backgroundOpacity, DEFAULT_BACKGROUND_OPACITY),
-            background_preset_id: this.data.backgroundPresetId || null
+            background_preset_id: this.data.backgroundPresetId || null,
+            portrait_photo_url: this.data.portraitPhotoUrl || null
           },
           status: draft.status || "active"
         }
@@ -1934,6 +1969,7 @@ function draftFromTemplate(template) {
 
 function buildTemplateEditorState(template, profile, members, tenant) {
   const draft = draftFromTemplate(template || {});
+  const layout = template && template.layout && typeof template.layout === "object" ? template.layout : {};
   const variant = draft.variant || "horizontal-business";
   const meta = templateStyleMeta(variant);
   const preset = resolveBackgroundPreset(draft.background_preset_id, variant);
@@ -1945,6 +1981,7 @@ function buildTemplateEditorState(template, profile, members, tenant) {
   return {
     templateDraft: { ...draft, primary },
     templateId: draft.template_id,
+    styleTemplateId: templateIdForVariant(variant),
     templateClass: templateClassForVariant(variant),
     primary: theme.themeBrand,
     ...theme,
@@ -1955,12 +1992,19 @@ function buildTemplateEditorState(template, profile, members, tenant) {
     customColorExpanded: ![DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"].includes(primary),
     card,
     logoUrl: draft.logo_url || ((profile && profile.logo_url) || ""),
+    portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     backgroundUrl,
     backgroundPresetId,
     backgroundOpacity: normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY),
     backgroundPreviewStyle: backgroundStyle(backgroundUrl, normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY), variant),
     backgroundError: ""
   };
+}
+
+function layoutImageUrl(layout, key) {
+  const value = layout && layout[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function buildTemplatePreviewCard(profile, members, tenant) {
@@ -1990,6 +2034,19 @@ function templateStyleMeta(variant) {
 
 function templateClassForVariant(variant) {
   return templateStyleMeta(variant).className;
+}
+
+function templateIdForVariant(variant) {
+  const normalized = normalizeTemplateVariant(variant);
+  const map = {
+    "horizontal-business": "tpl_horizontal_business",
+    minimal: "tpl_minimal",
+    "brand-image": "tpl_brand_image",
+    "portrait-photo": "tpl_portrait_photo",
+    dark: "tpl_dark",
+    campaign: "tpl_campaign"
+  };
+  return map[normalized] || "tpl_horizontal_business";
 }
 
 function normalizeTemplateVariant(value) {

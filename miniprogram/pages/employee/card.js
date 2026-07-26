@@ -1,6 +1,7 @@
 const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { setPageTheme } = require("../../utils/theme");
 const TEMPLATE_BACKGROUNDS = {
   tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
@@ -33,6 +34,8 @@ Page({
     logoUrl: "",
     cardBackgroundStyle: "",
     cardTemplateClass: "biz-card--horizontal",
+    portraitPhotoUrl: "",
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     sharePath: "",
     loading: true,
     error: false,
@@ -59,6 +62,7 @@ Page({
       const preview = await request("/employee/cards/current/preview");
       const card = Object.assign({ fields: {}, show_avatar: preview.show_avatar !== false }, preview.card || {});
       const template = preview.template || {};
+      const layout = template.layout || {};
       const brand = template.color_scheme && template.color_scheme.primary;
       if (brand) {
         setPageTheme(this, brand);
@@ -68,11 +72,12 @@ Page({
         card,
         logoUrl: template.logo_url || "",
         cardTemplateClass: cardTemplateClass(template.template_id),
+        portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
         cardBackgroundStyle: cardBackgroundStyle(
           template.background_url,
-          template.layout && template.layout.background_opacity,
+          layout.background_opacity,
           template.template_id,
-          template.layout && template.layout.background_preset_id
+          layout.background_preset_id
         ),
         form: {
           display_name: card.display_name,
@@ -187,6 +192,11 @@ function cardTemplateClass(templateId) {
     tpl_campaign: "biz-card--campaign"
   };
   return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function layoutImageUrl(layout, key) {
+  const value = layout && layout[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeTemplateId(templateId) {

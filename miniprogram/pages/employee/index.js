@@ -1,6 +1,7 @@
 const app = getApp();
 const { ensureSession, refreshSessionIdentities, switchIdentity } = require("../../utils/auth");
 const { request, isWeComRuntime } = require("../../utils/api");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 const { DEMO_CARD_ID, DEMO_CARD_ROUTE, demoIdentity } = require("../../utils/demo-card");
@@ -56,6 +57,8 @@ Page({
     showCardHead: true,
     cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
     cardTemplateClass: "biz-card--horizontal",
+    portraitPhotoUrl: "",
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     themeBrand: DEFAULT_BRAND,
     themeStyle: "",
     sheetVisible: false,
@@ -231,6 +234,7 @@ Page({
         cardLogoUrl: (preview.template && preview.template.logo_url) || "",
         showCardHead: Boolean((preview.template && preview.template.logo_url) || (preview.card && preview.card.company_short_name)),
         cardTemplateClass: cardTemplateClass(preview.template && preview.template.template_id),
+        portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
         cardBackgroundStyle: cardBackgroundStyle(
           preview.template && preview.template.background_url,
           layout.background_opacity,
@@ -695,6 +699,7 @@ Page({
             avatar_url: this.data.card.show_avatar === false ? "" : this.data.card.avatar_url
           }),
           templateClass: this.data.cardTemplateClass,
+          portraitPhotoUrl: this.data.portraitPhotoUrl || this.data.defaultPortraitPhotoUrl,
           theme: {
             brand: this.data.themeBrand,
             brandDeep: this.data.themeBrandDeep,
@@ -930,6 +935,11 @@ function cardTemplateClass(templateId) {
     tpl_campaign: "biz-card--campaign"
   };
   return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function layoutImageUrl(layout, key) {
+  const value = layout && layout[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeTemplateId(templateId) {

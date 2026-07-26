@@ -1031,6 +1031,7 @@ export class EmployeeCardRepository {
       return request;
     }
     let next = request;
+    const portraitPhotoUrl = typeof request.layout?.portrait_photo_url === "string" ? request.layout.portrait_photo_url : "";
     if (request.logo_url && request.logo_url.startsWith("data:image/")) {
       const stored = await this.storage.storeImageDataUrl({
         tenantId: session.tenantId,
@@ -1038,6 +1039,20 @@ export class EmployeeCardRepository {
         dataUrl: request.logo_url
       });
       next = { ...next, logo_url: stored.publicUrl };
+    }
+    if (portraitPhotoUrl.startsWith("data:image/")) {
+      const stored = await this.storage.storeImageDataUrl({
+        tenantId: session.tenantId,
+        category: "portrait-photos",
+        dataUrl: portraitPhotoUrl
+      });
+      next = {
+        ...next,
+        layout: {
+          ...(next.layout ?? {}),
+          portrait_photo_url: stored.publicUrl
+        }
+      };
     }
     if (!request.background_url || !request.background_url.startsWith("data:image/")) {
       return next;

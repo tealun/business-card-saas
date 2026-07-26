@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { QueryResultRow } from "pg";
 import { randomToken } from "../common/id.js";
 import { TenantTx, type TenantTransactionClient } from "../database/tenant-tx.service.js";
+import { StorageService } from "../storage/storage.service.js";
 import type {
   AdminCompanyProfile,
   AdminCompanyHonor,
@@ -85,7 +86,10 @@ export class AdminConfigRepository {
   private readonly companyVideos = new Map<string, AdminCompanyVideo[]>();
   private readonly templates = new Map<string, AdminTemplate[]>();
 
-  constructor(@Optional() private readonly tenantTx?: TenantTx) {}
+  constructor(
+    @Optional() private readonly tenantTx?: TenantTx,
+    @Optional() readonly storage?: StorageService
+  ) {}
 
   async getFieldSettings(tenantId: string): Promise<AdminFieldRule[]> {
     if (this.hasDatabase()) {
@@ -643,6 +647,7 @@ export class AdminConfigRepository {
   }
 
   async createTemplate(tenantId: string, request: CreateAdminTemplateRequest): Promise<AdminTemplate> {
+    const materializedRequest = await materializeTemplateStorageFields.call(this, tenantId, request);
     if (this.hasDatabase()) {
       const result = await this.tenantTx!.run(tenantId, async (tx) => {
         const count = await tx.query<CountRow>(
@@ -669,12 +674,12 @@ export class AdminConfigRepository {
           `,
           [
             tenantId,
-            request.name,
+            materializedRequest.name,
             isDefault,
-            request.background_url ?? null,
-            request.logo_url ?? null,
-            JSON.stringify(request.color_scheme ?? { primary: "#1677ff", surface: "#ffffff" }),
-            JSON.stringify(request.layout ?? { variant: "horizontal-business" })
+            materializedRequest.background_url ?? null,
+            materializedRequest.logo_url ?? null,
+            JSON.stringify(materializedRequest.color_scheme ?? { primary: "#1677ff", surface: "#ffffff" }),
+            JSON.stringify(materializedRequest.layout ?? { variant: "horizontal-business" })
           ]
         );
       });
@@ -685,12 +690,12 @@ export class AdminConfigRepository {
     const isDefault = current.length === 0;
     const template: AdminTemplate = {
       template_id: randomToken("tpl", 10),
-      name: request.name,
+      name: materializedRequest.name,
       is_default: isDefault,
-      background_url: request.background_url ?? null,
-      logo_url: request.logo_url ?? null,
-      color_scheme: request.color_scheme ?? { primary: "#1677ff", surface: "#ffffff" },
-      layout: request.layout ?? { variant: "horizontal-business" },
+      background_url: materializedRequest.background_url ?? null,
+      logo_url: materializedRequest.logo_url ?? null,
+      color_scheme: materializedRequest.color_scheme ?? { primary: "#1677ff", surface: "#ffffff" },
+      layout: materializedRequest.layout ?? { variant: "horizontal-business" },
       status: "active"
     };
     const next = [...current, template];
@@ -699,6 +704,7 @@ export class AdminConfigRepository {
   }
 
   async updateTemplate(tenantId: string, templateId: string, request: UpdateAdminTemplateRequest): Promise<AdminTemplate> {
+    const materializedRequest = await materializeTemplateStorageFields.call(this, tenantId, request);
     if (this.hasDatabase()) {
       const current = await this.getTemplateRow(tenantId, templateId);
       const result = await this.tenantTx!.run(tenantId, (tx) =>
@@ -718,12 +724,12 @@ export class AdminConfigRepository {
           [
             tenantId,
             templateId,
-            request.name ?? current.name,
-            request.background_url !== undefined ? request.background_url : current.background_url,
-            request.logo_url !== undefined ? request.logo_url : current.logo_url,
-            JSON.stringify(request.color_scheme ?? normalizeRecord(current.color_scheme_json)),
-            JSON.stringify(request.layout ?? normalizeRecord(current.layout_json)),
-            request.status ?? current.status
+            materializedRequest.name ?? current.name,
+            materializedRequest.background_url !== undefined ? materializedRequest.background_url : current.background_url,
+            materializedRequest.logo_url !== undefined ? materializedRequest.logo_url : current.logo_url,
+            JSON.stringify(materializedRequest.color_scheme ?? normalizeRecord(current.color_scheme_json)),
+            JSON.stringify(materializedRequest.layout ?? normalizeRecord(current.layout_json)),
+            materializedRequest.status ?? current.status
           ]
         )
       );
@@ -738,13 +744,13 @@ export class AdminConfigRepository {
     const existing = current[index]!;
     const updated: AdminTemplate = {
       template_id: existing.template_id,
-      name: request.name ?? existing.name,
+      name: materializedRequest.name ?? existing.name,
       is_default: existing.is_default,
-      background_url: request.background_url !== undefined ? request.background_url : existing.background_url,
-      logo_url: request.logo_url !== undefined ? request.logo_url : existing.logo_url,
-      color_scheme: request.color_scheme ?? existing.color_scheme,
-      layout: request.layout ?? existing.layout,
-      status: request.status ?? existing.status
+      background_url: materializedRequest.background_url !== undefined ? materializedRequest.background_url : existing.background_url,
+      logo_url: materializedRequest.logo_url !== undefined ? materializedRequest.logo_url : existing.logo_url,
+      color_scheme: materializedRequest.color_scheme ?? existing.color_scheme,
+      layout: materializedRequest.layout ?? existing.layout,
+      status: materializedRequest.status ?? existing.status
     };
     current[index] = updated;
     this.templates.set(tenantId, cloneTemplates(current));
@@ -1210,4 +1216,31 @@ function cloneTemplates(templates: AdminTemplate[]): AdminTemplate[] {
     color_scheme: { ...template.color_scheme },
     layout: { ...template.layout }
   }));
+}
+
+async function materializeTemplateStorageFields(
+  this: AdminConfigRepository,
+  tenantId: string,
+  request: CreateAdminTemplateRequest | UpdateAdminTemplateRequest
+): Promise<CreateAdminTemplateRequest | UpdateAdminTemplateRequest> {
+  if (!this.storage) {
+    return request;
+  }
+  const layout = request.layout && typeof request.layout === "object" ? request.layout : null;
+  const portraitPhotoUrl = layout && typeof layout.portrait_photo_url === "string" ? layout.portrait_photo_url : "";
+  if (!portraitPhotoUrl.startsWith("data:image/")) {
+    return request;
+  }
+  const stored = await this.storage.storeImageDataUrl({
+    tenantId,
+    category: "portrait-photos",
+    dataUrl: portraitPhotoUrl
+  });
+  return {
+    ...request,
+    layout: {
+      ...(request.layout ?? {}),
+      portrait_photo_url: stored.publicUrl
+    }
+  };
 }

@@ -6,7 +6,16 @@ import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { AppConfig } from "../config/app-config.js";
 
-export type StorageCategory = "avatars" | "logos" | "card-backgrounds" | "wechat-qrcodes" | "company-images" | "videos" | "honors" | "templates";
+export type StorageCategory =
+  | "avatars"
+  | "logos"
+  | "card-backgrounds"
+  | "portrait-photos"
+  | "wechat-qrcodes"
+  | "company-images"
+  | "videos"
+  | "honors"
+  | "templates";
 
 export interface StoredObject {
   publicUrl: string;

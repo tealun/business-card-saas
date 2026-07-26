@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require("../../utils/api");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, setPageTheme, themeStyle } = require("../../utils/theme");
 
 const BACKGROUND_LIMIT_BYTES = 2 * 1024 * 1024;
@@ -31,6 +32,7 @@ const TEMPLATE_META = {
 const stylePage = {
   data: {
     primary: DEFAULT_BRAND,
+    accountType: "personal",
     themeStyle: "",
     templateId: "tpl_horizontal_business",
     templateClass: "biz-card--horizontal",
@@ -56,6 +58,8 @@ const stylePage = {
     backgroundPreviewStyle: "",
     backgroundError: "",
     choosingBackground: false,
+    portraitPhotoUrl: "",
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     submitting: false
   },
 
@@ -76,6 +80,7 @@ const stylePage = {
       const layout = template.layout || {};
       const templateId = normalizeTemplateId(template.template_id || layout.variant || this.data.templateId);
       const templateMeta = TEMPLATE_META[templateId] || TEMPLATE_META.tpl_horizontal_business;
+      const previewCard = Object.assign({ fields: {}, status: preview.status, show_avatar: preview.show_avatar !== false }, preview.card);
       const savedPresetId = typeof layout.background_preset_id === "string" ? layout.background_preset_id : "";
       const preset = BACKGROUND_PRESETS.find((item) => item.id === (savedPresetId || templateMeta.backgroundId));
       const backgroundUrl = template.background_url || (preset ? preset.url : "");
@@ -98,8 +103,9 @@ const stylePage = {
         backgroundError: "",
         templateId,
         templateClass: templateClass(templateId),
+        portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
         logoUrl: template.logo_url || "",
-        card: Object.assign({ fields: {}, status: preview.status, show_avatar: preview.show_avatar !== false }, preview.card)
+        card: previewCard
       });
     } catch (_error) {
       wx.showToast({ title: "名片信息加载失败，预览可能不完整", icon: "none" });
@@ -107,7 +113,9 @@ const stylePage = {
   },
 
   selectTemplate(event) {
-    const templateId = normalizeTemplateId(event.currentTarget.dataset.id);
+    const detail = event.detail || {};
+    const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+    const templateId = normalizeTemplateId(detail.templateId || dataset.id);
     const meta = TEMPLATE_META[templateId] || TEMPLATE_META.tpl_horizontal_business;
     const preset = BACKGROUND_PRESETS.find((item) => item.id === meta.backgroundId);
     const backgroundUrl = preset ? preset.url : "";
@@ -124,7 +132,9 @@ const stylePage = {
   },
 
   selectColor(event) {
-    const primary = event.currentTarget.dataset.color;
+    const detail = event.detail || {};
+    const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+    const primary = detail.color || dataset.color;
     this.previewColor(primary, { customHexError: "", customColorExpanded: false });
   },
 
@@ -163,6 +173,7 @@ const stylePage = {
   onClearBackgroundImage,
   clearBackgroundImage,
   onBackgroundOpacityChange,
+  onPortraitPhotoChange,
 
   async applyStyle() {
     if (this.data.submitting) {
@@ -184,7 +195,8 @@ const stylePage = {
           layout: {
             variant: this.data.templateId,
             background_opacity: this.data.backgroundOpacity,
-            background_preset_id: this.data.backgroundPresetId || null
+            background_preset_id: this.data.backgroundPresetId || null,
+            portrait_photo_url: this.data.portraitPhotoUrl || null
           }
         }
       });
@@ -196,6 +208,8 @@ const stylePage = {
       const previewLayout = previewTemplate.layout || {};
       const previewBackgroundUrl = previewTemplate.background_url || this.data.backgroundUrl;
       this.setData({
+        card: Object.assign({}, this.data.card, preview.card || {}, { fields: (preview.card && preview.card.fields) || this.data.card.fields || {} }),
+        portraitPhotoUrl: layoutImageUrl(previewLayout, "portrait_photo_url") || this.data.portraitPhotoUrl,
         backgroundUrl: previewBackgroundUrl,
         backgroundPresetId: previewTemplate.background_url ? "" : (previewLayout.background_preset_id || this.data.backgroundPresetId),
         backgroundOpacity: normalizeOpacity(previewLayout.background_opacity, this.data.backgroundOpacity),
@@ -221,7 +235,8 @@ stylePage.methods = {
   onSelectPresetBackground,
   onClearBackgroundImage,
   clearBackgroundImage,
-  onBackgroundOpacityChange
+  onBackgroundOpacityChange,
+  onPortraitPhotoChange
 };
 
 Page(stylePage);
@@ -237,6 +252,11 @@ function normalizeHexInput(value) {
 
 function templateClass(templateId) {
   return (TEMPLATE_META[normalizeTemplateId(templateId)] || TEMPLATE_META.tpl_horizontal_business).className;
+}
+
+function layoutImageUrl(layout, key) {
+  const value = layout && layout[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeTemplateId(templateId) {
@@ -306,7 +326,10 @@ function chooseBackgroundImage() {
 }
 
 function onSelectPresetBackground(event) {
-  const preset = BACKGROUND_PRESETS.find((item) => item.id === event.currentTarget.dataset.id);
+  const detail = event.detail || {};
+  const dataset = event.currentTarget ? event.currentTarget.dataset : {};
+  const presetId = detail.presetId || dataset.id;
+  const preset = BACKGROUND_PRESETS.find((item) => item.id === presetId);
   if (!preset) {
     return;
   }
@@ -336,6 +359,12 @@ function onBackgroundOpacityChange(event) {
   this.setData({
     backgroundOpacity,
     backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateId)
+  });
+}
+
+function onPortraitPhotoChange(event) {
+  this.setData({
+    portraitPhotoUrl: String(event.detail && event.detail.url ? event.detail.url : "")
   });
 }
 
@@ -377,6 +406,21 @@ function imageMime(info) {
   return match ? BACKGROUND_TYPES[match[1]] || "" : "";
 }
 
+function backgroundUrlForSave(url) {
+  if (!url || /^data:image\//.test(url) || /^https?:\/\//.test(url)) {
+    return Promise.resolve(url || "");
+  }
+  if (url.startsWith("/assets/")) {
+    return Promise.resolve("");
+  }
+  return pathToDataUrl(url, mimeFromPath(url));
+}
+
+function mimeFromPath(path) {
+  const match = String(path || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
+  return match ? BACKGROUND_TYPES[match[1]] || "image/webp" : "image/webp";
+}
+
 function pathToDataUrl(path, mime) {
   if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
     return Promise.resolve(path);
@@ -397,19 +441,4 @@ function pathToDataUrl(path, mime) {
       fail: reject
     });
   });
-}
-
-function backgroundUrlForSave(url) {
-  if (!url || /^data:image\//.test(url) || /^https?:\/\//.test(url)) {
-    return Promise.resolve(url || "");
-  }
-  if (url.startsWith("/assets/")) {
-    return Promise.resolve("");
-  }
-  return pathToDataUrl(url, mimeFromPath(url));
-}
-
-function mimeFromPath(path) {
-  const match = String(path || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
-  return match ? BACKGROUND_TYPES[match[1]] || "image/webp" : "image/webp";
 }

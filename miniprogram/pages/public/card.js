@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require("../../utils/api");
 const { buildShareCardImage } = require("../../utils/share-card-image");
+const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 const config = require("../../config");
 
@@ -167,6 +168,8 @@ Page({
     shareImageUrl: "",
     cardBackgroundStyle: "",
     cardTemplateClass: "biz-card--horizontal",
+    portraitPhotoUrl: "",
+    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     card: demoPublicCard
   },
 
@@ -223,6 +226,7 @@ Page({
       cardCompanyShortName: cardMeta.companyShortName,
       showCardHead: Boolean(cardMeta.logoUrl || cardMeta.companyShortName),
       cardTemplateClass: cardTemplateClass(card.template && card.template.template_id),
+      portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
       cardBackgroundStyle: cardBackgroundStyle(
         card.template && card.template.background_url,
         layout.background_opacity,
@@ -564,6 +568,7 @@ Page({
       const imageUrl = await buildShareCardImage(this, {
         card: this.data.card && this.data.card.card,
         templateClass: this.data.cardTemplateClass,
+        portraitPhotoUrl: this.data.portraitPhotoUrl || this.data.defaultPortraitPhotoUrl,
         theme: {
           brand: this.data.themeBrand,
           brandDeep: this.data.themeBrandDeep,
@@ -615,6 +620,11 @@ function cardTemplateClass(templateId) {
     tpl_campaign: "biz-card--campaign"
   };
   return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
+}
+
+function layoutImageUrl(layout, key) {
+  const value = layout && layout[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeTemplateId(templateId) {

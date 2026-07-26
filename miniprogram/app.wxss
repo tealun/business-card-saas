@@ -274,39 +274,128 @@ button::after { border: none; }
   flex-shrink: 0;
   overflow: hidden;
 }
+.biz-card--portrait {
+  min-height: 432rpx;
+  padding: 40rpx 258rpx 32rpx 46rpx;
+}
+
+.biz-card--portrait::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 310rpx;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.42));
+  pointer-events: none;
+}
+
+.biz-card--portrait .biz-card__head,
+.biz-card--portrait .biz-card__body,
+.biz-card--portrait .biz-card__status {
+  position: relative;
+  z-index: 2;
+}
+
+.biz-card--portrait .biz-card__head {
+  max-width: 330rpx;
+}
+
+.biz-card--portrait .biz-card__company,
+.biz-card--portrait .biz-card__company-full,
+.biz-card--portrait .biz-card__role,
+.biz-card--portrait .biz-card__contact view {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .biz-card--portrait .biz-card__body {
-  align-items: center;
-  gap: 24rpx;
+  display: block;
+  margin-top: 30rpx;
 }
 
 .biz-card--portrait .biz-card__info {
-  padding-right: 4rpx;
+  max-width: 330rpx;
+  padding-right: 0;
+}
+
+.biz-card--portrait .biz-card__company-full {
+  margin-bottom: 16rpx;
 }
 
 .biz-card--portrait .biz-card__name {
   font-size: 42rpx;
+  max-width: 300rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .biz-card--portrait .biz-card__role {
   margin-top: 6rpx;
   font-size: 26rpx;
+  max-width: 300rpx;
 }
 
 .biz-card--portrait .biz-card__contact {
-  margin-top: 18rpx;
+  max-width: 330rpx;
+  margin-top: 20rpx;
 }
 
 .biz-card--portrait .biz-card__avatar {
-  width: 146rpx;
-  height: 188rpx;
-  border-radius: 28rpx;
-  background: #eef0f3;
-  border: 4rpx solid rgba(255,255,255,.82);
-  box-shadow: 0 12rpx 24rpx rgba(16, 24, 40, .12);
+  position: absolute;
+  right: -8rpx;
+  bottom: 0;
+  z-index: 1;
+  width: 312rpx;
+  height: 416rpx;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .biz-card--portrait .avatar-placeholder {
-  border-radius: 20rpx;
+  width: 210rpx;
+  height: 280rpx;
+  margin-top: auto;
+  border-radius: 28rpx 28rpx 0 0;
+}
+
+.biz-card--portrait .biz-card__status {
+  right: auto;
+  left: 46rpx;
+  bottom: 28rpx;
+}
+
+.biz-card--portrait .biz-card__type-corner {
+  top: 26rpx;
+  right: 26rpx;
+  bottom: auto;
+  z-index: 3;
+  width: 52rpx;
+  height: 52rpx;
+  border: 0;
+  border-radius: 16rpx;
+  background: rgba(var(--brand-rgb), 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biz-card--portrait .biz-card__type-corner--interactive:active {
+  background: rgba(var(--brand-rgb), 0.2);
+}
+
+.biz-card--portrait .biz-card__type-corner .icon {
+  position: static;
+  width: 30rpx;
+  height: 30rpx;
+  background-color: var(--brand);
 }
 
 .biz-card__contact { margin-top: 24rpx; font-size: 24rpx; color: var(--text-secondary); line-height: 1.7; }

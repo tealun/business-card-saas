@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "名片样式"
+  "navigationBarTitleText": "名片样式",
+  "usingComponents": {
+    "card-style-editor": "/components/card-style-editor/index"
+  }
 }

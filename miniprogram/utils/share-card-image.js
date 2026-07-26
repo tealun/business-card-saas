@@ -26,25 +26,26 @@ function buildShareCardImage(page, options = {}) {
           node.height = SHARE_IMAGE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
           ctx.scale(dpr, dpr);
-          drawShareCard(ctx, options);
-          wx.canvasToTempFilePath(
-            {
-              canvas: node,
-              width: SHARE_IMAGE_WIDTH,
-              height: SHARE_IMAGE_HEIGHT,
-              destWidth: SHARE_IMAGE_WIDTH * dpr,
-              destHeight: SHARE_IMAGE_HEIGHT * dpr,
-              fileType: "jpg",
-              quality: 0.92,
-              success(result) {
-                resolve(result.tempFilePath || "");
+          Promise.resolve(drawShareCard(ctx, options)).then(() => {
+            wx.canvasToTempFilePath(
+              {
+                canvas: node,
+                width: SHARE_IMAGE_WIDTH,
+                height: SHARE_IMAGE_HEIGHT,
+                destWidth: SHARE_IMAGE_WIDTH * dpr,
+                destHeight: SHARE_IMAGE_HEIGHT * dpr,
+                fileType: "jpg",
+                quality: 0.92,
+                success(result) {
+                  resolve(result.tempFilePath || "");
+                },
+                fail() {
+                  resolve("");
+                }
               },
-              fail() {
-                resolve("");
-              }
-            },
-            page
-          );
+              page
+            );
+          }).catch(() => resolve(""));
         } catch (_error) {
           resolve("");
         }
@@ -52,7 +53,7 @@ function buildShareCardImage(page, options = {}) {
   });
 }
 
-function drawShareCard(ctx, options) {
+async function drawShareCard(ctx, options) {
   const theme = normalizeTheme(options.theme || {});
   const card = normalizeCard(options.card || {});
   const meta = options.meta || {};
@@ -151,14 +152,15 @@ function drawShareCard(ctx, options) {
     infoY += 24;
   });
 
-  drawAvatar(
+  await drawAvatar(
     ctx,
     portrait ? CARD_X + CARD_W - 116 : CARD_X + CARD_W - 104,
     portrait ? CARD_Y + 44 : CARD_Y + 68,
     portrait ? 96 : 76,
     portrait ? 128 : 76,
     dark || brandImage,
-    portrait
+    portrait,
+    options.portraitPhotoUrl || ""
   );
   drawCorner(ctx, theme.brand, dark || brandImage);
 }
@@ -192,9 +194,14 @@ function drawShareBackground(ctx, theme) {
   ctx.fillRect(0, 0, SHARE_IMAGE_WIDTH, SHARE_IMAGE_HEIGHT);
 }
 
-function drawAvatar(ctx, x, y, width, height, inverse, portrait = false) {
+async function drawAvatar(ctx, x, y, width, height, inverse, portrait = false, portraitPhotoUrl = "") {
   const fill = inverse ? "rgba(255,255,255,0.16)" : "#eef0f3";
   const mark = inverse ? "rgba(255,255,255,0.72)" : "#a9b2c1";
+  const resolvedPhoto = portrait && portraitPhotoUrl ? await resolveImagePath(portraitPhotoUrl) : "";
+  if (resolvedPhoto) {
+    ctx.drawImage(resolvedPhoto, x, y, width, height);
+    return;
+  }
   ctx.save();
   if (portrait) {
     roundedRect(ctx, x, y, width, height, 18);
@@ -225,6 +232,27 @@ function drawAvatar(ctx, x, y, width, height, inverse, portrait = false) {
     ctx.fill();
   }
   ctx.restore();
+}
+
+function resolveImagePath(src) {
+  const value = text(src);
+  if (!value) {
+    return Promise.resolve("");
+  }
+  if (/^data:image\//.test(value) || /^https?:\/\//.test(value) || value.startsWith("/") ) {
+    return new Promise((resolve) => {
+      wx.getImageInfo({
+        src: value,
+        success(result) {
+          resolve(result.path || value);
+        },
+        fail() {
+          resolve(value);
+        }
+      });
+    });
+  }
+  return Promise.resolve(value);
 }
 
 function drawCorner(ctx, brand, inverse) {

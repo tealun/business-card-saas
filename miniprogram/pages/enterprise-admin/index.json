@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "企业管理"
+  "navigationBarTitleText": "企业管理",
+  "usingComponents": {
+    "card-style-editor": "/components/card-style-editor/index"
+  }
 }

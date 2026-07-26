@@ -1,0 +1,22 @@
+<view class="card portrait-photo-editor">
+  <view class="row-between portrait-photo-editor__head">
+    <view>
+      <view class="card__title">形象照</view>
+      <view class="f12 t-secondary portrait-photo-editor__sub">PNG 透明底 · 900×1200 · 右侧半身展示</view>
+    </view>
+    <view class="btn btn--sm btn--soft {{editable ? '' : 'btn--disabled'}}" bindtap="onChoosePhoto">
+      {{url ? "更换" : "上传"}}
+    </view>
+  </view>
+  <view class="portrait-photo-editor__preview {{url ? 'portrait-photo-editor__preview--filled' : ''}}" bindtap="onChoosePhoto">
+    <image wx:if="{{url}}" class="portrait-photo-editor__image" src="{{url}}" mode="aspectFit" />
+    <view wx:else class="portrait-photo-editor__empty">
+      <view class="icon icon-camera"></view>
+      <text>{{editable ? "上传半身透明底图" : lockedText}}</text>
+    </view>
+  </view>
+  <view class="portrait-photo-editor__actions" wx:if="{{url && editable}}">
+    <view class="btn btn--sm btn--muted" bindtap="onClearPhoto">清除形象照</view>
+  </view>
+  <view class="portrait-photo-editor__error" wx:if="{{error}}">{{error}}</view>
+</view>
