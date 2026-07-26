@@ -5,6 +5,10 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 
 const DEMO_ASSET_DIR = path.resolve(process.cwd(), "assets");
+const DEMO_ASSET_FOLDERS: Record<string, string> = {
+  company: "demo-company",
+  "card-portraits": "card-portraits"
+};
 
 const DEMO_ASSETS: Record<string, Record<string, string>> = {
   company: {
@@ -39,7 +43,7 @@ export class DemoAssetsController {
     if (!contentType) {
       throw demoAssetNotFound(reply);
     }
-    const filePath = path.resolve(DEMO_ASSET_DIR, assetGroup, fileName);
+    const filePath = path.resolve(DEMO_ASSET_DIR, DEMO_ASSET_FOLDERS[assetGroup] ?? assetGroup, fileName);
     if (!filePath.startsWith(`${DEMO_ASSET_DIR}${path.sep}`)) {
       throw demoAssetNotFound(reply);
     }
