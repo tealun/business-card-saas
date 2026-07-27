@@ -304,7 +304,6 @@ describe("Auth and employee card flow", () => {
       headers: { authorization: `Bearer ${login.access_token}` },
       payload: {
         template_id: "tpl_demo_business",
-        color_scheme: { primary: "#1677ff" },
         layout: { variant: "horizontal-business" }
       }
     });
