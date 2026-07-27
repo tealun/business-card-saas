@@ -23,6 +23,9 @@ const tenantRlsExceptions = new Set([
   "tenant_join_codes",
   "member_join_requests",
   "local_admin_login_challenges",
+  // Local enterprise claim resolves the tenant from an opaque claim token hash before
+  // tenant context exists (99_74-P0-1: RLS on this table blocked every claim lookup).
+  "admin_claim_tokens",
   // Platform operations table, same shape as callback_events: platform admins need cross-tenant
   // reads (GET /admin/platform/operation-logs), and the repository is not TenantTx-scoped.
   // Isolation is enforced at the query layer (tenant_id filter), not via RLS. See 99_71.
@@ -124,8 +127,9 @@ assert(
   !/CREATE POLICY\s+\S+\s+ON\s+member_invitations/i.test(sql),
   "member_invitations must not define a tenant RLS policy"
 );
-for (const table of ["tenant_join_codes", "member_join_requests", "local_admin_login_challenges"]) {
+for (const table of ["tenant_join_codes", "member_join_requests", "local_admin_login_challenges", "admin_claim_tokens"]) {
   assert(new RegExp(`ALTER TABLE\\s+${table}\\s+DISABLE ROW LEVEL SECURITY`, "i").test(sql), `${table} must remain accessible before tenant context exists`);
+  assert(!new RegExp(`CREATE POLICY\\s+\\S+\\s+ON\\s+${table}`, "i").test(sql), `${table} must not define a tenant RLS policy`);
 }
 assert(
   !/current_setting\('app\.(tenant_id|account_id)'\)(?!\s*,)/.test(sql),

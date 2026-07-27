@@ -35,7 +35,6 @@ const tenantRlsTables = [
   "card_actions",
   "card_shares",
   "tenant_admins",
-  "admin_claim_tokens",
   "templates",
   "tenant_field_settings",
   "company_profiles",
@@ -128,6 +127,7 @@ async function main() {
     assert(!(await relSecurity(pool, "public_card_directory")), "public_card_directory must not enable RLS");
     assert(!(await relSecurity(pool, "callback_events")), "callback_events must not enable RLS");
     assert(!(await relSecurity(pool, "platform_admins")), "platform_admins must not enable RLS");
+    assert(!(await relSecurity(pool, "admin_claim_tokens")), "admin_claim_tokens must not enable RLS (99_74-P0-1)");
 
     console.log("Database check passed: schema objects, critical indexes, and RLS posture are present.");
   } finally {

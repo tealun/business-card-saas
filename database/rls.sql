@@ -31,10 +31,12 @@ DROP POLICY IF EXISTS tenant_isolation_tenant_admins ON tenant_admins;
 CREATE POLICY tenant_isolation_tenant_admins ON tenant_admins
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
-ALTER TABLE admin_claim_tokens ENABLE ROW LEVEL SECURITY;
+-- Local enterprise claim consumes an opaque claim token before the tenant is known: the
+-- token hash is the only lookup key, so tenant context cannot be set ahead of the read.
+-- The table stores only a high-entropy token hash and minimal claim metadata; every
+-- consumer (owner-bootstrap, local-enterprise claim) must filter writes by tenant_id.
+ALTER TABLE admin_claim_tokens DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_admin_claim_tokens ON admin_claim_tokens;
-CREATE POLICY tenant_isolation_admin_claim_tokens ON admin_claim_tokens
-  USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
 -- Invitation acceptance occurs before tenant context is known. The table stores only a
 -- high-entropy token hash and minimal binding metadata; repositories must use atomic consume.

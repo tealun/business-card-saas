@@ -1953,7 +1953,7 @@ CREATE TABLE admin_claim_tokens (
 );
 ```
 
-执行落地：`admin_claim_tokens` 纳入租户 RLS；`tenant_admins` 增加 active owner 部分唯一索引，确保同一 tenant 同时只能有一个 `role='owner' AND status='active'`。
+执行落地：`admin_claim_tokens` **不启用**租户 RLS（99_74-P0-1）——本地企业「扫码认领」按不透明 token hash 反查 tenant，读取时尚无租户上下文；所有写入按 `tenant_id` 显式过滤，详见 `00_02` §2。`tenant_admins` 增加 active owner 部分唯一索引，确保同一 tenant 同时只能有一个 `role='owner' AND status='active'`。
 
 ```text
 企业授权完成
