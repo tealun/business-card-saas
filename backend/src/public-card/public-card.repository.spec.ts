@@ -30,4 +30,78 @@ describe("PublicCardRepository", () => {
     expect(second.company_profile.display_modules[0]?.title).toBe(demoPublicCard.company_profile.display_modules[0]?.title);
     expect(second.company_profile.display_modules[0]?.visible).toBe(true);
   });
+
+  it("uses admin-maintained company profile fields over legacy card fields", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://test";
+    const database = {
+      query: async () => ({
+        rows: [{ tenant_id: "tenant-001", card_id: "card-001", status: "active" }]
+      })
+    };
+    const fakeTx = {
+      query: async (text: string) => {
+        if (text.includes("FROM cards") && text.includes("company_profiles.display_name")) {
+          return {
+            rows: [
+              {
+                card_id: "card-001",
+                member_identity_id: "member-001",
+                public_id: "pub_001",
+                display_name: "Ada",
+                title: "Sales",
+                avatar_url: null,
+                fields_encrypted: JSON.stringify({
+                  company: "Legacy Corp",
+                  company_short_name: "Legacy",
+                  address: "Legacy address",
+                  mobile: "13800138000",
+                  email: "ada@example.com"
+                }),
+                privacy_json: { show_mobile: true, show_email: true, show_wechat: false, allow_forward: true },
+                card_status: "active",
+                company_name: "Admin Corp",
+                company_short_name: "Admin",
+                company_logo_url: null,
+                website_url: "https://admin.example.com",
+                address: "Admin address",
+                intro_json: [],
+                service_items_json: [],
+                display_modules_json: [],
+                background_url: null,
+                color_scheme_json: {},
+                layout_json: {}
+              }
+            ]
+          };
+        }
+        if (text.includes("COUNT(*)")) {
+          return { rows: [{ visit_count: "0", visitor_count: "0", like_count: "0" }] };
+        }
+        return { rows: [] };
+      }
+    };
+    const tenantTx = {
+      run: async (_tenantId: string, callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx)
+    };
+    try {
+      const repository = new PublicCardRepository(database as never, tenantTx as never);
+      const card = await repository.findPublicCard("pub_001");
+
+      expect(card.card.company).toBe("Admin Corp");
+      expect(card.card.company_short_name).toBe("Admin");
+      expect(card.card.fields.company).toBe("Admin Corp");
+      expect(card.card.fields.company_short_name).toBe("Admin");
+      expect(card.card.fields.address).toBe("Admin address");
+      expect(card.company_profile.name).toBe("Admin Corp");
+      expect(card.company_profile.short_name).toBe("Admin");
+      expect(card.company_profile.address).toBe("Admin address");
+    } finally {
+      if (originalDatabaseUrl) {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      } else {
+        delete process.env.DATABASE_URL;
+      }
+    }
+  });
 });

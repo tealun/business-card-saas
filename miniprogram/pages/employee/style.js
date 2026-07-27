@@ -60,6 +60,10 @@ const stylePage = {
     choosingBackground: false,
     portraitPhotoUrl: "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
+    canEditTemplates: true,
+    canEditColors: true,
+    canEditBackground: true,
+    canEditPortraitPhoto: true,
     submitting: false
   },
 
@@ -69,7 +73,15 @@ const stylePage = {
     if (current) {
       this.setData({ card: Object.assign({ fields: {} }, current) });
     }
-    this.setData({ primary: theme.themeBrand });
+    const personal = isPersonalIdentity();
+    this.setData({
+      primary: theme.themeBrand,
+      accountType: personal ? "personal" : "enterprise",
+      canEditTemplates: true,
+      canEditColors: personal,
+      canEditBackground: personal,
+      canEditPortraitPhoto: true
+    });
     this.loadPreview();
   },
 
@@ -120,6 +132,14 @@ const stylePage = {
     const preset = BACKGROUND_PRESETS.find((item) => item.id === meta.backgroundId);
     const backgroundUrl = preset ? preset.url : "";
     const backgroundOpacity = normalizeOpacity(meta.opacity, this.data.backgroundOpacity);
+    if (!this.data.canEditBackground) {
+      this.setData({
+        templateId,
+        templateClass: meta.className,
+        backgroundError: ""
+      });
+      return;
+    }
     this.setData({
       templateId,
       templateClass: meta.className,
@@ -176,29 +196,37 @@ const stylePage = {
   onPortraitPhotoChange,
 
   async applyStyle() {
+    if (!this.data.canEditTemplates && !this.data.canEditPortraitPhoto) {
+      wx.showToast({ title: "企业统一维护", icon: "none" });
+      return;
+    }
     if (this.data.submitting) {
       return;
     }
     this.setData({ submitting: true });
     try {
-      const backgroundUrl = await backgroundUrlForSave(this.data.backgroundUrl);
+      const backgroundUrl = this.data.canEditBackground ? await backgroundUrlForSave(this.data.backgroundUrl) : "";
+      const data = {
+        template_id: this.data.templateId,
+        layout: {
+          variant: this.data.templateId,
+          portrait_photo_url: this.data.portraitPhotoUrl || null
+        }
+      };
+      if (this.data.canEditColors) {
+        data.color_scheme = {
+          primary: this.data.primary,
+          surface: "#ffffff"
+        };
+      }
+      if (this.data.canEditBackground) {
+        data.background_url = backgroundUrl || null;
+        data.layout.background_opacity = this.data.backgroundOpacity;
+        data.layout.background_preset_id = this.data.backgroundPresetId || null;
+      }
       const preview = await request("/employee/cards/current/style", {
         method: "PUT",
-        data: {
-          template_id: this.data.templateId,
-          logo_url: this.data.logoUrl || null,
-          color_scheme: {
-            primary: this.data.primary,
-            surface: "#ffffff"
-          },
-          background_url: backgroundUrl || null,
-          layout: {
-            variant: this.data.templateId,
-            background_opacity: this.data.backgroundOpacity,
-            background_preset_id: this.data.backgroundPresetId || null,
-            portrait_photo_url: this.data.portraitPhotoUrl || null
-          }
-        }
+        data
       });
       const previewTemplate = preview && preview.template ? preview.template : {};
       const previewColorScheme = previewTemplate.color_scheme || {};
@@ -248,6 +276,11 @@ function normalizeHexInput(value) {
   }
   const prefixed = raw.startsWith("#") ? raw : `#${raw}`;
   return /^#[0-9a-fA-F]{6}$/.test(prefixed) ? prefixed.toLowerCase() : "";
+}
+
+function isPersonalIdentity() {
+  const identity = app.globalData.currentIdentity || {};
+  return identity.identity_type === "personal" || identity.typeLabel === "涓汉鍚嶇墖";
 }
 
 function templateClass(templateId) {

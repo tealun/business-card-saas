@@ -97,6 +97,131 @@ describe("EmployeeCardRepository", () => {
     );
   });
 
+  it("does not expose enterprise-owned fields as editable without tenant field settings", async () => {
+    const repository = new EmployeeCardRepository();
+    const card = await repository.getCurrentCard({
+      accountId: "acct-001",
+      identityType: "wecom_member",
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    });
+
+    expect(card.identity_type).toBe("wecom_member");
+    expect(card.editable_fields).toEqual(expect.arrayContaining(["display_name", "title", "mobile", "email"]));
+    expect(card.editable_fields).not.toEqual(expect.arrayContaining(["company", "company_short_name", "address", "website"]));
+  });
+
+  it("rejects enterprise updates for enterprise-owned card fields without tenant field settings", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "wecom_member" as const,
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    await expect(
+      repository.updateCurrentCard(session, {
+        fields: {
+          company: "Changed Corp",
+          company_short_name: "Changed",
+          address: "Changed address",
+          website: "https://changed.example.com"
+        }
+      })
+    ).rejects.toThrow("field not employee editable: company, company_short_name, address, website");
+  });
+
+  it("uses admin-maintained company profile fields over legacy employee card fields", async () => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://test";
+    const fakeTx = {
+      query: async (text: string) => {
+        if (text.includes("member_identities.id AS member_id")) {
+          return {
+            rows: [
+              {
+                member_id: "member-001",
+                member_name: "Ada",
+                member_status: "active",
+                card_id: "card-001",
+                public_id: "pub_001",
+                display_name: "Ada",
+                title: "Sales",
+                avatar_url: null,
+                fields_encrypted: JSON.stringify({
+                  company: "Legacy Corp",
+                  company_short_name: "Legacy",
+                  address: "Legacy address",
+                  website: "https://legacy.example.com",
+                  mobile: "13800138000",
+                  email: "ada@example.com"
+                }),
+                privacy_json: { show_mobile: true, show_email: true, show_wechat: false, allow_forward: true },
+                card_status: "active",
+                company_name: "Admin Corp",
+                company_short_name: "Admin",
+                company_address: "Admin address",
+                company_website_url: "https://admin.example.com"
+              }
+            ]
+          };
+        }
+        if (text.includes("tenant_field_settings") || text.includes("tenant_wecom_settings")) {
+          return { rows: [] };
+        }
+        if (text.includes("card_style_overrides")) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }
+    };
+    const tenantTx = {
+      run: async (_tenantId: string, callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx)
+    };
+    try {
+      const repository = new EmployeeCardRepository(tenantTx as never);
+      const session = {
+        accountId: "acct-001",
+        identityType: "wecom_member" as const,
+        tenantId: "tenant-001",
+        tenantName: "Tenant Corp",
+        memberIdentityId: "member-001",
+        openUserid: "ou-001"
+      };
+      const card = await repository.getCurrentCard(session);
+      const preview = await repository.getPreview(session);
+
+      expect(card.company).toBe("Admin Corp");
+      expect(card.company_short_name).toBe("Admin");
+      expect(card.fields.company).toBe("Admin Corp");
+      expect(card.fields.company_short_name).toBe("Admin");
+      expect(card.fields.address).toBe("Admin address");
+      expect(card.fields.website).toBe("https://admin.example.com");
+      expect(preview.card.company).toBe("Admin Corp");
+      expect(preview.card.company_short_name).toBe("Admin");
+      expect(preview.card.fields.company).toBe("Admin Corp");
+      expect(preview.card.fields.company_short_name).toBe("Admin");
+      expect(preview.card.fields.address).toBe("Admin address");
+      expect(preview.company_profile.address).toBe("Admin address");
+      expect(preview.company_profile.website_url).toBe("https://admin.example.com/");
+    } finally {
+      if (originalDatabaseUrl) {
+        process.env.DATABASE_URL = originalDatabaseUrl;
+      } else {
+        delete process.env.DATABASE_URL;
+      }
+    }
+  });
+
   it("does not publish invalid legacy contact URLs or emails", async () => {
     const repository = new EmployeeCardRepository();
     const session = {
@@ -233,6 +358,71 @@ describe("EmployeeCardRepository", () => {
     expect(preview.template.background_url).toBe(
       "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/background.png"
     );
+  });
+
+  it("allows enterprise users to choose their own template and portrait photo override", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn(async () => ({
+        storageKey: "tenant/tenant-001/portrait-photos/photo.png",
+        publicUrl: "http://localhost:3000/api/v1/storage/tenant/tenant-001/portrait-photos/photo.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "wecom_member" as const,
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const preview = await repository.updateStyle(session, {
+      template_id: "tpl_portrait_photo",
+      layout: {
+        variant: "tpl_portrait_photo",
+        portrait_photo_url: "data:image/png;base64,aGVsbG8="
+      }
+    });
+
+    expect(storage.storeImageDataUrl).toHaveBeenCalledWith({
+      tenantId: "tenant-001",
+      category: "portrait-photos",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    });
+    expect(preview.template.template_id).toBe("tpl_portrait_photo");
+    expect(preview.template.layout.portrait_photo_url).toBe(
+      "http://localhost:3000/api/v1/storage/tenant/tenant-001/portrait-photos/photo.png"
+    );
+  });
+
+  it("rejects enterprise updates for unified brand style settings", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn()
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "wecom_member" as const,
+      tenantId: "tenant-001",
+      tenantName: "Pilot Corp",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    await expect(
+      repository.updateStyle(session, {
+        logo_url: "data:image/png;base64,aGVsbG8=",
+        background_url: "/assets/card-backgrounds/bg-light-wave.webp",
+        color_scheme: { primary: "#8d7ec7" },
+        layout: { background_opacity: 80 }
+      })
+    ).rejects.toThrow("style setting not employee editable: logo_url, background_url, color_scheme, layout");
+    expect(storage.storeImageDataUrl).not.toHaveBeenCalled();
   });
 
   it("materializes portrait photo data URLs in style layout before publishing preview", async () => {

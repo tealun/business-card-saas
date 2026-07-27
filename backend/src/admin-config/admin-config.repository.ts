@@ -927,7 +927,7 @@ function defaultFieldRules(): AdminFieldRule[] {
     { field_key: "wechat_id", label: "微信", locked: false, employee_editable: true, default_visible: false },
     { field_key: "wechat_qrcode_url", label: "个人微信二维码", locked: false, employee_editable: true, default_visible: false },
     { field_key: "wecom_qrcode_url", label: "企业微信二维码", locked: false, employee_editable: true, default_visible: false },
-    { field_key: "address", label: "地址", locked: false, employee_editable: true, default_visible: true },
+    { field_key: "address", label: "地址", locked: true, employee_editable: false, default_visible: true },
     { field_key: "website", label: "官网", locked: true, employee_editable: false, default_visible: true }
   ];
 }

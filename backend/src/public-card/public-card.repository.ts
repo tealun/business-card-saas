@@ -607,8 +607,9 @@ export class PublicCardRepository {
     const templateId = typeof layout.__template_id === "string" ? layout.__template_id : "tpl_demo_business";
     const layoutLogoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : null;
     const { __template_id: _templateId, __logo_url: _logoUrl, ...publicLayout } = layout;
-    const companyName = fields.company ?? row.company_name;
-    const companyShortName = fields.company_short_name ?? row.company_short_name;
+    const companyName = row.company_name ?? fields.company ?? null;
+    const companyShortName = row.company_short_name ?? fields.company_short_name ?? null;
+    const companyAddress = row.address ?? fields.address;
     return {
       public_id: row.public_id,
       status: row.card_status,
@@ -630,7 +631,7 @@ export class PublicCardRepository {
           wechat_id: privacy.show_wechat ? fields.wechat_id : null,
           wechat_qrcode_url: fields.wechat_qrcode_url ?? null,
           wecom_qrcode_url: fields.wecom_qrcode_url ?? null,
-          address: fields.address
+          address: companyAddress
         }
       },
       template: {
@@ -649,7 +650,7 @@ export class PublicCardRepository {
         service_items: parseServiceItems(row.service_items_json),
         display_modules: parseDisplayModules(row.display_modules_json, videos.length > 0),
         website_url: row.website_url,
-        address: row.address ?? fields.address
+        address: companyAddress
       },
       videos,
       honors,

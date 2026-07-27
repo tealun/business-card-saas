@@ -24,6 +24,16 @@ const ALL_EDITABLE_FIELDS = [
   "address",
   "website"
 ];
+const ENTERPRISE_EDITABLE_FIELDS = [
+  "avatar_url",
+  "display_name",
+  "title",
+  "department",
+  "mobile",
+  "phone",
+  "email",
+  "wechat_id"
+];
 
 Page({
   data: {
@@ -48,6 +58,7 @@ Page({
     themeStyle: "",
     templateId: "",
     portraitPhotoTemplate: false,
+    companyInfoLocked: false,
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     identityLabel: "",
     tags: [],
@@ -84,9 +95,14 @@ Page({
     try {
       const card = await request("/employee/cards/current");
       const preview = await request("/employee/cards/current/preview").catch(() => null);
-      const editableFields = isPersonalIdentity()
-        ? ALL_EDITABLE_FIELDS
-        : (Array.isArray(card.editable_fields) ? card.editable_fields : ALL_EDITABLE_FIELDS);
+      const enterpriseCard = isEnterpriseCard(card);
+      const editableFields = Array.isArray(card.editable_fields)
+        ? card.editable_fields
+        : (enterpriseCard ? ENTERPRISE_EDITABLE_FIELDS : ALL_EDITABLE_FIELDS);
+      const editable = editableMap(editableFields);
+      if (enterpriseCard) {
+        lockCompanyFields(editable);
+      }
       const fields = card.fields || {};
       const template = preview && preview.template ? preview.template : {};
       const templateId = normalizeTemplateId((template && template.template_id) || (template.layout && template.layout.variant));
@@ -107,10 +123,11 @@ Page({
           website: fields.website || "",
           share_title: (card.privacy && card.privacy.share_title) || ""
         },
-        editable: editableMap(editableFields),
+        editable,
         selfService: Object.assign({}, this.data.selfService, card.employee_self_service || {}),
         templateId,
         portraitPhotoTemplate: isPortraitTemplate(templateId),
+        companyInfoLocked: enterpriseCard,
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
           ? app.globalData.currentIdentity.typeLabel
           : "当前名片",
@@ -320,6 +337,19 @@ function editableMap(fields) {
     map[field] = fields.includes(field);
   });
   return map;
+}
+
+function lockCompanyFields(editable) {
+  ["logo_url", "company", "company_short_name", "address", "website"].forEach((field) => {
+    editable[field] = false;
+  });
+}
+
+function isEnterpriseCard(card) {
+  if (card && card.identity_type) {
+    return card.identity_type !== "personal";
+  }
+  return !isPersonalIdentity();
 }
 
 function isPersonalIdentity() {

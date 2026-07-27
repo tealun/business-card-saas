@@ -15,6 +15,7 @@ const persistedImageSourceSchema = imageSourceSchema.refine(
 export const employeeCardResponseSchema = z.object({
   card_id: z.string(),
   public_id: publicIdSchema,
+  identity_type: z.enum(["personal", "wecom_member", "local_enterprise"]).optional(),
   display_name: z.string(),
   title: z.string().nullable(),
   company: z.string().nullable(),

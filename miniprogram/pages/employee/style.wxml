@@ -19,6 +19,10 @@
     background-error="{{backgroundError}}"
     portrait-photo-url="{{portraitPhotoUrl}}"
     default-portrait-photo-url="{{defaultPortraitPhotoUrl}}"
+    can-edit-templates="{{canEditTemplates}}"
+    can-edit-colors="{{canEditColors}}"
+    can-edit-background="{{canEditBackground}}"
+    can-edit-portrait-photo="{{canEditPortraitPhoto}}"
     bindtemplatechange="selectTemplate"
     bindcolorchange="selectColor"
     bindcustomcolorselect="selectCustomColor"
@@ -32,7 +36,7 @@
 </view>
 
 <view class="fixed-footer" style="{{themeStyle}}">
-  <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="applyStyle">
+  <view class="btn btn--primary btn--block {{submitting || (!canEditTemplates && !canEditPortraitPhoto) ? 'btn--disabled' : ''}}" bindtap="applyStyle">
     {{submitting ? '应用中...' : '应用此样式'}}
   </view>
 </view>

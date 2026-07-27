@@ -42,6 +42,7 @@ type EditableFieldKey =
   | "wecom_qrcode_url"
   | "address"
   | "website";
+type StyleFieldKey = keyof UpdateEmployeeCardStyleRequest;
 
 interface EmployeeCardRow extends QueryResultRow {
   member_id: string | number | bigint;
@@ -57,6 +58,8 @@ interface EmployeeCardRow extends QueryResultRow {
   card_status: "active" | "disabled" | null;
   company_name: string | null;
   company_short_name: string | null;
+  company_address: string | null;
+  company_website_url: string | null;
 }
 
 interface StyleRow extends QueryResultRow {
@@ -105,7 +108,8 @@ export class EmployeeCardRepository {
     }
     return this.cloneCard({
       ...this.ensureCurrentCardInMemory(session),
-      editable_fields: defaultEditableFields(),
+      identity_type: session.identityType,
+      editable_fields: this.editableFieldsForSession(session),
       employee_self_service: toEmployeeSelfService(defaultEmployeeWecomSettings())
     });
   }
@@ -257,7 +261,7 @@ export class EmployeeCardRepository {
 
     const key = this.cardKey(session);
     const current = this.ensureCurrentCardInMemory(session);
-    const allowedFields = defaultEditableFields();
+    const allowedFields = this.editableFieldsForSession(session);
     const wecomSettings = defaultEmployeeWecomSettings();
     assertCanUpdate(request, allowedFields);
     assertCanUpdatePrivacy(request, wecomSettings);
@@ -487,6 +491,7 @@ export class EmployeeCardRepository {
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest
   ): Promise<EmployeeCardPreviewResponse> {
+    assertCanUpdateStyle(session, request);
     const materializedRequest = await this.materializeStyleStorageFields(session, request);
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
@@ -585,7 +590,9 @@ export class EmployeeCardRepository {
           cards.privacy_json,
           cards.status AS card_status,
           company_profiles.display_name AS company_name,
-          company_profiles.short_name AS company_short_name
+          company_profiles.short_name AS company_short_name,
+          company_profiles.address AS company_address,
+          company_profiles.website_url AS company_website_url
         FROM member_identities
         LEFT JOIN LATERAL (
           SELECT id, public_id, display_name, title, avatar_url, fields_encrypted, privacy_json, status
@@ -612,15 +619,27 @@ export class EmployeeCardRepository {
   private toCard(session: EmployeeSession, row: EmployeeCardRow): EmployeeCardResponse {
     const memberIdentityId = String(row.member_id);
     const fields = this.decryptJson(row.fields_encrypted) ?? defaultFields();
+    const companyName = session.identityType === "personal"
+      ? fields.company ?? null
+      : row.company_name ?? session.tenantName ?? `Tenant ${session.tenantId}`;
+    const companyShortName = session.identityType === "personal" ? fields.company_short_name ?? null : row.company_short_name ?? null;
+    const displayFields = { ...fields };
+    if (session.identityType !== "personal") {
+      displayFields.company = companyName;
+      displayFields.company_short_name = companyShortName;
+      displayFields.address = row.company_address ?? null;
+      displayFields.website = row.company_website_url ?? null;
+    }
     return {
       card_id: row.card_id ? String(row.card_id) : memberIdentityId,
       public_id: row.public_id ?? session.publicId ?? defaultEmployeePublicId({ tenantId: session.tenantId, memberIdentityId }),
+      identity_type: session.identityType,
       display_name: row.display_name ?? row.member_name,
       title: row.title,
-      company: fields.company ?? (session.identityType === "personal" ? null : row.company_name ?? session.tenantName ?? `Tenant ${session.tenantId}`),
-      company_short_name: fields.company_short_name ?? (session.identityType === "personal" ? null : row.company_short_name),
+      company: companyName,
+      company_short_name: companyShortName,
       avatar_url: row.avatar_url,
-      fields,
+      fields: displayFields,
       status: normalizeStatus(row.card_status ?? row.member_status),
       privacy: parsePrivacy(row.privacy_json)
     };
@@ -893,7 +912,11 @@ export class EmployeeCardRepository {
       `,
       [session.tenantId]
     );
-    return parseEditableFields(result.rows[0]?.fields_json);
+    return parseEditableFields(result.rows[0]?.fields_json, defaultEnterpriseEditableFields());
+  }
+
+  private editableFieldsForSession(session: EmployeeSession): EditableFieldKey[] {
+    return session.identityType === "personal" ? defaultEditableFields() : defaultEnterpriseEditableFields();
   }
 
   private async readEmployeeWecomSettings(session: EmployeeSession): Promise<EmployeeWecomSettings> {
@@ -1233,6 +1256,10 @@ function defaultEditableFields(): EditableFieldKey[] {
   return ["avatar_url", "display_name", "title", "company", "company_short_name", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
 }
 
+function defaultEnterpriseEditableFields(): EditableFieldKey[] {
+  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url"];
+}
+
 function defaultEmployeeWecomSettings(): EmployeeWecomSettings {
   return {
     allowEmployeePrivacyEdit: true,
@@ -1251,10 +1278,10 @@ function toEmployeeSelfService(settings: EmployeeWecomSettings): EmployeeSelfSer
   };
 }
 
-function parseEditableFields(value: unknown): EditableFieldKey[] {
+function parseEditableFields(value: unknown, candidates = defaultEditableFields()): EditableFieldKey[] {
   const rules = parseJsonValue(value);
   if (!Array.isArray(rules)) {
-    return defaultEditableFields();
+    return [...candidates];
   }
   const overrides = new Map(
     rules
@@ -1263,7 +1290,7 @@ function parseEditableFields(value: unknown): EditableFieldKey[] {
       )
       .map((rule) => [rule.field_key, rule])
   );
-  const editable = defaultEditableFields()
+  const editable = candidates
     .map((field_key) => ({ field_key, ...(overrides.get(field_key) ?? {}) }))
     .filter((rule): rule is { field_key: EditableFieldKey; locked?: boolean; employee_editable?: boolean } =>
       isRecord(rule) && isEditableFieldKey(rule.field_key)
@@ -1271,6 +1298,28 @@ function parseEditableFields(value: unknown): EditableFieldKey[] {
     .filter((rule) => rule.locked !== true && rule.employee_editable !== false)
     .map((rule) => rule.field_key);
   return editable.length ? editable : [];
+}
+
+function assertCanUpdateStyle(session: EmployeeSession, request: UpdateEmployeeCardStyleRequest): void {
+  if (session.identityType === "personal") {
+    return;
+  }
+  const denied = requestedStyleFields(request);
+  if (request.layout !== undefined && !isEnterpriseAllowedStyleLayout(request.layout)) {
+    denied.push("layout");
+  }
+  if (denied.length) {
+    throw new ForbiddenException(`style setting not employee editable: ${denied.join(", ")}`);
+  }
+}
+
+function requestedStyleFields(request: UpdateEmployeeCardStyleRequest): StyleFieldKey[] {
+  return (["logo_url", "background_url", "color_scheme"] as StyleFieldKey[])
+    .filter((field) => request[field] !== undefined);
+}
+
+function isEnterpriseAllowedStyleLayout(layout: Record<string, unknown>): boolean {
+  return Object.keys(layout).every((key) => key === "variant" || key === "portrait_photo_url");
 }
 
 function assertCanUpdate(request: UpdateEmployeeCardRequest, allowedFields: readonly EditableFieldKey[]): void {
