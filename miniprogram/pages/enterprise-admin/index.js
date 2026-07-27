@@ -2021,7 +2021,7 @@ function layoutImageUrl(layout, key) {
 function buildTemplatePreviewCard(profile, members, tenant) {
   const currentMember = Array.isArray(members) && members.length ? members[0] : null;
   const companyName = (profile && profile.display_name) || (tenant && tenant.tenant_name) || "企业";
-  const companyShortName = (profile && profile.short_name) || (tenant && tenant.tenant_name) || "";
+  const companyShortName = (profile && profile.short_name) || "";
   const mobile = currentMember && currentMember.mobile ? currentMember.mobile : "";
   return {
     display_name: (currentMember && currentMember.display_name) || "姓名",

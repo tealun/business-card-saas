@@ -122,14 +122,14 @@ async function drawShareCard(ctx, options) {
 
   if (shortName) {
     ctx.fillStyle = secondary;
-    ctx.font = "20px sans-serif";
+    ctx.font = "bold 20px sans-serif";
     drawText(ctx, shortName, contentX, contentY, companyMaxWidth);
   }
 
   let infoY = contentY + (shortName ? 50 : 22);
   if (company) {
     ctx.fillStyle = primary;
-    ctx.font = "bold 22px sans-serif";
+    ctx.font = "22px sans-serif";
     drawText(ctx, company, contentX, infoY, companyMaxWidth);
     infoY += 30;
   }
@@ -154,15 +154,16 @@ async function drawShareCard(ctx, options) {
   });
 
   if (showAvatar) {
-    const avatarSize = portrait ? 112 : 76;
-    const avatarX = portrait ? CARD_X + CARD_W - avatarSize - 18 : CARD_X + CARD_W - 104;
-    const avatarY = portrait ? CARD_Y + 54 : CARD_Y + 68;
+    const avatarWidth = portrait ? 150 : 76;
+    const avatarHeight = portrait ? CARD_H - 38 : 76;
+    const avatarX = portrait ? CARD_X + CARD_W - avatarWidth - 10 : CARD_X + CARD_W - 104;
+    const avatarY = portrait ? CARD_Y + 19 : CARD_Y + 68;
     await drawAvatar(
       ctx,
       avatarX,
       avatarY,
-      avatarSize,
-      avatarSize,
+      avatarWidth,
+      avatarHeight,
       dark || brandImage,
       portrait,
       options.portraitPhotoUrl || ""
