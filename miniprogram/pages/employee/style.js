@@ -42,7 +42,7 @@ const stylePage = {
       { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
       { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
       { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
-      { id: "tpl_portrait_photo", name: "照片版", desc: "正方形头像 · PNG 500×500 以上" },
+      { id: "tpl_portrait_photo", name: "照片版", desc: "形象照 · PNG 500×500 以上" },
       { id: "tpl_dark", name: "深色", desc: "高对比展示" },
       { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
     ],
@@ -206,13 +206,16 @@ const stylePage = {
     this.setData({ submitting: true });
     try {
       const backgroundUrl = this.data.canEditBackground ? await backgroundUrlForSave(this.data.backgroundUrl) : "";
+      const portraitTemplate = isPortraitTemplate(this.data.templateId);
       const data = {
         template_id: this.data.templateId,
         layout: {
-          variant: this.data.templateId,
-          portrait_photo_url: this.data.portraitPhotoUrl || null
+          variant: this.data.templateId
         }
       };
+      if (portraitTemplate) {
+        data.layout.portrait_photo_url = this.data.portraitPhotoUrl || null;
+      }
       if (this.data.canEditColors) {
         data.color_scheme = {
           primary: this.data.primary,
@@ -234,10 +237,13 @@ const stylePage = {
       setPageTheme(this, primary);
       app.globalData.currentCard = preview.card || app.globalData.currentCard;
       const previewLayout = previewTemplate.layout || {};
+      const previewTemplateId = normalizeTemplateId(previewTemplate.template_id || previewLayout.variant || this.data.templateId);
       const previewBackgroundUrl = previewTemplate.background_url || this.data.backgroundUrl;
       this.setData({
         card: Object.assign({}, this.data.card, preview.card || {}, { fields: (preview.card && preview.card.fields) || this.data.card.fields || {} }),
-        portraitPhotoUrl: layoutImageUrl(previewLayout, "portrait_photo_url") || this.data.portraitPhotoUrl,
+        portraitPhotoUrl: isPortraitTemplate(previewTemplateId)
+          ? layoutImageUrl(previewLayout, "portrait_photo_url") || this.data.portraitPhotoUrl
+          : "",
         backgroundUrl: previewBackgroundUrl,
         backgroundPresetId: previewTemplate.background_url ? "" : (previewLayout.background_preset_id || this.data.backgroundPresetId),
         backgroundOpacity: normalizeOpacity(previewLayout.background_opacity, this.data.backgroundOpacity),
@@ -300,6 +306,10 @@ function normalizeTemplateId(templateId) {
     return "tpl_portrait_photo";
   }
   return TEMPLATE_META[templateId] ? templateId : "tpl_horizontal_business";
+}
+
+function isPortraitTemplate(templateId) {
+  return normalizeTemplateId(templateId) === "tpl_portrait_photo";
 }
 
 function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, templateId = "") {

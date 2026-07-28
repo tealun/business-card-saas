@@ -2,7 +2,7 @@
   <view class="row-between portrait-photo-editor__head">
     <view>
       <view class="card__title">形象照</view>
-      <view class="f12 t-secondary portrait-photo-editor__sub">PNG · 500×500 以上 · 正方形头像</view>
+      <view class="f12 t-secondary portrait-photo-editor__sub">PNG · 500×500 以上 · 正方形形象照</view>
     </view>
     <view class="btn btn--sm btn--soft {{editable ? '' : 'btn--disabled'}}" bindtap="onChoosePhoto">
       {{url ? "更换" : "上传"}}
@@ -12,7 +12,7 @@
     <image wx:if="{{url || defaultPhotoUrl}}" class="portrait-photo-editor__image" src="{{url || defaultPhotoUrl}}" mode="aspectFit" />
     <view wx:else class="portrait-photo-editor__empty">
       <view class="icon icon-camera"></view>
-      <text>{{editable ? "上传正方形头像" : lockedText}}</text>
+      <text>{{editable ? "上传正方形形象照" : lockedText}}</text>
     </view>
   </view>
   <view class="portrait-photo-editor__actions" wx:if="{{url && editable}}">

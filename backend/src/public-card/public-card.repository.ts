@@ -606,7 +606,8 @@ export class PublicCardRepository {
     const layout = parseObject(row.layout_json);
     const templateId = typeof layout.__template_id === "string" ? layout.__template_id : "tpl_demo_business";
     const layoutLogoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : null;
-    const { __template_id: _templateId, __logo_url: _logoUrl, ...publicLayout } = layout;
+    const { __template_id: _templateId, __logo_url: _logoUrl, ...rawPublicLayout } = layout;
+    const publicLayout = sanitizeTemplateLayout(templateId, rawPublicLayout);
     const companyName = row.company_name ?? fields.company ?? null;
     const companyShortName = row.company_short_name ?? fields.company_short_name ?? null;
     const companyAddress = row.address ?? fields.address;
@@ -870,6 +871,29 @@ function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boole
 
 function parseObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? { ...value } : {};
+}
+
+function sanitizeTemplateLayout(templateId: string, layout: Record<string, unknown>): Record<string, unknown> {
+  if (isPortraitTemplateId(templateId)) {
+    return layout;
+  }
+  const { portrait_photo_url: _portraitPhotoUrl, ...next } = layout;
+  return Object.keys(next).length ? next : { variant: normalizeTemplateId(templateId) };
+}
+
+function isPortraitTemplateId(templateId: unknown): boolean {
+  return normalizeTemplateId(templateId) === "tpl_portrait_photo";
+}
+
+function normalizeTemplateId(templateId: unknown): string {
+  const value = String(templateId || "").trim();
+  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  if (value === "tpl_portrait_photo" || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
+    return "tpl_portrait_photo";
+  }
+  return value || "tpl_horizontal_business";
 }
 
 function parseIntroBlocks(value: unknown): PublicCardResponse["company_profile"]["intro_blocks"] {

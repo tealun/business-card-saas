@@ -492,11 +492,14 @@ export class EmployeeCardRepository {
     request: UpdateEmployeeCardStyleRequest
   ): Promise<EmployeeCardPreviewResponse> {
     assertCanUpdateStyle(session, request);
-    const materializedRequest = await this.materializeStyleStorageFields(session, request);
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
         const card = await this.ensureCurrentCardInDb(tx, session);
         const current = await this.readStyle(tx, session.tenantId, card.card_id);
+        const materializedRequest = await this.materializeStyleStorageFields(
+          session,
+          sanitizeStyleRequestForEffectiveTemplate(current, request)
+        );
         const next = mergeStyle(current, materializedRequest);
         await this.upsertStyle(tx, session.tenantId, card.card_id, next);
         return this.toPreview(card, next);
@@ -506,6 +509,10 @@ export class EmployeeCardRepository {
     const key = this.cardKey(session);
     const card = this.ensureCurrentCardInMemory(session);
     const current = this.styles.get(key) ?? {};
+    const materializedRequest = await this.materializeStyleStorageFields(
+      session,
+      sanitizeStyleRequestForEffectiveTemplate(current, request)
+    );
     const next = mergeStyle(current, materializedRequest);
     this.styles.set(key, next);
     return this.toPreview(card, next);
@@ -828,6 +835,7 @@ export class EmployeeCardRepository {
   }
 
   private toPreview(card: EmployeeCardResponse, style: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
+    const previewStyle = sanitizeStyleForTemplate(style);
     const email = card.privacy.show_email ? normalizePublicEmail(card.fields.email) : null;
     const websiteUrl = normalizePublicUrl(card.fields.website);
     return {
@@ -855,14 +863,14 @@ export class EmployeeCardRepository {
         }
       },
       template: {
-        template_id: style.template_id ?? "tpl_demo_business",
-        logo_url: style.logo_url ?? null,
-        background_url: style.background_url ?? null,
-        color_scheme: style.color_scheme ?? {
+        template_id: previewStyle.template_id ?? "tpl_demo_business",
+        logo_url: previewStyle.logo_url ?? null,
+        background_url: previewStyle.background_url ?? null,
+        color_scheme: previewStyle.color_scheme ?? {
           primary: "#1677ff",
           surface: "#ffffff"
         },
-        layout: style.layout ?? {
+        layout: previewStyle.layout ?? {
           variant: "horizontal-business"
         }
       },
@@ -1189,12 +1197,85 @@ function mergeStyle(
   current: UpdateEmployeeCardStyleRequest,
   request: UpdateEmployeeCardStyleRequest
 ): UpdateEmployeeCardStyleRequest {
-  return {
+  const next: UpdateEmployeeCardStyleRequest = {
     ...current,
     ...request,
     color_scheme: request.color_scheme ?? current.color_scheme,
     layout: request.layout ?? current.layout
   };
+  if (request.template_id !== undefined) {
+    next.layout = {
+      ...(next.layout ?? {}),
+      variant: normalizeTemplateId(request.template_id)
+    };
+  }
+  return sanitizeStyleForTemplate(next);
+}
+
+function sanitizeStyleRequestForEffectiveTemplate(
+  current: UpdateEmployeeCardStyleRequest,
+  request: UpdateEmployeeCardStyleRequest
+): UpdateEmployeeCardStyleRequest {
+  if (isPortraitTemplateId(effectiveStyleTemplateId(current, request))) {
+    return request;
+  }
+  return stripPortraitPhotoFromRequest(request);
+}
+
+function sanitizeStyleForTemplate(style: UpdateEmployeeCardStyleRequest): UpdateEmployeeCardStyleRequest {
+  if (!style.layout || isPortraitTemplateId(styleTemplateId(style))) {
+    return style;
+  }
+  const next = stripPortraitPhotoFromRequest(style);
+  if (!next.layout && next.template_id) {
+    return {
+      ...next,
+      layout: { variant: normalizeTemplateId(next.template_id) }
+    };
+  }
+  return next;
+}
+
+function effectiveStyleTemplateId(
+  current: UpdateEmployeeCardStyleRequest,
+  request: UpdateEmployeeCardStyleRequest
+): string {
+  return styleTemplateId({
+    template_id: request.template_id ?? current.template_id,
+    layout: request.layout ?? current.layout
+  });
+}
+
+function styleTemplateId(style: UpdateEmployeeCardStyleRequest): string {
+  const layoutVariant = typeof style.layout?.variant === "string" ? style.layout.variant : "";
+  return normalizeTemplateId(style.template_id ?? layoutVariant);
+}
+
+function stripPortraitPhotoFromRequest(style: UpdateEmployeeCardStyleRequest): UpdateEmployeeCardStyleRequest {
+  if (!style.layout || !Object.prototype.hasOwnProperty.call(style.layout, "portrait_photo_url")) {
+    return style;
+  }
+  const { portrait_photo_url: _portraitPhotoUrl, ...layout } = style.layout;
+  if (!Object.keys(layout).length) {
+    const { layout: _layout, ...rest } = style;
+    return rest;
+  }
+  return { ...style, layout };
+}
+
+function isPortraitTemplateId(templateId: unknown): boolean {
+  return normalizeTemplateId(templateId) === "tpl_portrait_photo";
+}
+
+function normalizeTemplateId(templateId: unknown): string {
+  const value = String(templateId || "").trim();
+  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
+    return "tpl_horizontal_business";
+  }
+  if (value === "tpl_portrait_photo" || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
+    return "tpl_portrait_photo";
+  }
+  return value || "tpl_horizontal_business";
 }
 
 function defaultFields(): CardFields {

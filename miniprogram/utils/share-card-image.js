@@ -57,10 +57,10 @@ async function drawShareCard(ctx, options) {
   const theme = normalizeTheme(options.theme || {});
   const card = normalizeCard(options.card || {});
   const meta = options.meta || {};
-  const showAvatar = card.show_avatar !== false;
   const dark = isDarkTemplate(options.templateClass || "");
   const brandImage = isBrandTemplate(options.templateClass || "");
   const portrait = isPortraitTemplate(options.templateClass || "");
+  const showAvatar = portrait || card.show_avatar !== false;
   const surface = dark ? "#161b22" : brandImage ? theme.brand : "#ffffff";
   const primary = dark || brandImage ? "#ffffff" : "#1f2329";
   const secondary = dark ? "#a8c5ff" : brandImage ? "rgba(255,255,255,0.82)" : "#697282";

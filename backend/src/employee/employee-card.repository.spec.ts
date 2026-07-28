@@ -462,6 +462,67 @@ describe("EmployeeCardRepository", () => {
     );
   });
 
+  it("ignores portrait photo overrides for non-photo templates", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn(async () => ({
+        storageKey: "tenant/tenant-001/portrait-photos/photo.png",
+        publicUrl: "http://localhost:3000/api/v1/storage/tenant/tenant-001/portrait-photos/photo.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const preview = await repository.updateStyle(session, {
+      template_id: "tpl_minimal",
+      layout: {
+        variant: "tpl_minimal",
+        portrait_photo_url: "data:image/png;base64,aGVsbG8="
+      }
+    });
+
+    expect(storage.storeImageDataUrl).not.toHaveBeenCalled();
+    expect(preview.template.layout).toEqual({ variant: "tpl_minimal" });
+  });
+
+  it("removes saved portrait photos when switching away from the photo template", async () => {
+    const repository = new EmployeeCardRepository();
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    await repository.updateStyle(session, {
+      template_id: "tpl_portrait_photo",
+      layout: {
+        variant: "tpl_portrait_photo",
+        portrait_photo_url: "https://example.com/portrait.png"
+      }
+    });
+
+    const preview = await repository.updateStyle(session, {
+      template_id: "tpl_minimal"
+    });
+    const published = await repository.getPreview(session);
+
+    expect(preview.template.layout).toEqual({ variant: "tpl_minimal" });
+    expect(published.template.layout).toEqual({ variant: "tpl_minimal" });
+  });
+
   it("syncs WeCom sensitive profile details and reports authorization status", async () => {
     const repository = new EmployeeCardRepository();
     const session = {

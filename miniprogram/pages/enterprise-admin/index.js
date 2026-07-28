@@ -23,7 +23,7 @@ const TEMPLATE_VARIANTS = [
   { value: "horizontal-business", label: "横版商务", desc: "企业级默认模板" },
   { value: "minimal", label: "极简", desc: "信息更克制" },
   { value: "brand-image", label: "品牌图", desc: "适合强品牌露出" },
-  { value: "portrait-photo", label: "照片版", desc: "正方形头像 · PNG 500×500 以上" },
+  { value: "portrait-photo", label: "照片版", desc: "形象照 · PNG 500×500 以上" },
   { value: "dark", label: "深色", desc: "高对比展示" },
   { value: "campaign", label: "活动版", desc: "短期推广使用" }
 ];
@@ -31,7 +31,7 @@ const STYLE_TEMPLATES = [
   { id: "tpl_horizontal_business", name: "横版商务", desc: "企业级默认模板" },
   { id: "tpl_minimal", name: "极简", desc: "信息更克制" },
   { id: "tpl_brand_image", name: "品牌图", desc: "适合强品牌露出" },
-  { id: "tpl_portrait_photo", name: "照片版", desc: "正方形头像 · PNG 500×500 以上" },
+  { id: "tpl_portrait_photo", name: "照片版", desc: "形象照 · PNG 500×500 以上" },
   { id: "tpl_dark", name: "深色", desc: "高对比展示" },
   { id: "tpl_campaign", name: "活动版", desc: "短期推广使用" }
 ];
@@ -683,6 +683,15 @@ Page({
     await this.saveWithToast(async () => {
       const backgroundUrl = await backgroundUrlForSave(this.data.backgroundUrl);
       const primary = buildTheme(this.data.primary || DEFAULT_BRAND).themeBrand;
+      const variant = draft.variant || "horizontal-business";
+      const layout = {
+        variant,
+        background_opacity: normalizeOpacity(this.data.backgroundOpacity, DEFAULT_BACKGROUND_OPACITY),
+        background_preset_id: this.data.backgroundPresetId || null
+      };
+      if (isPortraitVariant(variant)) {
+        layout.portrait_photo_url = this.data.portraitPhotoUrl || null;
+      }
       const template = await this.adminRequest(`/admin/templates/${encodeURIComponent(draft.template_id)}`, {
         method: "PUT",
         data: {
@@ -690,12 +699,7 @@ Page({
           logo_url: textOrNull(draft.logo_url),
           background_url: backgroundUrl || null,
           color_scheme: { primary, surface: draft.surface || "#ffffff" },
-          layout: {
-            variant: draft.variant || "horizontal-business",
-            background_opacity: normalizeOpacity(this.data.backgroundOpacity, DEFAULT_BACKGROUND_OPACITY),
-            background_preset_id: this.data.backgroundPresetId || null,
-            portrait_photo_url: this.data.portraitPhotoUrl || null
-          },
+          layout,
           status: draft.status || "active"
         }
       });
@@ -2003,7 +2007,7 @@ function buildTemplateEditorState(template, profile, members, tenant) {
     customColorExpanded: ![DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"].includes(primary),
     card,
     logoUrl: draft.logo_url || ((profile && profile.logo_url) || ""),
-    portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
+    portraitPhotoUrl: isPortraitVariant(variant) ? layoutImageUrl(layout, "portrait_photo_url") : "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     backgroundUrl,
     backgroundPresetId,
@@ -2080,6 +2084,10 @@ function normalizeTemplateVariant(value) {
     return "campaign";
   }
   return TEMPLATE_STYLE_META[value] ? value : "horizontal-business";
+}
+
+function isPortraitVariant(value) {
+  return normalizeTemplateVariant(value) === "portrait-photo";
 }
 
 function normalizeOpacity(value, fallback) {

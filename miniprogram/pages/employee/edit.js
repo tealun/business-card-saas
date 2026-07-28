@@ -1,13 +1,7 @@
 const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
-const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { setPageTheme } = require("../../utils/theme");
-const PORTRAIT_TEMPLATE_ID = "tpl_portrait_photo";
-const PORTRAIT_PHOTO_MIN_WIDTH = 500;
-const PORTRAIT_PHOTO_MIN_HEIGHT = 500;
-const PORTRAIT_PHOTO_MIN_RATIO = 0.95;
-const PORTRAIT_PHOTO_MAX_RATIO = 1.05;
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
@@ -56,10 +50,7 @@ Page({
     editable: {},
     themeBrand: "",
     themeStyle: "",
-    templateId: "",
-    portraitPhotoTemplate: false,
     companyInfoLocked: false,
-    defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     identityLabel: "",
     tags: [],
     privacy: {
@@ -105,7 +96,6 @@ Page({
       }
       const fields = card.fields || {};
       const template = preview && preview.template ? preview.template : {};
-      const templateId = normalizeTemplateId((template && template.template_id) || (template.layout && template.layout.variant));
       this.setData({
         form: {
           avatar_url: card.avatar_url || "",
@@ -125,8 +115,6 @@ Page({
         },
         editable,
         selfService: Object.assign({}, this.data.selfService, card.employee_self_service || {}),
-        templateId,
-        portraitPhotoTemplate: isPortraitTemplate(templateId),
         companyInfoLocked: enterpriseCard,
         identityLabel: app.globalData.currentIdentity && app.globalData.currentIdentity.typeLabel
           ? app.globalData.currentIdentity.typeLabel
@@ -169,56 +157,12 @@ Page({
     }
   },
 
-  choosePortraitAvatarFromAlbum() {
-    if (!this.canEdit("avatar_url")) {
-      this.lockedTip();
-      return;
-    }
-    if (typeof wx.chooseMedia === "function") {
-      wx.chooseMedia({
-        count: 1,
-        mediaType: ["image"],
-        sourceType: ["album"],
-        sizeType: ["original"],
-        success: (res) => {
-          const file = res.tempFiles && res.tempFiles[0];
-          if (file && file.tempFilePath) {
-            this.setAvatarFromPath(file.tempFilePath);
-          }
-        }
-      });
-      return;
-    }
-    if (typeof wx.chooseImage === "function") {
-      wx.chooseImage({
-        count: 1,
-        sourceType: ["album"],
-        sizeType: ["original"],
-        success: (res) => {
-          const path = (res.tempFilePaths && res.tempFilePaths[0]) || "";
-          if (path) {
-            this.setAvatarFromPath(path);
-          }
-        }
-      });
-      return;
-    }
-    wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
-  },
-
   async setAvatarFromPath(path) {
     try {
       let info = null;
       try {
         info = await getImageInfo(path);
-      } catch (error) {
-        if (this.data.portraitPhotoTemplate) {
-          throw error;
-        }
-      }
-      if (this.data.portraitPhotoTemplate) {
-        validatePortraitPhoto(info);
-      }
+      } catch (_error) {}
       const avatarUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
       this.setData({ "form.avatar_url": avatarUrl });
     } catch (error) {
@@ -413,21 +357,6 @@ function validateCardForm(form, editable) {
   }
 }
 
-function normalizeTemplateId(templateId) {
-  const value = String(templateId || "").trim();
-  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
-    return "tpl_horizontal_business";
-  }
-  if (value === PORTRAIT_TEMPLATE_ID || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
-    return PORTRAIT_TEMPLATE_ID;
-  }
-  return value || "tpl_horizontal_business";
-}
-
-function isPortraitTemplate(templateId) {
-  return normalizeTemplateId(templateId) === PORTRAIT_TEMPLATE_ID;
-}
-
 function pathToDataUrl(path, mime = "image/jpeg") {
   if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
     return Promise.resolve(path);
@@ -469,22 +398,6 @@ function imageMime(info) {
   if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
   if (path.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
-}
-
-function validatePortraitPhoto(info) {
-  if (imageMime(info) !== "image/png") {
-    throw new Error("照片版仅支持 PNG 图片");
-  }
-  if (!info || !info.width || !info.height) {
-    throw new Error("无法读取图片尺寸");
-  }
-  const ratio = info.width / info.height;
-  if (ratio < PORTRAIT_PHOTO_MIN_RATIO || ratio > PORTRAIT_PHOTO_MAX_RATIO) {
-    throw new Error("照片版请使用 1:1 正方形");
-  }
-  if (info.width < PORTRAIT_PHOTO_MIN_WIDTH || info.height < PORTRAIT_PHOTO_MIN_HEIGHT) {
-    throw new Error("照片版请上传不小于 500×500 的图片");
-  }
 }
 
 function isTemporaryImageUrl(value) {
