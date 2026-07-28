@@ -58,6 +58,7 @@ const state = {
   mode: "tenant",
   page: "tenant-dashboard",
   members: [],
+  tenantOverview: null,
   analyticsDays: 7,
   selectedMemberId: "",
   memberCard: null,
@@ -219,6 +220,7 @@ function showConsole() {
 
 function completeLogin(accessToken, admin) {
   state.adminToken = accessToken;
+  state.tenantOverview = null;
   sessionStorage.setItem("bc_admin_token", accessToken);
   const adminTokenInput = $("#adminToken");
   if (adminTokenInput) adminTokenInput.value = accessToken;
@@ -244,6 +246,7 @@ function expireAdminSession(message) {
 function applyAdminIdentity(admin) {
   state.admin = admin;
   state.mode = admin.account_type === "platform" ? "platform" : "tenant";
+  state.tenantOverview = null;
   const defaultPage = state.mode === "platform" ? "platform-dashboard" : "tenant-dashboard";
   state.page = canSeePage(defaultPage) ? defaultPage : firstVisiblePage();
   topbarAdmin.textContent = `${admin.tenant_name} · ${admin.role}`;
@@ -370,6 +373,7 @@ function applyPermissionState(selector, permission) {
 
 function refreshPermissionControls() {
   applyPermissionState("#syncMembers", "tenant.member.sync");
+  applyTenantMemberControls();
   applyPermissionState("#saveCompanyProfile", "tenant.company.write");
   applyPermissionState("#publishCompanyProfile", "tenant.company.write");
   applyPermissionState("#saveFieldSettings", "tenant.config.write");
@@ -482,6 +486,19 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function tenantCanSyncMembers(overview = state.tenantOverview) {
+  return state.mode === "tenant" && Boolean(overview && overview.wecom_bound);
+}
+
+function applyTenantMemberControls(overview = state.tenantOverview) {
+  const syncButton = $("#syncMembers");
+  if (!syncButton) return;
+  const visible = hasPermission("tenant.member.sync") && tenantCanSyncMembers(overview);
+  syncButton.classList.toggle("hidden", !visible);
+  syncButton.disabled = !visible;
+  syncButton.title = visible ? "" : "本地企业未绑定企业微信，无法同步成员";
+}
+
 function normalizeWebsiteUrl(value) {
   const text = String(value || "").trim();
   if (!text) return null;
@@ -552,6 +569,8 @@ async function loadTenantDashboard() {
     adminRequest("/admin/sync-events").catch(() => null)
   ]);
   state.videoCapability = video;
+  state.tenantOverview = overview;
+  applyTenantMemberControls(overview);
   const sync = syncEvents ? summarizeSyncEvents(syncEvents.items || []) : null;
   const quota = summarizeMemberQuota(commercial);
   const completeness = profileCompleteness(profile);
@@ -710,7 +729,12 @@ function adminMemberListPath() {
 }
 
 async function loadMembers() {
-  const result = await adminRequest(adminMemberListPath());
+  const [overview, result] = await Promise.all([
+    adminRequest("/admin/overview").catch(() => null),
+    adminRequest(adminMemberListPath())
+  ]);
+  if (overview) state.tenantOverview = overview;
+  applyTenantMemberControls(state.tenantOverview);
   state.members = result.items || [];
   $("#membersTotal").textContent = `${result.total || 0} 个成员`;
   renderRows($("#membersRows"), state.members, 8, (item) => [
@@ -742,43 +766,50 @@ async function createEnterpriseJoinCode() {
 function renderJoinCode(result) {
   const root = $("#joinCodeResult");
   root.replaceChildren();
+  if (!result.qr_code_data_url) {
+    const error = document.createElement("div");
+    error.className = "join-code-error";
+    const title = document.createElement("strong");
+    title.textContent = "企业加入码生成失败";
+    const hint = document.createElement("p");
+    hint.textContent = "后端未返回实际微信小程序码，请检查微信小程序 AppID/Secret 后重新生成。";
+    error.append(title, hint);
+    if (result.join_path) {
+      const code = document.createElement("code");
+      code.textContent = result.join_path;
+      error.append(code);
+    }
+    root.append(error);
+    return;
+  }
   const shell = document.createElement("div");
   shell.className = "join-code-shell";
 
   const qrWrap = document.createElement("div");
   qrWrap.className = "join-code-qr";
-  if (result.qr_code_data_url) {
-    const image = document.createElement("img");
-    image.src = result.qr_code_data_url;
-    image.alt = "企业加入二维码";
-    qrWrap.append(image);
-  } else {
-    const empty = document.createElement("div");
-    empty.className = "join-code-qr-empty";
-    empty.textContent = "二维码暂不可用";
-    qrWrap.append(empty);
-  }
+  const image = document.createElement("img");
+  image.src = result.qr_code_data_url;
+  image.alt = "企业加入二维码";
+  qrWrap.append(image);
 
   const meta = document.createElement("div");
   meta.className = "join-code-meta";
   const title = document.createElement("strong");
   title.textContent = "企业加入码";
   const hint = document.createElement("p");
-  hint.textContent = result.qr_code_data_url ? "请使用微信扫码加入企业。" : "当前环境未配置微信小程序凭据，无法生成二维码。";
+  hint.textContent = "请使用微信扫码加入企业。";
   const expiry = document.createElement("span");
   expiry.textContent = `有效期至 ${formatDate(result.expires_at)}`;
   meta.append(title, hint, expiry);
 
   const actions = document.createElement("div");
   actions.className = "row-actions join-code-actions";
-  if (result.qr_code_data_url) {
-    actions.append(actionButton("下载二维码", () => {
-      const link = document.createElement("a");
-      link.href = result.qr_code_data_url;
-      link.download = "enterprise-join-code.png";
-      link.click();
-    }, "secondary"));
-  }
+  actions.append(actionButton("下载二维码", () => {
+    const link = document.createElement("a");
+    link.href = result.qr_code_data_url;
+    link.download = "enterprise-join-code.png";
+    link.click();
+  }, "secondary"));
 
   shell.append(qrWrap, meta, actions);
   root.append(shell);
@@ -2454,10 +2485,10 @@ function showLocalEnterpriseClaimDialog(result) {
       ? "请企业负责人使用微信扫描二维码，或在小程序认领页输入 8 位认领码。二维码与认领码 15 分钟内有效。"
       : "请企业负责人使用微信扫描二维码，在小程序内完成认领。二维码 15 分钟内有效。";
   } else {
-    const empty = document.createElement("div");
-    empty.className = "claim-qr-empty";
-    empty.textContent = "二维码暂不可用";
-    qrWrap.append(empty);
+    const error = document.createElement("div");
+    error.className = "claim-qr-error";
+    error.textContent = "微信小程序码生成失败";
+    qrWrap.append(error);
     copyPathButton.hidden = false;
     $("#localEnterpriseClaimHint").textContent = localEnterpriseClaimQrFailureHint(result);
   }
@@ -2470,7 +2501,7 @@ function localEnterpriseClaimQrFailureHint(result) {
   if (String(result.claim_code || "").trim()) {
     return error
       ? `微信小程序码生成失败：${error}。认领码仍可直接使用，也可先复制小程序路径用于排障。`
-      : "二维码暂不可用，但认领码仍可直接使用。也可先复制小程序路径用于排障。";
+      : "未收到实际微信小程序码，认领码仍可直接使用，也可先复制小程序路径用于排障。";
   }
   if (!error || error === "wechat_miniprogram_credentials_missing") {
     return "当前后端进程未读取到微信小程序凭据，无法自动生成二维码。请确认服务器 .env 已配置并重启后端。可先复制小程序路径用于排障。";
@@ -3013,6 +3044,14 @@ $("#createJoinCode").addEventListener("click",createEnterpriseJoinCode);
 $("#loadJoinRequests").addEventListener("click",()=>run("加载加入申请",loadJoinRequests));
 $("#syncMembers").addEventListener("click", async () => {
   if (!requirePermission("tenant.member.sync")) return;
+  if (!state.tenantOverview) {
+    state.tenantOverview = await adminRequest("/admin/overview").catch(() => null);
+    applyTenantMemberControls(state.tenantOverview);
+  }
+  if (!tenantCanSyncMembers()) {
+    notify("本地企业未绑定企业微信，无法同步成员", "danger");
+    return;
+  }
   const ok = await confirmAction({
     title: "确认同步成员",
     body: "同步会从企业微信拉取通讯录并更新当前企业成员状态。",

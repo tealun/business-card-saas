@@ -29,6 +29,10 @@ describe("AdminManagementController", () => {
             getOverview: async () => ({
               tenant_id: adminSession.tenantId,
               tenant_name: adminSession.tenantName,
+              creation_source: "wecom",
+              open_corpid: "corp-001",
+              auth_status: "active",
+              wecom_bound: true,
               member_count: 1,
               card_count: 1,
               active_card_count: 1
@@ -72,6 +76,10 @@ describe("AdminManagementController", () => {
     await expect(controller.overview(request as never)).resolves.toEqual({
       tenant_id: "tenant-001",
       tenant_name: "Pilot Corp",
+      creation_source: "wecom",
+      open_corpid: "corp-001",
+      auth_status: "active",
+      wecom_bound: true,
       member_count: 1,
       card_count: 1,
       active_card_count: 1

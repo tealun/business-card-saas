@@ -665,11 +665,16 @@ Page({
     try {
       const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       app.globalData.shareId = share.share_id;
+      const qrUrl = share.qrcode_url || share.mini_program_code_url || "";
+      if (!qrUrl) {
+        wx.showToast({ title: share.qrcode_error || "小程序码生成失败", icon: "none" });
+        return;
+      }
       this.showPreview({
         mode,
         title,
         path: share.path || `pages/public/card?card=${share.public_id}`,
-        qrUrl: share.qrcode_url || share.mini_program_code_url || ""
+        qrUrl
       });
     } catch (error) {
       wx.showToast({ title: error.message || "生成失败", icon: "none" });

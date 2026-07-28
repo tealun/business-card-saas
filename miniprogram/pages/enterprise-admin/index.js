@@ -150,6 +150,8 @@ Page({
     memberActionId: "",
     inviteDraft: { displayName: "", token: "", expiresAt: "" },
     joinCode: null,
+    joinCodeError: "",
+    canSyncMembers: false,
     styleTemplates: STYLE_TEMPLATES,
     colorSwatches: COLOR_SWATCHES,
     moduleLayouts: MODULE_LAYOUTS,
@@ -240,10 +242,15 @@ Page({
         method: "POST",
         data: { tenant_id: tenantId }
       });
-      const selected = tenant || decorateTenant({
+      const selected = decorateTenant({
+        ...(tenant || {}),
         tenant_id: session.tenant_id,
-        tenant_name: "企业管理",
-        role: "auditor"
+        tenant_name: session.tenant_name || (tenant && tenant.tenant_name) || "企业管理",
+        role: (tenant && tenant.role) || "auditor",
+        creation_source: session.creation_source ?? (tenant && tenant.creation_source),
+        open_corpid: session.open_corpid ?? (tenant && tenant.open_corpid),
+        auth_status: session.auth_status ?? (tenant && tenant.auth_status),
+        wecom_bound: session.wecom_bound ?? (tenant && tenant.wecom_bound)
       });
       const permissions = permissionsFor(selected.role);
       this.adminToken = session.admin_access_token;
@@ -278,15 +285,18 @@ Page({
         this.adminRequest("/admin/company-videos").catch(() => ({ items: [] })),
         this.adminRequest("/admin/features/company-video").catch(() => null)
       ]);
+      const tenant = mergeTenantStatus(this.data.tenant, overview);
       this.setData({
         overview,
+        tenant,
         profile,
         templates: decorateTemplates(templates.items || []),
         members: decorateMembers(members.items || []),
         joinRequests: decorateJoinRequests(joinRequests.items || []),
         honors: decorateHonors(honors.items || []),
         videos: decorateVideos(videos.items || []),
-        videoFeature
+        videoFeature,
+        canSyncMembers: canSyncMembersForTenant(tenant, overview)
       });
     } catch (error) {
       this.setData({ error: formatError(error, "企业管理数据加载失败") });
@@ -1363,6 +1373,10 @@ Page({
 
   async syncMembers() {
     if (!this.requireAdmin()) return;
+    if (!this.data.canSyncMembers) {
+      wx.showToast({ title: "本地企业未绑定企业微信", icon: "none" });
+      return;
+    }
     this.setData({ memberActionId: "" });
     await this.saveWithToast(async () => {
       await this.adminRequest("/admin/members/sync", { method: "POST" });
@@ -1372,11 +1386,21 @@ Page({
 
   async createJoinCode() {
     if (!this.requireAdmin()) return;
-    this.setData({ memberActionId: "" });
-    await this.saveWithToast(async () => {
+    this.setData({ memberActionId: "", saving: true, joinCodeError: "" });
+    try {
       const joinCode = await this.adminRequest("/admin/local-enterprises/join-code", { method: "POST" });
-      this.setData({ joinCode: { ...joinCode, expires_at: formatDateTime(joinCode.expires_at) } });
-    }, "入企码已生成");
+      this.setData({
+        joinCode: { ...joinCode, expires_at: formatDateTime(joinCode.expires_at) },
+        joinCodeError: ""
+      });
+      wx.showToast({ title: "入企码已生成", icon: "success" });
+    } catch (error) {
+      const message = formatError(error, "入企码生成失败");
+      this.setData({ joinCode: null, joinCodeError: message });
+      wx.showToast({ title: message, icon: "none" });
+    } finally {
+      this.setData({ saving: false });
+    }
   },
 
   async reviewJoinRequest(event) {
@@ -1953,13 +1977,37 @@ function extensionFromPath(filePath) {
 
 function decorateTenant(item) {
   const name = item.tenant_name || "企业";
+  const authStatus = item.auth_status || null;
+  const openCorpid = item.open_corpid || null;
   return {
     tenant_id: String(item.tenant_id || ""),
     tenant_name: name,
     role: item.role || "auditor",
     roleLabel: ROLE_LABELS[item.role] || item.role || "管理员",
-    initial: name.slice(0, 1) || "企"
+    initial: name.slice(0, 1) || "企",
+    creation_source: item.creation_source || null,
+    open_corpid: openCorpid,
+    auth_status: authStatus,
+    wecom_bound: item.wecom_bound === true || Boolean(openCorpid && authStatus === "active")
   };
+}
+
+function mergeTenantStatus(tenant, overview) {
+  const source = overview || {};
+  return decorateTenant({
+    ...(tenant || {}),
+    tenant_id: source.tenant_id || (tenant && tenant.tenant_id),
+    tenant_name: source.tenant_name || (tenant && tenant.tenant_name),
+    role: (tenant && tenant.role) || "auditor",
+    creation_source: source.creation_source ?? (tenant && tenant.creation_source),
+    open_corpid: source.open_corpid ?? (tenant && tenant.open_corpid),
+    auth_status: source.auth_status ?? (tenant && tenant.auth_status),
+    wecom_bound: source.wecom_bound ?? (tenant && tenant.wecom_bound)
+  });
+}
+
+function canSyncMembersForTenant(tenant, overview) {
+  return Boolean((overview && overview.wecom_bound) || (tenant && tenant.wecom_bound));
 }
 
 function permissionsFor(role) {

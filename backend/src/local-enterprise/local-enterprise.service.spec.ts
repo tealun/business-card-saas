@@ -6,6 +6,8 @@ const owner = { tenantId:"20", tenantName:"本地企业", memberIdentityId:"30",
 describe("LocalEnterpriseService", () => {
   const audit={record:jest.fn(async()=>undefined)};
   const joinQr={generate:jest.fn(async()=>"data:image/png;base64,cXI="),generateScene:jest.fn(async()=>"data:image/png;base64,YWRtaW4=")};
+  beforeEach(()=>jest.clearAllMocks());
+
   it("creates a local enterprise and returns an owner admin session", async () => {
     const repository={ createEnterprise:jest.fn(async()=>({tenantId:"20",memberId:"30",tenantName:"本地企业",openUserid:"account:10"})) };
     const tokens={ expiresIn:28800, sign:jest.fn(()=>"admin-token") };
@@ -41,23 +43,31 @@ describe("LocalEnterpriseService", () => {
     expect(repository.reviewJoinRequest).toHaveBeenCalledWith(expect.objectContaining({tenantId:"20",requestId:"9",decision:"approved"}));
   });
 
+  it("does not persist a join code when Mini Program code generation fails", async () => {
+    const repository={createJoinCode:jest.fn()};
+    const failingJoinQr={...joinQr,generate:jest.fn(async()=>{throw new Error("WeChat code failed");})};
+    const service=new LocalEnterpriseService(repository as never,{} as never,audit as never,failingJoinQr as never);
+    await expect(service.createJoinCode(owner)).rejects.toThrow("WeChat code failed");
+    expect(repository.createJoinCode).not.toHaveBeenCalled();
+  });
+
   it("reissues an admin token only for an active local admin bound to the account",async()=>{
-    const repository={findLocalAdminForAccount:jest.fn(async()=>({tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"}))};
+    const repository={findLocalAdminForAccount:jest.fn(async()=>({tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner",creationSource:"local",openCorpid:null,authStatus:"unconnected"}))};
     const tokens={expiresIn:28800,sign:jest.fn(()=>"new-admin-token")};
     const service=new LocalEnterpriseService(repository as never,tokens as never,audit as never,joinQr as never);
-    await expect(service.createAdminSession(employee,"20")).resolves.toEqual({tenant_id:"20",admin_access_token:"new-admin-token",expires_in:28800});
+    await expect(service.createAdminSession(employee,"20")).resolves.toEqual({tenant_id:"20",tenant_name:"本地企业",creation_source:"local",open_corpid:null,auth_status:"unconnected",wecom_bound:false,admin_access_token:"new-admin-token",expires_in:28800});
     expect(repository.findLocalAdminForAccount).toHaveBeenCalledWith("10","20");
   });
 
   it("lists manageable local enterprises for any active tenant admin role",async()=>{
     const repository={listLocalAdminsForAccount:jest.fn(async()=>[
-      {tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"admin"},
-      {tenantId:"21",tenantName:"分公司",memberId:"31",openUserid:"account:10",role:"operator"}
+      {tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"admin",creationSource:"local",openCorpid:null,authStatus:"unconnected"},
+      {tenantId:"21",tenantName:"分公司",memberId:"31",openUserid:"account:10",role:"operator",creationSource:"local",openCorpid:"corp-21",authStatus:"active"}
     ])};
     const service=new LocalEnterpriseService(repository as never,{} as never,audit as never,joinQr as never);
     await expect(service.listAdminTenants(employee)).resolves.toEqual({items:[
-      {tenant_id:"20",tenant_name:"本地企业",role:"admin"},
-      {tenant_id:"21",tenant_name:"分公司",role:"operator"}
+      {tenant_id:"20",tenant_name:"本地企业",role:"admin",creation_source:"local",open_corpid:null,auth_status:"unconnected",wecom_bound:false},
+      {tenant_id:"21",tenant_name:"分公司",role:"operator",creation_source:"local",open_corpid:"corp-21",auth_status:"active",wecom_bound:true}
     ]});
     expect(repository.listLocalAdminsForAccount).toHaveBeenCalledWith("10");
   });

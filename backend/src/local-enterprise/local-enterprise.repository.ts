@@ -8,8 +8,8 @@ import type { EmployeeSession } from "../session/employee-session.js";
 interface IdRow extends QueryResultRow { id: string | number | bigint; }
 interface InviteRow extends QueryResultRow { tenant_id: string | number | bigint; member_identity_id: string | number | bigint; name: string; }
 interface JoinRequestRow extends QueryResultRow { id:string|number|bigint; tenant_id:string|number|bigint; account_id:string|number|bigint; display_name:string; status:"pending"|"approved"|"rejected"|"cancelled"; created_at:Date|string; }
-interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; }
-interface LocalAdminCandidateRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; }
+interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; creation_source?:"local"|"wecom"|null; open_corpid?:string|null; auth_status?:string|null; }
+interface LocalAdminCandidateRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; creation_source:"local"|"wecom"|null; open_corpid:string|null; auth_status:string|null; }
 interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bigint|null; tenant_id:string|number|bigint|null; member_identity_id:string|number|bigint|null; status:"pending"|"approved"|"consumed"; expires_at:Date|string; }
 
 @Injectable()
@@ -78,22 +78,22 @@ export class LocalEnterpriseRepository {
   async findLocalAdminForAccount(accountId:string,tenantId:string) {
     return this.database.transaction(async tx=>{
       await this.context(tx,accountId,tenantId);
-      const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,t.name AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM account_identity_bindings b JOIN tenant_admins a ON a.tenant_id=b.tenant_id AND a.member_identity_id=b.member_identity_id JOIN tenants t ON t.id=a.tenant_id WHERE b.account_id=$1 AND b.tenant_id=$2 AND t.creation_source='local' AND a.status='active' LIMIT 1`,[accountId,tenantId]);
+      const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,t.name AS tenant_name,a.member_identity_id,a.open_userid,a.role,t.creation_source,t.open_corpid,t.auth_status FROM account_identity_bindings b JOIN tenant_admins a ON a.tenant_id=b.tenant_id AND a.member_identity_id=b.member_identity_id JOIN tenants t ON t.id=a.tenant_id WHERE b.account_id=$1 AND b.tenant_id=$2 AND t.creation_source='local' AND a.status='active' LIMIT 1`,[accountId,tenantId]);
       const row=result.rows[0];
-      return row?{tenantId:String(row.tenant_id),tenantName:row.tenant_name,memberId:String(row.member_identity_id),openUserid:row.open_userid,role:row.role}:null;
+      return row?{tenantId:String(row.tenant_id),tenantName:row.tenant_name,memberId:String(row.member_identity_id),openUserid:row.open_userid,role:row.role,creationSource:row.creation_source,openCorpid:row.open_corpid,authStatus:row.auth_status}:null;
     });
   }
 
   async listLocalAdminsForAccount(accountId:string){
     return this.database.transaction(async tx=>{
       await tx.query("SELECT set_config('app.account_id',$1,true)",[accountId]);
-      const candidates=await tx.query<LocalAdminCandidateRow>(`SELECT b.tenant_id,t.name AS tenant_name,b.member_identity_id FROM account_identity_bindings b JOIN tenants t ON t.id=b.tenant_id WHERE b.account_id=$1 AND t.creation_source='local' ORDER BY t.name,b.tenant_id`,[accountId]);
-      const admins=[] as Array<{tenantId:string;tenantName:string;memberId:string;openUserid:string;role:"owner"|"admin"|"operator"|"auditor"}>;
+      const candidates=await tx.query<LocalAdminCandidateRow>(`SELECT b.tenant_id,t.name AS tenant_name,b.member_identity_id,t.creation_source,t.open_corpid,t.auth_status FROM account_identity_bindings b JOIN tenants t ON t.id=b.tenant_id WHERE b.account_id=$1 AND t.creation_source='local' ORDER BY t.name,b.tenant_id`,[accountId]);
+      const admins=[] as Array<{tenantId:string;tenantName:string;memberId:string;openUserid:string;role:"owner"|"admin"|"operator"|"auditor";creationSource:"local"|"wecom"|null;openCorpid:string|null;authStatus:string|null}>;
       for(const candidate of candidates.rows){
         const tenantId=String(candidate.tenant_id);const memberId=String(candidate.member_identity_id);
         await tx.query("SELECT set_config('app.tenant_id',$1,true)",[tenantId]);
         const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,$3::text AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM tenant_admins a WHERE a.tenant_id=$1 AND a.member_identity_id=$2 AND a.status='active' LIMIT 1`,[tenantId,memberId,candidate.tenant_name]);
-        const row=result.rows[0];if(row)admins.push({tenantId,tenantName:row.tenant_name,memberId,openUserid:row.open_userid,role:row.role});
+        const row=result.rows[0];if(row)admins.push({tenantId,tenantName:row.tenant_name,memberId,openUserid:row.open_userid,role:row.role,creationSource:candidate.creation_source,openCorpid:candidate.open_corpid,authStatus:candidate.auth_status});
       }
       return admins;
     });

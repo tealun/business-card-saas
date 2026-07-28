@@ -8,25 +8,28 @@ export class WechatJoinQrService {
   private cached:{token:string;expiresAt:number}|null=null;
   constructor(private readonly config:AppConfig){}
 
-  async generate(joinToken:string):Promise<string|null>{
+  async generate(joinToken:string):Promise<string>{
     return this.generateScene(joinToken,"pages/enterprise-join/index");
   }
 
-  async generateScene(scene:string,page:string):Promise<string|null>{
-    if(!this.config.wechatMiniProgramAppId||!this.config.wechatMiniProgramSecret) return null;
+  async generateScene(scene:string,page:string):Promise<string>{
+    this.ensureCredentials();
     const accessToken=await this.accessToken();
     const response=await fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${encodeURIComponent(accessToken)}`,{
       method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify({scene,page,check_path:false,env_version:"release",width:430})
     });
-    if(!response.ok) throw new ServiceUnavailableException(`WeChat QR HTTP ${response.status}`);
-    const contentType=response.headers.get("content-type")||"";
-    if(contentType.includes("application/json")){
-      const error=await response.json() as AccessTokenPayload;
-      throw new BadGatewayException(`WeChat QR failed: ${error.errcode??"unknown"} ${error.errmsg??""}`.trim());
-    }
-    const bytes=Buffer.from(await response.arrayBuffer());
-    return `data:${contentType||"image/png"};base64,${bytes.toString("base64")}`;
+    return this.imageResponseDataUrl(response,"WeChat Mini Program code");
+  }
+
+  async generatePath(path:string):Promise<string>{
+    this.ensureCredentials();
+    const accessToken=await this.accessToken();
+    const response=await fetch(`https://api.weixin.qq.com/wxa/getwxacode?access_token=${encodeURIComponent(accessToken)}`,{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({path:path.replace(/^\/+/,""),check_path:false,env_version:"release",width:430})
+    });
+    return this.imageResponseDataUrl(response,"WeChat Mini Program code");
   }
 
   private async accessToken():Promise<string>{
@@ -39,5 +42,22 @@ export class WechatJoinQrService {
     if(!payload.access_token) throw new BadGatewayException(`WeChat access token failed: ${payload.errcode??"unknown"} ${payload.errmsg??""}`.trim());
     this.cached={token:payload.access_token,expiresAt:Date.now()+Math.max(60,(payload.expires_in??7200)-300)*1000};
     return payload.access_token;
+  }
+
+  private ensureCredentials():void{
+    if(!this.config.wechatMiniProgramAppId||!this.config.wechatMiniProgramSecret) {
+      throw new ServiceUnavailableException("WeChat Mini Program credentials are required to generate QR codes");
+    }
+  }
+
+  private async imageResponseDataUrl(response:Response,context:string):Promise<string>{
+    if(!response.ok) throw new ServiceUnavailableException(`${context} HTTP ${response.status}`);
+    const contentType=response.headers.get("content-type")||"";
+    if(contentType.includes("application/json")){
+      const error=await response.json() as AccessTokenPayload;
+      throw new BadGatewayException(`${context} failed: ${error.errcode??"unknown"} ${error.errmsg??""}`.trim());
+    }
+    const bytes=Buffer.from(await response.arrayBuffer());
+    return `data:${contentType||"image/png"};base64,${bytes.toString("base64")}`;
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import {
   employeeCardResponseSchema,
   employeeCardStatsResponseSchema,
@@ -22,12 +22,14 @@ import { publicCardResponseSchema } from "../contracts/public-card.js";
 import type { EmployeeSession } from "../session/employee-session.js";
 import { EmployeeCardRepository } from "./employee-card.repository.js";
 import { PublicCardRepository } from "../public-card/public-card.repository.js";
+import { WechatJoinQrService } from "../local-enterprise/wechat-join-qr.service.js";
 
 @Injectable()
 export class EmployeeCardService {
   constructor(
     private readonly repository: EmployeeCardRepository,
-    private readonly publicCards: PublicCardRepository
+    private readonly publicCards: PublicCardRepository,
+    @Optional() private readonly miniProgramCodes?: WechatJoinQrService
   ) {}
 
   async getCurrentCard(session: EmployeeSession): Promise<EmployeeCardResponse> {
@@ -98,11 +100,16 @@ export class EmployeeCardService {
     await this.publishPreview(await this.repository.getPreview(session));
     // Register the share so public derive/attribution can resolve it (A12-P2-1).
     await this.publicCards.registerRootShare({ publicId: share.publicId, shareId: share.shareId });
+    const path = `/pages/public/card?card=${share.publicId}&share=${share.shareId}`;
+    const miniProgramCode = await this.generateShareCode(path);
     return employeeShareResponseSchema.parse({
       public_id: share.publicId,
       share_id: share.shareId,
       scene: share.shareId,
-      path: `/pages/public/card?card=${share.publicId}&share=${share.shareId}`
+      path,
+      qrcode_url: miniProgramCode.url,
+      mini_program_code_url: miniProgramCode.url,
+      qrcode_error: miniProgramCode.error
     });
   }
 
@@ -110,5 +117,17 @@ export class EmployeeCardService {
     const parsed = publicCardResponseSchema.parse(preview);
     await this.publicCards.upsertPublicCard(parsed);
     return parsed;
+  }
+
+  private async generateShareCode(path: string): Promise<{ url: string | null; error: string | null }> {
+    if (!this.miniProgramCodes) {
+      return { url: null, error: "wechat_miniprogram_code_service_unavailable" };
+    }
+    try {
+      const url = await this.miniProgramCodes.generatePath(path);
+      return { url, error: null };
+    } catch (error) {
+      return { url: null, error: error instanceof Error ? error.message : String(error) };
+    }
   }
 }

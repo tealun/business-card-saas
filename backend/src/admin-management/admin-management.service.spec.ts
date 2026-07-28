@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import type {
   AdminMemberCardResponse,
@@ -24,6 +24,10 @@ describe("AdminManagementService", () => {
     expect(overview).toEqual({
       tenant_id: "tenant-001",
       tenant_name: "Pilot Corp",
+      creation_source: "wecom",
+      open_corpid: "corp-001",
+      auth_status: "active",
+      wecom_bound: true,
       member_count: 1,
       card_count: 1,
       active_card_count: 1
@@ -66,6 +70,20 @@ describe("AdminManagementService", () => {
       detail_synced_count: 2,
       detail_missing_count: 0
     });
+  });
+
+  it("rejects member sync for local enterprises that are not bound to WeCom", async () => {
+    const repository = fakeRepository({
+      creation_source: "local",
+      open_corpid: null,
+      auth_status: "unconnected",
+      wecom_bound: false
+    });
+    const contactSync = fakeContactSync();
+    const service = createService(repository, fakeDataCallbacks(), fakeAuthorization(), undefined, contactSync);
+
+    await expect(service.syncMembers(ownerSession())).rejects.toThrow(BadRequestException);
+    expect(contactSync.syncTenantMembers).not.toHaveBeenCalled();
   });
 
   it("records an operation log after a successful member sync", async () => {
@@ -197,11 +215,12 @@ function createService(
   repository: AdminManagementRepository = fakeRepository(),
   dataCallbacks = fakeDataCallbacks(),
   authorization = fakeAuthorization(),
-  operationLogs?: { record: jest.Mock }
+  operationLogs?: { record: jest.Mock },
+  contactSync: WecomContactSyncService = fakeContactSync()
 ): AdminManagementService {
   return new AdminManagementService(
     repository,
-    fakeContactSync(),
+    contactSync,
     dataCallbacks as unknown as WecomDataCallbackService,
     authorization as unknown as WecomAuthorizationService,
     new WecomTenantSettingsRepository(),
@@ -213,13 +232,23 @@ function defaultQuery(): AdminMemberListQuery {
   return { search: "", status: "all", limit: 50, offset: 0 };
 }
 
-function fakeRepository(): AdminManagementRepository {
+function fakeRepository(overviewOverrides: Partial<{
+  creation_source: "local" | "wecom" | null;
+  open_corpid: string | null;
+  auth_status: string | null;
+  wecom_bound: boolean;
+}> = {}): AdminManagementRepository {
   const overview = {
     tenant_id: "tenant-001",
     tenant_name: "Pilot Corp",
+    creation_source: "wecom" as const,
+    open_corpid: "corp-001",
+    auth_status: "active",
+    wecom_bound: true,
     member_count: 1,
     card_count: 1,
-    active_card_count: 1
+    active_card_count: 1,
+    ...overviewOverrides
   };
   const memberItem = {
     member_identity_id: "member-001",
@@ -313,7 +342,7 @@ function fakeRepository(): AdminManagementRepository {
 
 function fakeContactSync(): WecomContactSyncService {
   return {
-    syncTenantMembers: async (input: SyncTenantContactMembersInput) => ({
+    syncTenantMembers: jest.fn(async (input: SyncTenantContactMembersInput) => ({
       tenantId: input.tenantId,
       syncedCount: 2,
       skippedCount: 0,
@@ -321,8 +350,8 @@ function fakeContactSync(): WecomContactSyncService {
       detailSyncedCount: 2,
       detailMissingCount: 0,
       source: "contact_api" as const
-    })
-  } as WecomContactSyncService;
+    }))
+  } as unknown as WecomContactSyncService;
 }
 
 function fakeDataCallbacks() {

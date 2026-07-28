@@ -2456,12 +2456,21 @@ button.metric:active {
   object-fit: contain;
 }
 
-.join-code-qr-empty {
+.join-code-error {
   display: grid;
-  place-items: center;
-  min-height: 208px;
-  color: var(--muted);
-  font-size: 13px;
+  gap: 8px;
+  justify-items: start;
+  min-height: 0;
+  width: min(100%, 560px);
+  padding: 18px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-card);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.join-code-error p {
+  margin: 0;
 }
 
 .join-code-meta {
@@ -2647,8 +2656,8 @@ button.metric:active {
   box-shadow: 0 3px 10px rgba(17, 24, 39, 0.08);
 }
 
-.claim-qr-empty {
-  color: var(--muted);
+.claim-qr-error {
+  color: var(--danger-text);
   font-size: 14px;
 }
 

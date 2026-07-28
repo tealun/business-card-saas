@@ -175,8 +175,9 @@ Page({
 
   async onLoad(query) {
     const isDemoRoute = query.demo === "1";
-    const publicId = query.card || query.public_id || "";
-    const shareId = query.share || "";
+    const scene = decodeSceneParam(query.scene);
+    const publicId = query.card || query.public_id || scene.card || "";
+    const shareId = query.share || scene.share || "";
     this.setData({ publicId, shareId, loggedIn: Boolean(app.globalData.token) });
     if (isDemoRoute || !publicId) {
       this.applyPublicCard(demoPublicCard, true);
@@ -613,6 +614,24 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
     "background-size: cover",
     "background-repeat: no-repeat"
   ].join(";") + ";";
+}
+
+function decodeSceneParam(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { card: "", share: "" };
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch (_error) {
+    decoded = raw;
+  }
+  if (decoded.startsWith("pub_")) return { card: decoded, share: "" };
+  if (decoded.startsWith("shr_")) return { card: "", share: decoded };
+  const params = new URLSearchParams(decoded.replace(/^\?/, ""));
+  return {
+    card: params.get("card") || params.get("public_id") || "",
+    share: params.get("share") || ""
+  };
 }
 
 function cardTemplateClass(templateId) {

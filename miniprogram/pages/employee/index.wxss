@@ -373,13 +373,13 @@
 }
 
 .poster-card__name { margin-top: 20rpx; font-size: 22rpx; font-weight: 700; }
-.poster-card__qr { width: 42rpx; height: 42rpx; margin-top: 56rpx; margin-left: auto; border-radius: 4rpx; background: var(--text-primary); }
+.poster-card__qr-img { width: 42rpx; height: 42rpx; margin-top: 56rpx; margin-left: auto; border-radius: 4rpx; background: #fff; display: block; }
 .poster-card--large {
   width: 220rpx;
   height: 330rpx;
   flex: none;
 }
-.poster-card--large .poster-card__qr {
+.poster-card--large .poster-card__qr-img {
   width: 68rpx;
   height: 68rpx;
   margin-top: 96rpx;
@@ -460,7 +460,7 @@
   font-size: 36rpx;
 }
 
-.preview-sheet--fullscreen .poster-card--large .poster-card__qr {
+.preview-sheet--fullscreen .poster-card--large .poster-card__qr-img {
   width: 116rpx;
   height: 116rpx;
   margin-top: 210rpx;

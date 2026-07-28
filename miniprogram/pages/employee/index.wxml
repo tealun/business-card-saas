@@ -244,7 +244,7 @@
       <view class="poster-card poster-card--large" wx:if="{{previewMode === 'poster'}}">
         <view class="poster-card__top">{{card.company || "名片"}}</view>
         <view class="poster-card__name">{{card.display_name || "我的名片"}}</view>
-        <view class="poster-card__qr"></view>
+        <image class="poster-card__qr-img" src="{{previewQrUrl}}" mode="aspectFit" />
       </view>
       <view class="qr-preview" wx:else>
         <image wx:if="{{previewQrUrl}}" src="{{previewQrUrl}}" mode="aspectFit" />

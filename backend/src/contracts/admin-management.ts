@@ -5,6 +5,10 @@ import { updateWecomTenantSettingsRequestSchema, wecomTenantSettingsSchema } fro
 export const adminOverviewResponseSchema = z.object({
   tenant_id: z.string(),
   tenant_name: z.string(),
+  creation_source: z.enum(["local", "wecom"]).nullable().default(null),
+  open_corpid: z.string().nullable().default(null),
+  auth_status: z.string().nullable().default(null),
+  wecom_bound: z.boolean().default(false),
   member_count: z.number().int().min(0),
   card_count: z.number().int().min(0),
   active_card_count: z.number().int().min(0)

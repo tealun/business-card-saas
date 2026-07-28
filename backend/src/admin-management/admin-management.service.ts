@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import {
   adminMemberCardResponseSchema,
   adminMemberDeleteResponseSchema,
@@ -54,6 +54,10 @@ export class AdminManagementService {
 
   async syncMembers(session: AdminSession): Promise<AdminMemberSyncResponse> {
     requireTenantAdminRole(session, "admin");
+    const overview = adminOverviewResponseSchema.parse(await this.repository.getOverview(session));
+    if (!overview.wecom_bound) {
+      throw new BadRequestException("企业未绑定企业微信，无法同步成员");
+    }
     const result = await this.contactSync.syncTenantMembers({
       tenantId: session.tenantId,
       tenantName: session.tenantName

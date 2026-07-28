@@ -59,7 +59,10 @@ export const employeeShareResponseSchema = z.object({
   public_id: publicIdSchema,
   share_id: shareIdSchema,
   scene: shareIdSchema,
-  path: z.string().min(1)
+  path: z.string().min(1),
+  qrcode_url: imageSourceSchema.nullable().optional(),
+  mini_program_code_url: imageSourceSchema.nullable().optional(),
+  qrcode_error: z.string().max(300).nullable().optional()
 });
 
 export const updateEmployeeCardRequestSchema = z.object({

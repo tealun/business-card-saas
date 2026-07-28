@@ -16,6 +16,9 @@ import type {
 import { CardFieldCipherService } from "./card-field-cipher.service.js";
 
 interface OverviewRow extends QueryResultRow {
+  creation_source: "local" | "wecom" | null;
+  open_corpid: string | null;
+  auth_status: string | null;
   member_count: string;
   card_count: string;
   active_card_count: string;
@@ -91,9 +94,14 @@ export class AdminManagementRepository {
       tx.query<OverviewRow>(
         `
           SELECT
+            t.creation_source,
+            t.open_corpid,
+            t.auth_status,
             (SELECT count(*)::text FROM member_identities WHERE tenant_id = $1) AS member_count,
             (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND card_type = 'primary' AND deleted_at IS NULL) AS card_count,
             (SELECT count(*)::text FROM cards WHERE tenant_id = $1 AND card_type = 'primary' AND status = 'active' AND deleted_at IS NULL) AS active_card_count
+          FROM tenants t
+          WHERE t.id = $1
         `,
         [session.tenantId]
       )
@@ -105,6 +113,10 @@ export class AdminManagementRepository {
     return {
       tenant_id: session.tenantId,
       tenant_name: session.tenantName,
+      creation_source: row.creation_source ?? null,
+      open_corpid: row.open_corpid ?? null,
+      auth_status: row.auth_status ?? null,
+      wecom_bound: Boolean(row.open_corpid && row.auth_status === "active"),
       member_count: Number(row.member_count),
       card_count: Number(row.card_count),
       active_card_count: Number(row.active_card_count)

@@ -24,14 +24,14 @@ export class LocalEnterpriseService {
     const admin = await this.repository.findLocalAdminForAccount(session.accountId, tenantId);
     if (!admin) throw new ForbiddenException("active local enterprise administrator required");
     const adminSession: AdminSession = { tenantId: admin.tenantId, tenantName: admin.tenantName, memberIdentityId: admin.memberId, openUserid: admin.openUserid, role: admin.role, accountType: "tenant" };
-    return { tenant_id: admin.tenantId, admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
+    return { tenant_id: admin.tenantId, tenant_name: admin.tenantName, creation_source: admin.creationSource ?? null, open_corpid: admin.openCorpid ?? null, auth_status: admin.authStatus ?? null, wecom_bound: this.isWecomBound(admin), admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
   }
 
   async createAdminScanChallenge(){
     const token=randomToken("adm",21);
     const expiresAt=new Date(Date.now()+5*60*1000);
+    const qrCodeDataUrl=await this.joinQr.generateScene(token,"pages/admin-login/index");
     await this.repository.createAdminScanChallenge(this.hash(token),expiresAt);
-    const qrCodeDataUrl=await this.joinQr.generateScene(token,"pages/admin-login/index").catch(()=>null);
     return {challenge_token:token,status:"pending",expires_at:expiresAt.toISOString(),qr_code_data_url:qrCodeDataUrl,miniprogram_path:`pages/admin-login/index?scene=${encodeURIComponent(token)}`};
   }
 
@@ -47,7 +47,7 @@ export class LocalEnterpriseService {
 
   async listAdminTenants(session: EmployeeSession) {
     const admins = await this.repository.listLocalAdminsForAccount(session.accountId);
-    return {items: admins.map((item) => ({tenant_id: item.tenantId, tenant_name: item.tenantName, role: item.role}))};
+    return {items: admins.map((item) => ({tenant_id: item.tenantId, tenant_name: item.tenantName, role: item.role, creation_source: item.creationSource ?? null, open_corpid: item.openCorpid ?? null, auth_status: item.authStatus ?? null, wecom_bound: this.isWecomBound(item)}))};
   }
 
   async pollAdminScanChallenge(token:string){
@@ -81,10 +81,12 @@ export class LocalEnterpriseService {
     return { tenant_id: created.tenantId, tenant_name: created.tenantName, member_identity_id: created.memberId, admin_access_token: this.adminTokens.sign(adminSession), expires_in: this.adminTokens.expiresIn };
   }
 
-  async createJoinCode(session:AdminSession) { requireTenantAdminRole(session,"admin"); const token=randomToken("join",20); const expiresAt=new Date(Date.now()+30*24*60*60*1000); await this.repository.createJoinCode({tenantId:session.tenantId,tokenHash:createHash("sha256").update(token).digest("hex"),expiresAt}); const qrCodeDataUrl=await this.joinQr.generate(token).catch(()=>null); await this.audit.record({session,action:"local_join_code.rotate",targetType:"tenant",targetId:session.tenantId,detail:{expires_at:expiresAt.toISOString(),qr_generated:Boolean(qrCodeDataUrl)}}); return {join_token:token,join_path:`pages/enterprise-join/index?token=${encodeURIComponent(token)}`,qr_code_data_url:qrCodeDataUrl,expires_at:expiresAt.toISOString()}; }
+  async createJoinCode(session:AdminSession) { requireTenantAdminRole(session,"admin"); const token=randomToken("join",20); const expiresAt=new Date(Date.now()+30*24*60*60*1000); const qrCodeDataUrl=await this.joinQr.generate(token); await this.repository.createJoinCode({tenantId:session.tenantId,tokenHash:createHash("sha256").update(token).digest("hex"),expiresAt}); await this.audit.record({session,action:"local_join_code.rotate",targetType:"tenant",targetId:session.tenantId,detail:{expires_at:expiresAt.toISOString(),qr_generated:true}}); return {join_token:token,join_path:`pages/enterprise-join/index?token=${encodeURIComponent(token)}`,qr_code_data_url:qrCodeDataUrl,expires_at:expiresAt.toISOString()}; }
   submitJoinRequest(session:EmployeeSession,token:string,displayName:string) { return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName}); }
   async listJoinRequests(session:AdminSession) { requireTenantAdminRole(session,"admin"); return {items:await this.repository.listJoinRequests(session.tenantId)}; }
   async reviewJoinRequest(session:AdminSession,requestId:string,decision:"approved"|"rejected") { requireTenantAdminRole(session,"admin"); const result=await this.repository.reviewJoinRequest({tenantId:session.tenantId,requestId,adminId:session.memberIdentityId,decision}); await this.audit.record({session,action:`local_join_request.${decision}`,targetType:"member_join_request",targetId:requestId,detail:{member_id:result.memberId}}); return result; }
+
+  private isWecomBound(item:{openCorpid?:string|null|undefined;authStatus?:string|null|undefined}){return Boolean(item.openCorpid&&item.authStatus==="active");}
 
   private hash(token:string){return createHash("sha256").update(token).digest("hex");}
 }

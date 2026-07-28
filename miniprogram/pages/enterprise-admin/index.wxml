@@ -138,7 +138,7 @@
       <view class="member-list-head">
         <view class="member-list-head__title">成员列表</view>
         <view class="member-actions">
-          <view class="member-action-link" bindtap="syncMembers">
+          <view wx:if="{{canSyncMembers}}" class="member-action-link" bindtap="syncMembers">
             <view class="member-action-link__sync"></view>
             <text>同步成员</text>
           </view>
@@ -150,11 +150,18 @@
       </view>
 
       <view wx:if="{{joinCode}}" class="join-code-box">
-        <view>
-          <view class="join-code-box__title">入企路径已生成</view>
-          <view class="join-code-box__meta">{{joinCode.expires_at}}</view>
+        <image wx:if="{{joinCode.qr_code_data_url}}" class="join-code-box__qr" src="{{joinCode.qr_code_data_url}}" mode="aspectFit" />
+        <view class="join-code-box__main">
+          <view class="join-code-box__title">入企码已生成</view>
+          <view class="join-code-box__meta">有效期至 {{joinCode.expires_at}}</view>
         </view>
         <button class="mini-btn mini-btn--ghost" bindtap="copyJoinPath">复制</button>
+      </view>
+      <view wx:if="{{joinCodeError}}" class="join-code-box join-code-box--error">
+        <view class="join-code-box__main">
+          <view class="join-code-box__title">入企码生成失败</view>
+          <view class="join-code-box__meta">{{joinCodeError}}</view>
+        </view>
       </view>
 
       <view wx:if="{{!members.length}}" class="empty-list">暂无成员</view>
