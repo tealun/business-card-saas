@@ -148,9 +148,14 @@ Page({
     introDraft: emptyIntroDraft(),
     memberDraft: {},
     memberActionId: "",
-    inviteDraft: { displayName: "", token: "", expiresAt: "" },
     joinCode: null,
+    joinCodeSheetVisible: false,
+    joinCodeSheetTitle: "入企码",
+    joinCodeLoading: false,
     joinCodeError: "",
+    joinCodeSaving: false,
+    joinCodeCardImageUrl: "",
+    joinCodeThemeStyle: buildThemeStyle(buildTheme(DEFAULT_BRAND)),
     canSyncMembers: false,
     styleTemplates: STYLE_TEMPLATES,
     colorSwatches: COLOR_SWATCHES,
@@ -286,17 +291,20 @@ Page({
         this.adminRequest("/admin/features/company-video").catch(() => null)
       ]);
       const tenant = mergeTenantStatus(this.data.tenant, overview);
+      const decoratedTemplates = decorateTemplates(templates.items || []);
+      const joinCodeTheme = buildTheme(activeTemplatePrimary(decoratedTemplates));
       this.setData({
         overview,
         tenant,
         profile,
-        templates: decorateTemplates(templates.items || []),
+        templates: decoratedTemplates,
         members: decorateMembers(members.items || []),
         joinRequests: decorateJoinRequests(joinRequests.items || []),
         honors: decorateHonors(honors.items || []),
         videos: decorateVideos(videos.items || []),
         videoFeature,
-        canSyncMembers: canSyncMembersForTenant(tenant, overview)
+        canSyncMembers: canSyncMembersForTenant(tenant, overview),
+        joinCodeThemeStyle: buildThemeStyle(joinCodeTheme)
       });
     } catch (error) {
       this.setData({ error: formatError(error, "企业管理数据加载失败") });
@@ -755,7 +763,7 @@ Page({
         ? template
         : { ...item, is_default: template.is_default ? false : item.is_default }
     ));
-    this.setData({ templates });
+    this.setData({ templates, joinCodeThemeStyle: buildThemeStyle(buildTheme(activeTemplatePrimary(templates))) });
   },
 
   openIntroPanel() {
@@ -1384,23 +1392,101 @@ Page({
     }, "成员同步已发起");
   },
 
-  async createJoinCode() {
+  async createJoinCode(event) {
     if (!this.requireAdmin()) return;
-    this.setData({ memberActionId: "", saving: true, joinCodeError: "" });
+    const dataset = event && event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset : {};
+    const sheetTitle = dataset.mode === "invite" ? "邀请成员" : "入企码";
+    if (this.data.joinCodeLoading) {
+      this.setData({ joinCodeSheetVisible: true, joinCodeSheetTitle: sheetTitle });
+      return;
+    }
+    this.setData({
+      memberActionId: "",
+      joinCodeSheetVisible: true,
+      joinCodeSheetTitle: sheetTitle,
+      joinCode: null,
+      joinCodeLoading: true,
+      joinCodeError: "",
+      joinCodeCardImageUrl: ""
+    });
     try {
       const joinCode = await this.adminRequest("/admin/local-enterprises/join-code", { method: "POST" });
+      const normalizedJoinCode = normalizeJoinCode(joinCode);
       this.setData({
-        joinCode: { ...joinCode, expires_at: formatDateTime(joinCode.expires_at) },
+        joinCode: normalizedJoinCode,
+        joinCodeLoading: false,
         joinCodeError: ""
       });
-      wx.showToast({ title: "入企码已生成", icon: "success" });
+      this.prepareJoinCodeCardImage(normalizedJoinCode);
+      wx.showToast({ title: sheetTitle === "邀请成员" ? "邀请已生成" : "入企码已生成", icon: "success" });
     } catch (error) {
-      const message = formatError(error, "入企码生成失败");
-      this.setData({ joinCode: null, joinCodeError: message });
+      const message = formatError(error, sheetTitle === "邀请成员" ? "邀请生成失败" : "入企码生成失败");
+      this.setData({ joinCode: null, joinCodeLoading: false, joinCodeError: message });
       wx.showToast({ title: message, icon: "none" });
     } finally {
-      this.setData({ saving: false });
+      this.setData({ joinCodeLoading: false });
     }
+  },
+
+  closeJoinCodeSheet() {
+    this.setData({ joinCodeSheetVisible: false });
+  },
+
+  async prepareJoinCodeCardImage(joinCode = this.data.joinCode) {
+    if (!joinCode || !joinCode.qr_code_data_url) return;
+    try {
+      const { buildJoinCodeCardImage } = require("../../utils/join-code-card-image");
+      const imagePath = await buildJoinCodeCardImage(this, this.joinCodeCardOptions(joinCode));
+      if (imagePath) {
+        this.setData({ joinCodeCardImageUrl: imagePath });
+      }
+    } catch (_error) {
+      this.setData({ joinCodeCardImageUrl: "" });
+    }
+  },
+
+  async saveJoinCodeCardImage() {
+    const codeLabel = this.data.joinCodeSheetTitle === "邀请成员" ? "邀请码" : "入企码";
+    if (this.data.joinCodeLoading) {
+      wx.showToast({ title: `${codeLabel}生成中`, icon: "none" });
+      return;
+    }
+    if (!this.data.joinCode || !this.data.joinCode.qr_code_data_url) {
+      wx.showToast({ title: `${codeLabel}尚未生成`, icon: "none" });
+      return;
+    }
+    if (this.data.joinCodeSaving) return;
+    this.setData({ joinCodeSaving: true });
+    try {
+      let imagePath = this.data.joinCodeCardImageUrl;
+      if (!imagePath) {
+        const { buildJoinCodeCardImage } = require("../../utils/join-code-card-image");
+        imagePath = await buildJoinCodeCardImage(this, this.joinCodeCardOptions(this.data.joinCode));
+      }
+      if (!imagePath) {
+        throw new Error(`${codeLabel}卡片生成失败`);
+      }
+      this.setData({ joinCodeCardImageUrl: imagePath });
+      await saveImageToAlbum(imagePath);
+      wx.showToast({ title: "已保存到相册", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ joinCodeSaving: false });
+    }
+  },
+
+  joinCodeCardOptions(joinCode) {
+    const theme = buildTheme(activeTemplatePrimary(this.data.templates));
+    const isInvite = this.data.joinCodeSheetTitle === "邀请成员";
+    return {
+      tenant: this.data.tenant || {},
+      overview: this.data.overview || {},
+      joinCode,
+      title: isInvite ? "扫码加入企业名片" : "扫码提交加入申请",
+      description: isInvite ? "打开后提交信息，管理员审核通过即可加入" : "管理员审核通过后创建企业名片",
+      theme
+    };
   },
 
   async reviewJoinRequest(event) {
@@ -1418,46 +1504,24 @@ Page({
     }, decision === "approved" ? "已通过申请" : "已拒绝申请");
   },
 
-  openInvitePanel() {
-    this.setData({ panel: "invite", inviteDraft: { displayName: "", token: "", expiresAt: "" } });
-  },
-
-  onInviteInput(event) {
-    this.setData({ inviteDraft: { ...this.data.inviteDraft, displayName: event.detail.value } });
-  },
-
-  async createInvitation() {
-    if (!this.requireAdmin()) return;
-    const displayName = String(this.data.inviteDraft.displayName || "").trim();
-    if (!displayName) {
-      wx.showToast({ title: "请输入成员姓名", icon: "none" });
-      return;
+  onShareAppMessage(event) {
+    const dataset = event && event.target && event.target.dataset ? event.target.dataset : {};
+    const joinCode = this.data.joinCode || {};
+    if (dataset.share === "join-code" && joinCode.join_path) {
+      const tenantName = (this.data.tenant && this.data.tenant.tenant_name) || "企业";
+      const message = {
+        title: `${tenantName}邀请你加入企业名片`,
+        path: `/${String(joinCode.join_path || "").replace(/^\/+/, "")}`
+      };
+      if (this.data.joinCodeCardImageUrl) {
+        message.imageUrl = this.data.joinCodeCardImageUrl;
+      }
+      return message;
     }
-    await this.saveWithToast(async () => {
-      const invitation = await this.adminRequest("/admin/local-enterprises/members/invitations", {
-        method: "POST",
-        data: { display_name: displayName }
-      });
-      this.setData({
-        inviteDraft: {
-          displayName,
-          token: invitation.invitation_token || "",
-          expiresAt: invitation.expires_at || ""
-        }
-      });
-    }, "邀请已创建");
-  },
-
-  copyInviteToken() {
-    const token = this.data.inviteDraft.token;
-    if (!token) return;
-    wx.setClipboardData({ data: token });
-  },
-
-  copyJoinPath() {
-    const path = this.data.joinCode && this.data.joinCode.join_path;
-    if (!path) return;
-    wx.setClipboardData({ data: path });
+    return {
+      title: "企业名片管理",
+      path: "/pages/employee/index"
+    };
   },
 
   closePanel() {
@@ -2027,6 +2091,25 @@ function decorateTemplates(items) {
   }));
 }
 
+function activeTemplatePrimary(templates) {
+  const selected = (templates || []).find((item) => item.is_default) || (templates || [])[0] || {};
+  return (selected.color_scheme && selected.color_scheme.primary) || selected.primary || DEFAULT_BRAND;
+}
+
+function normalizeJoinCode(joinCode = {}) {
+  const token = String(joinCode.join_token || "").trim();
+  const joinPath = String(joinCode.join_path || (token ? `pages/enterprise-join/index?token=${encodeURIComponent(token)}` : "")).replace(/^\/+/, "");
+  const expiresAtText = formatDateTime(joinCode.expires_at);
+  return {
+    ...joinCode,
+    join_token: token,
+    join_path: joinPath,
+    qr_code_data_url: String(joinCode.qr_code_data_url || "").trim(),
+    expires_at: expiresAtText,
+    expiresAtText
+  };
+}
+
 function decorateMembers(items) {
   return items.map((item) => ({
     ...item,
@@ -2396,4 +2479,46 @@ function confirm(title, content) {
       fail: () => resolve(false)
     });
   });
+}
+
+function saveImageToAlbum(filePath) {
+  return new Promise((resolve, reject) => {
+    if (typeof wx.saveImageToPhotosAlbum !== "function") {
+      reject(new Error("当前微信版本暂不支持保存图片"));
+      return;
+    }
+    wx.saveImageToPhotosAlbum({
+      filePath,
+      success: resolve,
+      fail(error) {
+        const message = String((error && error.errMsg) || "");
+        if (isPrivacyAgreementError(error)) {
+          wx.showModal({
+            title: "隐私指引未配置",
+            content: "请先在小程序后台声明保存图片到相册用途。",
+            showCancel: false
+          });
+          reject(new Error("隐私指引未配置"));
+          return;
+        }
+        if (/auth deny|authorize/i.test(message) && typeof wx.openSetting === "function") {
+          wx.showModal({
+            title: "需要相册权限",
+            content: "请允许保存图片到相册。",
+            confirmText: "去设置",
+            success(result) {
+              if (result.confirm) {
+                wx.openSetting({});
+              }
+            }
+          });
+        }
+        reject(new Error(message || "保存到相册失败"));
+      }
+    });
+  });
+}
+
+function isPrivacyAgreementError(error) {
+  return /privacy agreement|scope is not declared|privacy/i.test(String(error && error.errMsg || error && error.message || ""));
 }

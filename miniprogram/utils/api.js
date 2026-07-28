@@ -38,6 +38,7 @@ function request(path, options = {}) {
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
   const baseUrl = apiBase();
+  const requestData = options.data === undefined && !isIdempotent ? {} : options.data;
 
   const attempt = () => new Promise((resolve, reject) => {
     const app = getAppInstance();
@@ -53,7 +54,7 @@ function request(path, options = {}) {
     wx.request({
       url: `${baseUrl}${path}`,
       method,
-      data: options.data,
+      data: requestData,
       header: headers,
       timeout,
       success(response) {

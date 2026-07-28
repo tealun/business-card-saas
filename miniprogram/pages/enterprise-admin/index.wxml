@@ -48,7 +48,7 @@
           <view class="admin-tenant__name">{{tenant.tenant_name}}</view>
           <view class="admin-tenant__meta">{{tenant.roleLabel}} · 成员 {{overview.member_count || 0}} 人</view>
         </view>
-        <button class="admin-invite-btn" bindtap="openInvitePanel">＋ 邀请成员</button>
+        <button class="admin-invite-btn" data-mode="invite" bindtap="createJoinCode">＋ 邀请成员</button>
       </view>
 
       <view class="admin-tabs">
@@ -97,7 +97,7 @@
           <view class="icon icon-text"></view>
           <text>企业介绍</text>
         </view>
-        <view class="admin-action" bindtap="openInvitePanel">
+        <view class="admin-action" data-mode="invite" bindtap="createJoinCode">
           <view class="icon icon-plus"></view>
           <text>邀请成员</text>
         </view>
@@ -142,25 +142,10 @@
             <view class="member-action-link__sync"></view>
             <text>同步成员</text>
           </view>
-          <view class="member-action-link" bindtap="createJoinCode">
+          <view class="member-action-link {{joinCodeLoading ? 'member-action-link--loading' : ''}}" bindtap="createJoinCode">
             <view class="member-action-link__grid"></view>
-            <text>入企码</text>
+            <text>{{joinCodeLoading ? '生成中' : '入企码'}}</text>
           </view>
-        </view>
-      </view>
-
-      <view wx:if="{{joinCode}}" class="join-code-box">
-        <image wx:if="{{joinCode.qr_code_data_url}}" class="join-code-box__qr" src="{{joinCode.qr_code_data_url}}" mode="aspectFit" />
-        <view class="join-code-box__main">
-          <view class="join-code-box__title">入企码已生成</view>
-          <view class="join-code-box__meta">有效期至 {{joinCode.expires_at}}</view>
-        </view>
-        <button class="mini-btn mini-btn--ghost" bindtap="copyJoinPath">复制</button>
-      </view>
-      <view wx:if="{{joinCodeError}}" class="join-code-box join-code-box--error">
-        <view class="join-code-box__main">
-          <view class="join-code-box__title">入企码生成失败</view>
-          <view class="join-code-box__meta">{{joinCodeError}}</view>
         </view>
       </view>
 
@@ -234,7 +219,6 @@
         <text wx:elif="{{panel === 'template'}}">名片模板</text>
         <text wx:elif="{{panel === 'intro'}}">企业介绍</text>
         <text wx:elif="{{panel === 'member'}}">人员名片</text>
-        <text wx:else>邀请成员</text>
       </view>
       <view class="admin-sheet__close" bindtap="closePanel"><view class="icon icon-close icon--sm"></view></view>
     </view>
@@ -533,15 +517,51 @@
         <button class="sheet-primary" loading="{{saving}}" bindtap="saveMember">保存人员名片</button>
       </block>
 
-      <block wx:else>
-        <view class="form-row"><text>成员姓名</text><input value="{{inviteDraft.displayName}}" bindinput="onInviteInput" /></view>
-        <button class="sheet-primary" loading="{{saving}}" bindtap="createInvitation">生成邀请</button>
-        <view wx:if="{{inviteDraft.token}}" class="invite-token">
-          <view class="invite-token__label">邀请 token</view>
-          <view class="invite-token__value">{{inviteDraft.token}}</view>
-          <button class="sheet-secondary" bindtap="copyInviteToken">复制邀请 token</button>
-        </view>
-      </block>
     </scroll-view>
   </view>
+
+  <view wx:if="{{joinCodeSheetVisible}}" class="join-code-mask" catchtap="closeJoinCodeSheet"></view>
+  <view wx:if="{{joinCodeSheetVisible}}" class="join-code-sheet" style="{{joinCodeThemeStyle}}">
+    <view class="join-code-sheet__grab"></view>
+    <view class="join-code-sheet__head">
+      <view class="join-code-sheet__title">{{joinCodeSheetTitle || "入企码"}}</view>
+      <view class="join-code-sheet__close" bindtap="closeJoinCodeSheet"><view class="icon icon-close icon--sm"></view></view>
+    </view>
+
+    <view class="join-code-card">
+      <view class="join-code-card__brand">
+        <view class="join-code-card__avatar">{{tenant.initial}}</view>
+        <view class="join-code-card__tenant">
+          <view class="join-code-card__name">{{tenant.tenant_name || "企业"}}</view>
+          <view class="join-code-card__sub">{{tenant.roleLabel}} · 成员 {{overview.member_count || 0}} 人</view>
+        </view>
+      </view>
+      <view class="join-code-card__body">
+        <view class="join-code-card__qr-wrap {{joinCodeLoading ? 'join-code-card__qr-wrap--loading' : ''}} {{joinCodeError ? 'join-code-card__qr-wrap--error' : ''}}">
+          <image wx:if="{{joinCode && joinCode.qr_code_data_url && !joinCodeLoading}}" class="join-code-card__qr" src="{{joinCode.qr_code_data_url}}" mode="aspectFit" />
+          <view wx:elif="{{joinCodeLoading}}" class="join-code-card__state">
+            <view class="join-code-card__spinner"></view>
+            <text>{{joinCodeSheetTitle === "邀请成员" ? "正在生成邀请" : "正在生成入企码"}}</text>
+          </view>
+          <view wx:else class="join-code-card__state join-code-card__state--error">
+            <view>生成失败</view>
+            <text>{{joinCodeError || "请稍后重试"}}</text>
+          </view>
+        </view>
+        <view class="join-code-card__hint">{{joinCodeLoading ? (joinCodeSheetTitle === "邀请成员" ? "生成后可直接分享给微信联系人" : "生成后可扫码提交加入申请") : (joinCodeError ? "请重新生成入企邀请" : "扫码提交加入申请，管理员审核后创建企业名片")}}</view>
+        <view wx:if="{{joinCode && joinCode.expires_at && !joinCodeLoading && !joinCodeError}}" class="join-code-card__expiry">有效期至 {{joinCode.expires_at}}</view>
+      </view>
+    </view>
+
+    <button class="join-code-action join-code-action--primary" open-type="share" data-share="join-code" disabled="{{joinCodeLoading || !joinCode || !joinCode.join_path}}">
+      <view class="icon icon-forward join-code-action__icon"></view>
+      <text>分享入企邀请</text>
+    </button>
+    <button class="join-code-action join-code-action--secondary" bindtap="saveJoinCodeCardImage" loading="{{joinCodeSaving}}" disabled="{{joinCodeLoading || !joinCode || !joinCode.qr_code_data_url || joinCodeSaving}}">
+      <view class="join-code-action__download"></view>
+      <text>{{joinCodeSaving ? "保存中" : (joinCodeSheetTitle === "邀请成员" ? "保存邀请卡片" : "保存入企码卡片")}}</text>
+    </button>
+  </view>
+
+  <canvas id="joinCodeCanvas" type="2d" class="join-code-canvas"></canvas>
 </view>

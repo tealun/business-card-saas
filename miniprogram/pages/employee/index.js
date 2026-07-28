@@ -69,6 +69,11 @@ Page({
     previewPath: "",
     previewQrUrl: "",
     previewFullscreen: false,
+    previewQrLoading: false,
+    previewError: "",
+    codeCardInitial: "名",
+    codeCardSubtitle: "",
+    savingCardCode: false,
     shareImageUrl: "",
     personalWechatQr: "",
     selfService: {
@@ -527,7 +532,16 @@ Page({
   },
 
   closePreviewSheet() {
-    this.setData({ previewSheetVisible: false, previewMode: "", previewTitle: "", previewPath: "", previewQrUrl: "", previewFullscreen: false });
+    this.setData({
+      previewSheetVisible: false,
+      previewMode: "",
+      previewTitle: "",
+      previewPath: "",
+      previewQrUrl: "",
+      previewFullscreen: false,
+      previewQrLoading: false,
+      previewError: ""
+    });
     this.setTabBarHidden(false);
   },
 
@@ -562,6 +576,9 @@ Page({
     if (!this.ensureLoggedIn("请先登录后设置微信二维码")) {
       return;
     }
+    if (this.data.submitting) {
+      return;
+    }
     const currentIdentity = this.data.currentIdentity || {};
     if (currentIdentity.identity_type === "personal") {
       this.choosePersonalWechatQr();
@@ -586,21 +603,29 @@ Page({
       wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
       return;
     }
+    this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl: "", path: "", loading: true, error: "" });
+    this.setData({ submitting: true });
     try {
       const result = await request("/employee/cards/current/wechat-qrcode");
       const qrUrl = result.qr_url || "";
       if (!qrUrl) {
+        this.closePreviewSheet();
         wx.navigateTo({ url: "/pages/wecom-sensitive/index" });
         return;
       }
       cacheCurrentWechatQr(qrUrl, currentIdentity.identity_type, result.source);
-      this.showPreview({ mode: "wechat", title: "企业微信二维码", qrUrl, path: "长按识别加微信" });
+      this.setData({ previewQrUrl: qrUrl, previewPath: "长按识别加微信", previewQrLoading: false, previewError: "" });
     } catch (error) {
-      wx.showToast({ title: error.message || "二维码读取失败", icon: "none" });
+      this.setData({ previewQrLoading: false, previewError: error.message || "二维码读取失败" });
+    } finally {
+      this.setData({ submitting: false });
     }
   },
 
   choosePersonalWechatQr(identityType = "personal") {
+    if (this.data.submitting) {
+      return;
+    }
     if (identityType !== "personal" && this.data.selfService.allow_wecom_qrcode_upload === false) {
       wx.showToast({ title: "企业统一维护二维码", icon: "none" });
       return;
@@ -619,6 +644,9 @@ Page({
         if (!tempPath) {
           return;
         }
+        const title = identityType === "personal" ? "个人微信二维码" : "企业微信二维码";
+        this.showPreview({ mode: "wechat", title, qrUrl: tempPath, path: "正在保存二维码", loading: false, error: "" });
+        this.setData({ submitting: true });
         try {
           let info = null;
           try {
@@ -630,13 +658,18 @@ Page({
             data: { qrcode_url: dataUrl }
           });
           const qrUrl = result.qr_url || "";
+          if (!qrUrl) {
+            throw new Error("二维码保存失败");
+          }
           cacheCurrentWechatQr(qrUrl, identityType, result.source);
           if (identityType === "personal") {
             this.setData({ personalWechatQr: qrUrl });
           }
-          this.showPreview({ mode: "wechat", title: identityType === "personal" ? "个人微信二维码" : "企业微信二维码", qrUrl, path: "长按识别加微信" });
+          this.setData({ previewQrUrl: qrUrl || tempPath, previewPath: "长按识别加微信", previewQrLoading: false, previewError: "" });
         } catch (error) {
-          wx.showToast({ title: error.message || "二维码上传失败", icon: "none" });
+          this.setData({ previewPath: "请重新上传二维码", previewQrLoading: false, previewError: error.message || "二维码上传失败" });
+        } finally {
+          this.setData({ submitting: false });
         }
       }
     });
@@ -661,29 +694,44 @@ Page({
     if (this.data.submitting) {
       return;
     }
-    this.setData({ submitting: true });
+    const openImmediately = mode === "code" || mode === "poster";
+    if (openImmediately) {
+      this.showPreview({ mode, title, path: "", qrUrl: "", loading: true, error: "" });
+    }
+    this.setData({ submitting: true, previewError: "", previewQrLoading: openImmediately });
     try {
       const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
       app.globalData.shareId = share.share_id;
       const qrUrl = share.qrcode_url || share.mini_program_code_url || "";
       if (!qrUrl) {
-        wx.showToast({ title: share.qrcode_error || "小程序码生成失败", icon: "none" });
+        const message = share.qrcode_error || "小程序码生成失败";
+        if (openImmediately) {
+          this.setData({ previewQrLoading: false, previewError: message });
+        } else {
+          wx.showToast({ title: message, icon: "none" });
+        }
         return;
       }
-      this.showPreview({
-        mode,
-        title,
-        path: share.path || `pages/public/card?card=${share.public_id}`,
-        qrUrl
-      });
+      const path = share.path || `pages/public/card?card=${share.public_id}`;
+      if (openImmediately) {
+        this.setData({ previewPath: path, previewQrUrl: qrUrl, previewQrLoading: false, previewError: "" });
+      } else {
+        this.showPreview({ mode, title, path, qrUrl });
+      }
     } catch (error) {
-      wx.showToast({ title: error.message || "生成失败", icon: "none" });
+      const message = error.message || "生成失败";
+      if (openImmediately) {
+        this.setData({ previewQrLoading: false, previewError: message });
+      } else {
+        wx.showToast({ title: message, icon: "none" });
+      }
     } finally {
       this.setData({ submitting: false });
     }
   },
 
-  showPreview({ mode, title, path, qrUrl }) {
+  showPreview({ mode, title, path, qrUrl, loading = false, error = "" }) {
+    const codeMeta = codeCardMeta(this.data.card);
     this.setData({
       sheetVisible: false,
       previewSheetVisible: true,
@@ -691,9 +739,51 @@ Page({
       previewTitle: title,
       previewPath: path || "",
       previewQrUrl: qrUrl || "",
-      previewFullscreen: mode === "poster" || mode === "code"
+      previewFullscreen: mode === "poster",
+      previewQrLoading: Boolean(loading),
+      previewError: error || "",
+      codeCardInitial: codeMeta.initial,
+      codeCardSubtitle: codeMeta.subtitle
     });
     this.setTabBarHidden(true);
+  },
+
+  async saveCardCodeImage() {
+    if (this.data.previewQrLoading) {
+      wx.showToast({ title: "名片码生成中", icon: "none" });
+      return;
+    }
+    if (!this.data.previewQrUrl) {
+      wx.showToast({ title: "名片码尚未生成", icon: "none" });
+      return;
+    }
+    if (this.data.savingCardCode) {
+      return;
+    }
+    this.setData({ savingCardCode: true });
+    try {
+      const { buildCardCodeImage } = require("../../utils/card-code-image");
+      const imagePath = await buildCardCodeImage(this, {
+        card: this.data.card,
+        qrUrl: this.data.previewQrUrl,
+        initial: this.data.codeCardInitial,
+        subtitle: this.data.codeCardSubtitle,
+        theme: {
+          brand: this.data.themeBrand,
+          brandDeep: this.data.themeBrandDeep,
+          brandSoft: this.data.themeBrandSoft
+        }
+      });
+      if (!imagePath) {
+        throw new Error("名片码卡片生成失败");
+      }
+      await saveImageToAlbum(imagePath);
+      wx.showToast({ title: "已保存到相册", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ savingCardCode: false });
+    }
   },
 
   prepareShareImage() {
@@ -874,6 +964,57 @@ function cacheCurrentWechatQr(qrUrl, identityType, source) {
     fields.wecom_qrcode_url = qrUrl;
   }
   app.globalData.currentCard = Object.assign({}, currentCard, { fields });
+}
+
+function codeCardMeta(card = {}) {
+  const company = String(card.company || card.company_short_name || "").trim();
+  const title = String(card.title || "").trim();
+  return {
+    initial: String(card.display_name || company || "名").trim().slice(0, 1) || "名",
+    subtitle: [title, company].filter(Boolean).join(" · ")
+  };
+}
+
+function saveImageToAlbum(filePath) {
+  return new Promise((resolve, reject) => {
+    if (typeof wx.saveImageToPhotosAlbum !== "function") {
+      reject(new Error("当前微信版本暂不支持保存图片"));
+      return;
+    }
+    wx.saveImageToPhotosAlbum({
+      filePath,
+      success: resolve,
+      fail(error) {
+        const message = String((error && error.errMsg) || "");
+        if (isPrivacyAgreementError(error)) {
+          wx.showModal({
+            title: "隐私指引未配置",
+            content: "请先在小程序后台声明保存图片到相册用途。",
+            showCancel: false
+          });
+          reject(new Error("隐私指引未配置"));
+          return;
+        }
+        if (/auth deny|authorize/i.test(message) && typeof wx.openSetting === "function") {
+          wx.showModal({
+            title: "需要相册权限",
+            content: "请允许保存图片到相册。",
+            confirmText: "去设置",
+            success(result) {
+              if (result.confirm) {
+                wx.openSetting({});
+              }
+            }
+          });
+        }
+        reject(new Error(message || "保存到相册失败"));
+      }
+    });
+  });
+}
+
+function isPrivacyAgreementError(error) {
+  return /privacy agreement|scope is not declared|privacy/i.test(String(error && error.errMsg || error && error.message || ""));
 }
 
 function pathToDataUrl(path, mime = "image/jpeg") {

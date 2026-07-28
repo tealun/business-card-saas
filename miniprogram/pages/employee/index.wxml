@@ -234,25 +234,72 @@
   </view>
 
   <view class="sheet-mask {{previewSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closePreviewSheet"></view>
-  <view class="sheet preview-sheet {{previewFullscreen ? 'preview-sheet--fullscreen' : ''}} {{previewSheetVisible ? 'sheet--show' : ''}}">
+  <view class="sheet preview-sheet {{previewFullscreen ? 'preview-sheet--fullscreen' : ''}} {{previewMode === 'code' ? 'code-sheet' : ''}} {{previewSheetVisible ? 'sheet--show' : ''}}">
     <view class="sheet__grab"></view>
-    <view class="row-between sheet__head">
+    <view class="code-sheet__head" wx:if="{{previewMode === 'code'}}">
+      <view class="code-sheet__title">名片码</view>
+      <view class="code-sheet__close" catchtap="closePreviewSheet">
+        <view class="icon icon-close icon--sm"></view>
+      </view>
+    </view>
+    <view class="row-between sheet__head" wx:else>
       <text class="card__title">{{previewTitle}}</text>
       <view class="icon icon-close icon--sm" catchtap="closePreviewSheet"></view>
     </view>
-    <view class="poster-preview poster-preview--stack">
+    <block wx:if="{{previewMode === 'code'}}">
+      <view class="code-card">
+        <view class="code-card__brand">
+          <view class="code-card__avatar">{{codeCardInitial}}</view>
+          <view class="code-card__person">
+            <view class="code-card__name">{{card.display_name || "我的名片"}}</view>
+            <view class="code-card__sub" wx:if="{{codeCardSubtitle}}">{{codeCardSubtitle}}</view>
+          </view>
+        </view>
+        <view class="code-card__body">
+          <view class="code-card__qr-wrap {{previewQrLoading ? 'code-card__qr-wrap--loading' : ''}} {{previewError ? 'code-card__qr-wrap--error' : ''}}">
+            <image wx:if="{{previewQrUrl && !previewQrLoading}}" class="code-card__qr" src="{{previewQrUrl}}" mode="aspectFit" />
+            <view wx:elif="{{previewQrLoading}}" class="code-card__loading">
+              <view class="code-card__spinner"></view>
+              <text>正在生成名片码</text>
+            </view>
+            <view wx:else class="code-card__error">
+              <view>生成失败</view>
+              <text>{{previewError || "请稍后重试"}}</text>
+            </view>
+          </view>
+          <view class="code-card__hint">{{previewQrLoading ? "生成后可扫码查看" : (previewError ? "请重新打开名片码再试" : "扫一扫，查看我的名片")}}</view>
+        </view>
+      </view>
+      <button class="code-sheet__save" bindtap="saveCardCodeImage" loading="{{savingCardCode}}" disabled="{{savingCardCode || previewQrLoading || !previewQrUrl}}">
+        <view class="icon icon-download code-sheet__save-icon"></view>
+        <text>{{previewQrLoading ? "正在生成名片码" : (savingCardCode ? "保存中" : "保存名片码到相册")}}</text>
+      </button>
+    </block>
+    <view class="poster-preview poster-preview--stack" wx:else>
       <view class="poster-card poster-card--large" wx:if="{{previewMode === 'poster'}}">
         <view class="poster-card__top">{{card.company || "名片"}}</view>
         <view class="poster-card__name">{{card.display_name || "我的名片"}}</view>
-        <image class="poster-card__qr-img" src="{{previewQrUrl}}" mode="aspectFit" />
+        <image wx:if="{{previewQrUrl && !previewQrLoading}}" class="poster-card__qr-img" src="{{previewQrUrl}}" mode="aspectFit" />
+        <view wx:else class="poster-card__qr-state {{previewError ? 'poster-card__qr-state--error' : ''}}">
+          <view wx:if="{{previewQrLoading}}" class="preview-spinner"></view>
+          <text>{{previewQrLoading ? "生成中" : "生成失败"}}</text>
+        </view>
       </view>
       <view class="qr-preview" wx:else>
-        <image wx:if="{{previewQrUrl}}" src="{{previewQrUrl}}" mode="aspectFit" />
-        <view wx:else class="qr-preview__placeholder"></view>
+        <image wx:if="{{previewQrUrl && !previewQrLoading}}" src="{{previewQrUrl}}" mode="aspectFit" />
+        <view wx:elif="{{previewQrLoading}}" class="qr-preview__state">
+          <view class="preview-spinner"></view>
+          <text>正在读取二维码</text>
+        </view>
+        <view wx:else class="qr-preview__state qr-preview__state--error">
+          <text>{{previewError || "暂无二维码"}}</text>
+        </view>
       </view>
       <view class="poster-preview__copy">
         <view class="poster-preview__title">{{previewTitle}}</view>
-        <view class="f12 t-secondary" wx:if="{{previewMode === 'wechat'}}">长按识别加微信</view>
+        <view class="preview-message preview-message--error" wx:if="{{previewError}}">{{previewError}}</view>
+        <view class="preview-message" wx:elif="{{previewQrLoading}}">{{previewMode === 'wechat' ? "二维码准备中" : "小程序码生成中"}}</view>
+        <view class="f12 t-secondary" wx:elif="{{previewMode === 'wechat'}}">长按识别加微信</view>
         <view class="f12 t-secondary" wx:else>扫描直达当前名片访客展示页</view>
         <view class="share-note__path" wx:if="{{previewPath}}">{{previewPath}}</view>
       </view>
@@ -296,4 +343,5 @@
   </view>
 
   <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>
+  <canvas id="cardCodeCanvas" type="2d" class="share-card-canvas share-card-canvas--code"></canvas>
 </view>
