@@ -49,7 +49,7 @@ Page({
       url: `/pages/public/card?card=${publicId}`,
       fail: () => {
         this.setData({ routed: false });
-        wx.showToast({ title: "名片主页打开失败", icon: "none" });
+        wx.showToast({ title: "企业名片打开失败", icon: "none" });
       }
     });
   },

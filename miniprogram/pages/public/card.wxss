@@ -55,7 +55,32 @@
   box-shadow: 0 8rpx 20rpx rgba(16, 24, 40, 0.12);
 }
 
+.public-nav-share {
+  position: absolute;
+  right: 28rpx;
+  top: calc(env(safe-area-inset-top) + 98rpx);
+  width: 72rpx;
+  height: 56rpx;
+  padding: 0;
+  border: 0;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 8rpx 20rpx rgba(16, 24, 40, 0.12);
+}
+
+.public-nav-share::after {
+  border: 0;
+}
+
 .public-nav-home .icon-home {
+  background-color: var(--brand);
+}
+
+.public-nav-share .icon-forward {
   background-color: var(--brand);
 }
 
@@ -199,20 +224,6 @@
 }
 
 .public-cta-card__button::after {
-  border: 0;
-}
-
-.public-share-button {
-  margin: 20rpx 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  border: 0;
-  line-height: 88rpx;
-}
-
-.public-share-button::after {
   border: 0;
 }
 

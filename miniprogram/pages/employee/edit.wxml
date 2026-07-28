@@ -18,12 +18,7 @@
         <view wx:if="{{!editable.avatar_url}}" class="icon icon-lock icon--sm"></view>
         <text>头像</text>
       </view>
-      <button
-        class="edit-avatar-btn"
-        open-type="chooseAvatar"
-        bindchooseavatar="chooseAvatar"
-        disabled="{{!editable.avatar_url}}"
-      >
+      <button class="edit-avatar-btn" bindtap="chooseProfileImage" disabled="{{!editable.avatar_url}}">
         <view class="edit-avatar">
           <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" binderror="onAvatarImageError" />
           <view wx:else class="avatar-placeholder"></view>
@@ -181,5 +176,20 @@
 <view class="fixed-footer" style="{{themeStyle}}">
   <view class="btn btn--primary btn--block {{submitting ? 'btn--disabled' : ''}}" bindtap="saveCard">
     {{submitting ? '保存中...' : '保存并更新名片'}}
+  </view>
+</view>
+
+<view wx:if="{{privacyModalVisible}}" class="privacy-mask" catchtap="closeAvatarPrivacyModal"></view>
+<view wx:if="{{privacyModalVisible}}" class="privacy-dialog" catchtap="noop">
+  <view class="privacy-dialog__title">隐私保护提示</view>
+  <view class="privacy-dialog__body">
+    设置头像前需要同意《{{privacyContractName}}》。
+    <text class="privacy-dialog__link" catchtap="openPrivacyContract">查看指引</text>
+  </view>
+  <view class="privacy-dialog__actions">
+    <view class="btn btn--muted privacy-dialog__btn" catchtap="closeAvatarPrivacyModal">暂不设置</view>
+    <button class="btn btn--primary privacy-dialog__btn privacy-dialog__agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onAgreePrivacyAuthorization">
+      同意并继续
+    </button>
   </view>
 </view>

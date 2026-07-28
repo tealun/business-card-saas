@@ -2,6 +2,9 @@
   <view class="public-nav-home" bindtap="goHome">
     <view class="icon icon-home icon--sm"></view>
   </view>
+  <button wx:if="{{uiState === 'ready' && canShare}}" class="public-nav-share" open-type="share" bindtap="refreshShareImage" aria-label="分享名片">
+    <view class="icon icon-forward icon--sm"></view>
+  </button>
   <view class="public-nav-title">{{navTitle || "名片"}}</view>
 
   <block wx:if="{{uiState === 'loading'}}">
@@ -74,18 +77,12 @@
       </view>
 
       <view class="card public-cta-card" wx:if="{{!isDisabled}}">
-        <button wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item public-cta-card__button" open-type="share" bindtap="refreshShareImage">分享给好友</button>
+        <view class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到通讯录</view>
         <view wx:if="{{isOwnCard}}" class="btn btn--soft public-cta-card__item" bindtap="editMyCard">修改信息</view>
-        <view wx:if="{{!isOwnCard && isDemo}}" class="btn btn--primary public-cta-card__item" bindtap="openContactService">联系开通</view>
-        <view wx:if="{{!isOwnCard && !isDemo}}" class="btn btn--primary public-cta-card__item" bindtap="saveContact">保存到手机</view>
-        <view wx:if="{{!isOwnCard && loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
-        <view wx:if="{{!isOwnCard && !loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
+        <view wx:elif="{{isDemo}}" class="btn btn--soft public-cta-card__item" bindtap="openContactService">联系开通</view>
+        <view wx:elif="{{loggedIn}}" class="btn btn--soft public-cta-card__item" bindtap="exchangeCard">交换名片</view>
+        <view wx:else class="btn btn--soft public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
       </view>
-
-      <button wx:if="{{!isDisabled && !isOwnCard && canShare}}" class="btn btn--soft btn--block public-share-button" open-type="share" bindtap="refreshShareImage">
-        <view class="icon icon-forward icon--sm"></view>
-        <text>分享给好友</text>
-      </button>
 
       <view class="card action-grid">
         <view class="action-grid__item" bindtap="callPhone"><view class="icon icon-phone"></view><text>手机号</text></view>

@@ -124,9 +124,9 @@ const TEMPLATE_BACKGROUNDS = {
   tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
   tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
   tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
-  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-wave.webp",
+  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-cubes.webp",
   tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
-  tpl_campaign: ""
+  tpl_campaign: "/assets/card-backgrounds/bg-light-cubes.webp"
 };
 const PRESET_BACKGROUNDS = {
   "light-wave": "/assets/card-backgrounds/bg-light-wave.webp",
@@ -216,6 +216,8 @@ Page({
     const cardMeta = publicCardMeta(card);
     const isOwnCard = this.isOwnPublicCard(card);
     const canShare = isOwnCard || card.allow_forward !== false;
+    const templateId = card.template && card.template.template_id;
+    const background = activeTemplateBackground(layout, templateId, card.template && card.template.background_url);
     this.setData({
       card,
       ...theme,
@@ -225,13 +227,13 @@ Page({
       cardCompanyName: cardMeta.companyName,
       cardCompanyShortName: cardMeta.companyShortName,
       showCardHead: Boolean(cardMeta.logoUrl || cardMeta.companyShortName),
-      cardTemplateClass: cardTemplateClass(card.template && card.template.template_id),
+      cardTemplateClass: cardTemplateClass(templateId),
       portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
       cardBackgroundStyle: cardBackgroundStyle(
-        card.template && card.template.background_url,
-        layout.background_opacity,
-        card.template && card.template.template_id,
-        layout.background_preset_id
+        background.url,
+        background.opacity,
+        templateId,
+        background.presetId
       ),
       isDisabled: disabled,
       isOwnCard,
@@ -628,6 +630,51 @@ function cardTemplateClass(templateId) {
 function layoutImageUrl(layout, key) {
   const value = layout && layout[key];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function activeTemplateBackground(layout, templateId, fallbackUrl) {
+  const config = templateBackgroundConfig(layout, templateId);
+  if (config) {
+    return {
+      url: config.background_url || "",
+      presetId: config.background_preset_id || "",
+      opacity: config.background_opacity
+    };
+  }
+  return {
+    url: fallbackUrl || "",
+    presetId: layout && typeof layout.background_preset_id === "string" ? layout.background_preset_id : "",
+    opacity: layout && layout.background_opacity
+  };
+}
+
+function templateBackgroundConfig(layout, templateId) {
+  const map = layout && layout.template_backgrounds;
+  if (!map || typeof map !== "object" || Array.isArray(map)) {
+    return null;
+  }
+  const normalizedTemplateId = normalizeTemplateId(templateId);
+  const raw = map[normalizedTemplateId] || map[templateVariantKey(normalizedTemplateId)];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  return {
+    background_url: typeof raw.background_url === "string" ? raw.background_url.trim() : "",
+    background_preset_id: typeof raw.background_preset_id === "string" ? raw.background_preset_id : "",
+    background_opacity: raw.background_opacity
+  };
+}
+
+function templateVariantKey(templateId) {
+  const map = {
+    tpl_horizontal_business: "horizontal-business",
+    tpl_minimal: "minimal",
+    tpl_brand_image: "brand-image",
+    tpl_portrait_photo: "portrait-photo",
+    tpl_dark: "dark",
+    tpl_campaign: "campaign"
+  };
+  return map[normalizeTemplateId(templateId)] || "horizontal-business";
 }
 
 function normalizeTemplateId(templateId) {

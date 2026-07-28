@@ -108,8 +108,8 @@
   <view class="card background-card">
     <view class="row-between">
       <view>
-        <view class="card__title">名片背景图</view>
-        <view class="f12 t-secondary background-card__sub">可使用默认背景，也可上传自定义图。请结合当前版式选择留白位置；JPG、PNG、WebP，≤2MB，比例 1.5:1 到 2:1。</view>
+        <view class="card__title">当前模板底图</view>
+        <view class="f12 t-secondary background-card__sub">每个模板单独保存底图。可从当前模板可用底图中选择，也可上传自定义图；JPG、PNG、WebP，≤2MB，比例 1.5:1 到 2:1。</view>
       </view>
       <view class="btn btn--sm btn--soft {{canEditBackground ? '' : 'btn--disabled'}}" bindtap="onChooseBackground">{{backgroundUrl ? "更换" : "上传"}}</view>
     </view>
@@ -152,7 +152,7 @@
       />
     </view>
     <view class="background-card__actions" wx:if="{{backgroundUrl}}">
-      <view class="btn btn--sm btn--muted {{canEditBackground ? '' : 'btn--disabled'}}" bindtap="onClearBackground">清除背景图</view>
+      <view class="btn btn--sm btn--muted {{canEditBackground ? '' : 'btn--disabled'}}" bindtap="onClearBackground">恢复默认底图</view>
     </view>
     <view class="custom-color-row__error" wx:if="{{backgroundError}}">{{backgroundError}}</view>
   </view>

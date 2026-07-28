@@ -15,6 +15,7 @@
     "pages/legal/index"
   ],
   "lazyCodeLoading": "requiredComponents",
+  "__usePrivacyCheck__": true,
   "window": {
     "navigationBarTitleText": "智云名片",
     "navigationBarBackgroundColor": "#ffffff",
@@ -38,7 +39,7 @@
       },
       {
         "pagePath": "pages/company-card/index",
-        "text": "名片主页"
+        "text": "企业名片"
       }
     ]
   },

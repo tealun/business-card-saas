@@ -76,13 +76,21 @@ const BACKGROUND_PRESETS = [
   { id: "blue-dot", name: "蓝色点阵", url: "/assets/card-backgrounds/bg-blue-dot.webp" },
   { id: "dark-dot", name: "深色点阵", url: "/assets/card-backgrounds/bg-dark-dot.webp" }
 ];
+const TEMPLATE_BACKGROUND_PRESET_IDS = {
+  "horizontal-business": ["light-wave", "light-cubes"],
+  minimal: ["light-geometry", "light-wave"],
+  "brand-image": ["blue-dot", "light-cubes"],
+  "portrait-photo": ["light-cubes", "light-wave"],
+  dark: ["dark-dot"],
+  campaign: ["light-cubes", "blue-dot"]
+};
 const TEMPLATE_STYLE_META = {
   "horizontal-business": { className: "biz-card--horizontal", backgroundId: "light-wave" },
   minimal: { className: "biz-card--minimal", backgroundId: "light-geometry" },
   "brand-image": { className: "biz-card--brand-image", backgroundId: "blue-dot", opacity: 100 },
-  "portrait-photo": { className: "biz-card--portrait", backgroundId: "light-wave" },
+  "portrait-photo": { className: "biz-card--portrait", backgroundId: "light-cubes" },
   dark: { className: "biz-card--dark", backgroundId: "dark-dot", opacity: 100 },
-  campaign: { className: "biz-card--campaign", backgroundId: "", opacity: 100 }
+  campaign: { className: "biz-card--campaign", backgroundId: "light-cubes", opacity: 100 }
 };
 
 Page({
@@ -129,7 +137,8 @@ Page({
     logoUrl: "",
     backgroundUrl: "",
     backgroundPresetId: "",
-    backgroundPresets: BACKGROUND_PRESETS,
+    templateBackgrounds: {},
+    backgroundPresets: backgroundPresetsForVariant("horizontal-business"),
     backgroundOpacity: DEFAULT_BACKGROUND_OPACITY,
     backgroundPreviewStyle: "",
     backgroundError: "",
@@ -505,22 +514,18 @@ Page({
     const detail = event.detail || {};
     const dataset = event.currentTarget ? event.currentTarget.dataset : {};
     const variant = normalizeTemplateVariant(detail.templateId || dataset.variant);
-    const meta = templateStyleMeta(variant);
-    const shouldResetToPreset = !this.data.backgroundUrl || this.data.backgroundPresetId || String(this.data.backgroundUrl).startsWith("/assets/");
-    const preset = resolveBackgroundPreset(this.data.backgroundPresetId, variant);
-    const backgroundUrl = shouldResetToPreset ? (preset ? preset.url : "") : this.data.backgroundUrl;
-    const backgroundPresetId = shouldResetToPreset ? (preset ? preset.id : "") : this.data.backgroundPresetId;
-    const backgroundOpacity = shouldResetToPreset
-      ? normalizeOpacity(meta.opacity, DEFAULT_BACKGROUND_OPACITY)
-      : this.data.backgroundOpacity;
+    const templateBackgrounds = withCurrentVariantBackground(this.data);
+    const backgroundState = backgroundStateForVariant(variant, templateBackgrounds);
     this.setData({
       templateDraft: { ...this.data.templateDraft, variant },
       styleTemplateId: templateIdForVariant(variant),
       templateClass: templateClassForVariant(variant),
-      backgroundUrl,
-      backgroundPresetId,
-      backgroundOpacity,
-      backgroundPreviewStyle: backgroundStyle(backgroundUrl, backgroundOpacity, variant),
+      backgroundUrl: backgroundState.backgroundUrl,
+      backgroundPresetId: backgroundState.backgroundPresetId,
+      templateBackgrounds,
+      backgroundPresets: backgroundState.backgroundPresets,
+      backgroundOpacity: backgroundState.backgroundOpacity,
+      backgroundPreviewStyle: backgroundStyle(backgroundState.backgroundUrl, backgroundState.backgroundOpacity, variant),
       backgroundError: ""
     });
   },
@@ -613,9 +618,15 @@ Page({
         category: "templates",
         timeout: 120000
       });
+      const templateBackgrounds = withCurrentVariantBackground(this.data, {
+        backgroundUrl: uploaded.url,
+        backgroundPresetId: "",
+        backgroundOpacity: this.data.backgroundOpacity
+      });
       this.setData({
         backgroundUrl: uploaded.url,
         backgroundPresetId: "",
+        templateBackgrounds,
         backgroundPreviewStyle: backgroundStyle(uploaded.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
         backgroundError: ""
       });
@@ -635,12 +646,18 @@ Page({
     const dataset = event.currentTarget ? event.currentTarget.dataset : {};
     const presetId = detail.presetId || dataset.id;
     const preset = BACKGROUND_PRESETS.find((item) => item.id === presetId);
-    if (!preset) {
+    if (!preset || !isPresetAllowedForVariant(preset.id, this.data.templateDraft.variant)) {
       return;
     }
+    const templateBackgrounds = withCurrentVariantBackground(this.data, {
+      backgroundUrl: "",
+      backgroundPresetId: preset.id,
+      backgroundOpacity: this.data.backgroundOpacity
+    });
     this.setData({
       backgroundUrl: preset.url,
       backgroundPresetId: preset.id,
+      templateBackgrounds,
       backgroundPreviewStyle: backgroundStyle(preset.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
       backgroundError: ""
     });
@@ -652,10 +669,19 @@ Page({
 
   clearBackgroundImage() {
     if (!this.requireAdmin()) return;
-    this.setData({
+    const backgroundState = defaultBackgroundState(this.data.templateDraft.variant);
+    const templateBackgrounds = withCurrentVariantBackground(this.data, {
       backgroundUrl: "",
-      backgroundPresetId: "",
-      backgroundPreviewStyle: "",
+      backgroundPresetId: backgroundState.backgroundPresetId,
+      backgroundOpacity: backgroundState.backgroundOpacity
+    });
+    this.setData({
+      backgroundUrl: backgroundState.backgroundUrl,
+      backgroundPresetId: backgroundState.backgroundPresetId,
+      templateBackgrounds,
+      backgroundPresets: backgroundState.backgroundPresets,
+      backgroundOpacity: backgroundState.backgroundOpacity,
+      backgroundPreviewStyle: backgroundStyle(backgroundState.backgroundUrl, backgroundState.backgroundOpacity, this.data.templateDraft.variant),
       backgroundError: ""
     });
   },
@@ -663,8 +689,10 @@ Page({
   onBackgroundOpacityChange(event) {
     if (!this.requireAdmin()) return;
     const backgroundOpacity = normalizeOpacity(event.detail.value, DEFAULT_BACKGROUND_OPACITY);
+    const templateBackgrounds = withCurrentVariantBackground(this.data, { backgroundOpacity });
     this.setData({
       backgroundOpacity,
+      templateBackgrounds,
       backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateDraft.variant)
     });
   },
@@ -681,13 +709,16 @@ Page({
     const draft = this.data.templateDraft;
     if (!draft.template_id) return;
     await this.saveWithToast(async () => {
-      const backgroundUrl = await backgroundUrlForSave(this.data.backgroundUrl);
+      const templateBackgrounds = withCurrentVariantBackground(this.data);
       const primary = buildTheme(this.data.primary || DEFAULT_BRAND).themeBrand;
       const variant = draft.variant || "horizontal-business";
+      const activeBackground = backgroundStateForVariant(variant, templateBackgrounds);
+      const backgroundUrl = await backgroundUrlForSave(activeBackground.backgroundUrl);
       const layout = {
         variant,
-        background_opacity: normalizeOpacity(this.data.backgroundOpacity, DEFAULT_BACKGROUND_OPACITY),
-        background_preset_id: this.data.backgroundPresetId || null
+        background_opacity: activeBackground.backgroundOpacity,
+        background_preset_id: activeBackground.backgroundPresetId || null,
+        template_backgrounds: templateBackgroundsForSave(templateBackgrounds)
       };
       if (isPortraitVariant(variant)) {
         layout.portrait_photo_url = this.data.portraitPhotoUrl || null;
@@ -1986,10 +2017,12 @@ function buildTemplateEditorState(template, profile, members, tenant) {
   const draft = draftFromTemplate(template || {});
   const layout = template && template.layout && typeof template.layout === "object" ? template.layout : {};
   const variant = draft.variant || "horizontal-business";
-  const meta = templateStyleMeta(variant);
-  const preset = resolveBackgroundPreset(draft.background_preset_id, variant);
-  const backgroundUrl = draft.background_url || (preset ? preset.url : "");
-  const backgroundPresetId = draft.background_url ? "" : (preset ? preset.id : "");
+  const templateBackgrounds = templateBackgroundsFromLayout(layout, variant, {
+    backgroundUrl: draft.background_url,
+    backgroundPresetId: draft.background_preset_id,
+    backgroundOpacity: draft.background_opacity
+  });
+  const backgroundState = backgroundStateForVariant(variant, templateBackgrounds);
   const primary = normalizeHexInput(draft.primary) || DEFAULT_BRAND;
   const theme = buildTheme(primary);
   const card = buildTemplatePreviewCard(profile, members, tenant);
@@ -2009,10 +2042,12 @@ function buildTemplateEditorState(template, profile, members, tenant) {
     logoUrl: draft.logo_url || ((profile && profile.logo_url) || ""),
     portraitPhotoUrl: isPortraitVariant(variant) ? layoutImageUrl(layout, "portrait_photo_url") : "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
-    backgroundUrl,
-    backgroundPresetId,
-    backgroundOpacity: normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY),
-    backgroundPreviewStyle: backgroundStyle(backgroundUrl, normalizeOpacity(draft.background_opacity, meta.opacity || DEFAULT_BACKGROUND_OPACITY), variant),
+    backgroundUrl: backgroundState.backgroundUrl,
+    backgroundPresetId: backgroundState.backgroundPresetId,
+    templateBackgrounds,
+    backgroundPresets: backgroundState.backgroundPresets,
+    backgroundOpacity: backgroundState.backgroundOpacity,
+    backgroundPreviewStyle: backgroundStyle(backgroundState.backgroundUrl, backgroundState.backgroundOpacity, variant),
     backgroundError: ""
   };
 }
@@ -2098,6 +2133,142 @@ function normalizeOpacity(value, fallback) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+function backgroundPresetsForVariant(variant) {
+  const normalized = normalizeTemplateVariant(variant);
+  const ids = TEMPLATE_BACKGROUND_PRESET_IDS[normalized] || TEMPLATE_BACKGROUND_PRESET_IDS["horizontal-business"];
+  return ids
+    .map((id) => BACKGROUND_PRESETS.find((item) => item.id === id))
+    .filter(Boolean);
+}
+
+function isPresetAllowedForVariant(presetId, variant) {
+  return backgroundPresetsForVariant(variant).some((item) => item.id === presetId);
+}
+
+function defaultBackgroundState(variant) {
+  const normalized = normalizeTemplateVariant(variant);
+  const meta = templateStyleMeta(normalized);
+  const backgroundPresets = backgroundPresetsForVariant(normalized);
+  const preset = backgroundPresets.find((item) => item.id === meta.backgroundId) || backgroundPresets[0] || null;
+  const backgroundOpacity = normalizeOpacity(meta.opacity, DEFAULT_BACKGROUND_OPACITY);
+  return {
+    backgroundUrl: preset ? preset.url : "",
+    backgroundPresetId: preset ? preset.id : "",
+    backgroundPresets,
+    backgroundOpacity
+  };
+}
+
+function backgroundStateForVariant(variant, templateBackgrounds) {
+  const normalized = normalizeTemplateVariant(variant);
+  const saved = normalizeTemplateBackgroundConfig(normalized, templateBackgrounds && templateBackgrounds[normalized]);
+  const defaults = defaultBackgroundState(normalized);
+  if (!saved) {
+    return defaults;
+  }
+  const customUrl = isBundledBackground(saved.background_url) ? "" : saved.background_url;
+  if (customUrl) {
+    return {
+      ...defaults,
+      backgroundUrl: customUrl,
+      backgroundPresetId: "",
+      backgroundOpacity: normalizeOpacity(saved.background_opacity, defaults.backgroundOpacity)
+    };
+  }
+  const preset = backgroundPresetsForVariant(normalized).find((item) => item.id === saved.background_preset_id)
+    || presetFromUrl(saved.background_url)
+    || backgroundPresetsForVariant(normalized).find((item) => item.id === defaults.backgroundPresetId)
+    || null;
+  return {
+    ...defaults,
+    backgroundUrl: preset ? preset.url : defaults.backgroundUrl,
+    backgroundPresetId: preset ? preset.id : defaults.backgroundPresetId,
+    backgroundOpacity: normalizeOpacity(saved.background_opacity, defaults.backgroundOpacity)
+  };
+}
+
+function templateBackgroundsFromLayout(layout, activeVariant, legacy = {}) {
+  const rawMap = layout && typeof layout.template_backgrounds === "object" && !Array.isArray(layout.template_backgrounds)
+    ? layout.template_backgrounds
+    : {};
+  const templateBackgrounds = {};
+  Object.keys(TEMPLATE_STYLE_META).forEach((variant) => {
+    const normalized = normalizeTemplateBackgroundConfig(variant, rawMap[variant] || rawMap[templateIdForVariant(variant)]);
+    if (normalized) {
+      templateBackgrounds[variant] = normalized;
+    }
+  });
+  const active = normalizeTemplateVariant(activeVariant);
+  if (!templateBackgrounds[active]) {
+    const legacyBackgroundUrl = typeof legacy.backgroundUrl === "string" ? legacy.backgroundUrl : "";
+    templateBackgrounds[active] = legacyBackgroundUrl && !isBundledBackground(legacyBackgroundUrl)
+      ? (normalizeTemplateBackgroundConfig(active, {
+          background_url: legacyBackgroundUrl,
+          background_preset_id: "",
+          background_opacity: legacy.backgroundOpacity
+        }) || backgroundConfigForSave(active, defaultBackgroundState(active)))
+      : backgroundConfigForSave(active, defaultBackgroundState(active));
+  }
+  return templateBackgrounds;
+}
+
+function withCurrentVariantBackground(data, patch = {}) {
+  const variant = normalizeTemplateVariant(data.templateDraft && data.templateDraft.variant);
+  return {
+    ...(data.templateBackgrounds || {}),
+    [variant]: backgroundConfigForSave(variant, {
+      backgroundUrl: patch.backgroundUrl !== undefined ? patch.backgroundUrl : data.backgroundUrl,
+      backgroundPresetId: patch.backgroundPresetId !== undefined ? patch.backgroundPresetId : data.backgroundPresetId,
+      backgroundOpacity: patch.backgroundOpacity !== undefined ? patch.backgroundOpacity : data.backgroundOpacity
+    })
+  };
+}
+
+function templateBackgroundsForSave(templateBackgrounds) {
+  const result = {};
+  Object.keys(TEMPLATE_STYLE_META).forEach((variant) => {
+    const state = backgroundStateForVariant(variant, templateBackgrounds);
+    result[variant] = backgroundConfigForSave(variant, state);
+  });
+  return result;
+}
+
+function backgroundConfigForSave(variant, state) {
+  const defaults = defaultBackgroundState(variant);
+  const customUrl = isBundledBackground(state.backgroundUrl) ? "" : String(state.backgroundUrl || "");
+  return {
+    background_url: customUrl,
+    background_preset_id: customUrl ? "" : (state.backgroundPresetId || defaults.backgroundPresetId || null),
+    background_opacity: normalizeOpacity(state.backgroundOpacity, defaults.backgroundOpacity)
+  };
+}
+
+function normalizeTemplateBackgroundConfig(variant, value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const defaults = defaultBackgroundState(variant);
+  const backgroundUrl = typeof value.background_url === "string" ? value.background_url.trim() : "";
+  const presetFromBackground = presetFromUrl(backgroundUrl);
+  const rawPresetId = typeof value.background_preset_id === "string" ? value.background_preset_id : "";
+  const presetId = isPresetAllowedForVariant(rawPresetId, variant)
+    ? rawPresetId
+    : (presetFromBackground && isPresetAllowedForVariant(presetFromBackground.id, variant) ? presetFromBackground.id : "");
+  return {
+    background_url: presetFromBackground ? "" : backgroundUrl,
+    background_preset_id: presetId || defaults.backgroundPresetId || null,
+    background_opacity: normalizeOpacity(value.background_opacity, defaults.backgroundOpacity)
+  };
+}
+
+function presetFromUrl(url) {
+  return BACKGROUND_PRESETS.find((item) => item.url === url) || null;
+}
+
+function isBundledBackground(url) {
+  return Boolean(presetFromUrl(String(url || ""))) || String(url || "").startsWith("/assets/card-backgrounds/");
+}
+
 function normalizeHexInput(value) {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -2105,15 +2276,6 @@ function normalizeHexInput(value) {
   }
   const prefixed = raw.startsWith("#") ? raw : `#${raw}`;
   return /^#[0-9a-fA-F]{6}$/.test(prefixed) ? prefixed.toLowerCase() : "";
-}
-
-function resolveBackgroundPreset(presetId, variant) {
-  const found = BACKGROUND_PRESETS.find((item) => item.id === presetId);
-  if (found) {
-    return found;
-  }
-  const fallbackId = templateStyleMeta(variant).backgroundId;
-  return BACKGROUND_PRESETS.find((item) => item.id === fallbackId) || null;
 }
 
 function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, variant = "horizontal-business") {

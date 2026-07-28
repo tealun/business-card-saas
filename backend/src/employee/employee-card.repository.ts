@@ -1085,15 +1085,73 @@ export class EmployeeCardRepository {
         }
       };
     }
-    if (!request.background_url || !request.background_url.startsWith("data:image/")) {
-      return next;
+    let activeBackgroundDataUrl = "";
+    let activeBackgroundStoredUrl: string | null = null;
+    if (request.background_url && request.background_url.startsWith("data:image/")) {
+      const stored = await this.storage.storeImageDataUrl({
+        tenantId: session.tenantId,
+        category: "card-backgrounds",
+        dataUrl: request.background_url
+      });
+      activeBackgroundDataUrl = request.background_url;
+      activeBackgroundStoredUrl = stored.publicUrl;
+      next = { ...next, background_url: stored.publicUrl };
     }
-    const stored = await this.storage.storeImageDataUrl({
-      tenantId: session.tenantId,
-      category: "card-backgrounds",
-      dataUrl: request.background_url
-    });
-    return { ...next, background_url: stored.publicUrl };
+    return this.materializeTemplateBackgroundMap(
+      session,
+      next,
+      activeBackgroundDataUrl,
+      activeBackgroundStoredUrl
+    );
+  }
+
+  private async materializeTemplateBackgroundMap(
+    session: EmployeeSession,
+    request: UpdateEmployeeCardStyleRequest,
+    activeDataUrl: string,
+    activeStoredUrl: string | null
+  ): Promise<UpdateEmployeeCardStyleRequest> {
+    const templateBackgrounds = request.layout && isRecord(request.layout.template_backgrounds)
+      ? request.layout.template_backgrounds
+      : null;
+    if (!templateBackgrounds) {
+      return request;
+    }
+    const nextTemplateBackgrounds: Record<string, unknown> = {};
+    let changed = false;
+    for (const [templateId, rawConfig] of Object.entries(templateBackgrounds)) {
+      if (!isRecord(rawConfig)) {
+        nextTemplateBackgrounds[templateId] = rawConfig;
+        continue;
+      }
+      const backgroundUrl = typeof rawConfig.background_url === "string" ? rawConfig.background_url : "";
+      if (!backgroundUrl.startsWith("data:image/")) {
+        nextTemplateBackgrounds[templateId] = { ...rawConfig };
+        continue;
+      }
+      const storedUrl = activeStoredUrl && backgroundUrl === activeDataUrl
+        ? activeStoredUrl
+        : (await this.storage!.storeImageDataUrl({
+            tenantId: session.tenantId,
+            category: "card-backgrounds",
+            dataUrl: backgroundUrl
+          })).publicUrl;
+      nextTemplateBackgrounds[templateId] = {
+        ...rawConfig,
+        background_url: storedUrl
+      };
+      changed = true;
+    }
+    if (!changed) {
+      return request;
+    }
+    return {
+      ...request,
+      layout: {
+        ...(request.layout ?? {}),
+        template_backgrounds: nextTemplateBackgrounds
+      }
+    };
   }
 }
 

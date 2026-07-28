@@ -414,12 +414,12 @@ button::after { border: none; }
 }
 
 .biz-card--minimal {
-  padding: 56rpx 48rpx 42rpx;
+  padding: 44rpx 48rpx 38rpx;
 }
 
 .biz-card--minimal .biz-card__head {
-  justify-content: flex-end;
-  margin-top: 126rpx;
+  justify-content: flex-start;
+  max-width: calc(100% - 156rpx);
   opacity: 0.72;
 }
 
@@ -429,18 +429,27 @@ button::after { border: none; }
 
 .biz-card--minimal .biz-card__company {
   font-size: 24rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .biz-card--minimal .biz-card__body {
-  margin-top: -156rpx;
+  align-items: flex-start;
+  margin-top: 34rpx;
 }
 
 .biz-card--minimal .biz-card__name {
   font-size: 48rpx;
 }
 
+.biz-card--minimal .biz-card__avatar {
+  width: 112rpx;
+  height: 112rpx;
+}
+
 .biz-card--minimal .biz-card__contact {
-  margin-top: 120rpx;
+  margin-top: 84rpx;
 }
 
 .biz-card--brand-image {

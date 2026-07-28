@@ -66,6 +66,9 @@ Page({
       allow_wecom_qrcode_upload: true,
       qrcode_source: "enterprise_first"
     },
+    privacyNeedAuthorization: false,
+    privacyContractName: "用户隐私保护指引",
+    privacyModalVisible: false,
     loading: true,
     error: false,
     submitting: false
@@ -74,12 +77,17 @@ Page({
   async onLoad() {
     try {
       setPageTheme(this);
+      await this.refreshPrivacySetting();
       await ensureSession();
       await this.loadCard();
     } catch (error) {
       this.setData({ loading: false, error: true });
       wx.showToast({ title: error.message || "登录失败，请稍后重试", icon: "none" });
     }
+  },
+
+  onShow() {
+    this.refreshPrivacySetting();
   },
 
   async loadCard() {
@@ -146,14 +154,82 @@ Page({
     this.setData({ [`privacy.${event.currentTarget.dataset.key}`]: event.detail.value });
   },
 
-  chooseAvatar(event) {
+  refreshPrivacySetting() {
+    if (typeof wx.getPrivacySetting !== "function") {
+      return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+      wx.getPrivacySetting({
+        success: (result) => {
+          this.setData({
+            privacyNeedAuthorization: Boolean(result.needAuthorization),
+            privacyContractName: result.privacyContractName || this.data.privacyContractName
+          });
+          resolve(result);
+        },
+        fail: () => {
+          resolve(null);
+        }
+      });
+    });
+  },
+
+  openAvatarPrivacyModal() {
     if (!this.canEdit("avatar_url")) {
       this.lockedTip();
       return;
     }
-    const avatarUrl = event.detail && event.detail.avatarUrl;
-    if (avatarUrl) {
-      this.setAvatarFromPath(avatarUrl);
+    this.setData({ privacyModalVisible: true });
+  },
+
+  closeAvatarPrivacyModal() {
+    this.setData({ privacyModalVisible: false });
+  },
+
+  noop() {},
+
+  openPrivacyContract() {
+    if (typeof wx.openPrivacyContract !== "function") {
+      wx.showToast({ title: "当前微信版本暂不支持查看隐私指引", icon: "none" });
+      return;
+    }
+    wx.openPrivacyContract({
+      fail: () => {
+        wx.showToast({ title: "隐私指引打开失败，请稍后重试", icon: "none" });
+      }
+    });
+  },
+
+  onAgreePrivacyAuthorization(event) {
+    const errMsg = String(event.detail && event.detail.errMsg || "");
+    if (errMsg && errMsg.indexOf("ok") === -1) {
+      wx.showToast({ title: "同意隐私指引后才能设置头像", icon: "none" });
+      return;
+    }
+    this.setData({
+      privacyNeedAuthorization: false,
+      privacyModalVisible: false
+    }, () => {
+      this.chooseProfileImage();
+    });
+  },
+
+  async chooseProfileImage() {
+    if (!this.canEdit("avatar_url")) {
+      this.lockedTip();
+      return;
+    }
+    if (this.data.privacyNeedAuthorization) {
+      this.openAvatarPrivacyModal();
+      return;
+    }
+    try {
+      const tempFilePath = await chooseImageFromAlbum();
+      if (tempFilePath) {
+        await this.setAvatarFromPath(tempFilePath);
+      }
+    } catch (error) {
+      wx.showToast({ title: error.message || "头像选择失败，请重新选择", icon: "none" });
     }
   },
 
@@ -388,6 +464,54 @@ function getImageInfo(src) {
   });
 }
 
+function chooseImageFromAlbum() {
+  return new Promise((resolve, reject) => {
+    const onFail = (error) => {
+      if (isCancelError(error)) {
+        resolve("");
+        return;
+      }
+      if (isPrivacyScopeError(error)) {
+        reject(new Error("请先在小程序后台声明相册图片用途"));
+        return;
+      }
+      reject(error);
+    };
+    if (typeof wx.chooseMedia === "function") {
+      wx.chooseMedia({
+        count: 1,
+        mediaType: ["image"],
+        sourceType: ["album"],
+        sizeType: ["compressed"],
+        success(result) {
+          const file = result.tempFiles && result.tempFiles[0];
+          resolve(file && file.tempFilePath ? file.tempFilePath : "");
+        },
+        fail: onFail
+      });
+      return;
+    }
+    if (typeof wx.chooseImage === "function") {
+      wx.chooseImage({
+        count: 1,
+        sourceType: ["album"],
+        sizeType: ["compressed"],
+        success(result) {
+          const file = result.tempFiles && result.tempFiles[0];
+          resolve(
+            (file && (file.tempFilePath || file.path)) ||
+            (result.tempFilePaths && result.tempFilePaths[0]) ||
+            ""
+          );
+        },
+        fail: onFail
+      });
+      return;
+    }
+    reject(new Error("当前微信版本暂不支持选择头像"));
+  });
+}
+
 function imageMime(info) {
   const type = String(info && info.type || "").toLowerCase();
   if (type === "png") return "image/png";
@@ -403,4 +527,12 @@ function imageMime(info) {
 function isTemporaryImageUrl(value) {
   const source = String(value || "");
   return /^(?:wxfile:\/\/|https?:\/\/(?:tmp\/|(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:\*\*tmp\*\*|tmp)\/))/i.test(source);
+}
+
+function isCancelError(error) {
+  return /cancel/i.test(String(error && error.errMsg || error && error.message || ""));
+}
+
+function isPrivacyScopeError(error) {
+  return /privacy agreement|scope is not declared|privacy/i.test(String(error && error.errMsg || error && error.message || ""));
 }

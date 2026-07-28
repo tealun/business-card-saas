@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "名片主页",
+  "navigationBarTitleText": "企业名片",
   "usingComponents": {
     "login-bar": "/components/login-bar/index"
   }

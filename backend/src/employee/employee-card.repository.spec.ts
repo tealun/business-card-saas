@@ -360,6 +360,67 @@ describe("EmployeeCardRepository", () => {
     );
   });
 
+  it("materializes per-template card background data URLs before saving style", async () => {
+    const storedUrls: Record<string, string> = {
+      "data:image/png;base64,bWluaW1hbA==":
+        "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/minimal.png",
+      "data:image/png;base64,ZGFyaw==":
+        "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/dark.png"
+    };
+    const storage = {
+      storeImageDataUrl: jest.fn(async (input: { dataUrl: string }) => ({
+        storageKey: `tenant/tenant-001/card-backgrounds/${input.dataUrl.slice(-10)}.png`,
+        publicUrl: storedUrls[input.dataUrl] ?? "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/fallback.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-001",
+      identityType: "personal" as const,
+      tenantId: "tenant-001",
+      tenantName: "Personal",
+      memberIdentityId: "member-001",
+      displayName: "Ada",
+      openUserid: "ou-001",
+      publicId: "pub_001"
+    };
+
+    const preview = await repository.updateStyle(session, {
+      template_id: "tpl_minimal",
+      background_url: "data:image/png;base64,bWluaW1hbA==",
+      color_scheme: { primary: "#8d7ec7" },
+      layout: {
+        variant: "tpl_minimal",
+        background_preset_id: null,
+        background_opacity: 92,
+        template_backgrounds: {
+          tpl_minimal: {
+            background_url: "data:image/png;base64,bWluaW1hbA==",
+            background_preset_id: "",
+            background_opacity: 92
+          },
+          tpl_dark: {
+            background_url: "data:image/png;base64,ZGFyaw==",
+            background_preset_id: "",
+            background_opacity: 100
+          },
+          tpl_horizontal_business: {
+            background_url: "",
+            background_preset_id: "light-wave",
+            background_opacity: 100
+          }
+        }
+      }
+    });
+
+    const templateBackgrounds = preview.template.layout.template_backgrounds as Record<string, { background_url: string; background_preset_id?: string }>;
+    expect(storage.storeImageDataUrl).toHaveBeenCalledTimes(2);
+    expect(preview.template.background_url).toBe(storedUrls["data:image/png;base64,bWluaW1hbA=="]);
+    expect(templateBackgrounds.tpl_minimal?.background_url).toBe(storedUrls["data:image/png;base64,bWluaW1hbA=="]);
+    expect(templateBackgrounds.tpl_dark?.background_url).toBe(storedUrls["data:image/png;base64,ZGFyaw=="]);
+    expect(templateBackgrounds.tpl_horizontal_business?.background_preset_id).toBe("light-wave");
+  });
+
   it("allows enterprise users to choose their own template and portrait photo override", async () => {
     const storage = {
       storeImageDataUrl: jest.fn(async () => ({
