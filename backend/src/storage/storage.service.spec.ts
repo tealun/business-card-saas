@@ -5,7 +5,21 @@ import { Readable } from "node:stream";
 import { AppConfig } from "../config/app-config.js";
 import { StorageService } from "./storage.service.js";
 
-const { S3Client } = jest.requireActual("@aws-sdk/client-s3") as {
+jest.mock("@aws-sdk/client-s3", () => ({
+  S3Client: class {
+    async send() {
+      return {};
+    }
+  },
+  GetObjectCommand: class {
+    constructor(public input: unknown) {}
+  },
+  PutObjectCommand: class {
+    constructor(public input: unknown) {}
+  }
+}), { virtual: true });
+
+const { S3Client } = jest.requireMock("@aws-sdk/client-s3") as {
   S3Client: {
     prototype: {
       send: (...args: unknown[]) => unknown;
