@@ -5,6 +5,12 @@ const CARD_Y = 48;
 const CARD_W = 390;
 const CARD_H = 232;
 
+/**
+ * 生成微信分享卡片临时图片。
+ *
+ * 根据当前名片模板、主题色和头像/形象照绘制 500x400 分享图；导出失败时返回空字符串，
+ * 由页面降级使用普通分享。
+ */
 function buildShareCardImage(page, options = {}) {
   if (!page || typeof page.createSelectorQuery !== "function") {
     return Promise.resolve("");
@@ -22,8 +28,7 @@ function buildShareCardImage(page, options = {}) {
         }
         try {
           const dpr = devicePixelRatio();
-          // Export at DPR resolution while keeping all layout math in the fixed
-          // 500x400 design coordinate space.
+          // 按 DPR 导出高清图，但所有布局仍固定在 500x400 设计坐标系内。
           node.width = SHARE_IMAGE_WIDTH * dpr;
           node.height = SHARE_IMAGE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
@@ -62,8 +67,7 @@ async function drawShareCard(ctx, options) {
   const dark = isDarkTemplate(options.templateClass || "");
   const brandImage = isBrandTemplate(options.templateClass || "");
   const portrait = isPortraitTemplate(options.templateClass || "");
-  // Portrait templates intentionally show the portrait block even when a normal
-  // business-card avatar would be hidden by employee privacy settings.
+  // 形象照模板强调个人展示，即使普通头像被隐私设置隐藏，也保留形象照区域。
   const showAvatar = portrait || card.show_avatar !== false;
   const surface = dark ? "#161b22" : brandImage ? theme.brand : "#ffffff";
   const primary = dark || brandImage ? "#ffffff" : "#1f2329";
@@ -252,8 +256,7 @@ function resolveImagePath(src) {
     return Promise.resolve("");
   }
   if (/^data:image\//.test(value) || /^https?:\/\//.test(value) || value.startsWith("/") ) {
-    // wx.getImageInfo downloads remote/API images into a local path accepted by
-    // canvas drawImage; failing open keeps existing local paths usable.
+    // wx.getImageInfo 会把远程/API 图片转成本地路径供 canvas 使用；失败时保留原值兼容本地路径。
     return new Promise((resolve) => {
       wx.getImageInfo({
         src: value,

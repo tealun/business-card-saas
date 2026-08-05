@@ -15,6 +15,12 @@ export class AdminSessionTokenService {
   readonly expiresIn = 60 * 60 * 8;
   private readonly secret = readSecret("ADMIN_JWT_SECRET");
 
+  /**
+   * 签发后台管理会话 token。
+   *
+   * token 只保存会话必要身份信息和过期时间，权限是否仍有效由 Guard/服务层在请求时
+   * 再次校验，避免被禁用的平台账号继续使用旧 token。
+   */
   sign(session: AdminSession): string {
     const payload = {
       ...session,
@@ -25,6 +31,12 @@ export class AdminSessionTokenService {
     return `${encodedPayload}.${sig}`;
   }
 
+  /**
+   * 校验后台管理会话 token 并返回规范化后的会话。
+   *
+   * 这里负责签名、过期时间和旧 token 兼容；不在这里授予权限，调用方必须继续执行
+   * RBAC 或平台账号状态校验。
+   */
   verify(token: string): AdminSession {
     const [encodedPayload, sig] = token.split(".");
     if (!encodedPayload || !sig) {
@@ -47,8 +59,7 @@ export class AdminSessionTokenService {
       memberIdentityId: envelope.payload.memberIdentityId,
       openUserid: envelope.payload.openUserid,
       role: envelope.payload.role,
-      // Old tenant tokens predate accountType. Treat anything except the explicit
-      // platform marker as tenant so platform privileges cannot be inferred.
+      // 旧租户 token 没有 accountType；只有显式 platform 才按平台会话处理，避免误推断平台权限。
       accountType: envelope.payload.accountType === "platform" ? "platform" : "tenant"
     };
   }
@@ -66,8 +77,7 @@ export class AdminSessionTokenService {
   }
 
   private signature(encodedPayload: string): string {
-    // Domain separation prevents a valid HMAC from another token family from
-    // being replayed as an admin session if secrets are accidentally shared.
+    // 加入用途前缀做域隔离，防止其他 token 家族的 HMAC 在密钥误共用时被重放为后台会话。
     return createHmac("sha256", this.secret).update(`v1.admin-session.${encodedPayload}`).digest("base64url");
   }
 

@@ -74,6 +74,9 @@ Page({
     submitting: false
   },
 
+  /**
+   * 页面初始化：恢复主题、确认隐私授权状态、确保登录会话，并拉取当前名片。
+   */
   async onLoad() {
     try {
       setPageTheme(this);
@@ -90,6 +93,11 @@ Page({
     this.refreshPrivacySetting();
   },
 
+  /**
+   * 拉取当前身份名片和预览模板，并根据后端 editability 生成可编辑字段映射。
+   *
+   * 企业名片的企业资料字段始终由租户侧维护，即使后端返回缺省字段也不能在员工端放开。
+   */
   async loadCard() {
     try {
       const card = await request("/employee/cards/current");
@@ -100,8 +108,7 @@ Page({
         : (enterpriseCard ? ENTERPRISE_EDITABLE_FIELDS : ALL_EDITABLE_FIELDS);
       const editable = editableMap(editableFields);
       if (enterpriseCard) {
-        // Enterprise-owned profile fields come from tenant configuration and
-        // should not be re-enabled by stale or missing editable_fields responses.
+        // 企业资料字段来自租户配置，不能被陈旧或缺省的 editable_fields 重新打开。
         lockCompanyFields(editable);
       }
       const fields = card.fields || {};
@@ -320,6 +327,12 @@ Page({
     return this.data.editable[fieldKey] !== false;
   },
 
+  /**
+   * 保存当前名片。
+   *
+   * 只提交允许员工编辑的字段和自助配置允许的隐私/分享设置；被锁定字段不会进入 payload，
+   * 避免页面展示值覆盖企业统一维护的数据。
+   */
   async saveCard() {
     if (this.data.submitting) {
       return;
@@ -334,8 +347,7 @@ Page({
       validateCardForm(form, this.data.editable);
       const card = await request("/employee/cards/current", {
         method: "PUT",
-        // Build the payload from editable/self-service flags so disabled fields
-        // are omitted instead of being overwritten with whatever is visible.
+        // 根据可编辑/自助开关构造 payload，被禁用字段直接省略。
         data: buildPayload(form, this.data.privacy, this.data.editable, this.data.selfService)
       });
       if (this.data.editable.logo_url) {
@@ -388,6 +400,11 @@ function normalizeDisplayName(displayName) {
   return displayName || "";
 }
 
+/**
+ * 按后端可编辑字段和员工自助开关构造保存 payload。
+ *
+ * 返回值只包含允许写入的字段；未允许编辑的字段即使在表单中存在，也不会发送给后端。
+ */
 function buildPayload(form, privacy, editable, selfService) {
   const payload = { fields: {} };
   const privacyPayload = {};
@@ -404,8 +421,7 @@ function buildPayload(form, privacy, editable, selfService) {
   if (Object.keys(privacyPayload).length) {
     payload.privacy = privacyPayload;
   }
-  // Every assignment below is guarded by backend-provided editability. This page
-  // mirrors the server contract to avoid accidental writes from locked controls.
+  // 以下每个赋值都受后端 editability 保护，前端镜像服务端契约以减少误写。
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
   if (editable.display_name) payload.display_name = form.display_name;
   if (editable.title) payload.title = form.title || null;
@@ -439,10 +455,15 @@ function validateCardForm(form, editable) {
   }
 }
 
+/**
+ * 把头像/LOGO 路径转成可持久化值。
+ *
+ * 已持久化的 CDN/API URL 和 data URL 原样返回；微信临时文件会内联为 data URL，
+ * 防止保存后引用一个会过期的本地路径。
+ */
 function pathToDataUrl(path, mime = "image/jpeg") {
   if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
-    // Persisted CDN/API URLs and existing data URLs are already durable enough;
-    // only ephemeral WeChat file handles need to be inlined before save.
+    // 已持久化 URL 和现有 data URL 足够稳定；只有微信临时文件需要保存前内联。
     return Promise.resolve(path);
   }
   return new Promise((resolve, reject) => {

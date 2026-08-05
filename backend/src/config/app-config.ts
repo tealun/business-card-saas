@@ -16,9 +16,8 @@ const databaseUrl = z.string().min(1).refine((value) => /^postgres(ql)?:\/\//.te
   message: 'DATABASE_URL must start with "postgres://" or "postgresql://"'
 });
 
-// Env values are always strings, so `z.coerce.boolean()` would treat "0"/"false"
-// as `true` (any non-empty string is truthy). Parse a fixed token set instead so
-// "0"/"false"/""/unset all mean false and only explicit truthy tokens enable it.
+// 环境变量始终是字符串，`z.coerce.boolean()` 会把 "0"/"false" 当成 true
+// （任何非空字符串都为真）。这里改用固定 token 集合，确保只有显式真值才启用开关。
 function booleanFlag(defaultValue: boolean) {
   return z
     .preprocess(
@@ -99,12 +98,11 @@ const appConfigSchema = z
     S3_SECRET_ACCESS_KEY: z.string().min(1).optional().or(z.literal("")),
     S3_FORCE_PATH_STYLE: booleanFlag(false),
 
-    // Bearer token required to scrape GET /api/v1/metrics. Unset => endpoint disabled (A54-P1-1).
+    // 抓取 GET /api/v1/metrics 所需的 Bearer token；未设置时指标端点禁用（A54-P1-1）。
     METRICS_TOKEN: z.string().min(1).optional().or(z.literal("")),
 
-    // Initial super admin for the admin console. Only used to create the
-    // account when the username does not exist yet; changing the password in
-    // the console makes these values inert.
+    // 后台控制台初始超级管理员。仅在用户名不存在时创建账号；一旦在控制台修改密码，
+    // 这些环境变量就不再影响既有账号。
     ADMIN_BOOTSTRAP_USERNAME: z.string().min(1).max(64).optional().or(z.literal("")),
     ADMIN_BOOTSTRAP_PASSWORD: z.string().min(8).max(128).optional().or(z.literal(""))
   })
@@ -134,8 +132,7 @@ const appConfigSchema = z
     }
     if (data.NODE_ENV === "production") {
       for (const key of ["WECOM_PROVIDER_CORP_ID", "WECOM_SUITE_ID", "WECOM_SUITE_SECRET"] as const) {
-        // Allow obvious placeholders in examples and local fixtures, but fail
-        // closed in production where WeCom credentials leave the app boundary.
+        // 示例和本地夹具允许占位值；生产环境会真实连接企业微信，必须拒绝明显占位凭据。
         if (/xxx|example|change|your/i.test(data[key])) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

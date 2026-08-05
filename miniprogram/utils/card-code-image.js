@@ -1,6 +1,12 @@
 const CARD_CODE_WIDTH = 720;
 const CARD_CODE_HEIGHT = 980;
 
+/**
+ * 生成公开名片二维码海报临时图片。
+ *
+ * 调用方需提供页面实例和二维码/名片数据；函数会绘制隐藏 canvas 并导出 PNG，
+ * 失败时返回空字符串，让页面保留原有分享路径。
+ */
 function buildCardCodeImage(page, options = {}) {
   if (!page || typeof page.createSelectorQuery !== "function") {
     return Promise.resolve("");
@@ -18,8 +24,7 @@ function buildCardCodeImage(page, options = {}) {
         }
         try {
           const dpr = devicePixelRatio();
-          // Canvas node dimensions are physical pixels; drawing coordinates below
-          // stay in design pixels after scaling so exported QR posters remain sharp.
+          // canvas 节点尺寸使用物理像素；缩放后仍按设计像素绘制，保证导出的二维码海报清晰。
           node.width = CARD_CODE_WIDTH * dpr;
           node.height = CARD_CODE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
@@ -172,14 +177,18 @@ function drawText(ctx, value, x, y, maxWidth, font, color, align = "left") {
   ctx.restore();
 }
 
+/**
+ * 把二维码图片源解析为当前 canvas 可绘制对象。
+ *
+ * 兼容新版 node canvas 的 createImage，也兼容旧版 drawImage 直接接受本地路径的行为。
+ */
 async function loadCanvasImage(canvas, src) {
   const path = await resolveImagePath(src);
   if (!path) {
     throw new Error("image source missing");
   }
   if (!canvas || typeof canvas.createImage !== "function") {
-    // Older canvas APIs accept a file path directly in drawImage; newer node
-    // canvas requires createImage. Support both because DevTools and devices differ.
+    // 老 canvas API 可直接 drawImage(path)，新 node canvas 需要 createImage；真机和开发者工具存在差异。
     return path;
   }
   return new Promise((resolve, reject) => {
@@ -219,8 +228,7 @@ function dataUrlToTempFile(dataUrl) {
     return Promise.resolve(dataUrl);
   }
   const ext = match[1].toLowerCase().replace("jpeg", "jpg");
-  // Canvas drawImage cannot consume every data URL consistently on device, so
-  // materialize uploads into USER_DATA_PATH before composing the poster.
+  // 真机 canvas 不一定稳定消费 data URL，先落到 USER_DATA_PATH 再参与海报合成。
   const filePath = `${wx.env.USER_DATA_PATH}/card-code-${Date.now()}.${ext}`;
   return new Promise((resolve) => {
     fs.writeFile({

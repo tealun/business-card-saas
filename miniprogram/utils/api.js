@@ -32,11 +32,16 @@ function apiBase() {
   return base;
 }
 
+/**
+ * 发起业务 API 请求，并统一处理基础地址、鉴权头、响应包裹和登录失效。
+ *
+ * GET/HEAD 会做一次轻量重试；POST/PUT/DELETE 等写操作不自动重试，避免重复创建
+ * 名片、会话或审计记录。
+ */
 function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const isIdempotent = method === "GET" || method === "HEAD";
-  // Retry only read-like requests. Mutating calls may create cards, sessions, or
-  // audit rows, so the caller must decide whether repeating them is safe.
+  // 只重试读类请求；写请求是否可重放必须由业务调用方判断。
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
   const baseUrl = apiBase();
@@ -68,9 +73,7 @@ function request(path, options = {}) {
           return;
         }
         if (response.statusCode === 401) {
-          // A 401 from any authenticated API means the cached identity is no
-          // longer trustworthy; clear it at the transport boundary before pages
-          // can render stale tenant/member context.
+          // 任一鉴权 API 返回 401，都说明本地身份缓存不再可信；在传输层清理，避免页面继续渲染旧租户/成员。
           clearSessionState();
         }
         reject(new Error((response.data && response.data.message) || `HTTP ${response.statusCode}`));
@@ -130,11 +133,16 @@ function uploadBinary(path, filePath, options = {}) {
   }));
 }
 
+/**
+ * 读取本地或开发者工具临时文件为 ArrayBuffer。
+ *
+ * 微信环境下图片可能来自 wxfile/http://tmp/本地路径，上传前统一转成二进制，
+ * 并把底层错误整理成可展示给用户的错误消息。
+ */
 function readFileAsArrayBuffer(filePath) {
   return readFileWithFileSystem(filePath).catch((firstError) => {
     if (isHttpTemporaryFilePath(filePath) && typeof wx.request === "function") {
-      // DevTools sometimes exposes selected files as http://tmp/...; the file
-      // system API cannot read those, but wx.request can still fetch the bytes.
+      // 开发者工具有时把选中文件暴露为 http://tmp/...；文件系统读不到，但 wx.request 能取回字节。
       return readFileWithRequest(filePath).catch((secondError) => {
         throw readableFileError(secondError, firstError);
       });
@@ -191,10 +199,12 @@ function errorMessage(error) {
   return String((error && (error.message || error.errMsg)) || "").trim();
 }
 
-// WeChat and DevTools expose selected images through http://tmp, wxfile, or a
-// loopback /**tmp**/ URL. Those URLs belong to one process and become invalid after the temp file is
-// cleared. Filter historical values at the API boundary so no page can hand a
-// stale local URL to the rendering layer.
+/**
+ * 清洗 API 返回数据中的临时本地文件地址。
+ *
+ * 微信和开发者工具会把图片暴露成 wxfile、http://tmp 或本地回环 tmp URL，
+ * 这些地址只在当前进程有效；在 API 边界清洗，防止页面把历史临时地址交给渲染层。
+ */
 function sanitizeApiData(value, baseUrl = "") {
   if (typeof value === "string") {
     if (isTemporaryLocalFileUrl(value)) return "";
@@ -231,8 +241,7 @@ function clearSessionState() {
   if (app && app.globalData) {
     const { demoIdentity } = require("./demo-card");
     const demo = demoIdentity(true);
-    // Keep the app usable after token expiry by falling back to the explicit demo
-    // identity instead of leaving a half-cleared real tenant in memory.
+    // token 过期后回到显式演示身份，避免内存里残留半清理的真实租户上下文。
     app.globalData.token = "";
     app.globalData.currentIdentity = demo;
     app.globalData.identities = [demo];
@@ -280,6 +289,11 @@ function qyLoginCode() {
   });
 }
 
+/**
+ * 获取微信小程序登录 code。
+ *
+ * 正常环境使用 wx.login；开发版启用演示登录时返回固定演示 code，便于本地联调。
+ */
 function wxLoginCode() {
   return new Promise((resolve, reject) => {
     if (typeof wx.login !== "function") {
@@ -331,8 +345,7 @@ function maybeDemoCode(type = "qy") {
     isDevelop = false;
   }
   if (globalData.demoAuthEnabled && isDevelop) {
-    // Demo auth is intentionally limited to the develop build so preview/release
-    // builds cannot mint a session from fixed codes.
+    // 演示登录只允许 develop 版使用，避免体验版/正式版用固定 code 换取会话。
     return type === "wx" ? "demo-wx-code" : "demo-qy-code";
   }
   return "";

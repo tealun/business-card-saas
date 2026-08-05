@@ -42,13 +42,18 @@ export class DatabaseService implements OnModuleDestroy {
     return this.getPool().query<T>(text, values);
   }
 
+  /**
+   * 使用同一个 PostgreSQL 连接执行事务回调。
+   *
+   * 调用方可以在回调中设置事务级上下文（例如租户 RLS GUC），这里负责 BEGIN、
+   * COMMIT、ROLLBACK 和连接释放；回调抛出的原始错误会保留给上层处理。
+   */
   async transaction<T>(callback: (tx: DatabaseTransaction) => Promise<T>): Promise<T> {
     const client = await this.getPool().connect();
     try {
       await client.query("BEGIN");
       const result = await callback(client);
-      // Callers such as TenantTx set transaction-local RLS context; COMMIT is
-      // the boundary that releases both the client transaction and those GUCs.
+      // TenantTx 等调用方会设置事务级 RLS 上下文；COMMIT 同时结束事务并释放这些变量。
       await client.query("COMMIT");
       return result;
     } catch (error) {
@@ -59,7 +64,7 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  // A12-P2-3: readiness probe. Distinguishes "no pool configured" from "pool configured but unreachable".
+  // A12-P2-3：readiness 探针，区分“未配置连接池”和“已配置但不可达”。
   async ping(): Promise<{ configured: boolean; ok: boolean }> {
     if (!this.pool) {
       return { configured: false, ok: false };
@@ -88,8 +93,8 @@ export class DatabaseService implements OnModuleDestroy {
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
-  // Invalid operational knobs fall back instead of crashing local/test startup;
-  // production-required settings are enforced by AppConfig before use.
+  // 运维调参写错时回落到默认值，避免本地/测试启动被非关键参数阻断；
+  // 生产必填项仍由 AppConfig 在使用前统一校验。
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
@@ -97,6 +102,6 @@ async function rollback(client: PoolClient): Promise<void> {
   try {
     await client.query("ROLLBACK");
   } catch {
-    // Preserve the original transaction error.
+    // 保留原始事务错误，回滚失败不覆盖上层真正需要处理的异常。
   }
 }

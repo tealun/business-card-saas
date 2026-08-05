@@ -26,9 +26,14 @@ const REPLAY_WINDOW_SECONDS = 5 * 60;
 export class WecomCallbackCryptoService {
   constructor(private readonly config: WecomConfigService) {}
 
+  /**
+   * 校验并解密企业微信回调消息。
+   *
+   * 入口参数来自 URL/query 和密文体；这里先做时间窗和签名校验，再解密并校验接收方，
+   * 供指令回调、数据回调等上层服务复用。
+   */
   decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
-    // Verify freshness before decrypting so replayed ciphertext never reaches
-    // the AES path, and signature failures stay indistinguishable from tampering.
+    // 先校验时间窗再进入 AES 路径，避免重放密文消耗解密逻辑。
     this.guardTimestamp(payload);
 
     const suite = this.config.suite;
@@ -47,6 +52,12 @@ export class WecomCallbackCryptoService {
     });
   }
 
+  /**
+   * 解密已经被上游判定可信的企业微信密文。
+   *
+   * 仅跳过签名/时间窗检查，仍会校验 AES key、消息长度、PKCS#7 padding 和 receiveId；
+   * 适用于测试或同一回调流程内已经完成外层校验后的复用。
+   */
   decryptTrustedCiphertext(encrypt: string, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
     const suite = this.config.suite;
     const encodingAesKey = options.aesKey ?? suite.callbackAesKey;
@@ -65,9 +76,8 @@ export class WecomCallbackCryptoService {
     const messageLength = unpadded.readUInt32BE(16);
     const messageStart = 20;
     const messageEnd = messageStart + messageLength;
-    // WeCom plaintext is random(16) + msg_len(4) + xml/json + receive_id.
-    // Validate the declared length before slicing so malformed ciphertext cannot
-    // blur message bytes into the receiver check.
+    // 企业微信明文格式为 random(16) + msg_len(4) + xml/json + receive_id；
+    // 先校验声明长度再切片，避免畸形密文把消息内容和接收方边界混在一起。
     if (messageLength <= 0 || messageEnd > unpadded.length) {
       throw new BadRequestException("invalid WeCom callback message length");
     }
@@ -113,8 +123,7 @@ export class WecomCallbackCryptoService {
   }
 
   private decodeAesKey(encodingAesKey: string): Buffer {
-    // WeCom publishes a 43-character base64 string whose decoded key is 32 bytes;
-    // adding one "=" restores standard base64 padding for Node's decoder.
+    // 企业微信配置的是 43 位 base64 字符串，补一个 "=" 后才能按标准 base64 解出 32 字节 key。
     const aesKey = Buffer.from(`${encodingAesKey}=`, "base64");
     if (aesKey.length !== 32) {
       throw new ServiceUnavailableException("WeCom callback AES key is invalid");

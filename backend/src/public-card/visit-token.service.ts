@@ -12,10 +12,15 @@ export interface VisitTokenPayload {
 
 @Injectable()
 export class VisitTokenService {
-  // Visit tokens only bridge the public-card page load to the stats endpoint;
-  // keep the window short so shared links remain public while visit writes are bounded.
+  // visit_token 只连接公开名片加载和访问统计写入，窗口要短，避免公开分享链接扩大写入面。
   private readonly ttlSeconds = 30 * 60;
 
+  /**
+   * 签发一次公开名片访问 token。
+   *
+   * token 内含本次访问、公开名片、分享来源和随机数，供后续统计接口归因；调用方不传
+   * issuedAt，时间由服务端统一写入。
+   */
   sign(payload: Omit<VisitTokenPayload, "issuedAt">): string {
     const fullPayload: VisitTokenPayload = {
       ...payload,
@@ -26,6 +31,11 @@ export class VisitTokenService {
     return `${encoded}.${signature}`;
   }
 
+  /**
+   * 校验公开名片访问 token，并返回原始访问载荷。
+   *
+   * 只校验签名和最大年龄，不把它提升为用户身份；过期或伪造 token 统一按未授权处理。
+   */
   verify(token: string): VisitTokenPayload {
     const [encoded, signature] = token.split(".");
     if (!encoded || !signature) {
@@ -39,8 +49,7 @@ export class VisitTokenService {
 
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as VisitTokenPayload;
     const now = Math.floor(Date.now() / 1000);
-    // Use max age rather than an absolute expiry embedded by callers: the server
-    // is the sole authority for how long anonymous visit attribution remains valid.
+    // 使用服务端最大年龄，而不是信任调用方写入的绝对过期时间。
     if (now - payload.issuedAt > this.ttlSeconds) {
       throw new UnauthorizedException("visit_token expired");
     }
@@ -53,7 +62,7 @@ export class VisitTokenService {
 
   private signature(encodedPayload: string): string {
     const secret = readSecret("VISIT_TOKEN_SECRET");
-    // Domain-separated from session/anon HMACs sharing this secret (A12-P2-2).
+    // 与可能共用密钥的 session/anon HMAC 做用途隔离（A12-P2-2）。
     return createHmac("sha256", secret).update(`v1.visit.${encodedPayload}`).digest("base64url");
   }
 
