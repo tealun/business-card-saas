@@ -36,6 +36,12 @@ export class WecomContactSyncService {
     private readonly suiteTokens: WecomSuiteTokenService
   ) {}
 
+  /**
+   * 同步指定租户的企业微信成员。
+   *
+   * 优先使用通讯录 API 获取完整成员列表；权限不足时可降级到授权范围中的 allow_user，
+   * 但降级结果不能用于自动停用离职成员。
+   */
   async syncTenantMembers(input: SyncTenantContactMembersInput): Promise<SyncTenantContactMembersResult> {
     const authorization = await this.tenants.getByTenantId(input.tenantId);
     if (!authorization) {
@@ -85,8 +91,12 @@ export class WecomContactSyncService {
     };
   }
 
-  // 企业微信不向第三方应用返回成员真实姓名/手机号（user/get 以 userid 代替 name），
-  // 所以这里不做逐人详情补全；真实资料由成员在小程序内完成敏感信息授权后写入。
+  /**
+   * 获取企业微信可见成员列表并去重。
+   *
+   * 企业微信第三方应用不会稳定返回成员真实姓名/手机号；真实资料由成员在小程序内完成
+   * 敏感信息授权后写入，这里只保证身份列表可同步。
+   */
   private async fetchAllContactUsers(
     accessToken: string,
     authorization: TenantAuthorizationSnapshot
@@ -105,6 +115,11 @@ export class WecomContactSyncService {
     };
   }
 
+  /**
+   * 获取可见成员列表。
+   *
+   * 通讯录权限不足时降级到授权范围中的 allow_user；按部门授权且 allow_user 为空时继续抛出原错误。
+   */
   private async fetchVisibleUsers(
     accessToken: string,
     authorization: TenantAuthorizationSnapshot
@@ -125,6 +140,9 @@ export class WecomContactSyncService {
     }
   }
 
+  /**
+   * 按可见部门枚举直属成员。
+   */
   private async fetchVisibleDepartmentUsers(accessToken: string): Promise<WecomContactUserIdentity[]> {
     const departmentIds = await this.api.fetchVisibleDepartmentIds({ accessToken });
     const users: WecomContactUserIdentity[] = [];
@@ -134,6 +152,9 @@ export class WecomContactSyncService {
     return users;
   }
 
+  /**
+   * 从企业授权信息中读取 allow_user 兜底成员列表。
+   */
   private async fetchAuthorizedScopeUsers(
     authorization: TenantAuthorizationSnapshot
   ): Promise<WecomContactUserIdentity[]> {
@@ -147,6 +168,9 @@ export class WecomContactSyncService {
   }
 }
 
+/**
+ * 判断错误是否为企业微信权限不足。
+ */
 function isForbiddenError(error: unknown): boolean {
   return Boolean(
     error &&
@@ -157,6 +181,9 @@ function isForbiddenError(error: unknown): boolean {
   );
 }
 
+/**
+ * 从授权信息中解析 allow_user 成员。
+ */
 function usersFromAuthInfo(authInfo: unknown): WecomContactUserIdentity[] {
   const agents =
     (authInfo as { agent?: Array<{ privilege?: { allow_user?: unknown[] } }> } | null)?.agent ?? [];
@@ -175,10 +202,16 @@ function usersFromAuthInfo(authInfo: unknown): WecomContactUserIdentity[] {
   return users;
 }
 
+/**
+ * 判断成员记录是否包含有价值的联系方式字段。
+ */
 function hasUsefulContactDetail(user: WecomContactUserIdentity): boolean {
   return Boolean(realContactName(user) || user.title || user.mobile || user.email);
 }
 
+/**
+ * 过滤企业微信用 userid/open_userid 代替真实姓名的情况。
+ */
 function realContactName(user: WecomContactUserIdentity): string | null {
   const name = user.name?.trim();
   if (!name || name === user.userid?.trim() || name === user.openUserid?.trim()) {

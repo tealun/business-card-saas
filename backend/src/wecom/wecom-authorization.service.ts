@@ -29,6 +29,11 @@ export class WecomAuthorizationService {
     private readonly settings: WecomTenantSettingsRepository
   ) {}
 
+  /**
+   * 处理企业微信安装授权 auth_code。
+   *
+   * auth_code 是一次性短期凭据；这里用哈希 key 合并并发处理，避免同一个 code 被重复换取 permanent_code。
+   */
   async handleAuthCode(authCode: string, authorizedAt = new Date()): Promise<TenantAuthorizationSnapshot> {
     const normalizedCode = authCode.trim();
     if (!normalizedCode) {
@@ -52,6 +57,9 @@ export class WecomAuthorizationService {
     }
   }
 
+  /**
+   * 将 auth_code 换取 permanent_code 并保存租户授权。
+   */
   private async exchangeAuthCode(authCode: string, authorizedAt: Date): Promise<TenantAuthorizationSnapshot> {
     const suiteToken = await this.suiteTokens.getSuiteAccessToken();
     const authorization = await this.api.fetchPermanentCode({
@@ -70,6 +78,11 @@ export class WecomAuthorizationService {
     return saved;
   }
 
+  /**
+   * 刷新企业微信授权信息。
+   *
+   * change_auth 回调触发后使用既有 permanent_code 重新拉取授权范围并保存。
+   */
   async refreshAuthorization(openCorpid: string, changedAt = new Date()): Promise<TenantAuthorizationSnapshot> {
     const normalizedCorpid = openCorpid.trim();
     if (!normalizedCorpid) {
@@ -97,6 +110,9 @@ export class WecomAuthorizationService {
     return saved;
   }
 
+  /**
+   * 标记企业微信授权取消。
+   */
   async cancelAuthorization(openCorpid: string, cancelledAt = new Date()): Promise<boolean> {
     const normalizedCorpid = openCorpid.trim();
     if (!normalizedCorpid) {
@@ -105,6 +121,11 @@ export class WecomAuthorizationService {
     return this.tenants.cancelAuthorization(normalizedCorpid, cancelledAt);
   }
 
+  /**
+   * 重试授权后失败的通讯录同步事件。
+   *
+   * 达到最大重试次数后写入 dead-letter，避免后台无限重试同一个坏事件。
+   */
   async retryFailedContactSyncs(input: { tenantId?: string; limit?: number } = {}): Promise<WecomAuthorizationSyncRetryResult> {
     const candidates = await this.events.listRetryableSyncEvents(
       MAX_AUTH_SYNC_RETRIES,
@@ -153,6 +174,11 @@ export class WecomAuthorizationService {
     return result;
   }
 
+  /**
+   * 授权创建/变更后自动同步成员。
+   *
+   * 同步失败不会回滚授权保存，而是记录可重试事件。
+   */
   private async syncAuthorizedTenant(
     authorization: TenantAuthorizationSnapshot,
     source: "create_auth" | "change_auth"
@@ -181,10 +207,16 @@ export class WecomAuthorizationService {
   }
 }
 
+/**
+ * 格式化未知错误。
+ */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * 生成授权后同步事件幂等 key。
+ */
 function authorizationSyncEventKey(tenantId: string, source: "create_auth" | "change_auth"): string {
   return `wecom:sync:${tenantId}:${source}`;
 }

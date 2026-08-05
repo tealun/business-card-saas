@@ -282,6 +282,9 @@ const WECOM_API_NO_PRIVILEGE = 60011;
 export class WecomApiClientService {
   constructor(private readonly config: WecomConfigService) {}
 
+  /**
+   * 获取第三方应用 suite_access_token。
+   */
   async fetchSuiteAccessToken(request: FetchSuiteTokenRequest): Promise<FetchSuiteTokenResponse> {
     const payload = await this.postJson<WecomSuiteTokenPayload>("get_suite_token", "/cgi-bin/service/get_suite_token", {
       suite_id: request.suiteId,
@@ -301,6 +304,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 获取预授权码。
+   */
   async fetchPreAuthCode(request: FetchPreAuthCodeRequest): Promise<FetchPreAuthCodeResponse> {
     const payload = await this.getJson<WecomPreAuthCodePayload>(
       "get_pre_auth_code",
@@ -320,6 +326,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 拉取已授权企业的授权信息。
+   */
   async fetchAuthorizationInfo(request: FetchAuthorizationInfoRequest): Promise<FetchAuthorizationInfoResponse> {
     const payload = await this.postJson<WecomAuthorizationInfoPayload>(
       "get_auth_info",
@@ -344,6 +353,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 设置预授权码的授权配置。
+   */
   async setSessionInfo(request: SetSessionInfoRequest): Promise<void> {
     const sessionInfo: { auth_type: 0 | 1; appid?: Array<string | number> } = {
       auth_type: request.authType
@@ -366,6 +378,9 @@ export class WecomApiClientService {
     }
   }
 
+  /**
+   * 用 auth_code 换取永久授权码 permanent_code。
+   */
   async fetchPermanentCode(request: FetchPermanentCodeRequest): Promise<FetchPermanentCodeResponse> {
     const payload = await this.postJson<WecomPermanentCodePayload>(
       "get_permanent_code",
@@ -394,6 +409,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 获取授权企业的 corp access_token。
+   */
   async fetchCorpAccessToken(request: FetchCorpTokenRequest): Promise<FetchCorpTokenResponse> {
     const payload = await this.postJson<WecomCorpTokenPayload>(
       "get_corp_token",
@@ -415,6 +433,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 解析企业微信小程序登录 code。
+   */
   async fetchMiniProgramSession(request: FetchMiniProgramSessionRequest): Promise<FetchMiniProgramSessionResponse> {
     const payload = await this.postJson<WecomMiniProgramSessionPayload>(
       "miniprogram jscode2session",
@@ -443,6 +464,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 批量获取通讯录成员 id。
+   */
   async fetchContactUserIds(request: FetchContactUserIdsRequest): Promise<FetchContactUserIdsResponse> {
     const payload = await this.postJson<WecomContactUserListPayload>(
       "contact user list_id",
@@ -473,6 +497,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 获取应用可见范围内的部门 id。
+   */
   async fetchVisibleDepartmentIds(request: FetchVisibleDepartmentIdsRequest): Promise<string[]> {
     // id 不填时返回应用权限范围内的全部部门；第三方应用可见范围之外的部门不会出现。
     const search = new URLSearchParams({ access_token: request.accessToken });
@@ -497,6 +524,9 @@ export class WecomApiClientService {
     return [...new Set(ids)];
   }
 
+  /**
+   * 获取部门直属成员。
+   */
   async fetchDepartmentUsers(request: FetchDepartmentUsersRequest): Promise<WecomContactUserIdentity[]> {
     // user/simplelist 已取消 fetch_child 语义，只返回该部门直属成员；调用方需逐部门枚举。
     const search = new URLSearchParams({
@@ -527,6 +557,9 @@ export class WecomApiClientService {
     }));
   }
 
+  /**
+   * 获取单个通讯录成员详情。
+   */
   async fetchContactUserDetail(request: FetchContactUserDetailRequest): Promise<WecomContactUserIdentity> {
     const search = new URLSearchParams({
       access_token: request.accessToken,
@@ -553,6 +586,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 获取企业微信 OAuth 第三方成员身份。
+   */
   async fetchThirdPartyUserInfo(
     suiteAccessToken: string,
     code: string,
@@ -575,6 +611,9 @@ export class WecomApiClientService {
     return { openCorpid, userid, openUserid, userTicket, expiresIn: payload.expires_in ?? 0 };
   }
 
+  /**
+   * 获取授权企业管理员列表。
+   */
   async fetchCorpAdminList(request: FetchCorpAdminListRequest): Promise<FetchCorpAdminListResponse> {
     const payload = await this.postJson<WecomCorpAdminListPayload>(
       "get_admin_list",
@@ -598,6 +637,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 使用 user_ticket 获取第三方成员敏感资料。
+   */
   async fetchThirdPartyUserDetail(
     suiteAccessToken: string,
     userTicket: string
@@ -622,6 +664,9 @@ export class WecomApiClientService {
     };
   }
 
+  /**
+   * 发起企业微信 GET JSON 请求。
+   */
   private async getJson<T>(operation: string, path: string): Promise<T> {
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), this.config.httpTimeoutMs);
@@ -639,6 +684,11 @@ export class WecomApiClientService {
     }
   }
 
+  /**
+   * 发起企业微信 POST JSON 请求。
+   *
+   * 只重试网络/5xx/限流类故障；4xx 和畸形 JSON 不重试。
+   */
   private async postJson<T>(operation: string, path: string, body: unknown): Promise<T> {
     const maxRetries = 3;
     const baseDelayMs = 200;
@@ -707,7 +757,7 @@ function formatWecomErrorBody(body: string | null): string | null {
       return `${parsed.errcode} ${parsed.errmsg ?? ""}`.trim();
     }
   } catch {
-    // fall through to raw body
+    // JSON 解析失败时回退到原始响应体。
   }
   return body;
 }
@@ -717,7 +767,7 @@ function isRetryableStatus(status: number): boolean {
 }
 
 function isRetryableError(error: Error): boolean {
-  // Do not retry client errors (4xx) or malformed responses.
+  // 不重试客户端错误（4xx）或畸形响应。
   if (error instanceof BadGatewayException) {
     return false;
   }
