@@ -126,6 +126,17 @@ function uploadBinary(path, filePath, options = {}) {
 }
 
 function readFileAsArrayBuffer(filePath) {
+  return readFileWithFileSystem(filePath).catch((firstError) => {
+    if (isHttpTemporaryFilePath(filePath) && typeof wx.request === "function") {
+      return readFileWithRequest(filePath).catch((secondError) => {
+        throw readableFileError(secondError, firstError);
+      });
+    }
+    throw readableFileError(firstError);
+  });
+}
+
+function readFileWithFileSystem(filePath) {
   return new Promise((resolve, reject) => {
     const fs = wx.getFileSystemManager && wx.getFileSystemManager();
     if (!fs || typeof fs.readFile !== "function") {
@@ -140,6 +151,37 @@ function readFileAsArrayBuffer(filePath) {
       fail: reject
     });
   });
+}
+
+function readFileWithRequest(filePath) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: filePath,
+      method: "GET",
+      responseType: "arraybuffer",
+      success(response) {
+        if (response.statusCode >= 200 && response.statusCode < 300 && response.data) {
+          resolve(response.data);
+          return;
+        }
+        reject(new Error(`HTTP ${response.statusCode || 0}`));
+      },
+      fail: reject
+    });
+  });
+}
+
+function isHttpTemporaryFilePath(filePath) {
+  return /^https?:\/\/tmp\//i.test(String(filePath || ""));
+}
+
+function readableFileError(error, fallbackError) {
+  const message = errorMessage(error) || errorMessage(fallbackError) || "临时文件读取失败";
+  return new Error(message);
+}
+
+function errorMessage(error) {
+  return String((error && (error.message || error.errMsg)) || "").trim();
 }
 
 // WeChat and DevTools expose selected images through http://tmp, wxfile, or a
