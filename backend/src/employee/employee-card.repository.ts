@@ -94,6 +94,11 @@ export class EmployeeCardRepository {
     @Optional() private readonly storage?: StorageService
   ) {}
 
+  /**
+   * 读取当前身份的员工名片。
+   *
+   * 数据库模式会确保默认名片存在后再读取；无数据库时使用内存演示数据。
+   */
   async getCurrentCard(session: EmployeeSession): Promise<EmployeeCardResponse> {
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
@@ -114,9 +119,11 @@ export class EmployeeCardRepository {
     });
   }
 
-  // Per-identity visit stats: card_visits rows are already scoped to the
-  // current identity's tenant + member, so personal and each enterprise card
-  // naturally keep separate numbers.
+  /**
+   * 读取当前名片统计。
+   *
+   * 统计以当前员工身份的 primary card 为边界，不跨身份合并。
+   */
   async getCurrentCardStats(session: EmployeeSession): Promise<EmployeeCardStatsResponse> {
     if (!this.hasDatabase()) {
       return { visitor_count: 0, visit_count: 0, recent_visitors: [] };
@@ -205,6 +212,11 @@ export class EmployeeCardRepository {
     });
   }
 
+  /**
+   * 更新当前员工名片资料。
+   *
+   * 会根据员工自助配置和可编辑字段过滤请求，素材字段会先持久化，避免保存临时文件路径。
+   */
   async updateCurrentCard(session: EmployeeSession, request: UpdateEmployeeCardRequest): Promise<EmployeeCardResponse> {
     if (this.hasDatabase()) {
       return this.tenantTx!.run(session.tenantId, async (tx) => {
@@ -271,6 +283,11 @@ export class EmployeeCardRepository {
     return this.cloneCard(next);
   }
 
+  /**
+   * 更新当前员工名片状态。
+   *
+   * 同步更新公开目录，保证公开页和员工端状态一致。
+   */
   async updateCurrentCardStatus(
     session: EmployeeSession,
     status: "active" | "disabled"
@@ -324,6 +341,9 @@ export class EmployeeCardRepository {
     return this.cloneCard(next);
   }
 
+  /**
+   * 创建当前名片的分享 id。
+   */
   async createShare(session: EmployeeSession): Promise<{ publicId: string; shareId: string }> {
     const card = await this.getCurrentCard(session);
     return {
@@ -332,6 +352,9 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 读取当前名片的微信二维码。
+   */
   async getWechatQrCode(session: EmployeeSession): Promise<EmployeeWechatQrCodeResponse> {
     const card = await this.getCurrentCard(session);
     const settings = await this.readEmployeeWecomSettings(session);
@@ -350,6 +373,9 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 读取当前企业微信敏感资料授权状态。
+   */
   async getWecomSensitiveStatus(session: EmployeeSession): Promise<EmployeeWecomSensitiveStatusResponse> {
     if (session.identityType !== "wecom_member") {
       return {
@@ -377,6 +403,11 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 更新当前名片微信二维码。
+   *
+   * 根据租户配置决定个人上传还是企业优先，写入前会把临时图片持久化。
+   */
   async updateWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<EmployeeWechatQrCodeResponse> {
     const settings = await this.readEmployeeWecomSettings(session);
     if (session.identityType !== "personal" && !settings.allowEmployeeWecomQrCodeUpload) {
@@ -422,6 +453,11 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 同步企业微信敏感资料到名片。
+   *
+   * 仅写入企业微信授权返回的字段，并更新二维码来源标记。
+   */
   async syncWecomSensitiveProfile(
     session: EmployeeSession,
     profile: {
@@ -479,6 +515,9 @@ export class EmployeeCardRepository {
     return this.cloneCard(next);
   }
 
+  /**
+   * 读取当前名片公开预览结构。
+   */
   async getPreview(session: EmployeeSession): Promise<EmployeeCardPreviewResponse> {
     const card = await this.getCurrentCard(session);
     const style = this.hasDatabase()
@@ -487,6 +526,11 @@ export class EmployeeCardRepository {
     return this.toPreview(card, style);
   }
 
+  /**
+   * 更新当前名片样式配置。
+   *
+   * 样式素材同样会持久化到存储服务，避免公开预览引用本地临时路径。
+   */
   async updateStyle(
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest
@@ -518,6 +562,11 @@ export class EmployeeCardRepository {
     return this.toPreview(card, next);
   }
 
+  /**
+   * 确保当前身份存在 primary 名片。
+   *
+   * 登录后首次进入名片页时可能尚未创建 cards 行，这里负责按默认 public_id/slug 补齐。
+   */
   private async ensureCurrentCardInDb(
     tx: TenantTransactionClient,
     session: EmployeeSession
@@ -578,6 +627,9 @@ export class EmployeeCardRepository {
     return this.toCard(session, created);
   }
 
+  /**
+   * 查询当前身份 primary 名片原始行。
+   */
   private async queryCurrentCard(
     tx: TenantTransactionClient,
     session: EmployeeSession
@@ -623,6 +675,11 @@ export class EmployeeCardRepository {
     return result.rows[0] ?? null;
   }
 
+  /**
+   * 将数据库行转换为员工名片响应。
+   *
+   * 这里集中解密 fields、读取隐私配置、合并企业配置和可编辑字段。
+   */
   private toCard(session: EmployeeSession, row: EmployeeCardRow): EmployeeCardResponse {
     const memberIdentityId = String(row.member_id);
     const fields = this.decryptJson(row.fields_encrypted) ?? defaultFields();
@@ -652,6 +709,9 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 读取当前名片样式覆盖。
+   */
   private async readStyle(
     tx: TenantTransactionClient,
     tenantId: string,
@@ -686,6 +746,9 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 写入当前名片样式覆盖。
+   */
   private async upsertStyle(
     tx: TenantTransactionClient,
     tenantId: string,
@@ -737,6 +800,11 @@ export class EmployeeCardRepository {
     );
   }
 
+  /**
+   * 同步公开名片目录。
+   *
+   * 员工名片资料或状态变化后必须更新该表，公开页才能解析到最新 card_id 和状态。
+   */
   private async upsertPublicDirectory(
     tx: TenantTransactionClient,
     input: {
@@ -769,6 +837,9 @@ export class EmployeeCardRepository {
     );
   }
 
+  /**
+   * 加密名片扩展字段 JSON。
+   */
   private encryptJson(fields: CardFields): string {
     if (!this.cipher) {
       throw new Error("Card field cipher is required for employee card persistence");
@@ -776,6 +847,9 @@ export class EmployeeCardRepository {
     return this.cipher.encrypt(JSON.stringify(fields));
   }
 
+  /**
+   * 解密名片扩展字段 JSON。
+   */
   private decryptJson(value: string | null): CardFields | null {
     if (!value || !this.cipher) {
       return null;
@@ -787,10 +861,16 @@ export class EmployeeCardRepository {
     }
   }
 
+  /**
+   * 生成内存演示名片 key。
+   */
   private cardKey(session: EmployeeSession): string {
     return `${session.tenantId}:${session.memberIdentityId}`;
   }
 
+  /**
+   * 确保内存演示模式下存在当前名片。
+   */
   private ensureCurrentCardInMemory(session: EmployeeSession): EmployeeCardResponse {
     const key = this.cardKey(session);
     const existing = this.cards.get(key);
@@ -824,6 +904,9 @@ export class EmployeeCardRepository {
     return card;
   }
 
+  /**
+   * 深拷贝员工名片，避免调用方修改内存缓存。
+   */
   private cloneCard(card: EmployeeCardResponse): EmployeeCardResponse {
     return {
       ...card,
@@ -834,6 +917,9 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 将员工名片和样式转换为公开预览结构。
+   */
   private toPreview(card: EmployeeCardResponse, style: UpdateEmployeeCardStyleRequest): EmployeeCardPreviewResponse {
     const previewStyle = sanitizeStyleForTemplate(style);
     const email = card.privacy.show_email ? normalizePublicEmail(card.fields.email) : null;
@@ -904,10 +990,16 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 判断是否运行在数据库模式。
+   */
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }
 
+  /**
+   * 读取当前身份可编辑字段。
+   */
   private async editableFields(tx: TenantTransactionClient, session: EmployeeSession): Promise<EditableFieldKey[]> {
     if (session.identityType === "personal") {
       return defaultEditableFields();
@@ -923,10 +1015,16 @@ export class EmployeeCardRepository {
     return parseEditableFields(result.rows[0]?.fields_json, defaultEnterpriseEditableFields());
   }
 
+  /**
+   * 根据身份类型给出默认可编辑字段。
+   */
   private editableFieldsForSession(session: EmployeeSession): EditableFieldKey[] {
     return session.identityType === "personal" ? defaultEditableFields() : defaultEnterpriseEditableFields();
   }
 
+  /**
+   * 读取员工端企业微信自助配置。
+   */
   private async readEmployeeWecomSettings(session: EmployeeSession): Promise<EmployeeWecomSettings> {
     if (session.identityType === "personal" || !this.hasDatabase()) {
       return defaultEmployeeWecomSettings();
@@ -934,6 +1032,9 @@ export class EmployeeCardRepository {
     return this.tenantTx!.run(session.tenantId, (tx) => this.employeeWecomSettings(tx, session));
   }
 
+  /**
+   * 从数据库行解析员工端企业微信自助配置。
+   */
   private async employeeWecomSettings(
     tx: TenantTransactionClient,
     session: EmployeeSession
@@ -970,6 +1071,11 @@ export class EmployeeCardRepository {
     };
   }
 
+  /**
+   * 持久化名片资料中的图片字段。
+   *
+   * 头像、微信二维码、企业微信二维码可能来自 data URL 或临时文件，保存前统一转为稳定 URL。
+   */
   private async materializeStorageFields(
     session: EmployeeSession,
     request: UpdateEmployeeCardRequest
@@ -1004,6 +1110,9 @@ export class EmployeeCardRepository {
     return next;
   }
 
+  /**
+   * 持久化微信二维码图片。
+   */
   private async materializeWechatQrCode(session: EmployeeSession, qrcodeUrl: string | null): Promise<string | null> {
     if (!qrcodeUrl || !qrcodeUrl.startsWith("data:image/")) {
       return qrcodeUrl;
@@ -1019,6 +1128,9 @@ export class EmployeeCardRepository {
     return stored.publicUrl;
   }
 
+  /**
+   * 按企业微信二维码策略选择最终展示的微信二维码 URL。
+   */
   private wechatQrCodeUrl(
     session: EmployeeSession,
     card: EmployeeCardResponse,
@@ -1036,6 +1148,9 @@ export class EmployeeCardRepository {
     return card.fields.wecom_qrcode_url ?? card.fields.wechat_qrcode_url ?? null;
   }
 
+  /**
+   * 判断当前微信二维码来源。
+   */
   private wechatQrCodeSource(
     session: EmployeeSession,
     card: EmployeeCardResponse,
@@ -1054,6 +1169,9 @@ export class EmployeeCardRepository {
     return qrUrl === card.fields.wecom_qrcode_url ? "enterprise_cache" : "personal_upload";
   }
 
+  /**
+   * 持久化样式配置中的图片字段。
+   */
   private async materializeStyleStorageFields(
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest
@@ -1105,6 +1223,9 @@ export class EmployeeCardRepository {
     );
   }
 
+  /**
+   * 持久化模板背景图映射。
+   */
   private async materializeTemplateBackgroundMap(
     session: EmployeeSession,
     request: UpdateEmployeeCardStyleRequest,
