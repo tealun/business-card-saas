@@ -116,6 +116,11 @@ export class PublicCardRepository {
     @Optional() private readonly videoFeatures?: CompanyVideoFeatureService
   ) {}
 
+  /**
+   * 按 publicId 读取公开名片。
+   *
+   * 数据库模式先通过公开目录解析租户和 card_id，再进入租户事务读取；无数据库时使用内存演示数据。
+   */
   async findPublicCard(publicId: string): Promise<PublicCardResponse> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
@@ -128,6 +133,11 @@ export class PublicCardRepository {
     return this.clonePublicCard(card);
   }
 
+  /**
+   * 读取公开名片统计。
+   *
+   * anonId 用于判断当前访客是否已点赞；统计本身始终以公开目录中的 card_id 为边界。
+   */
   async getStats(publicId: string, anonId?: string): Promise<PublicCardStats> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
@@ -136,6 +146,11 @@ export class PublicCardRepository {
     return this.readStatsInMemory(publicId, anonId);
   }
 
+  /**
+   * 写入内存公开名片缓存。
+   *
+   * 数据库模式下公开名片由员工名片发布流程写入数据库，这里只服务本地演示/测试降级。
+   */
   async upsertPublicCard(card: PublicCardResponse): Promise<void> {
     if (this.hasDatabase()) {
       return;
@@ -143,6 +158,11 @@ export class PublicCardRepository {
     this.publicCards.set(card.public_id, this.clonePublicCard(card));
   }
 
+  /**
+   * 创建公开名片访问记录。
+   *
+   * 会解析分享 id、写入访客归因和信任等级；无数据库时写入内存 Map 以保持演示流程可用。
+   */
   async createVisit(input: {
     publicId: string;
     shareId?: string;
@@ -212,6 +232,11 @@ export class PublicCardRepository {
     return visit;
   }
 
+  /**
+   * 注册成员主动创建的根分享。
+   *
+   * 根分享 depth=0，后续访客转发会基于它派生分享链路和访问归因。
+   */
   async registerRootShare(input: { publicId: string; shareId: string }): Promise<void> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(input.publicId);
@@ -252,6 +277,11 @@ export class PublicCardRepository {
     });
   }
 
+  /**
+   * 查询指定公开名片下的一次访问。
+   *
+   * 用于校验 visit_token 指向的访问是否仍存在且属于当前 publicId。
+   */
   async findVisit(publicId: string, visitId: string): Promise<CardVisitRecord | undefined> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
@@ -282,6 +312,11 @@ export class PublicCardRepository {
     return this.visits.get(visitId);
   }
 
+  /**
+   * 记录公开名片访问行为。
+   *
+   * 点赞按访客维度去重，其他行为按 visit_id + action_type 幂等。
+   */
   async recordAction(publicId: string, visitId: string, actionType: string): Promise<{ idempotent: boolean }> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
@@ -306,6 +341,11 @@ export class PublicCardRepository {
     return { idempotent };
   }
 
+  /**
+   * 从父分享派生访客分享。
+   *
+   * 分享链最多 3 层，超过上限时返回父分享并标记 capped，不继续写入新分享。
+   */
   async deriveShare(input: { publicId: string; parentShareId: string }): Promise<CardShareRecord & { capped: boolean }> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(input.publicId);
@@ -373,6 +413,11 @@ export class PublicCardRepository {
     return { ...share, capped: false };
   }
 
+  /**
+   * 通过 publicId 解析公开目录。
+   *
+   * 只有 active 目录项可继续访问，禁用或不存在都按公开 404 处理。
+   */
   private async resolveDirectory(publicId: string): Promise<{ tenantId: string; cardId: string; status: PublicCardResponse["status"] }> {
     const result = await this.database!.query<DirectoryRow>(
       `
@@ -394,6 +439,11 @@ export class PublicCardRepository {
     };
   }
 
+  /**
+   * 在租户事务内读取公开名片完整展示数据。
+   *
+   * 同时拼装企业资料、样式覆盖、视频、荣誉和统计，最后由 toPublicCard 应用隐私过滤。
+   */
   private async readPublicCard(
     tx: TenantTransactionClient,
     publicId: string,
@@ -458,6 +508,9 @@ export class PublicCardRepository {
     return this.toPublicCard(row, videos, honors, stats);
   }
 
+  /**
+   * 在数据库中读取访问、访客、点赞统计。
+   */
   private async readStats(
     tx: TenantTransactionClient,
     directory: { tenantId: string; cardId: string },
@@ -514,6 +567,9 @@ export class PublicCardRepository {
     };
   }
 
+  /**
+   * 从内存演示数据读取统计。
+   */
   private readStatsInMemory(publicId: string, anonId?: string): PublicCardStats {
     const visits = [...this.visits.values()].filter((visit) => visit.publicId === publicId);
     const visitors = new Set(visits.map((visit) => visit.anonId || visit.visitId));
@@ -526,6 +582,9 @@ export class PublicCardRepository {
     };
   }
 
+  /**
+   * 读取公开展示的视频模块数据。
+   */
   private async readVideos(tx: TenantTransactionClient, tenantId: string): Promise<PublicCardResponse["videos"]> {
     const result = await tx.query<VideoRow>(
       `
@@ -548,6 +607,9 @@ export class PublicCardRepository {
     }));
   }
 
+  /**
+   * 读取公开展示的荣誉资质模块数据。
+   */
   private async readHonors(tx: TenantTransactionClient, tenantId: string): Promise<PublicCardResponse["honors"]> {
     const result = await tx.query<HonorRow>(
       `
@@ -595,6 +657,11 @@ export class PublicCardRepository {
     return [...honors.values()];
   }
 
+  /**
+   * 将数据库行转换为公开名片响应。
+   *
+   * 这里集中执行隐私过滤、模板布局清洗、企业资料合并和模块可见性计算。
+   */
   private toPublicCard(
     row: PublicCardRow,
     videos: PublicCardResponse["videos"],
@@ -659,6 +726,9 @@ export class PublicCardRepository {
     };
   }
 
+  /**
+   * 按访问记录写入普通行为。
+   */
   private recordVisitAction(
     tx: TenantTransactionClient,
     directory: { tenantId: string; cardId: string },
@@ -687,6 +757,11 @@ export class PublicCardRepository {
     );
   }
 
+  /**
+   * 按访客维度写入唯一行为。
+   *
+   * 目前用于点赞，确保同一访客重复点赞不会增加 like_count。
+   */
   private recordUniqueVisitorAction(
     tx: TenantTransactionClient,
     directory: { tenantId: string; cardId: string },
@@ -734,6 +809,9 @@ export class PublicCardRepository {
     );
   }
 
+  /**
+   * 校验数据库中的分享 id 是否属于当前公开名片。
+   */
   private async resolveShareIdInDb(
     directory: { tenantId: string; cardId: string },
     publicId: string,
@@ -746,6 +824,9 @@ export class PublicCardRepository {
     return share ? shareId : null;
   }
 
+  /**
+   * 在数据库中读取分享链节点。
+   */
   private async findShareInDb(
     directory: { tenantId: string; cardId: string },
     shareId: string
@@ -775,6 +856,9 @@ export class PublicCardRepository {
       : null;
   }
 
+  /**
+   * 校验内存分享 id 是否属于当前公开名片。
+   */
   private resolveShareIdInMemory(publicId: string, shareId: string | undefined): string | null {
     if (!shareId) {
       return null;
@@ -783,6 +867,11 @@ export class PublicCardRepository {
     return share && share.publicId === publicId ? shareId : null;
   }
 
+  /**
+   * 解密公开名片字段。
+   *
+   * 解密失败或未配置 cipher 时返回全空字段，避免敏感字段异常泄露。
+   */
   private decryptFields(value: string | null): PublicCardResponse["card"]["fields"] {
     if (!value || !this.cipher) {
       return {
@@ -825,6 +914,9 @@ export class PublicCardRepository {
     }
   }
 
+  /**
+   * 深拷贝内存公开名片，避免调用方修改演示缓存。
+   */
   private clonePublicCard(card: PublicCardResponse): PublicCardResponse {
     return {
       ...card,
@@ -852,6 +944,9 @@ export class PublicCardRepository {
     };
   }
 
+  /**
+   * 判断公开名片 repository 是否运行在数据库模式。
+   */
   private hasDatabase(): boolean {
     return Boolean(this.database && this.tenantTx && process.env.DATABASE_URL?.trim());
   }
