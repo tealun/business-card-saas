@@ -19,6 +19,8 @@ async function ensureSession(options = {}) {
   const errors = [];
   if (isWeComRuntime()) {
     try {
+      // Prefer enterprise identity in WeCom, but keep wx-login as a fallback so
+      // users can still reach their personal card when qy.login is unavailable.
       return applySession(await loginWithQyCode());
     } catch (error) {
       errors.push(error);
@@ -93,6 +95,8 @@ async function loginWithWxCode() {
 function applySession(session) {
   const globalData = getGlobalData();
   const currentIdentity = decorateIdentity(session.current_identity);
+  // Persist the exact identity list returned by the backend. Client-side labels
+  // are decoration only; authorization decisions stay server-owned.
   globalData.token = session.access_token;
   globalData.currentIdentity = currentIdentity;
   globalData.identities = (session.identities || []).map((identity) =>
@@ -139,6 +143,8 @@ function decorateIdentity(identity, currentMemberIdentityId) {
   }
   const isPersonal = identity.identity_type === "personal";
   const isLocal = identity.identity_type === "local_enterprise";
+  // UI-only metadata keeps page templates simple without changing the contract
+  // fields used by /auth/switch-identity.
   return Object.assign({}, identity, {
     typeLabel: isPersonal ? "个人名片" : (isLocal ? "本地企业" : "企业名片"),
     badgeClass: isPersonal ? "badge--brand" : (isLocal ? "badge--warning" : "badge--success"),

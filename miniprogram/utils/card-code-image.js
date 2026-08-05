@@ -18,6 +18,8 @@ function buildCardCodeImage(page, options = {}) {
         }
         try {
           const dpr = devicePixelRatio();
+          // Canvas node dimensions are physical pixels; drawing coordinates below
+          // stay in design pixels after scaling so exported QR posters remain sharp.
           node.width = CARD_CODE_WIDTH * dpr;
           node.height = CARD_CODE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
@@ -176,6 +178,8 @@ async function loadCanvasImage(canvas, src) {
     throw new Error("image source missing");
   }
   if (!canvas || typeof canvas.createImage !== "function") {
+    // Older canvas APIs accept a file path directly in drawImage; newer node
+    // canvas requires createImage. Support both because DevTools and devices differ.
     return path;
   }
   return new Promise((resolve, reject) => {
@@ -215,6 +219,8 @@ function dataUrlToTempFile(dataUrl) {
     return Promise.resolve(dataUrl);
   }
   const ext = match[1].toLowerCase().replace("jpeg", "jpg");
+  // Canvas drawImage cannot consume every data URL consistently on device, so
+  // materialize uploads into USER_DATA_PATH before composing the poster.
   const filePath = `${wx.env.USER_DATA_PATH}/card-code-${Date.now()}.${ext}`;
   return new Promise((resolve) => {
     fs.writeFile({

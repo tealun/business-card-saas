@@ -100,6 +100,8 @@ Page({
         : (enterpriseCard ? ENTERPRISE_EDITABLE_FIELDS : ALL_EDITABLE_FIELDS);
       const editable = editableMap(editableFields);
       if (enterpriseCard) {
+        // Enterprise-owned profile fields come from tenant configuration and
+        // should not be re-enabled by stale or missing editable_fields responses.
         lockCompanyFields(editable);
       }
       const fields = card.fields || {};
@@ -332,7 +334,9 @@ Page({
       validateCardForm(form, this.data.editable);
       const card = await request("/employee/cards/current", {
         method: "PUT",
-          data: buildPayload(form, this.data.privacy, this.data.editable, this.data.selfService)
+        // Build the payload from editable/self-service flags so disabled fields
+        // are omitted instead of being overwritten with whatever is visible.
+        data: buildPayload(form, this.data.privacy, this.data.editable, this.data.selfService)
       });
       if (this.data.editable.logo_url) {
         await request("/employee/cards/current/style", {
@@ -400,6 +404,8 @@ function buildPayload(form, privacy, editable, selfService) {
   if (Object.keys(privacyPayload).length) {
     payload.privacy = privacyPayload;
   }
+  // Every assignment below is guarded by backend-provided editability. This page
+  // mirrors the server contract to avoid accidental writes from locked controls.
   if (editable.avatar_url) payload.avatar_url = form.avatar_url || null;
   if (editable.display_name) payload.display_name = form.display_name;
   if (editable.title) payload.title = form.title || null;
@@ -435,6 +441,8 @@ function validateCardForm(form, editable) {
 
 function pathToDataUrl(path, mime = "image/jpeg") {
   if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
+    // Persisted CDN/API URLs and existing data URLs are already durable enough;
+    // only ephemeral WeChat file handles need to be inlined before save.
     return Promise.resolve(path);
   }
   return new Promise((resolve, reject) => {

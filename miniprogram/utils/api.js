@@ -35,6 +35,8 @@ function apiBase() {
 function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const isIdempotent = method === "GET" || method === "HEAD";
+  // Retry only read-like requests. Mutating calls may create cards, sessions, or
+  // audit rows, so the caller must decide whether repeating them is safe.
   const maxRetries = isIdempotent ? 1 : 0;
   const timeout = options.timeout || 15000;
   const baseUrl = apiBase();
@@ -66,6 +68,9 @@ function request(path, options = {}) {
           return;
         }
         if (response.statusCode === 401) {
+          // A 401 from any authenticated API means the cached identity is no
+          // longer trustworthy; clear it at the transport boundary before pages
+          // can render stale tenant/member context.
           clearSessionState();
         }
         reject(new Error((response.data && response.data.message) || `HTTP ${response.statusCode}`));
@@ -128,6 +133,8 @@ function uploadBinary(path, filePath, options = {}) {
 function readFileAsArrayBuffer(filePath) {
   return readFileWithFileSystem(filePath).catch((firstError) => {
     if (isHttpTemporaryFilePath(filePath) && typeof wx.request === "function") {
+      // DevTools sometimes exposes selected files as http://tmp/...; the file
+      // system API cannot read those, but wx.request can still fetch the bytes.
       return readFileWithRequest(filePath).catch((secondError) => {
         throw readableFileError(secondError, firstError);
       });
@@ -224,6 +231,8 @@ function clearSessionState() {
   if (app && app.globalData) {
     const { demoIdentity } = require("./demo-card");
     const demo = demoIdentity(true);
+    // Keep the app usable after token expiry by falling back to the explicit demo
+    // identity instead of leaving a half-cleared real tenant in memory.
     app.globalData.token = "";
     app.globalData.currentIdentity = demo;
     app.globalData.identities = [demo];
@@ -322,6 +331,8 @@ function maybeDemoCode(type = "qy") {
     isDevelop = false;
   }
   if (globalData.demoAuthEnabled && isDevelop) {
+    // Demo auth is intentionally limited to the develop build so preview/release
+    // builds cannot mint a session from fixed codes.
     return type === "wx" ? "demo-wx-code" : "demo-qy-code";
   }
   return "";

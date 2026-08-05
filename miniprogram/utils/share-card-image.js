@@ -22,6 +22,8 @@ function buildShareCardImage(page, options = {}) {
         }
         try {
           const dpr = devicePixelRatio();
+          // Export at DPR resolution while keeping all layout math in the fixed
+          // 500x400 design coordinate space.
           node.width = SHARE_IMAGE_WIDTH * dpr;
           node.height = SHARE_IMAGE_HEIGHT * dpr;
           const ctx = node.getContext("2d");
@@ -60,6 +62,8 @@ async function drawShareCard(ctx, options) {
   const dark = isDarkTemplate(options.templateClass || "");
   const brandImage = isBrandTemplate(options.templateClass || "");
   const portrait = isPortraitTemplate(options.templateClass || "");
+  // Portrait templates intentionally show the portrait block even when a normal
+  // business-card avatar would be hidden by employee privacy settings.
   const showAvatar = portrait || card.show_avatar !== false;
   const surface = dark ? "#161b22" : brandImage ? theme.brand : "#ffffff";
   const primary = dark || brandImage ? "#ffffff" : "#1f2329";
@@ -248,6 +252,8 @@ function resolveImagePath(src) {
     return Promise.resolve("");
   }
   if (/^data:image\//.test(value) || /^https?:\/\//.test(value) || value.startsWith("/") ) {
+    // wx.getImageInfo downloads remote/API images into a local path accepted by
+    // canvas drawImage; failing open keeps existing local paths usable.
     return new Promise((resolve) => {
       wx.getImageInfo({
         src: value,
