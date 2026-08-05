@@ -17,6 +17,11 @@ export class PlatformTenantService {
     @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
+  /**
+   * 平台侧查询租户列表。
+   *
+   * 仅平台账号可访问；分页会限制在安全范围内，状态筛选不合法时回落到 all。
+   */
   async list(session: AdminSession, input: { search?: string; status?: string; page?: number; pageSize?: number }) {
     this.requirePlatform(session);
     const page = Math.max(1, Math.trunc(input.page ?? 1));
@@ -47,6 +52,11 @@ export class PlatformTenantService {
     };
   }
 
+  /**
+   * 平台侧读取租户详情。
+   *
+   * tenantId 必须是数字型主键；返回前转换为前端需要的授权、成员、管理员和回调摘要。
+   */
   async get(session: AdminSession, tenantId: string) {
     this.requirePlatform(session);
     if (!/^\d+$/.test(tenantId)) {
@@ -59,6 +69,11 @@ export class PlatformTenantService {
     return this.formatDetail(item);
   }
 
+  /**
+   * 平台侧触发指定租户成员同步。
+   *
+   * 只允许已绑定且授权有效的企业微信租户同步，本地企业和失效授权会被拒绝。
+   */
   async syncTenantMembers(session: AdminSession, tenantId: string) {
     requirePlatformAdminRole(session, "operator");
     if (!/^\d+$/.test(tenantId)) {
@@ -99,15 +114,23 @@ export class PlatformTenantService {
     };
   }
 
+  /**
+   * 确认当前会话是平台账号。
+   *
+   * 这里只判断账号类型；具体角色等级由调用方法使用 requirePlatformAdminRole 校验。
+   */
   private requirePlatform(session: AdminSession): void {
     if (session.accountType !== "platform") {
       throw new ForbiddenException("platform administrator required");
     }
   }
 
-  // Create an empty local enterprise plus a one-time claim token. The tenant has
-  // no owner until an enterprise contact claims it from the mini program. Only
-  // platform_owner may manage local enterprises (requirePlatformAdminRole owner).
+  /**
+   * 平台创建一个空的本地企业，并返回一次性认领入口。
+   *
+   * 企业创建后没有 owner，必须由企业联系人在小程序认领后才产生首个租户 owner；
+   * 本地企业管理仅允许 platform_owner 执行。
+   */
   async createLocalEnterprise(session: AdminSession, input: { name: string; memberLimit: number | null }) {
     requirePlatformAdminRole(session, "owner");
     const name = input.name.trim();
@@ -143,6 +166,11 @@ export class PlatformTenantService {
     };
   }
 
+  /**
+   * 为未认领的本地企业重新生成认领 token。
+   *
+   * 已存在 active owner 的企业不能再生成认领入口，避免二次接管。
+   */
   async createLocalEnterpriseClaimToken(session: AdminSession, tenantId: string) {
     requirePlatformAdminRole(session, "owner");
     const record = await this.getWritableOrThrow(tenantId);
@@ -161,6 +189,9 @@ export class PlatformTenantService {
     return claim;
   }
 
+  /**
+   * 重命名平台创建的本地企业。
+   */
   async renameLocalEnterprise(session: AdminSession, tenantId: string, name: string) {
     requirePlatformAdminRole(session, "owner");
     const trimmed = name.trim();
@@ -183,6 +214,9 @@ export class PlatformTenantService {
     return { tenant_id: tenantId, tenant_name: trimmed };
   }
 
+  /**
+   * 启用或禁用平台创建的本地企业。
+   */
   async setLocalEnterpriseStatus(session: AdminSession, tenantId: string, status: "active" | "disabled") {
     requirePlatformAdminRole(session, "owner");
     await this.getWritableOrThrow(tenantId);
@@ -201,6 +235,11 @@ export class PlatformTenantService {
     return { tenant_id: tenantId, status };
   }
 
+  /**
+   * 软删除平台创建的本地企业。
+   *
+   * 只对 creation_source=local 且未删除的企业生效，不影响企业微信授权租户。
+   */
   async deleteLocalEnterprise(session: AdminSession, tenantId: string) {
     requirePlatformAdminRole(session, "owner");
     await this.getWritableOrThrow(tenantId);
@@ -219,6 +258,9 @@ export class PlatformTenantService {
     return { tenant_id: tenantId, deleted: true };
   }
 
+  /**
+   * 读取可写的本地企业，不存在或不可写时抛出 404。
+   */
   private async getWritableOrThrow(tenantId: string) {
     const record = await this.repository.getLocalWritable(tenantId);
     if (!record) {
@@ -227,6 +269,11 @@ export class PlatformTenantService {
     return record;
   }
 
+  /**
+   * 创建本地企业认领响应载荷。
+   *
+   * 同时生成小程序路径和二维码；二维码失败不阻断 token 创建。
+   */
   private async createClaimPayload(tenantId: string, tenantName: string) {
     const claim = await this.ownerBootstrap.bootstrapOwner({ tenant_id: tenantId });
     const claimPath = claim.mode === "claim_token_created"
@@ -247,6 +294,9 @@ export class PlatformTenantService {
     };
   }
 
+  /**
+   * 为认领 token 生成小程序码。
+   */
   private async generateClaimQr(claimToken: string): Promise<{ dataUrl: string | null; error: string }> {
     try {
       const dataUrl = await this.claimQr.generateScene(this.claimScene(claimToken), "pages/enterprise-claim/index");
@@ -256,10 +306,16 @@ export class PlatformTenantService {
     }
   }
 
+  /**
+   * 把完整认领 token 转成小程序码 scene。
+   */
   private claimScene(claimToken: string): string {
     return claimToken.startsWith("admclaim_") ? claimToken.slice("admclaim_".length) : claimToken;
   }
 
+  /**
+   * 把平台租户列表记录转换为 API 响应字段。
+   */
   private formatListItem(item: PlatformTenantListRecord) {
     return {
       tenant_id: item.tenantId,
@@ -280,6 +336,9 @@ export class PlatformTenantService {
     };
   }
 
+  /**
+   * 把平台租户详情记录转换为 API 响应字段。
+   */
   private formatDetail(item: PlatformTenantDetailRecord) {
     return {
       ...this.formatListItem(item),

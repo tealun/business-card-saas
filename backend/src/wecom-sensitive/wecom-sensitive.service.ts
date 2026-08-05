@@ -20,6 +20,12 @@ export class WecomSensitiveService {
     private readonly cards: EmployeeCardService
   ) {}
 
+  /**
+   * 为当前企业微信成员创建敏感资料授权入口。
+   *
+   * 仅企业微信成员身份可用；state 中保存租户、成员和哈希后的 open_userid，
+   * 回调时用于确认授权人与当前名片身份一致。
+   */
   async createAuthorizationUrl(session: EmployeeSession): Promise<{ authorization_url: string; expires_in: number }> {
     if (session.identityType !== "wecom_member") {
       throw new ForbiddenException("enterprise identity is required for WeCom sensitive authorization");
@@ -48,10 +54,18 @@ export class WecomSensitiveService {
     return { authorization_url: startUrl.toString(), expires_in: expiresIn };
   }
 
+  /**
+   * 读取当前名片的企业微信敏感资料授权状态。
+   */
   async getStatus(session: EmployeeSession): Promise<EmployeeWecomSensitiveStatusResponse> {
     return this.cards.getWecomSensitiveStatus(session);
   }
 
+  /**
+   * 生成企业微信 OAuth 授权 URL。
+   *
+   * 使用 snsapi_privateinfo scope，以获取手机号、邮箱、头像和二维码等敏感资料授权。
+   */
   createWecomOAuthUrl(state: string): string {
     const url = new URL("https://open.weixin.qq.com/connect/oauth2/authorize");
     url.searchParams.set("appid", this.config.suite.suiteId);
@@ -63,6 +77,11 @@ export class WecomSensitiveService {
     return url.toString();
   }
 
+  /**
+   * 完成企业微信敏感资料授权回调。
+   *
+   * 消费一次性 state，校验授权企业和成员身份，再拉取敏感资料并同步到当前员工名片。
+   */
   async complete(code: string, state: string): Promise<void> {
     const context = await this.states.consume(state.trim());
     if (!context) throw new UnauthorizedException("sensitive authorization state is invalid or expired");

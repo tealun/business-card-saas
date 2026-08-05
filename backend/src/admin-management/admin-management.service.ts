@@ -40,18 +40,33 @@ export class AdminManagementService {
     @Optional() private readonly operationLogs?: AdminOperationLogService
   ) {}
 
+  /**
+   * 获取当前租户后台概览。
+   *
+   * auditor 及以上可读；返回前按后台契约 schema 规范化，避免 repository 的空值或扩展字段泄漏。
+   */
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse> {
     requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.getOverview(session);
     return adminOverviewResponseSchema.parse(persisted);
   }
 
+  /**
+   * 查询当前租户成员列表。
+   *
+   * 仅允许租户内 auditor 及以上访问，筛选和分页参数交给 repository 转成安全查询。
+   */
   async listMembers(session: AdminSession, input: AdminMemberListQuery): Promise<AdminMemberListResponse> {
     requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.listMembers(session, input);
     return adminMemberListResponseSchema.parse(persisted);
   }
 
+  /**
+   * 手动同步当前租户的企业微信成员。
+   *
+   * 只有绑定了有效企业微信授权的租户才能执行；同步结果会写入操作日志，便于后台审计。
+   */
   async syncMembers(session: AdminSession): Promise<AdminMemberSyncResponse> {
     requireTenantAdminRole(session, "admin");
     const overview = adminOverviewResponseSchema.parse(await this.repository.getOverview(session));
@@ -84,6 +99,11 @@ export class AdminManagementService {
     return response;
   }
 
+  /**
+   * 删除当前租户成员。
+   *
+   * 管理员身份绑定的成员不能直接删除，必须先解除管理员身份，避免删掉后台访问入口。
+   */
   async deleteMember(session: AdminSession, memberIdentityId: string): Promise<AdminMemberDeleteResponse> {
     requireTenantAdminRole(session, "admin");
     const outcome = await this.repository.deleteMember(session, memberIdentityId);
@@ -106,12 +126,22 @@ export class AdminManagementService {
     return response;
   }
 
+  /**
+   * 查询当前租户同步事件。
+   *
+   * 用于后台观察企业微信回调、通讯录同步等异步事件的处理状态。
+   */
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse> {
     requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.listSyncEvents(session);
     return adminSyncEventListResponseSchema.parse(persisted ?? { items: [], total: 0 });
   }
 
+  /**
+   * 重试当前租户失败的同步事件。
+   *
+   * 同时覆盖数据回调和通讯录同步失败队列，返回合并后的重试统计并记录操作日志。
+   */
   async retryFailedSyncEvents(session: AdminSession): Promise<AdminSyncEventRetryResponse> {
     requireTenantAdminRole(session, "admin");
     const dataResult = await this.dataCallbacks.retryFailedEvents({ tenantId: session.tenantId });
@@ -135,6 +165,11 @@ export class AdminManagementService {
     return response;
   }
 
+  /**
+   * 平台侧重试同步事件。
+   *
+   * 可指定租户，也可全局重试；只允许平台 operator 及以上角色执行。
+   */
   async retryPlatformSyncEvents(session: AdminSession, tenantId?: string): Promise<AdminSyncEventRetryResponse> {
     requirePlatformAdminRole(session, "operator");
     const scoped = tenantId?.trim();
@@ -162,11 +197,19 @@ export class AdminManagementService {
     return response;
   }
 
+  /**
+   * 读取当前租户企业微信同步配置。
+   */
   async getWecomSettings(session: AdminSession): Promise<AdminWecomSettingsResponse> {
     requireTenantAdminRole(session, "auditor");
     return adminWecomSettingsResponseSchema.parse(await this.wecomSettings.get(session.tenantId));
   }
 
+  /**
+   * 更新当前租户企业微信同步配置。
+   *
+   * 仅 admin 及以上可写，变更字段会进入操作日志，便于追踪同步策略调整。
+   */
   async updateWecomSettings(
     session: AdminSession,
     request: UpdateAdminWecomSettingsRequest
@@ -181,6 +224,11 @@ export class AdminManagementService {
     return response;
   }
 
+  /**
+   * 读取租户成员名片。
+   *
+   * 只在当前租户范围内查询，找不到时统一返回 404。
+   */
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse> {
     requireTenantAdminRole(session, "auditor");
     const persisted = await this.repository.getMemberCard(session, memberIdentityId);
@@ -190,6 +238,12 @@ export class AdminManagementService {
     return adminMemberCardResponseSchema.parse(persisted);
   }
 
+  /**
+   * 后台更新租户成员名片。
+   *
+   * repository 会在一个 TenantTx 中完成成员、名片、目录、字段和状态更新；
+   * 服务层只负责权限、契约解析和审计记录。
+   */
   async updateMemberCard(
     session: AdminSession,
     memberIdentityId: string,
@@ -200,9 +254,7 @@ export class AdminManagementService {
     if (!persisted) {
       throw new NotFoundException("tenant member not found");
     }
-    // The repository applies member, card, directory, fields and status updates
-    // inside one TenantTx and returns the reloaded card. Do not repeat the
-    // status mutation in a second transaction here.
+    // repository 已在一个 TenantTx 内完成所有相关写入并重新加载结果，这里不能再开第二个事务重复改状态。
     const response = adminMemberCardResponseSchema.parse(persisted);
     await this.operationLogs?.record({
       session,
