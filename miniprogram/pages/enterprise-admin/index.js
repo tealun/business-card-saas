@@ -169,6 +169,9 @@ Page({
     ]
   },
 
+  /**
+   * 初始化企业管理台入口参数和管理员引导令牌。
+   */
   onLoad(options) {
     this.targetTenantId = String(options && options.tenant_id ? options.tenant_id : "");
     this.directAdminToken = String(options && options.admin_token ? options.admin_token : "");
@@ -182,17 +185,24 @@ Page({
         try {
           wx.removeStorageSync(ADMIN_BOOTSTRAP_STORAGE_KEY);
         } catch (_error) {
-          // ignore storage cleanup failures
+          // 本地引导缓存清理失败不影响进入管理台。
         }
       }
     }
     this.prepare();
   },
 
+  /**
+   * 页面展示时同步主题，并准备当前管理工作台。
+   */
   onShow() {
     setPageTheme(this);
   },
 
+  /**
+   * 准备管理员上下文。
+   * 会优先使用扫码/认领引导信息，再回落到当前账号可管理企业列表。
+   */
   async prepare() {
     this.setData({ loading: true, error: "", stage: "loading" });
     try {
@@ -234,10 +244,17 @@ Page({
     }
   },
 
+  /**
+   * 从可管理企业列表中选择一个租户进入。
+   */
   selectTenant(event) {
     this.enterTenant(String(event.currentTarget.dataset.id || ""), this.data.tenants);
   },
 
+  /**
+   * 进入指定租户管理空间。
+   * 会合并已知租户展示信息，并清理一次性管理员引导令牌。
+   */
   async enterTenant(tenantId, knownTenants) {
     const tenants = knownTenants || this.data.tenants;
     const tenant = tenants.find((item) => item.tenant_id === tenantId) || null;
@@ -273,6 +290,10 @@ Page({
     }
   },
 
+  /**
+   * 加载企业管理台工作区数据。
+   * 同步概览、资料、成员、模板、内容模块和加入申请等核心状态。
+   */
   async loadWorkspace() {
     if (!(this.adminToken || this.data.adminToken)) return;
     this.setData({ refreshing: true, error: "" });
@@ -313,6 +334,10 @@ Page({
     }
   },
 
+  /**
+   * 发起企业管理端请求。
+   * 统一携带当前 tenantId 和管理员引导 token，避免各方法重复拼装权限上下文。
+   */
   adminRequest(path, options = {}) {
     const token = this.adminToken || this.data.adminToken;
     return request(path, {
@@ -323,6 +348,10 @@ Page({
     });
   },
 
+  /**
+   * 选择并上传单张图片素材。
+   * 素材分类决定后端目录，上传成功后由回调写入具体草稿字段。
+   */
   async uploadSingleImage(category, onUploaded) {
     if (!this.requireAdmin() || this.data.uploading) return;
     const files = await chooseLocalMedia(["image"], 1).catch(() => []);
@@ -348,6 +377,10 @@ Page({
     }
   },
 
+  /**
+   * 选择并批量上传多张图片素材。
+   * 每张图片独立上传，最终把成功列表交给业务回调。
+   */
   async uploadMultipleImages(category, onUploaded) {
     if (!this.requireAdmin() || this.data.uploading) return;
     const files = await chooseLocalMedia(["image"], 9).catch(() => []);
@@ -379,6 +412,10 @@ Page({
     }
   },
 
+  /**
+   * 选择并上传单个视频素材。
+   * 上传前使用本地媒体选择结果，上传后由回调写入视频草稿。
+   */
   async uploadSingleVideo(onUploaded) {
     if (!this.requireAdmin() || this.data.uploading) return;
     if (this.data.videoFeature && !this.data.videoFeature.enabled) {
@@ -412,6 +449,10 @@ Page({
     }
   },
 
+  /**
+   * 将本地媒体文件上传到企业素材接口。
+   * 统一封装文件路径、文件名、类型和租户权限参数。
+   */
   uploadMediaFile(input) {
     const token = this.adminToken || this.data.adminToken;
     const query = [
@@ -426,30 +467,48 @@ Page({
     });
   },
 
+  /**
+   * 从已加载工作区数据刷新成员列表展示。
+   */
   loadMembersData() {
     const search = encodeURIComponent(this.data.memberSearch || "");
     const status = encodeURIComponent(this.data.memberStatus || "all");
     return this.adminRequest(`/admin/members?limit=50&offset=0&status=${status}&search=${search}`);
   },
 
+  /**
+   * 切换管理台功能标签页。
+   */
   switchTab(event) {
     this.setData({ activeTab: event.currentTarget.dataset.key, memberActionId: "" });
   },
 
+  /**
+   * 手动刷新当前企业工作区。
+   */
   async refresh() {
     await this.loadWorkspace();
     wx.showToast({ title: "已刷新", icon: "success" });
   },
 
+  /**
+   * 更新成员搜索关键词并重新过滤成员列表。
+   */
   onMemberSearch(event) {
     this.setData({ memberSearch: event.detail.value });
   },
 
+  /**
+   * 更新成员编辑草稿中的状态字段。
+   */
   setMemberStatus(event) {
     this.setData({ memberStatus: event.currentTarget.dataset.status || "all", memberActionId: "" });
     this.refreshMembers();
   },
 
+  /**
+   * 重新拉取成员列表并保持当前搜索条件。
+   */
   async refreshMembers() {
     try {
       const members = await this.loadMembersData();
@@ -459,11 +518,17 @@ Page({
     }
   },
 
+  /**
+   * 展开或收起单个成员的操作菜单。
+   */
   toggleMemberActionMenu(event) {
     const memberId = String(event.currentTarget.dataset.id || "");
     this.setData({ memberActionId: this.data.memberActionId === memberId ? "" : memberId });
   },
 
+  /**
+   * 打开企业资料编辑面板，并用当前资料生成草稿。
+   */
   openProfilePanel() {
     const profile = this.data.profile || {};
     this.setData({
@@ -479,25 +544,41 @@ Page({
     });
   },
 
+  /**
+   * 更新企业资料草稿字段。
+   */
   onProfileInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ profileDraft: { ...this.data.profileDraft, [key]: event.detail.value } });
   },
 
+  /**
+   * 更新企业资料草稿中的可见性开关。
+   */
   onProfileVisible(event) {
     this.setData({ profileDraft: { ...this.data.profileDraft, visible: event.detail.value } });
   },
 
+  /**
+   * 上传企业 logo 并写入资料草稿。
+   */
   uploadProfileLogo() {
     this.uploadSingleImage("logos", (url) => {
       this.setData({ "profileDraft.logo_url": url });
     });
   },
 
+  /**
+   * 清空企业 logo 草稿。
+   */
   clearProfileLogo() {
     this.setData({ "profileDraft.logo_url": "" });
   },
 
+  /**
+   * 保存企业基础资料。
+   * 只提交资料面板字段，服务项目、介绍和模板配置由各自流程保存。
+   */
   async saveProfile() {
     if (!this.requireAdmin()) return;
     const draft = this.data.profileDraft;
@@ -517,16 +598,25 @@ Page({
     }, "企业信息已保存");
   },
 
+  /**
+   * 打开名片模板编辑面板，并构造企业预览卡片。
+   */
   openTemplatePanel() {
     const selected = this.data.templates.find((item) => item.is_default) || this.data.templates[0] || {};
     this.applyTemplateEditor(selected);
   },
 
+  /**
+   * 选择模板风格，并同步模板编辑器状态。
+   */
   chooseTemplate(event) {
     const template = this.data.templates.find((item) => item.template_id === event.currentTarget.dataset.id);
     if (template) this.applyTemplateEditor(template);
   },
 
+  /**
+   * 兼容旧版 variant 选择事件，复用模板选择逻辑。
+   */
   chooseVariant(event) {
     if (!this.requireAdmin()) return;
     const detail = event.detail || {};
@@ -548,6 +638,10 @@ Page({
     });
   },
 
+  /**
+   * 将模板草稿应用到编辑器。
+   * 同时刷新颜色、背景、照片模板和预览卡片状态。
+   */
   applyTemplateEditor(template) {
     const state = buildTemplateEditorState(template, this.data.profile, this.data.members, this.data.tenant);
     this.setData({
@@ -556,6 +650,9 @@ Page({
     });
   },
 
+  /**
+   * 从模板色板中选择企业品牌主色。
+   */
   chooseColor(event) {
     if (!this.requireAdmin()) return;
     const detail = event.detail || {};
@@ -566,6 +663,9 @@ Page({
     });
   },
 
+  /**
+   * 处理模板自定义 HEX 颜色输入。
+   */
   onCustomHexInput(event) {
     if (!this.requireAdmin()) return;
     const customHex = String(event.detail.value || "").trim();
@@ -582,6 +682,9 @@ Page({
     });
   },
 
+  /**
+   * 确认使用自定义品牌色并更新模板预览。
+   */
   selectCustomColor() {
     if (!this.requireAdmin()) return;
     const normalized = normalizeHexInput(this.data.customHex) || this.data.customColor || DEFAULT_BRAND;
@@ -593,6 +696,10 @@ Page({
     });
   },
 
+  /**
+   * 预览企业模板品牌色。
+   * 只更新前端草稿，不立即保存到后端。
+   */
   previewTemplateColor(primary, extra = {}) {
     const theme = buildTheme(primary);
     const patch = {
@@ -607,10 +714,17 @@ Page({
     this.setData(patch);
   },
 
+  /**
+   * 响应选择自定义模板背景图事件。
+   */
   onChooseBackgroundImage() {
     this.chooseBackgroundImage();
   },
 
+  /**
+   * 选择并校验企业模板背景图。
+   * 图片通过素材上传接口保存，成功后写入当前模板背景草稿。
+   */
   async chooseBackgroundImage() {
     if (!this.requireAdmin() || this.data.uploading) {
       return;
@@ -658,6 +772,9 @@ Page({
     }
   },
 
+  /**
+   * 选择当前模板允许的内置背景预设。
+   */
   onSelectPresetBackground(event) {
     if (!this.requireAdmin()) return;
     const detail = event.detail || {};
@@ -681,10 +798,16 @@ Page({
     });
   },
 
+  /**
+   * 响应清除模板背景事件。
+   */
   onClearBackgroundImage() {
     this.clearBackgroundImage();
   },
 
+  /**
+   * 将当前模板背景恢复为默认配置。
+   */
   clearBackgroundImage() {
     if (!this.requireAdmin()) return;
     const backgroundState = defaultBackgroundState(this.data.templateDraft.variant);
@@ -704,6 +827,9 @@ Page({
     });
   },
 
+  /**
+   * 更新当前模板背景透明度。
+   */
   onBackgroundOpacityChange(event) {
     if (!this.requireAdmin()) return;
     const backgroundOpacity = normalizeOpacity(event.detail.value, DEFAULT_BACKGROUND_OPACITY);
@@ -715,6 +841,9 @@ Page({
     });
   },
 
+  /**
+   * 更新照片模板使用的人像图片地址。
+   */
   onPortraitPhotoChange(event) {
     if (!this.requireAdmin()) return;
     this.setData({
@@ -722,6 +851,10 @@ Page({
     });
   },
 
+  /**
+   * 保存企业名片模板配置。
+   * 包含模板风格、品牌色、背景、人像图和模块布局等展示层设置。
+   */
   async saveTemplate() {
     if (!this.requireAdmin()) return;
     const draft = this.data.templateDraft;
@@ -757,6 +890,9 @@ Page({
     }, "模板已保存");
   },
 
+  /**
+   * 将后端返回模板合并到当前模板状态并刷新编辑器。
+   */
   mergeTemplate(template) {
     const templates = decorateTemplates(this.data.templates.map((item) =>
       item.template_id === template.template_id
@@ -766,6 +902,9 @@ Page({
     this.setData({ templates, joinCodeThemeStyle: buildThemeStyle(buildTheme(activeTemplatePrimary(templates))) });
   },
 
+  /**
+   * 打开企业介绍内容面板，并把当前企业资料拆成可编辑草稿。
+   */
   openIntroPanel() {
     const profile = this.data.profile || {};
     this.setData({
@@ -779,6 +918,9 @@ Page({
     });
   },
 
+  /**
+   * 切换企业介绍面板中的内容分区。
+   */
   switchIntroSection(event) {
     this.setData({
       introDraft: {
@@ -788,6 +930,9 @@ Page({
     });
   },
 
+  /**
+   * 开关企业展示模块可见性。
+   */
   toggleIntroModule(event) {
     const index = Number(event.currentTarget.dataset.index);
     const modules = cloneArray(this.data.introDraft.display_modules);
@@ -796,6 +941,9 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, display_modules: modules } });
   },
 
+  /**
+   * 选择企业展示模块布局。
+   */
   chooseModuleLayout(event) {
     const index = Number(event.currentTarget.dataset.index);
     const layoutIndex = Number(event.detail.value);
@@ -806,21 +954,33 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, display_modules: modules } });
   },
 
+  /**
+   * 更新企业介绍基础草稿字段。
+   */
   onIntroInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ introDraft: { ...this.data.introDraft, [key]: event.detail.value } });
   },
 
+  /**
+   * 上传企业介绍主图并写入草稿。
+   */
   uploadIntroImage() {
     this.uploadSingleImage("company-images", (url) => {
       this.setData({ "introDraft.imageUrl": url });
     });
   },
 
+  /**
+   * 清空企业介绍主图草稿。
+   */
   clearIntroImage() {
     this.setData({ "introDraft.imageUrl": "" });
   },
 
+  /**
+   * 上传企业介绍图库图片并追加到当前图集草稿。
+   */
   uploadIntroGallery() {
     this.uploadMultipleImages("company-images", (urls) => {
       const images = normalizeGalleryImages(this.data.introDraft.galleryImages)
@@ -830,6 +990,9 @@ Page({
     });
   },
 
+  /**
+   * 更新图集图片标题或说明。
+   */
   onGalleryImageInput(event) {
     const index = Number(event.currentTarget.dataset.index);
     const key = event.currentTarget.dataset.key || "caption";
@@ -839,6 +1002,9 @@ Page({
     this.setData({ "introDraft.galleryImages": images });
   },
 
+  /**
+   * 从当前介绍块图集中移除一张图片。
+   */
   removeGalleryImage(event) {
     const index = Number(event.currentTarget.dataset.index);
     const images = normalizeGalleryImages(this.data.introDraft.galleryImages);
@@ -847,6 +1013,9 @@ Page({
     this.setData({ "introDraft.galleryImages": images });
   },
 
+  /**
+   * 切换企业介绍正文块类型，并重置对应字段结构。
+   */
   setIntroBlockType(event) {
     this.setData({
       introDraft: {
@@ -856,6 +1025,9 @@ Page({
     });
   },
 
+  /**
+   * 将已有介绍块载入编辑草稿。
+   */
   editIntroBlock(event) {
     const index = Number(event.currentTarget.dataset.index);
     const draft = this.data.introDraft;
@@ -872,6 +1044,9 @@ Page({
     });
   },
 
+  /**
+   * 取消正文块编辑并恢复空草稿。
+   */
   cancelIntroBlockEdit() {
     this.setData({
       introDraft: {
@@ -882,6 +1057,9 @@ Page({
     });
   },
 
+  /**
+   * 新增或更新企业介绍正文块。
+   */
   upsertIntroBlock() {
     const draft = this.data.introDraft;
     const block = buildIntroBlock(draft, this.data.videoFeature, this.data.videos);
@@ -902,6 +1080,9 @@ Page({
     });
   },
 
+  /**
+   * 调整企业介绍正文块排序。
+   */
   moveIntroBlock(event) {
     const index = Number(event.currentTarget.dataset.index);
     const direction = event.currentTarget.dataset.direction === "up" ? -1 : 1;
@@ -912,6 +1093,9 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) } });
   },
 
+  /**
+   * 删除企业介绍正文块。
+   */
   removeIntroBlock(event) {
     const index = Number(event.currentTarget.dataset.index);
     const blocks = stripIntroBlockRuntime(this.data.introDraft.intro_blocks);
@@ -919,6 +1103,9 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) } });
   },
 
+  /**
+   * 更新服务项目草稿字段。
+   */
   onServiceInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({
@@ -929,6 +1116,9 @@ Page({
     });
   },
 
+  /**
+   * 更新服务项目可见性。
+   */
   onServiceVisible(event) {
     this.setData({
       introDraft: {
@@ -938,16 +1128,25 @@ Page({
     });
   },
 
+  /**
+   * 上传服务项目图片并写入草稿。
+   */
   uploadServiceImage() {
     this.uploadSingleImage("company-images", (url) => {
       this.setData({ "introDraft.serviceDraft.image_url": url });
     });
   },
 
+  /**
+   * 清空服务项目图片草稿。
+   */
   clearServiceImage() {
     this.setData({ "introDraft.serviceDraft.image_url": "" });
   },
 
+  /**
+   * 将已有服务项目载入编辑草稿。
+   */
   editServiceItem(event) {
     const index = Number(event.currentTarget.dataset.index);
     const item = stripServiceRuntime([this.data.introDraft.service_items[index]])[0];
@@ -961,6 +1160,9 @@ Page({
     });
   },
 
+  /**
+   * 取消服务项目编辑并恢复空草稿。
+   */
   cancelServiceEdit() {
     this.setData({
       introDraft: {
@@ -971,6 +1173,9 @@ Page({
     });
   },
 
+  /**
+   * 新增或更新服务项目。
+   */
   upsertServiceItem() {
     const draft = this.data.introDraft;
     const item = buildServiceItem(draft.serviceDraft, draft.service_items.length);
@@ -991,6 +1196,9 @@ Page({
     });
   },
 
+  /**
+   * 调整服务项目排序。
+   */
   moveServiceItem(event) {
     const index = Number(event.currentTarget.dataset.index);
     const direction = event.currentTarget.dataset.direction === "up" ? -1 : 1;
@@ -1001,6 +1209,9 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) } });
   },
 
+  /**
+   * 删除服务项目。
+   */
   removeServiceItem(event) {
     const index = Number(event.currentTarget.dataset.index);
     const services = stripServiceRuntime(this.data.introDraft.service_items);
@@ -1008,6 +1219,9 @@ Page({
     this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) } });
   },
 
+  /**
+   * 进入新增企业视频草稿状态。
+   */
   startCreateVideo() {
     this.setData({
       introDraft: {
@@ -1018,6 +1232,9 @@ Page({
     });
   },
 
+  /**
+   * 将已有视频载入编辑草稿。
+   */
   editVideoItem(event) {
     const videoId = String(event.currentTarget.dataset.id || "");
     const video = this.data.videos.find((item) => item.video_id === videoId);
@@ -1031,6 +1248,9 @@ Page({
     });
   },
 
+  /**
+   * 取消视频编辑并恢复空草稿。
+   */
   cancelVideoEdit() {
     this.setData({
       introDraft: {
@@ -1041,6 +1261,9 @@ Page({
     });
   },
 
+  /**
+   * 更新视频草稿字段。
+   */
   onVideoInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({
@@ -1051,6 +1274,9 @@ Page({
     });
   },
 
+  /**
+   * 更新视频可见性。
+   */
   onVideoVisible(event) {
     this.setData({
       introDraft: {
@@ -1060,6 +1286,9 @@ Page({
     });
   },
 
+  /**
+   * 更新视频发布状态。
+   */
   setVideoStatus(event) {
     this.setData({
       introDraft: {
@@ -1069,26 +1298,42 @@ Page({
     });
   },
 
+  /**
+   * 上传视频文件并写入视频草稿。
+   */
   uploadVideoFile() {
     this.uploadSingleVideo((url) => {
       this.setData({ "introDraft.videoDraft.video_url": url });
     });
   },
 
+  /**
+   * 清空视频文件草稿。
+   */
   clearVideoFile() {
     this.setData({ "introDraft.videoDraft.video_url": "" });
   },
 
+  /**
+   * 上传视频封面图并写入视频草稿。
+   */
   uploadVideoCover() {
     this.uploadSingleImage("company-images", (url) => {
       this.setData({ "introDraft.videoDraft.cover_url": url });
     });
   },
 
+  /**
+   * 清空视频封面草稿。
+   */
   clearVideoCover() {
     this.setData({ "introDraft.videoDraft.cover_url": "" });
   },
 
+  /**
+   * 保存企业视频草稿。
+   * 新视频走创建接口，已有视频走更新接口。
+   */
   async saveVideoDraft() {
     if (!this.requireAdmin()) return;
     if (this.data.videoFeature && !this.data.videoFeature.enabled) {
@@ -1120,6 +1365,9 @@ Page({
     }, "视频已保存");
   },
 
+  /**
+   * 删除企业视频，并刷新工作区内容。
+   */
   async deleteVideoItem(event) {
     if (!this.requireAdmin()) return;
     const videoId = String(event.currentTarget.dataset.id || "");
@@ -1131,6 +1379,9 @@ Page({
     }, "视频已删除");
   },
 
+  /**
+   * 将视频列表中的视频插入企业介绍正文块。
+   */
   addVideoBlockFromList(event) {
     const videoId = String(event.currentTarget.dataset.id || "");
     if (!videoId) return;
@@ -1150,6 +1401,9 @@ Page({
     });
   },
 
+  /**
+   * 进入新增企业荣誉草稿状态。
+   */
   startCreateHonor() {
     this.setData({
       introDraft: {
@@ -1160,6 +1414,9 @@ Page({
     });
   },
 
+  /**
+   * 将已有荣誉载入编辑草稿。
+   */
   editHonorItem(event) {
     const honorId = String(event.currentTarget.dataset.id || "");
     const honor = this.data.honors.find((item) => item.honor_id === honorId);
@@ -1173,6 +1430,9 @@ Page({
     });
   },
 
+  /**
+   * 取消荣誉编辑并恢复空草稿。
+   */
   cancelHonorEdit() {
     this.setData({
       introDraft: {
@@ -1183,6 +1443,9 @@ Page({
     });
   },
 
+  /**
+   * 更新荣誉草稿字段。
+   */
   onHonorInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({
@@ -1193,6 +1456,9 @@ Page({
     });
   },
 
+  /**
+   * 更新荣誉可见性。
+   */
   onHonorVisible(event) {
     this.setData({
       introDraft: {
@@ -1202,6 +1468,9 @@ Page({
     });
   },
 
+  /**
+   * 更新荣誉发布状态。
+   */
   setHonorStatus(event) {
     this.setData({
       introDraft: {
@@ -1211,6 +1480,9 @@ Page({
     });
   },
 
+  /**
+   * 批量上传荣誉图片并追加到草稿。
+   */
   uploadHonorImages() {
     this.uploadMultipleImages("honors", (urls) => {
       const images = normalizeHonorImages(this.data.introDraft.honorDraft.images)
@@ -1222,6 +1494,9 @@ Page({
     });
   },
 
+  /**
+   * 更新荣誉图片标题或说明。
+   */
   onHonorImageInput(event) {
     const index = Number(event.currentTarget.dataset.index);
     const key = event.currentTarget.dataset.key || "caption";
@@ -1231,6 +1506,9 @@ Page({
     this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images) });
   },
 
+  /**
+   * 从荣誉草稿中移除图片并重排顺序。
+   */
   removeHonorImage(event) {
     const index = Number(event.currentTarget.dataset.index);
     const images = normalizeHonorImages(this.data.introDraft.honorDraft.images);
@@ -1239,6 +1517,10 @@ Page({
     this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images) });
   },
 
+  /**
+   * 保存企业荣誉草稿。
+   * 新荣誉走创建接口，已有荣誉走更新接口。
+   */
   async saveHonorDraft() {
     if (!this.requireAdmin()) return;
     const payload = buildHonorPayload(this.data.introDraft.honorDraft);
@@ -1265,6 +1547,9 @@ Page({
     }, "荣誉已保存");
   },
 
+  /**
+   * 删除企业荣誉，并刷新工作区内容。
+   */
   async deleteHonorItem(event) {
     if (!this.requireAdmin()) return;
     const honorId = String(event.currentTarget.dataset.id || "");
@@ -1276,6 +1561,9 @@ Page({
     }, "荣誉已删除");
   },
 
+  /**
+   * 保存企业介绍、服务项目和模块展示配置。
+   */
   async saveIntro() {
     if (!this.requireAdmin()) return;
     const draft = this.data.introDraft;
@@ -1293,6 +1581,10 @@ Page({
     }, "企业介绍已保存");
   },
 
+  /**
+   * 打开成员编辑器。
+   * 可编辑现有成员，也可用空草稿创建新成员。
+   */
   async openMemberEditor(event) {
     if (!this.data.permissions.canOperator) {
       wx.showToast({ title: "当前角色无权编辑人员", icon: "none" });
@@ -1319,15 +1611,25 @@ Page({
     }
   },
 
+  /**
+   * 更新成员草稿字段。
+   */
   onMemberDraftInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ memberDraft: { ...this.data.memberDraft, [key]: event.detail.value } });
   },
 
+  /**
+   * 更新成员草稿状态。
+   */
   setMemberDraftStatus(event) {
     this.setData({ memberDraft: { ...this.data.memberDraft, status: event.currentTarget.dataset.status } });
   },
 
+  /**
+   * 保存成员资料。
+   * 新成员走创建接口，已有成员走更新接口，并随后刷新成员列表。
+   */
   async saveMember() {
     if (!this.data.permissions.canOperator) return;
     const draft = this.data.memberDraft;
@@ -1350,6 +1652,9 @@ Page({
     }, "人员名片已保存");
   },
 
+  /**
+   * 快速启用或停用成员。
+   */
   async toggleMemberStatus(event) {
     if (!this.data.permissions.canOperator) {
       wx.showToast({ title: "当前角色无权操作人员", icon: "none" });
@@ -1367,6 +1672,9 @@ Page({
     }, status === "active" ? "名片已启用" : "名片已停用");
   },
 
+  /**
+   * 删除企业成员，执行前要求用户确认。
+   */
   async deleteMember(event) {
     if (!this.requireAdmin()) return;
     const memberId = event.currentTarget.dataset.id;
@@ -1379,6 +1687,10 @@ Page({
     }, "成员已删除");
   },
 
+  /**
+   * 从企业微信同步成员。
+   * 仅具备同步能力的企业租户开放该操作。
+   */
   async syncMembers() {
     if (!this.requireAdmin()) return;
     if (!this.data.canSyncMembers) {
@@ -1392,6 +1704,9 @@ Page({
     }, "成员同步已发起");
   },
 
+  /**
+   * 创建员工加入码，并准备分享卡片素材。
+   */
   async createJoinCode(event) {
     if (!this.requireAdmin()) return;
     const dataset = event && event.currentTarget && event.currentTarget.dataset ? event.currentTarget.dataset : {};
@@ -1428,10 +1743,16 @@ Page({
     }
   },
 
+  /**
+   * 关闭加入码弹层。
+   */
   closeJoinCodeSheet() {
     this.setData({ joinCodeSheetVisible: false });
   },
 
+  /**
+   * 为加入码生成可保存的卡片图片。
+   */
   async prepareJoinCodeCardImage(joinCode = this.data.joinCode) {
     if (!joinCode || !joinCode.qr_code_data_url) return;
     try {
@@ -1445,6 +1766,9 @@ Page({
     }
   },
 
+  /**
+   * 将加入码卡片保存到系统相册。
+   */
   async saveJoinCodeCardImage() {
     const codeLabel = this.data.joinCodeSheetTitle === "邀请成员" ? "邀请码" : "入企码";
     if (this.data.joinCodeLoading) {
@@ -1476,6 +1800,9 @@ Page({
     }
   },
 
+  /**
+   * 组装加入码卡片生成所需的展示参数。
+   */
   joinCodeCardOptions(joinCode) {
     const theme = buildTheme(activeTemplatePrimary(this.data.templates));
     const isInvite = this.data.joinCodeSheetTitle === "邀请成员";
@@ -1489,6 +1816,9 @@ Page({
     };
   },
 
+  /**
+   * 审核员工加入申请。
+   */
   async reviewJoinRequest(event) {
     if (!this.requireAdmin()) return;
     const id = event.currentTarget.dataset.id;
@@ -1504,6 +1834,9 @@ Page({
     }, decision === "approved" ? "已通过申请" : "已拒绝申请");
   },
 
+  /**
+   * 生成企业加入码的微信转发配置。
+   */
   onShareAppMessage(event) {
     const dataset = event && event.target && event.target.dataset ? event.target.dataset : {};
     const joinCode = this.data.joinCode || {};
@@ -1524,17 +1857,26 @@ Page({
     };
   },
 
+  /**
+   * 关闭当前编辑面板并清理面板态。
+   */
   closePanel() {
     setPageTheme(this);
     this.setData({ panel: "" });
   },
 
+  /**
+   * 校验当前页面是否已进入可管理租户。
+   */
   requireAdmin() {
     if (this.data.permissions.canAdmin) return true;
     wx.showToast({ title: "当前角色无权执行该操作", icon: "none" });
     return false;
   },
 
+  /**
+   * 包装保存类动作的 loading、toast 和错误提示。
+   */
   async saveWithToast(action, title) {
     this.setData({ saving: true, error: "" });
     try {
@@ -1547,11 +1889,17 @@ Page({
     }
   },
 
+  /**
+   * 返回员工首页。
+   */
   goHome() {
     wx.switchTab({ url: "/pages/employee/index" });
   }
 });
 
+/**
+ * 创建企业介绍面板的空草稿。
+ */
 function emptyIntroDraft() {
   return {
     activeSection: "profile",
@@ -1569,6 +1917,9 @@ function emptyIntroDraft() {
   };
 }
 
+/**
+ * 根据正文块类型创建对应的空字段结构。
+ */
 function emptyIntroBlockFields(type = "paragraph") {
   return {
     blockType: type,
@@ -1581,6 +1932,9 @@ function emptyIntroBlockFields(type = "paragraph") {
   };
 }
 
+/**
+ * 创建服务项目空草稿。
+ */
 function emptyServiceDraft() {
   return {
     id: "",
@@ -1592,6 +1946,9 @@ function emptyServiceDraft() {
   };
 }
 
+/**
+ * 创建企业视频空草稿。
+ */
 function emptyVideoDraft() {
   return {
     title: "",
@@ -1604,6 +1961,9 @@ function emptyVideoDraft() {
   };
 }
 
+/**
+ * 创建企业荣誉空草稿。
+ */
 function emptyHonorDraft() {
   return {
     title: "",
@@ -1615,6 +1975,9 @@ function emptyHonorDraft() {
   };
 }
 
+/**
+ * 将已保存的介绍正文块转换为编辑表单字段。
+ */
 function introBlockFieldsFromBlock(block) {
   if (["heading", "paragraph", "quote"].includes(block.type)) {
     return { text: block.text || "" };
@@ -1634,6 +1997,10 @@ function introBlockFieldsFromBlock(block) {
   return {};
 }
 
+/**
+ * 将介绍正文块草稿构造成可保存结构。
+ * 视频块会校验企业视频功能和已选视频是否存在。
+ */
 function buildIntroBlock(draft, videoFeature, videos = []) {
   const type = draft.blockType || "paragraph";
   if (["heading", "paragraph", "quote"].includes(type)) {
@@ -1696,6 +2063,9 @@ function buildIntroBlock(draft, videoFeature, videos = []) {
   return null;
 }
 
+/**
+ * 为介绍正文块补充前端运行态字段。
+ */
 function decorateIntroBlocks(blocks) {
   return stripIntroBlockRuntime(blocks).map((block) => {
     const label = introBlockLabel(block.type);
@@ -1721,6 +2091,9 @@ function decorateIntroBlocks(blocks) {
   });
 }
 
+/**
+ * 保存前移除介绍正文块的前端运行态字段。
+ */
 function stripIntroBlockRuntime(blocks) {
   return cloneArray(blocks).filter((block) => block && typeof block === "object").map((block) => {
     const { _label, _summary, _cover, ...rest } = block;
@@ -1728,11 +2101,17 @@ function stripIntroBlockRuntime(blocks) {
   });
 }
 
+/**
+ * 返回介绍正文块类型的中文名称。
+ */
 function introBlockLabel(type) {
   const found = INTRO_BLOCK_TYPES.find((item) => item.value === type);
   return found ? found.label : type || "内容";
 }
 
+/**
+ * 将服务项目转换为编辑草稿。
+ */
 function serviceDraftFromItem(item) {
   return {
     id: item.id || "",
@@ -1744,6 +2123,10 @@ function serviceDraftFromItem(item) {
   };
 }
 
+/**
+ * 将服务项目草稿构造成可保存结构。
+ * 图片必须来自后端素材地址，避免保存临时本地路径。
+ */
 function buildServiceItem(draft, index) {
   const title = String(draft.title || "").trim();
   const imageUrl = textOrNull(draft.image_url);
@@ -1766,6 +2149,9 @@ function buildServiceItem(draft, index) {
   };
 }
 
+/**
+ * 为服务项目列表补充前端排序和编辑态字段。
+ */
 function decorateServices(items) {
   return stripServiceRuntime(items)
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
@@ -1777,6 +2163,9 @@ function decorateServices(items) {
     }));
 }
 
+/**
+ * 保存前移除服务项目的前端运行态字段。
+ */
 function stripServiceRuntime(items) {
   return cloneArray(items).filter((item) => item && typeof item === "object").map((item) => {
     const { _cover, _summary, _visibleLabel, ...rest } = item;
@@ -1784,6 +2173,9 @@ function stripServiceRuntime(items) {
   });
 }
 
+/**
+ * 将视频条目转换为编辑草稿。
+ */
 function videoDraftFromItem(item) {
   return {
     title: item.title || "",
@@ -1796,6 +2188,10 @@ function videoDraftFromItem(item) {
   };
 }
 
+/**
+ * 将视频草稿构造成后端保存载荷。
+ * 视频地址必须来自后端素材，封面也不能是本地临时路径。
+ */
 function buildVideoPayload(draft) {
   const title = String(draft.title || "").trim();
   const videoUrl = textOrNull(draft.video_url);
@@ -1823,6 +2219,9 @@ function buildVideoPayload(draft) {
   };
 }
 
+/**
+ * 为视频列表补充前端展示 key 和默认值。
+ */
 function decorateVideos(items) {
   return cloneArray(items)
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
@@ -1836,6 +2235,9 @@ function decorateVideos(items) {
     }));
 }
 
+/**
+ * 将荣誉条目转换为编辑草稿。
+ */
 function honorDraftFromItem(item) {
   return {
     title: item.title || "",
@@ -1847,6 +2249,10 @@ function honorDraftFromItem(item) {
   };
 }
 
+/**
+ * 将荣誉草稿构造成后端保存载荷。
+ * 至少需要标题，图片必须来自后端素材。
+ */
 function buildHonorPayload(draft) {
   const title = String(draft.title || "").trim();
   if (!title) {
@@ -1868,6 +2274,9 @@ function buildHonorPayload(draft) {
   };
 }
 
+/**
+ * 为荣誉列表补充图片预览和排序字段。
+ */
 function decorateHonors(items) {
   return cloneArray(items)
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
@@ -1884,6 +2293,9 @@ function decorateHonors(items) {
     });
 }
 
+/**
+ * 将多行文本拆成非空条目列表。
+ */
 function parseLines(value) {
   return String(value || "")
     .split(/\n|；|;/)
@@ -1891,6 +2303,9 @@ function parseLines(value) {
     .filter(Boolean);
 }
 
+/**
+ * 规范化介绍图集图片结构。
+ */
 function normalizeGalleryImages(value) {
   return cloneArray(value).slice(0, 12).map((image) => ({
     url: String((image && image.url) || "").trim(),
@@ -1898,6 +2313,9 @@ function normalizeGalleryImages(value) {
   })).filter((image) => image.url);
 }
 
+/**
+ * 规范化荣誉图片结构。
+ */
 function normalizeHonorImages(value) {
   return cloneArray(value).slice(0, 12).map((image, index) => ({
     image_url: String((image && image.image_url) || "").trim(),
@@ -1907,6 +2325,9 @@ function normalizeHonorImages(value) {
   })).filter((image) => image.image_url);
 }
 
+/**
+ * 重新计算荣誉图片排序。
+ */
 function resequenceHonorImages(images) {
   return normalizeHonorImages(images).map((image, index) => ({
     ...image,
@@ -1914,11 +2335,17 @@ function resequenceHonorImages(images) {
   }));
 }
 
+/**
+ * 判断素材地址是否已经来自后端资产管道。
+ */
 function isBackendAssetSource(value) {
   const text = String(value || "").trim();
   return /^https?:\/\//.test(text) || text.startsWith("/api/v1/storage/") || text.startsWith("/api/v1/demo-assets/");
 }
 
+/**
+ * 将输入转换为数字，空值或非法值返回 null。
+ */
 function numberOrNull(value) {
   const text = String(value ?? "").trim();
   if (!text) return null;
@@ -1926,15 +2353,24 @@ function numberOrNull(value) {
   return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : null;
 }
 
+/**
+ * 将输入转换为数字，非法时使用默认值。
+ */
 function numberOrDefault(value, fallback) {
   const number = numberOrNull(value);
   return number === null ? fallback : number;
 }
 
+/**
+ * 按当前数组顺序重排 sort_order。
+ */
 function resequenceSort(items) {
   return items.map((item, index) => ({ ...item, sort_order: (index + 1) * 10 }));
 }
 
+/**
+ * 按 ID 更新或追加列表项。
+ */
 function upsertById(items, item, key) {
   const next = cloneArray(items);
   const index = next.findIndex((current) => current[key] === item[key]);
@@ -1946,6 +2382,10 @@ function upsertById(items, item, key) {
   return next.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
 }
 
+/**
+ * 选择本地图片或视频素材。
+ * 兼容 chooseMedia 和 chooseImage，返回统一文件列表结构。
+ */
 function chooseLocalMedia(mediaType, count) {
   return new Promise((resolve, reject) => {
     if (typeof wx.chooseMedia === "function") {
@@ -1982,6 +2422,9 @@ function chooseLocalMedia(mediaType, count) {
   });
 }
 
+/**
+ * 将获取图片信息封装为 Promise，用于上传前校验尺寸和类型。
+ */
 function getImageInfo(src) {
   return new Promise((resolve, reject) => {
     wx.getImageInfo({
@@ -1992,6 +2435,9 @@ function getImageInfo(src) {
   });
 }
 
+/**
+ * 校验模板背景图片格式和比例。
+ */
 function validateBackgroundImage(info) {
   const mime = imageMime(info);
   if (!mime) {
@@ -2003,6 +2449,9 @@ function validateBackgroundImage(info) {
   }
 }
 
+/**
+ * 从微信图片信息或路径后缀推断图片 MIME 类型。
+ */
 function imageMime(info) {
   const type = String(info.type || "").toLowerCase();
   if (BACKGROUND_TYPES[type]) {
@@ -2012,16 +2461,25 @@ function imageMime(info) {
   return match ? BACKGROUND_TYPES[match[1]] || "" : "";
 }
 
+/**
+ * 从微信媒体文件对象中提取临时文件路径。
+ */
 function tempFilePath(file) {
   return file && (file.tempFilePath || file.path || "");
 }
 
+/**
+ * 从本地路径推断上传文件名。
+ */
 function fileNameFromPath(filePath, fallback) {
   const clean = String(filePath || "").split("?")[0] || "";
   const name = clean.split(/[\\/]/).filter(Boolean).pop() || "";
   return name.includes(".") ? name : fallback;
 }
 
+/**
+ * 根据图片路径后缀推断上传 Content-Type。
+ */
 function imageContentType(filePath) {
   const ext = extensionFromPath(filePath);
   if (ext === "png") return "image/png";
@@ -2029,16 +2487,25 @@ function imageContentType(filePath) {
   return "image/jpeg";
 }
 
+/**
+ * 根据视频路径后缀推断上传 Content-Type。
+ */
 function videoContentType(filePath) {
   const ext = extensionFromPath(filePath);
   return ext === "mp4" ? "video/mp4" : "video/mp4";
 }
 
+/**
+ * 从文件路径中提取扩展名。
+ */
 function extensionFromPath(filePath) {
   const match = String(filePath || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
   return match ? match[1] : "";
 }
 
+/**
+ * 规范化可管理企业展示信息。
+ */
 function decorateTenant(item) {
   const name = item.tenant_name || "企业";
   const authStatus = item.auth_status || null;
@@ -2056,6 +2523,9 @@ function decorateTenant(item) {
   };
 }
 
+/**
+ * 将工作区概览中的租户状态合并到当前租户对象。
+ */
 function mergeTenantStatus(tenant, overview) {
   const source = overview || {};
   return decorateTenant({
@@ -2070,10 +2540,16 @@ function mergeTenantStatus(tenant, overview) {
   });
 }
 
+/**
+ * 判断当前租户是否支持企业微信成员同步。
+ */
 function canSyncMembersForTenant(tenant, overview) {
   return Boolean((overview && overview.wecom_bound) || (tenant && tenant.wecom_bound));
 }
 
+/**
+ * 根据管理员角色生成前端权限开关。
+ */
 function permissionsFor(role) {
   const rank = ROLE_RANK[role] || 0;
   return {
@@ -2082,6 +2558,9 @@ function permissionsFor(role) {
   };
 }
 
+/**
+ * 规范化模板列表并补充选中态。
+ */
 function decorateTemplates(items) {
   return items.map((item) => ({
     ...item,
@@ -2091,11 +2570,17 @@ function decorateTemplates(items) {
   }));
 }
 
+/**
+ * 从模板列表中读取当前生效主色。
+ */
 function activeTemplatePrimary(templates) {
   const selected = (templates || []).find((item) => item.is_default) || (templates || [])[0] || {};
   return (selected.color_scheme && selected.color_scheme.primary) || selected.primary || DEFAULT_BRAND;
 }
 
+/**
+ * 规范化加入码结构，补充展示文本和分享路径。
+ */
 function normalizeJoinCode(joinCode = {}) {
   const token = String(joinCode.join_token || "").trim();
   const joinPath = String(joinCode.join_path || (token ? `pages/enterprise-join/index?token=${encodeURIComponent(token)}` : "")).replace(/^\/+/, "");
@@ -2110,6 +2595,9 @@ function normalizeJoinCode(joinCode = {}) {
   };
 }
 
+/**
+ * 规范化成员列表展示字段。
+ */
 function decorateMembers(items) {
   return items.map((item) => ({
     ...item,
@@ -2119,6 +2607,9 @@ function decorateMembers(items) {
   }));
 }
 
+/**
+ * 规范化员工加入申请列表。
+ */
 function decorateJoinRequests(items) {
   return items.map((item) => ({
     ...item,
@@ -2126,6 +2617,9 @@ function decorateJoinRequests(items) {
   }));
 }
 
+/**
+ * 将模板记录转换为模板编辑草稿。
+ */
 function draftFromTemplate(template) {
   const layout = template && template.layout && typeof template.layout === "object" ? template.layout : {};
   const variant = normalizeTemplateVariant((layout && layout.variant) || template.variant || "horizontal-business");
@@ -2144,6 +2638,10 @@ function draftFromTemplate(template) {
   };
 }
 
+/**
+ * 构造模板编辑器完整状态。
+ * 包含预览名片、可选背景、主题色和模板背景映射。
+ */
 function buildTemplateEditorState(template, profile, members, tenant) {
   const draft = draftFromTemplate(template || {});
   const layout = template && template.layout && typeof template.layout === "object" ? template.layout : {};
@@ -2183,11 +2681,17 @@ function buildTemplateEditorState(template, profile, members, tenant) {
   };
 }
 
+/**
+ * 从模板 layout 中安全读取图片地址字段。
+ */
 function layoutImageUrl(layout, key) {
   const value = layout && layout[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 根据企业资料和成员样本生成模板预览名片。
+ */
 function buildTemplatePreviewCard(profile, members, tenant) {
   const currentMember = Array.isArray(members) && members.length ? members[0] : null;
   const companyName = (profile && profile.display_name) || (tenant && tenant.tenant_name) || "企业";
@@ -2204,19 +2708,31 @@ function buildTemplatePreviewCard(profile, members, tenant) {
   };
 }
 
+/**
+ * 返回模板风格的中文标签。
+ */
 function variantLabel(value) {
   const found = TEMPLATE_VARIANTS.find((item) => item.value === normalizeTemplateVariant(value));
   return found ? found.label : "横版商务";
 }
 
+/**
+ * 返回模板风格元数据。
+ */
 function templateStyleMeta(variant) {
   return TEMPLATE_STYLE_META[normalizeTemplateVariant(variant)] || TEMPLATE_STYLE_META["horizontal-business"];
 }
 
+/**
+ * 将模板风格映射为卡片样式 class。
+ */
 function templateClassForVariant(variant) {
   return templateStyleMeta(variant).className;
 }
 
+/**
+ * 将模板风格转换为后端模板 ID。
+ */
 function templateIdForVariant(variant) {
   const normalized = normalizeTemplateVariant(variant);
   const map = {
@@ -2230,6 +2746,9 @@ function templateIdForVariant(variant) {
   return map[normalized] || "tpl_horizontal_business";
 }
 
+/**
+ * 统一历史模板别名和当前模板风格。
+ */
 function normalizeTemplateVariant(value) {
   if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
     return "horizontal-business";
@@ -2252,10 +2771,16 @@ function normalizeTemplateVariant(value) {
   return TEMPLATE_STYLE_META[value] ? value : "horizontal-business";
 }
 
+/**
+ * 判断模板风格是否为照片人像模板。
+ */
 function isPortraitVariant(value) {
   return normalizeTemplateVariant(value) === "portrait-photo";
 }
 
+/**
+ * 将背景透明度限制在 0-100 的整数范围。
+ */
 function normalizeOpacity(value, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -2264,6 +2789,9 @@ function normalizeOpacity(value, fallback) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+/**
+ * 返回模板风格允许使用的背景预设。
+ */
 function backgroundPresetsForVariant(variant) {
   const normalized = normalizeTemplateVariant(variant);
   const ids = TEMPLATE_BACKGROUND_PRESET_IDS[normalized] || TEMPLATE_BACKGROUND_PRESET_IDS["horizontal-business"];
@@ -2272,10 +2800,16 @@ function backgroundPresetsForVariant(variant) {
     .filter(Boolean);
 }
 
+/**
+ * 判断背景预设是否允许用于指定模板风格。
+ */
 function isPresetAllowedForVariant(presetId, variant) {
   return backgroundPresetsForVariant(variant).some((item) => item.id === presetId);
 }
 
+/**
+ * 生成模板风格默认背景状态。
+ */
 function defaultBackgroundState(variant) {
   const normalized = normalizeTemplateVariant(variant);
   const meta = templateStyleMeta(normalized);
@@ -2290,6 +2824,9 @@ function defaultBackgroundState(variant) {
   };
 }
 
+/**
+ * 合并已保存背景配置与模板默认背景。
+ */
 function backgroundStateForVariant(variant, templateBackgrounds) {
   const normalized = normalizeTemplateVariant(variant);
   const saved = normalizeTemplateBackgroundConfig(normalized, templateBackgrounds && templateBackgrounds[normalized]);
@@ -2318,6 +2855,9 @@ function backgroundStateForVariant(variant, templateBackgrounds) {
   };
 }
 
+/**
+ * 从后端 layout 还原各模板风格背景配置。
+ */
 function templateBackgroundsFromLayout(layout, activeVariant, legacy = {}) {
   const rawMap = layout && typeof layout.template_backgrounds === "object" && !Array.isArray(layout.template_backgrounds)
     ? layout.template_backgrounds
@@ -2343,6 +2883,9 @@ function templateBackgroundsFromLayout(layout, activeVariant, legacy = {}) {
   return templateBackgrounds;
 }
 
+/**
+ * 将当前模板风格背景写回背景配置映射。
+ */
 function withCurrentVariantBackground(data, patch = {}) {
   const variant = normalizeTemplateVariant(data.templateDraft && data.templateDraft.variant);
   return {
@@ -2355,6 +2898,9 @@ function withCurrentVariantBackground(data, patch = {}) {
   };
 }
 
+/**
+ * 整理所有模板风格的背景保存结构。
+ */
 function templateBackgroundsForSave(templateBackgrounds) {
   const result = {};
   Object.keys(TEMPLATE_STYLE_META).forEach((variant) => {
@@ -2364,6 +2910,9 @@ function templateBackgroundsForSave(templateBackgrounds) {
   return result;
 }
 
+/**
+ * 生成单个模板风格的背景保存结构。
+ */
 function backgroundConfigForSave(variant, state) {
   const defaults = defaultBackgroundState(variant);
   const customUrl = isBundledBackground(state.backgroundUrl) ? "" : String(state.backgroundUrl || "");
@@ -2374,6 +2923,9 @@ function backgroundConfigForSave(variant, state) {
   };
 }
 
+/**
+ * 校验并规范化单个模板背景配置。
+ */
 function normalizeTemplateBackgroundConfig(variant, value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -2392,14 +2944,23 @@ function normalizeTemplateBackgroundConfig(variant, value) {
   };
 }
 
+/**
+ * 根据内置背景 URL 反查预设。
+ */
 function presetFromUrl(url) {
   return BACKGROUND_PRESETS.find((item) => item.url === url) || null;
 }
 
+/**
+ * 判断背景 URL 是否为小程序内置资源。
+ */
 function isBundledBackground(url) {
   return Boolean(presetFromUrl(String(url || ""))) || String(url || "").startsWith("/assets/card-backgrounds/");
 }
 
+/**
+ * 规范化 HEX 颜色输入。
+ */
 function normalizeHexInput(value) {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -2409,6 +2970,9 @@ function normalizeHexInput(value) {
   return /^#[0-9a-fA-F]{6}$/.test(prefixed) ? prefixed.toLowerCase() : "";
 }
 
+/**
+ * 生成模板背景预览样式。
+ */
 function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, variant = "horizontal-business") {
   if (!url) {
     return "";
@@ -2421,6 +2985,10 @@ function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, variant = "h
   return `background: linear-gradient(${overlay}, ${overlay}), url("${url}") center / cover no-repeat;`;
 }
 
+/**
+ * 将背景 URL 转为后端保存值。
+ * 内置资源保存为空，自定义远程资源保留原 URL。
+ */
 function backgroundUrlForSave(url) {
   if (!url) {
     return Promise.resolve("");
@@ -2431,6 +2999,9 @@ function backgroundUrlForSave(url) {
   return Promise.resolve(String(url).trim());
 }
 
+/**
+ * 保存前移除模块中的前端标签字段。
+ */
 function stripModuleLabels(modules) {
   return modules.map((item) => ({
     key: item.key,
@@ -2441,6 +3012,9 @@ function stripModuleLabels(modules) {
   }));
 }
 
+/**
+ * 为企业展示模块补充前端标签。
+ */
 function decorateModules(modules) {
   return cloneArray(modules).map((item) => {
     const layout = MODULE_LAYOUTS.find((layoutItem) => layoutItem.value === item.layout);
@@ -2448,19 +3022,31 @@ function decorateModules(modules) {
   });
 }
 
+/**
+ * 克隆数组输入，非数组返回空数组。
+ */
 function cloneArray(value) {
   return JSON.parse(JSON.stringify(value || []));
 }
 
+/**
+ * 将文本输入规范为字符串或 null。
+ */
 function textOrNull(value) {
   const text = String(value || "").trim();
   return text || null;
 }
 
+/**
+ * 提取错误消息并提供默认提示。
+ */
 function formatError(error, fallback) {
   return error && error.message ? error.message : fallback;
 }
 
+/**
+ * 格式化加入码和申请列表中的时间展示。
+ */
 function formatDateTime(value) {
   const date = new Date(value || "");
   if (Number.isNaN(date.getTime())) return value || "";
@@ -2468,6 +3054,9 @@ function formatDateTime(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * 将微信确认弹窗封装为 Promise。
+ */
 function confirm(title, content) {
   return new Promise((resolve) => {
     wx.showModal({
@@ -2481,6 +3070,9 @@ function confirm(title, content) {
   });
 }
 
+/**
+ * 保存图片到系统相册，并处理隐私授权弹窗。
+ */
 function saveImageToAlbum(filePath) {
   return new Promise((resolve, reject) => {
     if (typeof wx.saveImageToPhotosAlbum !== "function") {
@@ -2519,6 +3111,9 @@ function saveImageToAlbum(filePath) {
   });
 }
 
+/**
+ * 判断保存相册失败是否由微信隐私协议未同意导致。
+ */
 function isPrivacyAgreementError(error) {
   return /privacy agreement|scope is not declared|privacy/i.test(String(error && error.errMsg || error && error.message || ""));
 }
