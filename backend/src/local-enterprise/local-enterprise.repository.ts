@@ -16,6 +16,11 @@ interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bi
 export class LocalEnterpriseRepository {
   constructor(private readonly database: DatabaseService) {}
 
+  /**
+   * 为普通微信账号创建本地企业及首个 owner 身份。
+   *
+   * 使用账号级 advisory lock 限制并发创建；同一账号最多拥有 3 个本地企业 owner 身份。
+   */
   async createEnterprise(session: EmployeeSession, name: string) {
     return this.database.transaction(async (tx) => {
       await tx.query("SELECT set_config('app.account_id',$1,true)", [session.accountId]);
@@ -35,10 +40,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
-  // Claim a platform-created empty local enterprise: the current WeChat account
-  // becomes the first active owner. Tenant must be local/active/not-deleted, the
-  // claim token unused and unexpired, and there must be no existing active owner
-  // nor an existing binding for this account.
+  /**
+   * 认领平台创建的空本地企业。
+   *
+   * token 必须未使用且未过期；企业必须是本地、启用、未删除，并且尚无 active owner。
+   */
   async claimEnterprise(input: { accountId: string; rawToken: string; displayName: string }) {
     const tokenHash = createHash("sha256").update(input.rawToken).digest("hex");
     return this.database.transaction(async (tx) => {
@@ -75,6 +81,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 查询某账号在指定本地企业中的 active 管理员身份。
+   *
+   * 先设置账号和租户上下文，再读取 tenant_admins，确保 RLS 语义与登录身份一致。
+   */
   async findLocalAdminForAccount(accountId:string,tenantId:string) {
     return this.database.transaction(async tx=>{
       await this.context(tx,accountId,tenantId);
@@ -84,6 +95,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 查询某账号可管理的所有本地企业。
+   *
+   * 先按账号找候选绑定，再逐租户设置 RLS 上下文确认 active 管理员身份。
+   */
   async listLocalAdminsForAccount(accountId:string){
     return this.database.transaction(async tx=>{
       await tx.query("SELECT set_config('app.account_id',$1,true)",[accountId]);
@@ -99,15 +115,28 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 创建后台扫码登录挑战记录。
+   */
   async createAdminScanChallenge(tokenHash:string,expiresAt:Date){
     await this.database.query(`INSERT INTO local_admin_login_challenges(token_hash,status,expires_at,created_at) VALUES($1,'pending',$2,now())`,[tokenHash,expiresAt]);
   }
 
+  /**
+   * 批准后台扫码登录挑战。
+   *
+   * 只有 pending 且未过期的挑战会被更新，避免重复扫码或过期扫码换取后台会话。
+   */
   async approveAdminScanChallenge(input:{tokenHash:string;accountId:string;admin:{tenantId:string;memberId:string}}){
     const result=await this.database.query(`UPDATE local_admin_login_challenges SET account_id=$2,tenant_id=$3,member_identity_id=$4,status='approved',approved_at=now() WHERE token_hash=$1 AND status='pending' AND expires_at>now()`,[input.tokenHash,input.accountId,input.admin.tenantId,input.admin.memberId]);
     if(result.rowCount!==1) throw new ConflictException("login challenge is invalid or expired");
   }
 
+  /**
+   * 消费后台扫码登录挑战。
+   *
+   * approved 挑战只可消费一次；消费前会重新验证账号仍然绑定 active 管理员身份。
+   */
   async consumeAdminScanChallenge(tokenHash:string){
     return this.database.transaction(async tx=>{
       const result=await tx.query<AdminChallengeRow>(`SELECT account_id,tenant_id,member_identity_id,status,expires_at FROM local_admin_login_challenges WHERE token_hash=$1 FOR UPDATE`,[tokenHash]);
@@ -124,6 +153,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 创建本地企业成员邀请。
+   *
+   * 先创建 pending_invitation 成员和禁用名片，再写入邀请 token，接受邀请后统一激活。
+   */
   async createInvitation(input: { tenantId: string; adminId: string | null; displayName: string; tokenHash: string; expiresAt: Date }) {
     return this.database.transaction(async (tx) => {
       await this.context(tx, null, input.tenantId);
@@ -135,6 +169,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 接受成员邀请并绑定当前微信账号。
+   *
+   * 同一租户内账号或成员已绑定时拒绝，避免一个微信账号重复占用多个成员身份。
+   */
   async acceptInvitation(accountId: string, rawToken: string) {
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     return this.database.transaction(async (tx) => {
@@ -155,6 +194,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 创建新的企业加入码。
+   *
+   * 使用租户级 advisory lock，先撤销旧有效码，再插入新码，保证同一时间只有一个有效加入码。
+   */
   async createJoinCode(input:{tenantId:string;tokenHash:string;expiresAt:Date}) {
     await this.database.transaction(async tx=>{
       await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",[`tenant-join-code:${input.tenantId}`]);
@@ -163,6 +207,11 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 提交加入企业申请。
+   *
+   * 有效加入码决定目标租户；同一账号在同一租户已有 pending 申请时更新展示名而不是重复插入。
+   */
   async submitJoinRequest(input:{accountId:string;rawToken:string;displayName:string}) {
     const hash=createHash("sha256").update(input.rawToken).digest("hex");
     return this.database.transaction(async tx=>{
@@ -177,11 +226,19 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 列出本地企业加入申请。
+   */
   async listJoinRequests(tenantId:string) {
     const result=await this.database.query<JoinRequestRow>(`SELECT id,tenant_id,account_id,display_name,status,created_at FROM member_join_requests WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 200`,[tenantId]);
     return result.rows.map(r=>({id:String(r.id),displayName:r.display_name,status:r.status,createdAt:new Date(r.created_at).toISOString()}));
   }
 
+  /**
+   * 审核加入申请。
+   *
+   * 拒绝只更新申请状态；通过会创建成员、账号绑定和默认名片。
+   */
   async reviewJoinRequest(input:{tenantId:string;requestId:string;adminId:string|null;decision:"approved"|"rejected"}) {
     return this.database.transaction(async tx=>{
       const result=await tx.query<JoinRequestRow>(`SELECT id,tenant_id,account_id,display_name,status,created_at FROM member_join_requests WHERE id=$1 AND tenant_id=$2 FOR UPDATE`,[input.requestId,input.tenantId]);
@@ -200,6 +257,9 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /**
+   * 为本地企业成员创建默认主名片和公开目录项。
+   */
   private async createCard(tx: DatabaseTransaction, tenantId: string, memberId: string, name: string, status = "active") {
     const publicId = defaultEmployeePublicId({ tenantId, memberIdentityId: memberId });
     const slug = defaultEmployeeCardSlug({ tenantId, memberIdentityId: memberId });
@@ -208,6 +268,9 @@ export class LocalEnterpriseRepository {
     return publicId;
   }
 
+  /**
+   * 设置当前事务的租户/账号 RLS 上下文。
+   */
   private async context(tx: DatabaseTransaction, accountId: string | null, tenantId: string) {
     await tx.query("SELECT set_config('app.tenant_id',$1,true)", [tenantId]);
     if (accountId) await tx.query("SELECT set_config('app.account_id',$1,true)", [accountId]);

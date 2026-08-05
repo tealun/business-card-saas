@@ -111,6 +111,11 @@ interface TenantAdminRow extends QueryResultRow {
 export class PlatformTenantRepository {
   constructor(private readonly database: DatabaseService) {}
 
+  /**
+   * 查询平台租户列表。
+   *
+   * 聚合成员、名片和授权健康度字段；不读取敏感授权密文，只返回是否已配置。
+   */
   async list(input: {
     search: string;
     status: string;
@@ -152,6 +157,11 @@ export class PlatformTenantRepository {
     };
   }
 
+  /**
+   * 统计平台租户概览。
+   *
+   * 用于平台列表顶部指标，区分本地企业、有效企业微信授权、取消/变更授权和异常授权。
+   */
   async summary(): Promise<{ localCount: number; activeCount: number; cancelledCount: number; unhealthyCount: number }> {
     const result = await this.database.query<TenantSummaryRow>(
       `
@@ -176,6 +186,11 @@ export class PlatformTenantRepository {
     };
   }
 
+  /**
+   * 按 id 读取平台租户详情。
+   *
+   * 详情会附带最近回调事件和管理员列表，供平台排查授权健康度和管理入口。
+   */
   async getById(tenantId: string): Promise<PlatformTenantDetailRecord | null> {
     const result = await this.database.query<TenantDetailRow>(
       `
@@ -250,6 +265,11 @@ export class PlatformTenantRepository {
     };
   }
 
+  /**
+   * 读取指定租户的管理员列表。
+   *
+   * 仅返回前 100 个管理账号摘要，按 active 状态和角色等级排序，避免详情页过大。
+   */
   private async listAdmins(tenantId: string): Promise<PlatformTenantAdminRecord[]> {
     const result = await this.database.query<TenantAdminRow>(
       `
@@ -288,6 +308,9 @@ export class PlatformTenantRepository {
     }));
   }
 
+  /**
+   * 将数据库列表行转换为平台租户列表记录。
+   */
   private toListRecord(row: TenantListRow): PlatformTenantListRecord {
     return {
       tenantId: String(row.tenant_id),
@@ -308,9 +331,12 @@ export class PlatformTenantRepository {
     };
   }
 
-  // Fetch a writable local enterprise (creation_source='local', not soft-deleted).
-  // Returns null for missing rows, WeCom/personal tenants, or already-deleted ones,
-  // so the service can fail closed before mutating platform-managed state.
+  /**
+   * 读取可由平台修改的本地企业。
+   *
+   * 只允许 creation_source='local' 且未软删除的企业；企业微信租户、个人租户和已删除企业
+   * 都返回 null，让服务层在写入前失败关闭。
+   */
   async getLocalWritable(tenantId: string): Promise<{ tenantId: string; name: string; status: "active" | "disabled"; activeOwnerCount: number } | null> {
     if (!/^\d+$/.test(tenantId)) {
       return null;
@@ -343,6 +369,11 @@ export class PlatformTenantRepository {
     };
   }
 
+  /**
+   * 创建平台管理的本地企业空壳。
+   *
+   * 新企业没有企业微信授权，auth_status 固定为 unconnected，后续通过认领 token 产生 owner。
+   */
   async createLocalTenant(input: { name: string; memberLimit: number | null }): Promise<{ tenantId: string; name: string }> {
     const result = await this.database.query<{ id: string | number | bigint; name: string }>(
       `
@@ -356,6 +387,9 @@ export class PlatformTenantRepository {
     return { tenantId: String(row.id), name: row.name };
   }
 
+  /**
+   * 重命名平台管理的本地企业。
+   */
   async renameLocalTenant(tenantId: string, name: string): Promise<boolean> {
     const result = await this.database.query(
       `
@@ -368,6 +402,9 @@ export class PlatformTenantRepository {
     return result.rowCount === 1;
   }
 
+  /**
+   * 设置平台管理的本地企业启用状态。
+   */
   async setLocalTenantStatus(tenantId: string, status: "active" | "disabled"): Promise<boolean> {
     const result = await this.database.query(
       `
@@ -380,6 +417,11 @@ export class PlatformTenantRepository {
     return result.rowCount === 1;
   }
 
+  /**
+   * 软删除平台管理的本地企业。
+   *
+   * 保留历史数据并禁用企业，避免物理删除破坏审计和已有引用。
+   */
   async softDeleteLocalTenant(tenantId: string): Promise<boolean> {
     const result = await this.database.query(
       `
