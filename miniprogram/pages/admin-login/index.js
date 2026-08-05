@@ -3,14 +3,31 @@ const {request}=require("../../utils/api");
 
 Page({
   data:{token:"",loading:true,error:"",success:"",tenants:[]},
+  /**
+   * 初始化后台扫码登录页，并立即尝试确认登录挑战。
+   */
   onLoad(options){const token=String(options&&(options.scene||options.token)||"");this.setData({token});this.prepare();},
+  /**
+   * 准备扫码登录确认流程。
+   * 会强制刷新微信会话，若账号管理多个企业则进入企业选择态。
+   */
   async prepare(){
     if(!this.data.token){this.setData({loading:false,error:"登录二维码缺少有效凭据，请返回网页刷新二维码。"});return;}
     try{await ensureSession({force:true});const result=await this.confirm();if(result.requires_selection)this.setData({loading:false,tenants:result.tenants||[]});else this.setData({loading:false,success:`已确认登录 ${result.tenant_name||"企业后台"}，请返回电脑继续。`});}
     catch(error){this.setData({loading:false,error:this.formatError(error)});}
   },
+  /**
+   * 向后端确认一次后台登录挑战。
+   * 租户编号只在同一微信账号可管理多个企业时传入。
+   */
   confirm(tenantId){return request("/local-enterprises/admin-scan/confirm",{method:"POST",data:{challenge_token:this.data.token,...(tenantId?{tenant_id:String(tenantId)}:{})}});},
+  /**
+   * 用户选择企业后再次确认扫码登录。
+   */
   async choose(event){this.setData({loading:true,error:""});try{const result=await this.confirm(event.currentTarget.dataset.id);this.setData({loading:false,tenants:[],success:`已确认登录 ${result.tenant_name||"企业后台"}，请返回电脑继续。`});}catch(error){this.setData({loading:false,error:this.formatError(error)});}},
+  /**
+   * 将后端错误翻译成面向扫码用户的中文提示。
+   */
   formatError(error){
     const message=error&&error.message?error.message:"确认登录失败";
     if(/不是本地企业管理员|not.*local enterprise administrator/i.test(message)){

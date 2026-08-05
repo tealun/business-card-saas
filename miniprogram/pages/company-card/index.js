@@ -9,6 +9,9 @@ Page({
     routed: false
   },
 
+  /**
+   * 企业名片 tab 展示时同步主题和 tabBar，然后自动打开当前身份公开名片。
+   */
   onShow() {
     setPageTheme(this);
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
@@ -19,6 +22,10 @@ Page({
     this.openCardHome();
   },
 
+  /**
+   * 根据当前身份打开企业/个人公开名片。
+   * 未登录或演示身份跳转演示名片，缺少 publicId 时尝试刷新会话补齐。
+   */
   async openCardHome() {
     let currentIdentity = app.globalData.currentIdentity || {};
     if (currentIdentity.isDemo || !app.globalData.token) {
@@ -54,6 +61,9 @@ Page({
     });
   },
 
+  /**
+   * 返回员工首页。
+   */
   goHome() {
     wx.switchTab({ url: "/pages/employee/index" });
   }

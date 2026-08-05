@@ -48,6 +48,9 @@ Page({
     }
   },
 
+  /**
+   * 名片夹页展示时刷新主题、tabBar 选中态和统计数据。
+   */
   onShow() {
     setPageTheme(this);
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
@@ -57,10 +60,17 @@ Page({
     this.loadStats();
   },
 
+  /**
+   * 登录成功后重新加载真实名片夹统计。
+   */
   async onLoginSuccess() {
     await this.loadStats();
   },
 
+  /**
+   * 根据会话状态加载名片夹数据。
+   * 未登录展示演示数据，已登录时只读取当前名片访客统计，其他分组保持待上线空态。
+   */
   async loadStats() {
     const hasSession = Boolean(app.globalData.token && app.globalData.currentIdentity);
     if (!hasSession) {
@@ -113,20 +123,34 @@ Page({
     }
   },
 
+  /**
+   * 切换名片夹分组，并刷新当前列表。
+   */
   switchTab(event) {
     this.setData({ activeTab: event.currentTarget.dataset.key });
     this.refreshActiveGroups();
   },
 
+  /**
+   * 根据 activeTab 从分组映射中刷新当前展示列表。
+   */
   refreshActiveGroups() {
     const tabGroups = this.data.tabGroups || {};
     this.setData({ groups: tabGroups[this.data.activeTab] || [] });
   },
 
+  /**
+   * 更新搜索关键词。
+   * 当前搜索仅保留输入态，实际筛选能力后续接入。
+   */
   onSearch(event) {
     this.setData({ keyword: event.detail.value });
   },
 
+  /**
+   * 处理名片交换动作。
+   * 匿名访客或不可交换条目会直接忽略，避免展示无效操作反馈。
+   */
   exchange(event) {
     const item = findItem(this.data.groups, event.currentTarget.dataset.id);
     if (!item || item.isAnonymous || item.canExchange === false) {
@@ -135,6 +159,10 @@ Page({
     wx.showToast({ title: "名片交换功能即将上线", icon: "none" });
   },
 
+  /**
+   * 选择或拍摄线下纸质名片图片。
+   * 当前只做入口占位，不上传或持久化图片。
+   */
   captureOfflineCard() {
     if (typeof wx.chooseMedia !== "function") {
       wx.showToast({ title: "当前微信版本暂不支持拍照识别", icon: "none" });
@@ -148,15 +176,24 @@ Page({
     });
   },
 
+  /**
+   * 兼容模板绑定命名，复用线下名片采集流程。
+   */
   bindOfflineImage() {
     this.captureOfflineCard();
   },
 
+  /**
+   * 回到发名片首页。
+   */
   goSendCard() {
     wx.switchTab({ url: "/pages/employee/index" });
   }
 });
 
+/**
+ * 在分组列表中查找指定名片项。
+ */
 function findItem(groups, id) {
   for (const group of groups || []) {
     const found = (group.items || []).find((item) => item.id === id);

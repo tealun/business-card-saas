@@ -7,6 +7,10 @@ Page({
     authorizationUrl: ""
   },
 
+  /**
+   * 初始化企业微信敏感资料授权页。
+   * 仅企业微信运行环境允许发起授权 URL 获取。
+   */
   async onLoad() {
     if (!isWeComRuntime()) {
       this.setData({ loading: false, error: "请在企业微信中打开小程序完成授权。" });
@@ -24,6 +28,9 @@ Page({
     }
   },
 
+  /**
+   * 重置错误态并重新发起授权 URL 获取。
+   */
   retry() {
     this.setData({ loading: true, error: "", authorizationUrl: "" });
     this.onLoad();

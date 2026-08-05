@@ -42,11 +42,18 @@ Page({
     submitting: false
   },
 
+  /**
+   * 初始化员工名片编辑页主题，并启动登录和名片加载流程。
+   */
   onLoad() {
     setPageTheme(this);
     this.login();
   },
 
+  /**
+   * 确保用户会话存在后加载当前名片。
+   * 登录失败只进入错误态，不写入空名片数据。
+   */
   async login() {
     try {
       await ensureSession();
@@ -57,6 +64,9 @@ Page({
     }
   },
 
+  /**
+   * 加载当前名片预览，并将后端模板配置映射为页面可渲染状态。
+   */
   async loadCard() {
     try {
       const preview = await request("/employee/cards/current/preview");
@@ -96,11 +106,18 @@ Page({
     }
   },
 
+  /**
+   * 按字段 key 更新表单草稿。
+   */
   onInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ [`form.${key}`]: event.detail.value });
   },
 
+  /**
+   * 校验并保存员工名片基础资料。
+   * 只提交当前页面开放的字段，避免覆盖模板、隐私等其他配置。
+   */
   async saveCard() {
     if (this.data.submitting) {
       return;
@@ -136,6 +153,9 @@ Page({
     }
   },
 
+  /**
+   * 创建当前名片的分享记录，并跳转到公开名片页预览。
+   */
   async createShare() {
     if (this.data.submitting) {
       return;
@@ -156,6 +176,10 @@ Page({
   }
 });
 
+/**
+ * 校验名片基础表单。
+ * 维护姓名必填、邮箱格式和电话长度字符范围这些前端即时约束。
+ */
 function validateCardForm(form) {
   if (!String(form.display_name || "").trim()) {
     throw new Error("姓名不能为空");
@@ -170,6 +194,9 @@ function validateCardForm(form) {
   }
 }
 
+/**
+ * 生成名片背景样式，兼容自定义 URL、预设 ID 和模板默认背景。
+ */
 function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
   const normalizedTemplateId = normalizeTemplateId(templateId);
   const backgroundUrl = url || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizedTemplateId] || "";
@@ -183,6 +210,9 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
   return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
 }
 
+/**
+ * 将模板 ID 映射为名片样式 class。
+ */
 function cardTemplateClass(templateId) {
   const map = {
     tpl_horizontal_business: "biz-card--horizontal",
@@ -195,11 +225,18 @@ function cardTemplateClass(templateId) {
   return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
 }
 
+/**
+ * 从模板 layout 中安全读取图片地址字段。
+ */
 function layoutImageUrl(layout, key) {
   const value = layout && layout[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 计算当前模板实际背景配置。
+ * 新版模板背景配置优先，旧版 background_url 作为兼容兜底。
+ */
 function activeTemplateBackground(layout, templateId, fallbackUrl) {
   const config = templateBackgroundConfig(layout, templateId);
   if (config) {
@@ -216,6 +253,9 @@ function activeTemplateBackground(layout, templateId, fallbackUrl) {
   };
 }
 
+/**
+ * 从 layout.template_backgrounds 中读取指定模板配置。
+ */
 function templateBackgroundConfig(layout, templateId) {
   const map = layout && layout.template_backgrounds;
   if (!map || typeof map !== "object" || Array.isArray(map)) {
@@ -233,6 +273,9 @@ function templateBackgroundConfig(layout, templateId) {
   };
 }
 
+/**
+ * 将模板 ID 转成旧版 variant 键。
+ */
 function templateVariantKey(templateId) {
   const map = {
     tpl_horizontal_business: "horizontal-business",
@@ -245,6 +288,9 @@ function templateVariantKey(templateId) {
   return map[normalizeTemplateId(templateId)] || "horizontal-business";
 }
 
+/**
+ * 统一历史模板别名和当前模板 ID。
+ */
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
@@ -255,6 +301,9 @@ function normalizeTemplateId(templateId) {
   return templateId || "tpl_horizontal_business";
 }
 
+/**
+ * 将透明度限制在 0-100 的整数范围。
+ */
 function normalizeOpacity(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) {

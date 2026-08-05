@@ -38,6 +38,10 @@ const documents = {
 Page({
   data: { document: documents.agreement },
 
+  /**
+   * 根据路由参数选择展示用户协议或隐私政策。
+   * 未传 type 或传入未知值时默认展示用户协议。
+   */
   onLoad(options) {
     const type = options && options.type === "privacy" ? "privacy" : "agreement";
     const document = documents[type];
