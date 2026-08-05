@@ -10,6 +10,10 @@ const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
 const DEMO_ASSET_BASE = `${String(config.apiBase || "").replace(/\/$/, "")}/demo-assets/company`;
 const DEMO_ASSET_VERSION = "20260715-photo4";
 
+/**
+ * 拼出演示企业素材地址。
+ * 演示数据不依赖真实租户资产，版本号用于强制刷新小程序缓存。
+ */
 function demoAsset(name) {
   return `${DEMO_ASSET_BASE}/${name}?v=${DEMO_ASSET_VERSION}`;
 }
@@ -173,6 +177,10 @@ Page({
     card: demoPublicCard
   },
 
+  /**
+   * 解析公域名片入口参数并加载名片。
+   * 支持直接 card/share 参数和扫码 scene 参数；缺少真实 publicId 时展示演示名片。
+   */
   async onLoad(query) {
     const isDemoRoute = query.demo === "1";
     const scene = decodeSceneParam(query.scene);
@@ -192,12 +200,20 @@ Page({
     }
   },
 
+  /**
+   * 页面回到前台时刷新分享封面。
+   * 只在名片已就绪或停用态执行，避免 loading 阶段重复渲染 canvas。
+   */
   onShow() {
     if (this.data.uiState === "ready" || this.data.uiState === "disabled") {
       this.prepareShareImage();
     }
   },
 
+  /**
+   * 拉取公开名片详情。
+   * 公域页面允许匿名访问，因此请求显式关闭 auth。
+   */
   async loadPublicCard() {
     try {
       const card = await request(`/public/cards/${this.data.publicId}`, { auth: false });
@@ -208,6 +224,10 @@ Page({
     }
   },
 
+  /**
+   * 规范化公开名片数据并同步页面展示状态。
+   * 这里集中处理停用态、分享权限、企业模块、模板背景和主题色，避免模板层分散判断。
+   */
   applyPublicCard(rawCard, isDemo) {
     const card = normalizePublicCard(rawCard);
     const disabled = card.status && card.status !== "active";
@@ -254,6 +274,10 @@ Page({
     this.applyStats(card.stats);
   },
 
+  /**
+   * 判断当前访问者是否为这张公开名片的拥有者。
+   * 会同时参考全局当前身份、身份列表和后端返回的 owner 标记。
+   */
   isOwnPublicCard(card) {
     const currentIdentity = app.globalData.currentIdentity || {};
     const identities = app.globalData.identities || [];
@@ -264,6 +288,9 @@ Page({
     );
   },
 
+  /**
+   * 根据名片分享权限控制微信右上角分享菜单。
+   */
   updateShareMenu(visible) {
     const method = visible ? wx.showShareMenu : wx.hideShareMenu;
     if (typeof method === "function") {
@@ -271,6 +298,9 @@ Page({
     }
   },
 
+  /**
+   * 从错误态重新加载公开名片，并重新创建访问记录。
+   */
   reload() {
     this.setData({ uiState: "loading" });
     this.loadPublicCard()
@@ -278,6 +308,9 @@ Page({
       .catch(() => this.setData({ uiState: "error" }));
   },
 
+  /**
+   * 返回上一页；没有页面栈时回到员工首页，适配扫码直达场景。
+   */
   goBack() {
     const pages = getCurrentPages();
     if (pages.length > 1) {
@@ -287,10 +320,17 @@ Page({
     }
   },
 
+  /**
+   * 回到员工首页 tab。
+   */
   goHome() {
     wx.switchTab({ url: "/pages/employee/index", fail() {} });
   },
 
+  /**
+   * 创建公开名片访问记录，并保存后续行为上报所需的 visitToken。
+   * 自己访问自己的名片不计入访客，匿名访问会携带本地 anonId 和设备指纹。
+   */
   async createVisit() {
     if (!this.data.publicId) {
       return;
@@ -335,6 +375,10 @@ Page({
     }
   },
 
+  /**
+   * 基于当前访问令牌派生下一跳分享 ID。
+   * 这样访客二次转发时仍能保留来源链路，失败则退回原分享 ID。
+   */
   async prepareDerivedShare() {
     if (!this.data.canShare || !app.globalData.visitToken || !this.data.shareId) {
       return;
@@ -353,6 +397,10 @@ Page({
     }
   },
 
+  /**
+   * 记录访客行为事件，例如拨号、点赞、复制邮箱等。
+   * 只有非本人访问且 visitToken 已建立时上报，失败不影响用户动作。
+   */
   async recordAction(actionType) {
     if (this.data.isOwnCard) {
       return;
@@ -372,6 +420,9 @@ Page({
     }
   },
 
+  /**
+   * 拨打名片联系电话，并记录拨号行为。
+   */
   callPhone() {
     const fields = this.data.card.card.fields || {};
     const number = fields.mobile || fields.phone;
@@ -383,6 +434,10 @@ Page({
     wx.makePhoneCall({ phoneNumber: number, fail() {} });
   },
 
+  /**
+   * 调用微信联系人 API 保存名片资料。
+   * 字段来自公开名片 card.fields，不额外请求隐私数据。
+   */
   saveContact() {
     const c = this.data.card.card;
     const fields = c.fields || {};
@@ -398,11 +453,19 @@ Page({
     });
   },
 
+  /**
+   * 收藏名片的前端反馈入口。
+   * 当前只记录行为和提示，真正名片夹持久化由后续功能承接。
+   */
   collectCard() {
     this.recordAction("view_paper_card");
     wx.showToast({ title: "已收下名片", icon: "success" });
   },
 
+  /**
+   * 对公开名片点赞，并按后端返回统计刷新计数。
+   * 使用 visitToken 做访客级幂等，避免重复点击刷高点赞数。
+   */
   async likeCard() {
     if (this.data.isOwnCard) {
       return;
@@ -433,14 +496,24 @@ Page({
     }
   },
 
+  /**
+   * 引导访客回到首页创建或查看自己的名片。
+   */
   makeMyCard() {
     wx.switchTab({ url: "/pages/employee/index" });
   },
 
+  /**
+   * 名片拥有者进入编辑页。
+   */
   editMyCard() {
     wx.navigateTo({ url: "/pages/employee/edit" });
   },
 
+  /**
+   * 弹出当前公开名片的身份说明。
+   * 演示、企业、个人三种语义分别展示，降低访客理解成本。
+   */
   openIdentityInfo() {
     const company = this.data.cardCompanyShortName || this.data.cardCompanyName;
     const isEnterprise = Boolean(company);
@@ -456,6 +529,9 @@ Page({
     });
   },
 
+  /**
+   * 打开企业名片开通说明，并记录升级意向事件。
+   */
   openUpgradeEnterprise() {
     if (typeof wx.reportEvent === "function") {
       wx.reportEvent("upgrade_enterprise", { source: "demo_company_card" });
@@ -469,6 +545,10 @@ Page({
     });
   },
 
+  /**
+   * 打开联系客服占位说明。
+   * 后续接入真实客服页时只需替换这里的跳转逻辑。
+   */
   openContactService() {
     // 后续接入系统客服页面时，只需在这里替换为客服跳转能力。
     wx.showModal({
@@ -479,11 +559,17 @@ Page({
     });
   },
 
+  /**
+   * 发起交换名片的前端反馈入口，并记录交换意向。
+   */
   exchangeCard() {
     this.recordAction("exchange_card");
     wx.showToast({ title: "交换名片请求已发起", icon: "success" });
   },
 
+  /**
+   * 将后端统计结构映射到页面展示字段。
+   */
   applyStats(stats) {
     if (!stats) {
       return;
@@ -497,6 +583,9 @@ Page({
     });
   },
 
+  /**
+   * 复制名片邮箱到剪贴板，并记录复制行为。
+   */
   copyEmail() {
     const email = this.data.card.card.fields && this.data.card.card.fields.email;
     if (!email) {
@@ -507,6 +596,9 @@ Page({
     wx.setClipboardData({ data: email });
   },
 
+  /**
+   * 复制企业或个人地址，作为地图入口的轻量替代。
+   */
   openMap() {
     const fields = this.data.card.card.fields || {};
     const address = (this.data.card.company_profile || {}).address || fields.address;
@@ -518,20 +610,32 @@ Page({
     wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
   },
 
+  /**
+   * 打开微信二维码弹层，并记录复制/查看微信行为。
+   */
   copyWechat() {
     this.recordAction("copy_wechat");
     this.setData({ wechatSheetVisible: true, wechatQrUrl: publicWechatQrUrl(this.data.card) });
   },
 
+  /**
+   * 关闭微信二维码弹层。
+   */
   closeWechatSheet() {
     this.setData({ wechatSheetVisible: false });
   },
 
+  /**
+   * 查看纸质名片信息的行为入口。
+   */
   viewPaperCard() {
     this.recordAction("view_paper_card");
     wx.showToast({ title: "纸质名片信息已记录", icon: "none" });
   },
 
+  /**
+   * 预览企业介绍正文中的单张图片。
+   */
   previewIntroImage(event) {
     const url = event.currentTarget.dataset.url;
     if (url) {
@@ -539,6 +643,9 @@ Page({
     }
   },
 
+  /**
+   * 预览企业模块组件回传的一组图片。
+   */
   previewModuleImage(event) {
     const detail = event.detail || {};
     const urls = detail.urls || event.currentTarget.dataset.urls || [];
@@ -546,6 +653,10 @@ Page({
     if (current) wx.previewImage({ urls: Array.isArray(urls) ? urls : [current], current });
   },
 
+  /**
+   * 生成微信原生转发配置。
+   * 优先使用派生 shareId，确保访客二次转发仍能被追踪。
+   */
   onShareAppMessage() {
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
@@ -561,10 +672,17 @@ Page({
     return message;
   },
 
+  /**
+   * 手动刷新分享封面图。
+   */
   refreshShareImage() {
     this.prepareShareImage();
   },
 
+  /**
+   * 生成公开名片分享封面图。
+   * 名片元信息可由加载阶段传入，未传时从当前页面状态兜底读取。
+   */
   prepareShareImage(cardMeta) {
     const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
     nextTick(async () => {
@@ -592,6 +710,10 @@ Page({
   }
 });
 
+/**
+ * 生成公开名片背景样式。
+ * 会按模板类型选择浅色或深色遮罩，并兼容预设背景 ID。
+ */
 function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "") {
   const normalizedTemplateId = normalizeTemplateId(templateId);
   const backgroundUrl = url || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizedTemplateId] || "";
@@ -616,6 +738,10 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
   ].join(";") + ";";
 }
 
+/**
+ * 解析小程序扫码 scene 参数。
+ * 支持直接 pub_/shr_ 标识，也支持 querystring 形式的 card/share 参数。
+ */
 function decodeSceneParam(value) {
   const raw = String(value || "").trim();
   if (!raw) return { card: "", share: "" };
@@ -634,6 +760,9 @@ function decodeSceneParam(value) {
   };
 }
 
+/**
+ * 将模板 ID 映射到公开名片卡片样式类。
+ */
 function cardTemplateClass(templateId) {
   const map = {
     tpl_horizontal_business: "biz-card--horizontal",
@@ -646,11 +775,18 @@ function cardTemplateClass(templateId) {
   return map[normalizeTemplateId(templateId)] || map.tpl_horizontal_business;
 }
 
+/**
+ * 从模板 layout 中安全读取图片 URL。
+ */
 function layoutImageUrl(layout, key) {
   const value = layout && layout[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 计算当前模板实际使用的背景配置。
+ * 新版 template_backgrounds 优先，旧字段作为兼容兜底。
+ */
 function activeTemplateBackground(layout, templateId, fallbackUrl) {
   const config = templateBackgroundConfig(layout, templateId);
   if (config) {
@@ -667,6 +803,9 @@ function activeTemplateBackground(layout, templateId, fallbackUrl) {
   };
 }
 
+/**
+ * 从 layout.template_backgrounds 中提取指定模板背景配置。
+ */
 function templateBackgroundConfig(layout, templateId) {
   const map = layout && layout.template_backgrounds;
   if (!map || typeof map !== "object" || Array.isArray(map)) {
@@ -684,6 +823,9 @@ function templateBackgroundConfig(layout, templateId) {
   };
 }
 
+/**
+ * 将模板 ID 转成旧版 variant 键，兼容历史保存结构。
+ */
 function templateVariantKey(templateId) {
   const map = {
     tpl_horizontal_business: "horizontal-business",
@@ -696,6 +838,9 @@ function templateVariantKey(templateId) {
   return map[normalizeTemplateId(templateId)] || "horizontal-business";
 }
 
+/**
+ * 统一历史模板别名和当前模板 ID。
+ */
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
@@ -706,6 +851,9 @@ function normalizeTemplateId(templateId) {
   return templateId || "tpl_horizontal_business";
 }
 
+/**
+ * 将背景透明度限制在 0-100 的整数范围内。
+ */
 function normalizeOpacity(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -714,6 +862,9 @@ function normalizeOpacity(value) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+/**
+ * 规范化后端公开名片结构，给页面提供稳定默认值。
+ */
 function normalizePublicCard(card) {
   return {
     public_id: card.public_id || "",
@@ -735,6 +886,9 @@ function normalizePublicCard(card) {
   };
 }
 
+/**
+ * 根据访客统计生成头像占位槽。
+ */
 function visitorAvatarSlots(stats) {
   const count = Math.max(0, Number((stats && stats.visitor_count) || 0));
   const slotCount = count >= 4 ? 4 : Math.max(1, count);
@@ -742,6 +896,10 @@ function visitorAvatarSlots(stats) {
   return Array.from({ length: slotCount }).map((_, index) => ({ avatarUrl: avatars[index] || "" }));
 }
 
+/**
+ * 按企业/个人语义选择公开展示的微信二维码地址。
+ * 企业名片优先企业微信二维码，个人名片优先个人微信二维码。
+ */
 function publicWechatQrUrl(card) {
   const fields = (card && card.card && card.card.fields) || {};
   const layout = (card && card.template && card.template.layout) || {};
@@ -753,6 +911,9 @@ function publicWechatQrUrl(card) {
   return fields.wechat_qrcode_url || fields.wecom_qrcode_url || layout.wechat_qrcode_url || layout.wecom_qrcode_url || profile.wechat_qrcode_url || profile.wecom_qrcode_url || "";
 }
 
+/**
+ * 生成公开名片导航标题。
+ */
 function publicNavTitle(card, meta = publicCardMeta(card)) {
   const name = ((card.card && card.card.display_name) || "").trim();
   const company = meta.companyName;
@@ -762,6 +923,10 @@ function publicNavTitle(card, meta = publicCardMeta(card)) {
   return name ? `${name} | ${company}` : company;
 }
 
+/**
+ * 提取公开名片的企业展示元信息。
+ * 个人名片会隐藏公司头部，避免把个人身份当作企业展示。
+ */
 function publicCardMeta(card) {
   const rawCompany = ((card.card && card.card.company) || (card.company_profile && card.company_profile.name) || "").trim();
   const rawShortName = ((card.card && card.card.company_short_name) || (card.company_profile && card.company_profile.short_name) || "").trim();
@@ -772,6 +937,9 @@ function publicCardMeta(card) {
   return { companyName, companyShortName, logoUrl };
 }
 
+/**
+ * 判断公开名片是否为当前登录用户的个人名片。
+ */
 function isCurrentPersonalCard(card) {
   const currentIdentity = app.globalData.currentIdentity || {};
   return Boolean(
@@ -782,10 +950,17 @@ function isCurrentPersonalCard(card) {
   );
 }
 
+/**
+ * 识别历史数据中表示个人身份的公司占位名称。
+ */
 function isPersonalCompanyName(company) {
   return company === "微信个人身份" || company === "个人名片" || company === "Demo Tenant";
 }
 
+/**
+ * 汇总企业服务项目，兼容 layout 和 company_profile 两种来源。
+ * 会过滤不可见/空内容并按 sort_order 排序。
+ */
 function resolveServiceItems(card, isDemo) {
   const layout = (card.template && card.template.layout) || {};
   const profile = card.company_profile || {};
@@ -812,6 +987,10 @@ function resolveServiceItems(card, isDemo) {
   return items.length ? items : isDemo ? demoServiceItems.map((item, index) => ({ ...item, id: `demo_service_${index}` })) : [];
 }
 
+/**
+ * 规范化企业介绍正文块。
+ * 会将视频块关联到 videos 列表，并计算折叠状态和预览图片集合。
+ */
 function resolveIntroBlocks(card) {
   const videosById = new Map((card.videos || []).map((video) => [String(video.video_id), video]));
   const blocks = ((card.company_profile || {}).intro_blocks || []).map((item) => {
@@ -850,6 +1029,10 @@ function resolveIntroBlocks(card) {
     .filter((item) => item.text || item.items.length || item.image_url || item.images.length || item.video_url);
 }
 
+/**
+ * 组装公开名片可展示的企业模块。
+ * 按管理端配置排序，并过滤没有内容的模块。
+ */
 function resolveDisplayModules(card, isDemo) {
   const profile = card.company_profile || {};
   const defaults = [
@@ -878,15 +1061,24 @@ function resolveDisplayModules(card, isDemo) {
     .filter((module) => module.content.length > 0);
 }
 
+/**
+ * 从默认模块配置中读取标题。
+ */
 function defaultModuleTitle(defaults, key) {
   const found = defaults.find((item) => item.key === key);
   return found ? found.title : "";
 }
 
+/**
+ * 生成视频组件稳定 key，避免特殊字符破坏渲染标识。
+ */
 function videoKey(scope, value) {
   return `${scope}-${String(value || "video").replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
+/**
+ * 读取本地匿名访客 ID，并在过期或结构异常时清理。
+ */
 function readStoredAnonId() {
   try {
     const stored = wx.getStorageSync(VISITOR_ANON_STORAGE_KEY);
@@ -905,6 +1097,9 @@ function readStoredAnonId() {
   }
 }
 
+/**
+ * 获取当前匿名访客 ID，优先使用本地有效缓存。
+ */
 function currentAnonId() {
   const stored = readStoredAnonId();
   if (stored) {

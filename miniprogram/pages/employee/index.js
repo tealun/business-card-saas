@@ -97,11 +97,19 @@ Page({
     recentVisitors: demoRecentVisitors
   },
 
+  /**
+   * 初始化员工名片首页主题，并进入登录态/演示态启动流程。
+   * 该页面是个人、企业身份和名片预览的入口，后续状态都由 bootstrap 统一收敛。
+   */
   onLoad() {
     setPageTheme(this);
     this.bootstrap();
   },
 
+  /**
+   * 页面重新展示时同步自定义 tabBar 与当前身份数据。
+   * 已登录时只刷新预览，未登录或会话缺失时重新执行启动流程。
+   */
   async onShow() {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
@@ -115,12 +123,16 @@ Page({
     await this.bootstrap();
   },
 
+  /**
+   * 根据全局会话决定展示演示数据还是真实员工名片。
+   * 企业微信身份会先尝试刷新敏感信息授权，失败时保留当前可见会话，避免首页不可用。
+   */
   async bootstrap() {
     if (shouldRefreshWeComSession(app.globalData.currentIdentity)) {
       try {
         await ensureSession({ force: true });
       } catch (_error) {
-        // Keep the existing session visible if the enterprise refresh cannot complete.
+        // 企业刷新失败时保留既有会话可见，避免首页被清空。
       }
     }
     const hasSession = Boolean(app.globalData.token && app.globalData.currentIdentity);
@@ -160,6 +172,10 @@ Page({
     await this.loadPreview();
   },
 
+  /**
+   * 登录组件回调成功后接管最新身份集合，并加载真实名片预览。
+   * 输入来自组件 detail，副作用是切换页面为已登录态并清空演示指标。
+   */
   async onLoginSuccess(event) {
     this.syncIdentityState(event.detail);
     this.setData({
@@ -175,6 +191,10 @@ Page({
     await this.loadPreview();
   },
 
+  /**
+   * 登录失败时回退到演示态，保证新用户仍可浏览核心能力。
+   * 这里只改变前端展示状态，不写入本地会话。
+   */
   onLoginFail() {
     this.setData({
       loading: false,
@@ -191,6 +211,10 @@ Page({
     });
   },
 
+  /**
+   * 将全局或登录返回的身份列表规范成身份切换弹窗可渲染的数据。
+   * 会补充演示企业身份入口，方便个人身份用户看到企业版升级路径。
+   */
   syncIdentityState(session) {
     const currentIdentity = session.currentIdentity || app.globalData.currentIdentity;
     const currentId = currentIdentity && currentIdentity.member_identity_id;
@@ -213,6 +237,10 @@ Page({
     this.setData({ currentIdentity, identities });
   },
 
+  /**
+   * 并行拉取当前名片与预览配置，刷新首页名片视觉、统计和授权状态。
+   * 失败时保持页面可恢复，由 error/loading 状态驱动重试提示。
+   */
   async loadPreview() {
     try {
       const [current, preview] = await Promise.all([
@@ -298,6 +326,10 @@ Page({
 
   // 真实的按身份访客统计（个人/各企业名片各自独立）；
   // 「我看过/好友名片」后端功能未上线，保持 0。
+  /**
+   * 拉取当前身份名片的访问统计，并转换成首页最近访客列表。
+   * 统计失败不阻断名片预览，保留已有数据以避免首页闪退或空白。
+   */
   async loadStats() {
     try {
       const stats = await request("/employee/cards/current/stats");
@@ -312,6 +344,10 @@ Page({
     }
   },
 
+  /**
+   * 检查企业微信敏感资料授权状态，并在企业微信环境中按需自动引导授权。
+   * 仅企业成员身份生效，个人或演示身份会重置为不可授权状态。
+   */
   async checkWecomSensitiveAuthorization(options = {}) {
     const currentIdentity = this.data.currentIdentity || {};
     if (!this.data.loggedIn || currentIdentity.identity_type !== "wecom_member") {
@@ -342,6 +378,10 @@ Page({
     }
   },
 
+  /**
+   * 发起企业微信敏感资料授权页跳转。
+   * 进入前校验登录、身份类型和运行环境，防止普通微信场景误触企业能力。
+   */
   startWecomSensitiveAuthorization(options = {}) {
     if (!this.ensureLoggedIn("请先登录后同步企业微信资料")) {
       return;
@@ -367,6 +407,9 @@ Page({
     });
   },
 
+  /**
+   * 打开身份切换面板，并隐藏底部 tabBar 以避免弹层交互被遮挡。
+   */
   openIdentitySheet() {
     if (!this.data.identities.length) {
       wx.showToast({ title: "暂无可切换身份", icon: "none" });
@@ -376,11 +419,18 @@ Page({
     this.setTabBarHidden(true);
   },
 
+  /**
+   * 关闭身份切换面板，并恢复底部 tabBar。
+   */
   closeIdentitySheet() {
     this.setData({ identitySheetVisible: false });
     this.setTabBarHidden(false);
   },
 
+  /**
+   * 根据用户选择切换当前名片身份。
+   * 演示身份走独立示例页，真实身份会刷新全局会话和首页预览。
+   */
   async chooseIdentity(event) {
     const memberIdentityId = event.currentTarget.dataset.id;
     if (!memberIdentityId || this.data.switchingIdentity) {
@@ -415,6 +465,10 @@ Page({
 
   // 企业微信环境下升级到最新企业登录；其他情况下只重新拉当前账号的身份列表，
   // 这样不会把已登录的企业身份意外冲回普通微信态。
+  /**
+   * 刷新当前账号可用身份列表。
+   * 企业微信个人态会强制重取会话，其余场景只刷新身份集合，避免覆盖已选企业身份。
+   */
   async refreshIdentities() {
     if (this.data.refreshingIdentities || this.data.switchingIdentity) {
       return;
@@ -437,6 +491,9 @@ Page({
     }
   },
 
+  /**
+   * 跳转到资料编辑页；未登录时只提示，不创建临时名片。
+   */
   goEdit() {
     if (!this.ensureLoggedIn("请先登录后编辑资料")) {
       return;
@@ -446,6 +503,10 @@ Page({
 
   // 普通微信用户自助创建本地企业：创建成功后自动成为该企业 owner，
   // 刷新身份列表即可在弹层中看到并切换到新企业名片。
+  /**
+   * 打开本地企业创建弹窗。
+   * 输入只接受 2-255 字企业名称，提交后由后端创建 owner 身份。
+   */
   createLocalEnterprise() {
     if (this.data.creatingEnterprise) {
       return;
@@ -472,6 +533,10 @@ Page({
     });
   },
 
+  /**
+   * 提交本地企业创建请求，并刷新身份列表让新企业可立即切换。
+   * 该操作会改变服务端租户/成员状态，因此需要 loading 锁避免重复创建。
+   */
   async submitCreateLocalEnterprise(name) {
     this.setData({ creatingEnterprise: true });
     wx.showLoading({ title: "正在创建企业", mask: true });
@@ -489,6 +554,9 @@ Page({
     }
   },
 
+  /**
+   * 展示当前身份说明，帮助用户区分个人名片、企业名片和演示名片。
+   */
   openIdentityInfo() {
     const identity = this.data.currentIdentity || {};
     const isDemo = Boolean(identity.isDemo);
@@ -503,6 +571,9 @@ Page({
     });
   },
 
+  /**
+   * 跳转到样式配置页；企业身份下具体可编辑项由样式页再按权限控制。
+   */
   goStyle() {
     if (!this.ensureLoggedIn("请先登录后设置样式")) {
       return;
@@ -510,10 +581,17 @@ Page({
     wx.navigateTo({ url: "/pages/employee/style" });
   },
 
+  /**
+   * 切换到名片夹 tab，用于查看已收藏或线下交换的名片。
+   */
   goWallet() {
     wx.switchTab({ url: "/pages/card-wallet/index" });
   },
 
+  /**
+   * 打开发名片动作面板。
+   * 只有已登录且名片未停用时可打开，避免生成不可访问的分享入口。
+   */
   openSheet() {
     if (!this.ensureLoggedIn("请先登录后发名片")) {
       return;
@@ -526,11 +604,17 @@ Page({
     this.setTabBarHidden(true);
   },
 
+  /**
+   * 关闭发名片面板，并恢复 tabBar。
+   */
   closeSheet() {
     this.setData({ sheetVisible: false });
     this.setTabBarHidden(false);
   },
 
+  /**
+   * 关闭海报/名片码预览弹层，并清空预览临时状态。
+   */
   closePreviewSheet() {
     this.setData({
       previewSheetVisible: false,
@@ -545,6 +629,10 @@ Page({
     this.setTabBarHidden(false);
   },
 
+  /**
+   * 选择纸质名片图片，为后续 OCR 识别入口预留。
+   * 当前只做能力提示，不上传文件或写入名片资料。
+   */
   choosePaperCardImage() {
     if (!this.ensureLoggedIn("请先登录后上传纸质名片")) {
       return;
@@ -563,6 +651,9 @@ Page({
     });
   },
 
+  /**
+   * 根据身份类型分流微信工具：企业微信成员走授权，个人名片走二维码上传/查看。
+   */
   handleWechatTool() {
     const currentIdentity = this.data.currentIdentity || {};
     if (currentIdentity.identity_type === "wecom_member") {
@@ -572,6 +663,10 @@ Page({
     this.openWechatQr();
   },
 
+  /**
+   * 打开或生成微信二维码预览。
+   * 企业身份优先使用企业统一资料，必要时跳转授权；个人身份允许用户上传自有二维码。
+   */
   async openWechatQr() {
     if (!this.ensureLoggedIn("请先登录后设置微信二维码")) {
       return;
@@ -622,6 +717,10 @@ Page({
     }
   },
 
+  /**
+   * 选择并保存个人或员工自上传的微信二维码。
+   * 上传前会在本地预览，保存时转成 dataURL 交给后端资产管道处理。
+   */
   choosePersonalWechatQr(identityType = "personal") {
     if (this.data.submitting) {
       return;
@@ -675,18 +774,31 @@ Page({
     });
   },
 
+  /**
+   * 生成并展示名片海报预览。
+   */
   async showPoster() {
     await this.showSharePreview("poster", "名片海报");
   },
 
+  /**
+   * 生成并展示适合保存到相册的名片码卡片。
+   */
   async showCardCode() {
     await this.showSharePreview("code", "名片码");
   },
 
+  /**
+   * 进入企业管理台，具体权限校验在目标页面和后端接口完成。
+   */
   goEnterpriseAdmin() {
     wx.navigateTo({ url: "/pages/enterprise-admin/index" });
   },
 
+  /**
+   * 创建分享记录并展示指定模式的预览。
+   * 预览模式决定海报或名片码形态，后端返回的小程序码是可追踪访问来源的关键输入。
+   */
   async showSharePreview(mode, title) {
     if (!this.ensureLoggedIn("请先登录后发名片")) {
       return;
@@ -730,6 +842,10 @@ Page({
     }
   },
 
+  /**
+   * 统一设置预览弹层状态。
+   * 调用方传入二维码、路径和加载/错误状态，本方法只负责页面展示编排。
+   */
   showPreview({ mode, title, path, qrUrl, loading = false, error = "" }) {
     const codeMeta = codeCardMeta(this.data.card);
     this.setData({
@@ -748,6 +864,10 @@ Page({
     this.setTabBarHidden(true);
   },
 
+  /**
+   * 将当前名片码预览渲染成图片并保存到系统相册。
+   * 依赖 canvas 工具生成临时文件，缺少二维码或仍在加载时会提前拦截。
+   */
   async saveCardCodeImage() {
     if (this.data.previewQrLoading) {
       wx.showToast({ title: "名片码生成中", icon: "none" });
@@ -786,6 +906,10 @@ Page({
     }
   },
 
+  /**
+   * 在下一帧生成微信分享封面图。
+   * 失败时清空封面，保留系统默认分享行为，不影响页面访问。
+   */
   prepareShareImage() {
     const nextTick = wx.nextTick || ((callback) => setTimeout(callback, 0));
     nextTick(async () => {
@@ -816,6 +940,9 @@ Page({
     });
   },
 
+  /**
+   * 创建一次可追踪分享并跳转到公域名片页预览。
+   */
   async createShare() {
     if (!this.ensureLoggedIn("请先登录后发名片")) {
       return;
@@ -839,6 +966,9 @@ Page({
     }
   },
 
+  /**
+   * 创建分享记录后复制小程序路径，用于用户手动转发或测试访问链路。
+   */
   async copyLink() {
     if (!this.ensureLoggedIn("请先登录后复制链接")) {
       return;
@@ -857,17 +987,27 @@ Page({
     }
   },
 
+  /**
+   * 本地接受演示换片请求。
+   * 当前请求列表为前端演示数据，不调用后端交换接口。
+   */
   acceptRequest(event) {
     const id = event.currentTarget.dataset.id;
     this.setData({ requests: this.data.requests.filter((item) => item.id !== id) });
     wx.showToast({ title: "已同意", icon: "success" });
   },
 
+  /**
+   * 本地忽略演示换片请求。
+   */
   ignoreRequest(event) {
     const id = event.currentTarget.dataset.id;
     this.setData({ requests: this.data.requests.filter((item) => item.id !== id) });
   },
 
+  /**
+   * 提供微信原生转发配置，优先使用已生成的分享封面图。
+   */
   onShareAppMessage() {
     const card = this.data.card;
     const message = { title: card.share_title || `${card.display_name || "我的"}的数字名片` };
@@ -877,6 +1017,10 @@ Page({
     return message;
   },
 
+  /**
+   * 守卫需要登录的交互入口。
+   * 返回布尔值供调用方提前退出，避免未登录状态继续发起受保护请求。
+   */
   ensureLoggedIn(message) {
     if (this.data.loggedIn && app.globalData.token) {
       return true;
@@ -885,6 +1029,9 @@ Page({
     return false;
   },
 
+  /**
+   * 控制自定义 tabBar 显隐，主要用于弹层打开时避免底部导航抢占点击。
+   */
   setTabBarHidden(hidden) {
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ hidden: Boolean(hidden) });

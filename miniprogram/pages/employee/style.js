@@ -76,6 +76,10 @@ const stylePage = {
     submitting: false
   },
 
+  /**
+   * 初始化样式页主题、当前名片缓存和编辑权限。
+   * 个人身份可编辑颜色/背景，企业身份保留企业统一维护边界。
+   */
   onLoad() {
     const theme = setPageTheme(this);
     const current = app.globalData.currentCard;
@@ -94,6 +98,10 @@ const stylePage = {
     this.loadPreview();
   },
 
+  /**
+   * 拉取当前名片的样式预览，并恢复模板、主题色、背景和照片模板状态。
+   * 失败只提示预览不完整，允许用户继续查看本地缓存的名片。
+   */
   async loadPreview() {
     try {
       const preview = await request("/employee/cards/current/preview");
@@ -136,6 +144,9 @@ const stylePage = {
     }
   },
 
+  /**
+   * 切换名片模板，并同步该模板对应的背景预设和预览样式。
+   */
   selectTemplate(event) {
     const detail = event.detail || {};
     const dataset = event.currentTarget ? event.currentTarget.dataset : {};
@@ -156,6 +167,9 @@ const stylePage = {
     });
   },
 
+  /**
+   * 从预设色板选择主色。
+   */
   selectColor(event) {
     const detail = event.detail || {};
     const dataset = event.currentTarget ? event.currentTarget.dataset : {};
@@ -163,6 +177,10 @@ const stylePage = {
     this.previewColor(primary, { customHexError: "", customColorExpanded: false });
   },
 
+  /**
+   * 处理自定义 HEX 主色输入。
+   * 合法颜色会立即预览，非法输入只更新错误提示。
+   */
   onCustomHexInput(event) {
     const customHex = String(event.detail.value || "").trim();
     const normalized = normalizeHexInput(customHex);
@@ -177,6 +195,9 @@ const stylePage = {
     });
   },
 
+  /**
+   * 确认使用自定义颜色，并展开自定义色块状态。
+   */
   selectCustomColor() {
     const normalized = normalizeHexInput(this.data.customHex) || this.data.customColor;
     this.previewColor(normalized, {
@@ -187,6 +208,10 @@ const stylePage = {
     });
   },
 
+  /**
+   * 根据主色实时预览主题变量。
+   * 额外状态用于同时合并输入框或错误提示状态。
+   */
   previewColor(primary, extra = {}) {
     const theme = buildTheme(primary);
     this.setData({ primary: theme.themeBrand, ...theme, themeStyle: themeStyle(theme), ...extra });
@@ -200,6 +225,10 @@ const stylePage = {
   onBackgroundOpacityChange,
   onPortraitPhotoChange,
 
+  /**
+   * 保存当前样式配置到后端。
+   * 会按权限拆分模板、颜色、背景和照片模板字段，避免企业统一维护字段被个人侧覆盖。
+   */
   async applyStyle() {
     if (!this.data.canEditTemplates && !this.data.canEditPortraitPhoto) {
       wx.showToast({ title: "企业统一维护", icon: "none" });
@@ -292,6 +321,9 @@ stylePage.methods = {
 
 Page(stylePage);
 
+/**
+ * 规范化用户输入的 HEX 色值，返回小写 #rrggbb 或空字符串。
+ */
 function normalizeHexInput(value) {
   const raw = String(value || "").trim();
   if (!raw) {
@@ -301,24 +333,39 @@ function normalizeHexInput(value) {
   return /^#[0-9a-fA-F]{6}$/.test(prefixed) ? prefixed.toLowerCase() : "";
 }
 
+/**
+ * 判断当前全局身份是否为个人名片身份。
+ */
 function isPersonalIdentity() {
   const identity = app.globalData.currentIdentity || {};
   return identity.identity_type === "personal" || identity.typeLabel === "涓汉鍚嶇墖";
 }
 
+/**
+ * 根据模板 ID 获取页面卡片 class。
+ */
 function templateClass(templateId) {
   return templateMeta(templateId).className;
 }
 
+/**
+ * 获取模板元数据，并对未知模板回退到横版商务模板。
+ */
 function templateMeta(templateId) {
   return TEMPLATE_META[normalizeTemplateId(templateId)] || TEMPLATE_META.tpl_horizontal_business;
 }
 
+/**
+ * 从模板 layout 中读取图片地址字段，非字符串统一视为空。
+ */
 function layoutImageUrl(layout, key) {
   const value = layout && layout[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * 统一历史模板别名和当前模板 ID。
+ */
 function normalizeTemplateId(templateId) {
   if (templateId === "tpl_demo_business" || templateId === "horizontal-business") {
     return "tpl_horizontal_business";
@@ -329,10 +376,16 @@ function normalizeTemplateId(templateId) {
   return TEMPLATE_META[templateId] ? templateId : "tpl_horizontal_business";
 }
 
+/**
+ * 判断模板是否为照片头像展示型模板。
+ */
 function isPortraitTemplate(templateId) {
   return normalizeTemplateId(templateId) === "tpl_portrait_photo";
 }
 
+/**
+ * 返回指定模板允许选择的背景预设列表。
+ */
 function backgroundPresetsForTemplate(templateId) {
   const ids = TEMPLATE_BACKGROUND_PRESET_IDS[normalizeTemplateId(templateId)] || TEMPLATE_BACKGROUND_PRESET_IDS.tpl_horizontal_business;
   return ids
@@ -340,10 +393,17 @@ function backgroundPresetsForTemplate(templateId) {
     .filter(Boolean);
 }
 
+/**
+ * 判断背景预设是否允许用于当前模板。
+ */
 function isPresetAllowedForTemplate(presetId, templateId) {
   return backgroundPresetsForTemplate(templateId).some((item) => item.id === presetId);
 }
 
+/**
+ * 生成模板默认背景状态。
+ * 默认值来自模板元数据和允许的预设列表。
+ */
 function defaultBackgroundState(templateId) {
   const normalizedTemplateId = normalizeTemplateId(templateId);
   const meta = templateMeta(normalizedTemplateId);
@@ -358,6 +418,10 @@ function defaultBackgroundState(templateId) {
   };
 }
 
+/**
+ * 合并已保存背景配置与模板默认值，得到当前可预览状态。
+ * 自定义图片优先于预设图，非法配置回退默认值。
+ */
 function backgroundStateForTemplate(templateId, templateBackgrounds) {
   const normalizedTemplateId = normalizeTemplateId(templateId);
   const saved = normalizeTemplateBackgroundConfig(normalizedTemplateId, templateBackgrounds && templateBackgrounds[normalizedTemplateId]);
@@ -386,6 +450,10 @@ function backgroundStateForTemplate(templateId, templateBackgrounds) {
   };
 }
 
+/**
+ * 从后端 layout 中还原各模板的背景配置。
+ * 兼容旧字段 background_url/background_opacity，保证升级后的用户不丢背景。
+ */
 function templateBackgroundsFromLayout(layout, activeTemplateId, legacy = {}) {
   const rawMap = layout && typeof layout.template_backgrounds === "object" && !Array.isArray(layout.template_backgrounds)
     ? layout.template_backgrounds
@@ -411,6 +479,10 @@ function templateBackgroundsFromLayout(layout, activeTemplateId, legacy = {}) {
   return templateBackgrounds;
 }
 
+/**
+ * 将当前页面背景状态写回 templateBackgrounds 映射。
+ * 局部补丁用于选择图片、预设或透明度时只覆盖单个字段。
+ */
 function withCurrentTemplateBackground(data, patch = {}) {
   const templateId = normalizeTemplateId(data.templateId);
   return {
@@ -423,6 +495,9 @@ function withCurrentTemplateBackground(data, patch = {}) {
   };
 }
 
+/**
+ * 将模板 ID 转换为旧版 layout.variant 使用的短横线键。
+ */
 function templateVariantKey(templateId) {
   const map = {
     tpl_horizontal_business: "horizontal-business",
@@ -435,6 +510,9 @@ function templateVariantKey(templateId) {
   return map[normalizeTemplateId(templateId)] || "horizontal-business";
 }
 
+/**
+ * 将所有模板背景状态整理成后端保存结构。
+ */
 function templateBackgroundsForSave(templateBackgrounds) {
   const result = {};
   Object.keys(TEMPLATE_META).forEach((templateId) => {
@@ -444,6 +522,10 @@ function templateBackgroundsForSave(templateBackgrounds) {
   return result;
 }
 
+/**
+ * 生成单个模板的背景保存结构。
+ * 内置资源只保存 presetId，自定义图片保存 background_url。
+ */
 function backgroundConfigForSave(templateId, state) {
   const defaults = defaultBackgroundState(templateId);
   const customUrl = isBundledBackground(state.backgroundUrl) ? "" : String(state.backgroundUrl || "");
@@ -454,6 +536,9 @@ function backgroundConfigForSave(templateId, state) {
   };
 }
 
+/**
+ * 校验并规范化单个模板背景配置。
+ */
 function normalizeTemplateBackgroundConfig(templateId, value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -472,14 +557,24 @@ function normalizeTemplateBackgroundConfig(templateId, value) {
   };
 }
 
+/**
+ * 根据内置资源 URL 反查背景预设。
+ */
 function presetFromUrl(url) {
   return BACKGROUND_PRESETS.find((item) => item.url === url) || null;
 }
 
+/**
+ * 判断背景 URL 是否来自小程序内置资源。
+ */
 function isBundledBackground(url) {
   return Boolean(presetFromUrl(String(url || ""))) || String(url || "").startsWith("/assets/card-backgrounds/");
 }
 
+/**
+ * 生成名片背景预览的 CSS 字符串。
+ * 透明度会转换成遮罩层 alpha，适配深色和品牌图模板。
+ */
 function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, templateId = "") {
   if (!url) {
     return "";
@@ -492,10 +587,17 @@ function backgroundStyle(url, opacity = DEFAULT_BACKGROUND_OPACITY, templateId =
   return `background: linear-gradient(${overlay}, ${overlay}), url("${url}") center / cover no-repeat;`;
 }
 
+/**
+ * 兼容组件事件命名，转发到选择背景图片流程。
+ */
 function onChooseBackgroundImage() {
   this.chooseBackgroundImage();
 }
 
+/**
+ * 选择并校验自定义背景图片。
+ * 图片需要满足大小、类型和长宽比要求，随后转成 dataURL 暂存在页面状态。
+ */
 function chooseBackgroundImage() {
   if (this.data.choosingBackground) {
     return;
@@ -542,6 +644,9 @@ function chooseBackgroundImage() {
   });
 }
 
+/**
+ * 选择当前模板允许的内置背景预设，并刷新预览。
+ */
 function onSelectPresetBackground(event) {
   const detail = event.detail || {};
   const dataset = event.currentTarget ? event.currentTarget.dataset : {};
@@ -564,10 +669,16 @@ function onSelectPresetBackground(event) {
   });
 }
 
+/**
+ * 兼容组件事件命名，转发到清除背景流程。
+ */
 function onClearBackgroundImage() {
   this.clearBackgroundImage();
 }
 
+/**
+ * 清除自定义背景并回到当前模板默认背景。
+ */
 function clearBackgroundImage() {
   const backgroundState = defaultBackgroundState(this.data.templateId);
   const templateBackgrounds = withCurrentTemplateBackground(this.data, {
@@ -586,6 +697,9 @@ function clearBackgroundImage() {
   });
 }
 
+/**
+ * 调整背景遮罩透明度，并同步到当前模板背景配置。
+ */
 function onBackgroundOpacityChange(event) {
   const backgroundOpacity = normalizeOpacity(event.detail.value, DEFAULT_BACKGROUND_OPACITY);
   const templateBackgrounds = withCurrentTemplateBackground(this.data, { backgroundOpacity });
@@ -596,12 +710,18 @@ function onBackgroundOpacityChange(event) {
   });
 }
 
+/**
+ * 更新照片模板使用的个人形象图地址。
+ */
 function onPortraitPhotoChange(event) {
   this.setData({
     portraitPhotoUrl: String(event.detail && event.detail.url ? event.detail.url : "")
   });
 }
 
+/**
+ * 将透明度限制到 0-100 的整数范围，非法值使用 fallback。
+ */
 function normalizeOpacity(value, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -610,6 +730,9 @@ function normalizeOpacity(value, fallback) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+/**
+ * 将 wx.getImageInfo 封装为 Promise，方便上传前校验图片尺寸和类型。
+ */
 function getImageInfo(src) {
   return new Promise((resolve, reject) => {
     wx.getImageInfo({
@@ -620,6 +743,10 @@ function getImageInfo(src) {
   });
 }
 
+/**
+ * 校验背景图片格式和横向比例。
+ * 这里限制为 1.5:1 到 2:1，保证名片卡片裁切稳定。
+ */
 function validateBackgroundImage(info) {
   const mime = imageMime(info);
   if (!mime) {
@@ -631,6 +758,9 @@ function validateBackgroundImage(info) {
   }
 }
 
+/**
+ * 从微信图片信息或文件后缀推断 MIME 类型。
+ */
 function imageMime(info) {
   const type = String(info.type || "").toLowerCase();
   if (BACKGROUND_TYPES[type]) {
@@ -640,6 +770,10 @@ function imageMime(info) {
   return match ? BACKGROUND_TYPES[match[1]] || "" : "";
 }
 
+/**
+ * 将背景 URL 转成后端可保存的值。
+ * 内置资源不重复保存 URL，本地临时文件会转为 dataURL。
+ */
 function backgroundUrlForSave(url) {
   if (!url || /^data:image\//.test(url) || /^https?:\/\//.test(url)) {
     return Promise.resolve(url || "");
@@ -650,11 +784,18 @@ function backgroundUrlForSave(url) {
   return pathToDataUrl(url, mimeFromPath(url));
 }
 
+/**
+ * 根据文件路径后缀推断背景图片 MIME，未知时按 webp 兜底。
+ */
 function mimeFromPath(path) {
   const match = String(path || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
   return match ? BACKGROUND_TYPES[match[1]] || "image/webp" : "image/webp";
 }
 
+/**
+ * 将本地图片路径转换为 dataURL。
+ * 已经是 dataURL 或远程 URL 时直接返回，避免重复读取。
+ */
 function pathToDataUrl(path, mime) {
   if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
     return Promise.resolve(path);
