@@ -7,6 +7,9 @@ import { WecomSensitiveService } from "./wecom-sensitive.service.js";
 export class WecomSensitiveController {
   constructor(private readonly sensitive: WecomSensitiveService) {}
 
+  /**
+   * 创建企业微信敏感资料授权入口。
+   */
   @Post("authorization-url")
   @UseGuards(EmployeeAuthGuard)
   createAuthorizationUrl(@Req() request: EmployeeRequest, @Body() _body: unknown) {
@@ -14,6 +17,9 @@ export class WecomSensitiveController {
     return this.sensitive.createAuthorizationUrl(request.employeeSession);
   }
 
+  /**
+   * 读取当前名片敏感资料授权状态。
+   */
   @Get("status")
   @UseGuards(EmployeeAuthGuard)
   getStatus(@Req() request: EmployeeRequest) {
@@ -21,6 +27,11 @@ export class WecomSensitiveController {
     return this.sensitive.getStatus(request.employeeSession);
   }
 
+  /**
+   * 企业微信 OAuth 回调。
+   *
+   * 成功或失败都返回一个简短 HTML 页面，提示用户回到小程序继续。
+   */
   @Get("callback")
   async callback(
     @Query("code") code: string | undefined,
@@ -36,6 +47,11 @@ export class WecomSensitiveController {
     }
   }
 
+  /**
+   * 企业微信 OAuth 起跳页。
+   *
+   * 先校验 state 格式，再重定向到企业微信授权地址，避免直接暴露未校验参数。
+   */
   @Get("start")
   start(@Query("state") state: string | undefined, @Res() reply: FastifyReply) {
     if (!state || !/^[A-Fa-f0-9]{36}$/.test(state)) {
@@ -45,6 +61,9 @@ export class WecomSensitiveController {
   }
 }
 
+/**
+ * 生成授权结果页面。
+ */
 function resultPage(success: boolean): string {
   const title = success ? "企业信息同步成功" : "企业信息授权未完成";
   const detail = success ? "企业微信资料已同步，请返回小程序查看。" : "请返回小程序重新发起授权。";
