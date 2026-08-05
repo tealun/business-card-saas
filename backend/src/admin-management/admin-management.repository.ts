@@ -86,6 +86,11 @@ export class AdminManagementRepository {
     @Optional() private readonly cipher?: CardFieldCipherService
   ) {}
 
+  /**
+   * 读取租户后台概览。
+   *
+   * 在租户 RLS 上下文内聚合成员、名片、访客和企业微信授权信息；未配置数据库时返回 null。
+   */
   async getOverview(session: AdminSession): Promise<AdminOverviewResponse | null> {
     if (!this.hasDatabase()) {
       return null;
@@ -123,6 +128,11 @@ export class AdminManagementRepository {
     };
   }
 
+  /**
+   * 查询租户成员列表。
+   *
+   * 支持关键词、状态和分页；所有查询都在当前租户事务内执行，防止跨租户读到成员数据。
+   */
   async listMembers(session: AdminSession, query: AdminMemberListQuery): Promise<AdminMemberListResponse | null> {
     if (!this.hasDatabase()) {
       return null;
@@ -197,6 +207,12 @@ export class AdminManagementRepository {
     });
   }
 
+  /**
+   * 把后台成员 id 转换为员工会话。
+   *
+   * 后台替员工读取或更新名片时需要复用员工侧 repository 契约，因此这里构造受租户限制的
+   * EmployeeSession。
+   */
   async getMemberSession(session: AdminSession, memberIdentityId: string): Promise<EmployeeSession | null> {
     if (!this.hasDatabase()) {
       return null;
@@ -249,6 +265,9 @@ export class AdminManagementRepository {
     };
   }
 
+  /**
+   * 读取后台成员名片详情。
+   */
   async getMemberCard(session: AdminSession, memberIdentityId: string): Promise<AdminMemberCardResponse | null> {
     if (!this.hasDatabase()) {
       return null;
@@ -258,6 +277,12 @@ export class AdminManagementRepository {
     return row ? this.toMemberCard(session, row) : null;
   }
 
+  /**
+   * 后台更新成员名片。
+   *
+   * 在一个 TenantTx 内同时更新 member_identities、cards、public_card_directory 和加密字段，
+   * 并重新读取名片作为响应，保证前端看到的是最终持久化结果。
+   */
   async updateMemberCard(
     session: AdminSession,
     memberIdentityId: string,
@@ -385,6 +410,12 @@ export class AdminManagementRepository {
     });
   }
 
+  /**
+   * 更新成员和主名片状态。
+   *
+   * 成员状态、cards.status 与 public_card_directory.status 必须同步变化，避免后台列表、
+   * 员工端和公开页看到不一致状态。
+   */
   async updateMemberStatus(
     session: AdminSession,
     memberIdentityId: string,
@@ -435,6 +466,12 @@ export class AdminManagementRepository {
 
   // 硬删除成员档案及其名片、访问/分发记录和账号绑定；企业微信里仍存在的成员
   // 下次同步会重新建档。绑定了企业管理员账号的成员拒绝删除，防止删掉后台登录身份。
+  /**
+   * 硬删除成员档案及其关联数据。
+   *
+   * 删除前拒绝绑定租户管理员的成员；删除访问、分享、账号绑定、名片和成员身份，
+   * 企业微信仍存在的成员会在下次同步时重新建档。
+   */
   async deleteMember(
     session: AdminSession,
     memberIdentityId: string
@@ -501,6 +538,11 @@ export class AdminManagementRepository {
     });
   }
 
+  /**
+   * 列出平台回调/同步事件。
+   *
+   * 使用平台级数据库连接读取 callback_events，不走租户 RLS；查询条件仍限制在当前租户 id。
+   */
   async listSyncEvents(session: AdminSession): Promise<AdminSyncEventListResponse | null> {
     if (!this.hasPlatformDatabase()) {
       return null;
@@ -547,14 +589,25 @@ export class AdminManagementRepository {
     return this.hasDatabase();
   }
 
+  /**
+   * 判断租户级数据库能力是否可用。
+   */
   private hasDatabase(): boolean {
     return Boolean(this.tenantTx && process.env.DATABASE_URL?.trim());
   }
 
+  /**
+   * 判断平台级数据库能力是否可用。
+   */
   private hasPlatformDatabase(): boolean {
     return Boolean(this.database && process.env.DATABASE_URL?.trim());
   }
 
+  /**
+   * 查询单个成员名片的数据库原始行。
+   *
+   * 同时读取成员、主名片和最近访问时间，后续由 toMemberCard 做字段解密和响应转换。
+   */
   private async queryMemberCard(
     tx: TenantTransactionClient,
     session: AdminSession,
@@ -602,6 +655,11 @@ export class AdminManagementRepository {
     );
   }
 
+  /**
+   * 将成员名片数据库行转换为后台响应。
+   *
+   * 这里会解密字段 JSON、补齐隐私/自助配置，并组装前端可编辑字段列表。
+   */
   private toMemberCard(session: AdminSession, row: MemberCardRow): AdminMemberCardResponse {
     const memberIdentityId = String(row.member_id);
     const publicId =
@@ -623,6 +681,11 @@ export class AdminManagementRepository {
     };
   }
 
+  /**
+   * 读取名片扩展字段。
+   *
+   * 优先使用加密 JSON；没有加密字段时回退到旧列，兼容迁移完成前的数据。
+   */
   private readFields(row: MemberCardRow): CardFields {
     const encryptedFields = this.decryptJson(row.fields_encrypted);
     if (encryptedFields) {
@@ -637,6 +700,11 @@ export class AdminManagementRepository {
     };
   }
 
+  /**
+   * 加密单个名片字段值。
+   *
+   * 未配置字段加密服务时返回空字符串，调用方需要避免在这种环境写入敏感字段。
+   */
   private encrypt(value: string): string {
     if (!this.cipher) {
       throw new Error("Card field cipher is required for admin member card persistence");
@@ -644,10 +712,18 @@ export class AdminManagementRepository {
     return this.cipher.encrypt(value);
   }
 
+  /**
+   * 加密名片扩展字段 JSON。
+   */
   private encryptJson(fields: CardFields): string {
     return this.encrypt(JSON.stringify(fields));
   }
 
+  /**
+   * 解密可空字段。
+   *
+   * 缺少密文或未配置加密服务时返回 null，调用方再决定是否使用兼容回退值。
+   */
   private decryptOptional(value: string | null): string | null {
     if (!value || !this.cipher) {
       return null;
@@ -659,6 +735,11 @@ export class AdminManagementRepository {
     }
   }
 
+  /**
+   * 解密名片扩展字段 JSON。
+   *
+   * JSON 解析失败时返回 null，避免单个坏字段破坏整个后台成员列表。
+   */
   private decryptJson(value: string | null): CardFields | null {
     const plaintext = this.decryptOptional(value);
     if (!plaintext) {
@@ -671,6 +752,11 @@ export class AdminManagementRepository {
     }
   }
 
+  /**
+   * 从旧版加密字段中读取部门。
+   *
+   * 用于兼容 fields_encrypted 尚未完全覆盖旧列的过渡数据。
+   */
   private readCardDepartment(value: string | null): string | null {
     const plaintext = this.decryptOptional(value);
     if (!plaintext) {
@@ -688,6 +774,11 @@ export class AdminManagementRepository {
     return null;
   }
 
+  /**
+   * 同步公开名片目录项。
+   *
+   * 成员名片更新后必须同步 public_card_directory，公开页才能按 public_id 找到最新主名片。
+   */
   private async upsertPublicDirectory(
     tx: TenantTransactionClient,
     input: {
@@ -764,9 +855,14 @@ function defaultFields(): CardFields {
   };
 }
 
+/**
+ * 合并后台名片字段 patch。
+ *
+ * 后台保存常常只提交部分字段；合并时必须保留当前 blob 中其他模块维护的字段，
+ * 避免一次局部编辑造成字段丢失。
+ */
 function mergeFields(current: CardFields, patch: UpdateAdminMemberCardRequest["fields"]): CardFields {
-  // Overlay every patched key onto the current blob so admin saves preserve
-  // fields managed by other modules (department, company, website, ...).
+  // 只覆盖本次 patch 明确提交的键，保留其他模块维护的字段（department、company、website 等）。
   const base: Record<string, unknown> = { ...current };
   if (!patch) {
     return base as CardFields;
@@ -779,13 +875,17 @@ function mergeFields(current: CardFields, patch: UpdateAdminMemberCardRequest["f
   return base as CardFields;
 }
 
+/**
+ * 规范化名片扩展字段。
+ *
+ * 已知字段转为可空字符串，未知字段原样保留，兼容未来扩展字段和历史数据。
+ */
 function normalizeFields(value: unknown): CardFields {
   if (!value || typeof value !== "object") {
     return defaultFields();
   }
   const record = value as Record<string, unknown>;
-  // Preserve unknown keys (e.g. qrcode image sources) from the shared blob;
-  // normalize only the string fields.
+  // 保留共享 blob 中的未知键（例如二维码图片来源），只规范化已知字符串字段。
   return {
     ...record,
     company: nullableString(record.company),
