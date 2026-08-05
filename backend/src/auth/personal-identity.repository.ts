@@ -51,6 +51,12 @@ export class PersonalIdentityRepository {
 
   constructor(private readonly database: DatabaseService) {}
 
+  /**
+   * 根据微信小程序会话创建或读取个人账号身份。
+   *
+   * 数据库模式会创建账号、个人租户、个人成员、默认名片和绑定关系；
+   * 无数据库时使用内存身份，保障本地演示可运行。
+   */
   async provisionFromWxSession(session: WxMiniProgramSession): Promise<{ current: LoginIdentity; identities: LoginIdentity[] }> {
     const openid = session.openid.trim();
     if (!openid) {
@@ -105,6 +111,11 @@ export class PersonalIdentityRepository {
     });
   }
 
+  /**
+   * 读取账号偏好的当前身份。
+   *
+   * 优先使用最后选择身份，其次默认身份，最后回退到传入候选身份。
+   */
   async preferredAccountIdentity(
     accountId: string,
     fallbackMemberIdentityId: string
@@ -125,6 +136,11 @@ export class PersonalIdentityRepository {
     });
   }
 
+  /**
+   * 登录账号并返回当前身份和可切换身份列表。
+   *
+   * 用于企业微信身份归并后选择当前身份；同时更新账号最近使用身份。
+   */
   async loginAccountIdentity(
     accountId: string,
     fallbackIdentity: LoginIdentity
@@ -144,6 +160,9 @@ export class PersonalIdentityRepository {
     });
   }
 
+  /**
+   * 列出账号绑定的全部身份。
+   */
   async listAccountIdentities(accountId: string): Promise<LoginIdentity[]> {
     if (!this.hasDatabase()) {
       return this.memoryIdentities.get(accountId) ?? [];
@@ -154,6 +173,11 @@ export class PersonalIdentityRepository {
   // 把企业微信登录 provision 出来的企业身份归并到微信个人账号：仅当该身份还挂在
   // “无微信标识的裸企业微信账号”上时才迁移绑定，避免抢占已绑定到他人微信的身份。
   // 归并成功后把企业身份记为最近使用身份（从企业微信入口进入即企业语境）。
+  /**
+   * 把企业微信成员身份归并到微信个人账号。
+   *
+   * 归并只移动账号绑定关系，不改变企业成员本身；用于企业微信入口和微信入口共享身份列表。
+   */
   async adoptWecomIdentity(input: {
     wxAccountId: string;
     tenantId: string;
@@ -186,6 +210,11 @@ export class PersonalIdentityRepository {
     });
   }
 
+  /**
+   * 切换账号当前身份。
+   *
+   * 只能切换到该账号已绑定身份；成功后写入最近使用身份。
+   */
   async switchIdentity(accountId: string, memberIdentityId: string): Promise<{ current: LoginIdentity; identities: LoginIdentity[] }> {
     if (!this.hasDatabase()) {
       const identities = this.memoryIdentities.get(accountId) ?? [];
@@ -206,6 +235,9 @@ export class PersonalIdentityRepository {
     });
   }
 
+  /**
+   * 在内存模式下创建或读取个人身份。
+   */
   private provisionInMemory(openid: string): LoginIdentity {
     const existing = this.memory.get(openid);
     if (existing) {
@@ -230,6 +262,11 @@ export class PersonalIdentityRepository {
     return { ...current };
   }
 
+  /**
+   * 查找或创建微信账号。
+   *
+   * openid/unionid 的唯一性依赖数据库约束；并发场景先加锁再 upsert，避免重复账号。
+   */
   private async findOrCreateAccount(
     input: { openid: string; unionid: string | null },
     tx: Tx
@@ -276,15 +313,26 @@ export class PersonalIdentityRepository {
     return String(accountId);
   }
 
+  /**
+   * 设置账号和租户 RLS 上下文。
+   */
   private async setRlsContext(input: { accountId: string; tenantId: string }, tx: Tx): Promise<void> {
     await this.setAccountRlsContext(input.accountId, tx);
     await tx.query("SELECT set_config('app.tenant_id', $1, true)", [input.tenantId]);
   }
 
+  /**
+   * 设置账号级 RLS 上下文。
+   */
   private async setAccountRlsContext(accountId: string, tx: Tx): Promise<void> {
     await tx.query("SELECT set_config('app.account_id', $1, true)", [accountId]);
   }
 
+  /**
+   * 对账号身份键加事务级 advisory lock。
+   *
+   * openid 与 unionid 都可能成为账号查找入口，加锁可以收敛并发登录时的创建竞争。
+   */
   private async lockAccountIdentity(input: { openid: string; unionid: string | null }, tx: Tx): Promise<void> {
     const keys = [`account:openid:${input.openid}`];
     if (input.unionid) {
@@ -301,6 +349,9 @@ export class PersonalIdentityRepository {
     }
   }
 
+  /**
+   * 查找或创建个人名片租户。
+   */
   private async findOrCreatePersonalTenant(accountId: string, tx: Tx): Promise<TenantRow> {
     const openCorpid = `personal:${accountId}`;
     const result = await tx.query<TenantRow>(
@@ -329,6 +380,9 @@ export class PersonalIdentityRepository {
     return tenant;
   }
 
+  /**
+   * 查找或创建个人名片成员身份。
+   */
   private async findOrCreatePersonalMember(input: { tenantId: string; openid: string }, tx: Tx): Promise<MemberRow> {
     const openUserid = `wx:${input.openid}`;
     const result = await tx.query<MemberRow>(
@@ -349,6 +403,9 @@ export class PersonalIdentityRepository {
     return member;
   }
 
+  /**
+   * 确保账号和成员身份存在绑定关系。
+   */
   private async ensureBinding(input: { accountId: string; tenantId: string; memberIdentityId: string; bindSource: string }, tx: Tx) {
     await tx.query(
       `
@@ -366,6 +423,9 @@ export class PersonalIdentityRepository {
     );
   }
 
+  /**
+   * 确保身份拥有默认主名片和公开目录项。
+   */
   private async ensureDefaultCard(
     input: { tenantId: string; memberIdentityId: string; publicId: string; displayName: string },
     tx: Tx
@@ -440,6 +500,9 @@ export class PersonalIdentityRepository {
     return card;
   }
 
+  /**
+   * 记录账号最近使用身份。
+   */
   private async setLastIdentity(input: { accountId: string; memberIdentityId: string }, tx: Tx): Promise<void> {
     await this.setAccountRlsContext(input.accountId, tx);
     await tx.query(
@@ -460,6 +523,11 @@ export class PersonalIdentityRepository {
     );
   }
 
+  /**
+   * 确保账号存在默认身份。
+   *
+   * 默认身份只在尚未设置时写入，避免后续登录覆盖用户选择。
+   */
   private async ensureDefaultIdentity(input: { accountId: string; memberIdentityId: string }, tx: Tx): Promise<void> {
     await this.setAccountRlsContext(input.accountId, tx);
     await tx.query(
@@ -480,6 +548,11 @@ export class PersonalIdentityRepository {
     );
   }
 
+  /**
+   * 从账号身份列表中选择当前身份。
+   *
+   * 优先最近使用身份，其次默认身份，再回退到候选身份。
+   */
   private async pickPreferredIdentity(input: {
     accountId: string;
     fallbackMemberIdentityId: string;
@@ -506,6 +579,9 @@ export class PersonalIdentityRepository {
       ?? null;
   }
 
+  /**
+   * 在事务内列出账号身份。
+   */
   private async listAccountIdentitiesInTx(accountId: string, tx: Tx): Promise<LoginIdentity[]> {
     await this.setAccountRlsContext(accountId, tx);
     const result = await tx.query<IdentityRow>(
@@ -572,6 +648,9 @@ export class PersonalIdentityRepository {
     return identities;
   }
 
+  /**
+   * 判断是否运行在数据库模式。
+   */
   private hasDatabase(): boolean {
     return Boolean(process.env.DATABASE_URL?.trim());
   }
