@@ -29,9 +29,12 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     @Optional() private readonly config?: AppConfig
   ) {}
 
-  // Creates the initial super admin from ADMIN_BOOTSTRAP_USERNAME/PASSWORD.
-  // Never overwrites an existing account: once the operator changes the
-  // password in the console, the env value stops mattering.
+  /**
+   * 应用启动时按环境变量创建初始平台超级管理员。
+   *
+   * 仅在用户名不存在时创建，不覆盖已有账号；运营人员在控制台改密后，
+   * ADMIN_BOOTSTRAP_USERNAME/PASSWORD 不再影响该账号。
+   */
   async onApplicationBootstrap(): Promise<void> {
     const username = this.config?.adminBootstrapUsername ?? process.env.ADMIN_BOOTSTRAP_USERNAME?.trim() ?? "";
     const password = this.config?.adminBootstrapPassword ?? process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "";
@@ -50,18 +53,22 @@ export class PlatformAdminService implements OnApplicationBootstrap {
       });
       this.logger.warn(`bootstrap super admin '${username}' created; change its password in the console`);
     } catch (error) {
-      // Most likely the platform_admins table is missing because migrations
-      // have not run yet. Do not block startup; bootstrap retries next start.
+      // 常见原因是迁移尚未创建 platform_admins；不阻断启动，下一次启动会重试。
       this.logger.error(
         `super admin bootstrap skipped: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
 
+  /**
+   * 使用用户名密码登录平台后台。
+   *
+   * 返回平台会话 token 和当前账号权限快照；未知用户也会执行一次密码哈希，
+   * 避免响应时间泄露用户名是否存在。
+   */
   async passwordLogin(request: AdminPasswordLoginRequest): Promise<AdminLoginResponse> {
     const admin = await this.admins.findByUsername(request.username);
-    // Hash even when the user is unknown so response timing does not reveal
-    // whether a username exists.
+    // 用户不存在时也执行哈希，降低用户名枚举的时序侧信道。
     const valid = admin
       ? verifyPassword(request.password, admin.passwordHash)
       : (hashPassword(request.password), false);
@@ -95,8 +102,12 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     });
   }
 
-  // M1-S4 (01_09 §4.1): platform account management. Writes use only the new
-  // 01_08 role enum; legacy 'owner' rows are normalized on read in the repository.
+  /**
+   * 创建平台管理员账号。
+   *
+   * 只接受 01_08 平台角色枚举；历史 owner 行由 repository 读出时归一化，
+   * 新写入不再产生旧角色值。
+   */
   async createPlatformAccount(input: {
     username: string;
     password: string;
@@ -125,14 +136,25 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * 按平台管理员 id 查询账号。
+   *
+   * platform_admins.id 是 BIGSERIAL，非数字路径参数直接视为不存在，
+   * 避免把格式错误暴露为数据库错误。
+   */
   async getAccountById(adminId: string): Promise<PlatformAdminRecord | null> {
-    // platform_admins.id is BIGSERIAL; a non-numeric path param is simply not found.
     if (!/^\d+$/.test(adminId)) {
       return null;
     }
     return this.admins.findById(adminId);
   }
 
+  /**
+   * 更新平台管理员角色。
+   *
+   * `blockedUsernames` 由上层传入当前操作者和内置 owner 等受保护账号，
+   * repository 会在同一条写语句中再次校验，避免检查后被并发绕过。
+   */
   async updateAccountRole(
     adminId: string,
     role: PlatformAdminRole,
@@ -141,20 +163,30 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     return this.admins.updateRoleById(adminId, role, blockedUsernames);
   }
 
+  /**
+   * 删除平台管理员账号。
+   *
+   * 返回是否真实删除；受保护账号同样通过 `blockedUsernames` 在写入层兜底拦截。
+   */
   async deleteAccount(adminId: string, blockedUsernames: string[]): Promise<boolean> {
     return this.admins.deleteById(adminId, blockedUsernames);
   }
 
-  // The built-in owner (env ADMIN_BOOTSTRAP_USERNAME) can neither be deleted nor
-  // re-roled (01_09 §4.1).
+  /**
+   * 返回内置 owner 用户名。
+   *
+   * 该账号由 ADMIN_BOOTSTRAP_USERNAME 指定，不能被删除或改角色。
+   */
   getBootstrapUsername(): string {
     return this.config?.adminBootstrapUsername ?? process.env.ADMIN_BOOTSTRAP_USERNAME?.trim() ?? "";
   }
 
-  // M1-S7 (01_09 AC6): invoked by AdminAuthGuard on every platform request so a
-  // disabled or deleted account loses access immediately instead of living out
-  // its 8h token. Tenant sessions are unaffected: the wecom scan flow
-  // re-validates admin status at login, and tenant-side session revocation is M2.
+  /**
+   * 在每次平台请求时确认会话对应账号仍然有效。
+   *
+   * 由 AdminAuthGuard 调用，使禁用/删除的平台账号立即失效，而不是继续使用 8 小时 token；
+   * 租户会话不在这里处理，租户侧会话撤销属于后续阶段。
+   */
   async assertActiveSessionAccount(session: AdminSession): Promise<void> {
     if (!session.openUserid.startsWith(PLATFORM_USER_PREFIX)) {
       return;
@@ -166,6 +198,12 @@ export class PlatformAdminService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * 修改当前平台管理员密码。
+   *
+   * 只支持平台用户名密码账号；企业微信扫码进入的租户管理员没有本地密码，
+   * 因此不能走该接口。
+   */
   async changePassword(session: AdminSession, request: AdminChangePasswordRequest): Promise<void> {
     if (!session.openUserid.startsWith(PLATFORM_USER_PREFIX)) {
       throw new BadRequestException("password login is not enabled for this account");
@@ -183,9 +221,8 @@ export class PlatformAdminService implements OnApplicationBootstrap {
   }
 }
 
-// 01_09 §4.1 password policy for owner-created accounts: at least 10 characters
-// containing both letters and digits. Enforced here (not in zod) so violations
-// return this curated message instead of the generic validation payload.
+// 01_09 §4.1：owner 创建账号的密码至少 10 位且同时包含字母和数字。
+// 这里在服务层校验，便于返回明确业务提示，而不是通用参数校验错误。
 function assertPasswordComplexity(password: string): void {
   if (password.length < PASSWORD_MIN_LENGTH || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
     throw new BadRequestException("密码至少 10 位，且需同时包含字母和数字");
