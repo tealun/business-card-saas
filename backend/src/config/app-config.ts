@@ -134,6 +134,8 @@ const appConfigSchema = z
     }
     if (data.NODE_ENV === "production") {
       for (const key of ["WECOM_PROVIDER_CORP_ID", "WECOM_SUITE_ID", "WECOM_SUITE_SECRET"] as const) {
+        // Allow obvious placeholders in examples and local fixtures, but fail
+        // closed in production where WeCom credentials leave the app boundary.
         if (/xxx|example|change|your/i.test(data[key])) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

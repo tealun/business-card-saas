@@ -47,6 +47,8 @@ export class AdminSessionTokenService {
       memberIdentityId: envelope.payload.memberIdentityId,
       openUserid: envelope.payload.openUserid,
       role: envelope.payload.role,
+      // Old tenant tokens predate accountType. Treat anything except the explicit
+      // platform marker as tenant so platform privileges cannot be inferred.
       accountType: envelope.payload.accountType === "platform" ? "platform" : "tenant"
     };
   }
@@ -64,6 +66,8 @@ export class AdminSessionTokenService {
   }
 
   private signature(encodedPayload: string): string {
+    // Domain separation prevents a valid HMAC from another token family from
+    // being replayed as an admin session if secrets are accidentally shared.
     return createHmac("sha256", this.secret).update(`v1.admin-session.${encodedPayload}`).digest("base64url");
   }
 

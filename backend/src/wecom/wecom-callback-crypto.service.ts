@@ -27,6 +27,8 @@ export class WecomCallbackCryptoService {
   constructor(private readonly config: WecomConfigService) {}
 
   decrypt(payload: WecomEncryptedPayload, options: WecomDecryptOptions = {}): WecomDecryptedMessage {
+    // Verify freshness before decrypting so replayed ciphertext never reaches
+    // the AES path, and signature failures stay indistinguishable from tampering.
     this.guardTimestamp(payload);
 
     const suite = this.config.suite;
@@ -63,6 +65,9 @@ export class WecomCallbackCryptoService {
     const messageLength = unpadded.readUInt32BE(16);
     const messageStart = 20;
     const messageEnd = messageStart + messageLength;
+    // WeCom plaintext is random(16) + msg_len(4) + xml/json + receive_id.
+    // Validate the declared length before slicing so malformed ciphertext cannot
+    // blur message bytes into the receiver check.
     if (messageLength <= 0 || messageEnd > unpadded.length) {
       throw new BadRequestException("invalid WeCom callback message length");
     }
@@ -108,6 +113,8 @@ export class WecomCallbackCryptoService {
   }
 
   private decodeAesKey(encodingAesKey: string): Buffer {
+    // WeCom publishes a 43-character base64 string whose decoded key is 32 bytes;
+    // adding one "=" restores standard base64 padding for Node's decoder.
     const aesKey = Buffer.from(`${encodingAesKey}=`, "base64");
     if (aesKey.length !== 32) {
       throw new ServiceUnavailableException("WeCom callback AES key is invalid");

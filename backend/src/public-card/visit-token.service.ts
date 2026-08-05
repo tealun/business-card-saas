@@ -12,6 +12,8 @@ export interface VisitTokenPayload {
 
 @Injectable()
 export class VisitTokenService {
+  // Visit tokens only bridge the public-card page load to the stats endpoint;
+  // keep the window short so shared links remain public while visit writes are bounded.
   private readonly ttlSeconds = 30 * 60;
 
   sign(payload: Omit<VisitTokenPayload, "issuedAt">): string {
@@ -37,6 +39,8 @@ export class VisitTokenService {
 
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as VisitTokenPayload;
     const now = Math.floor(Date.now() / 1000);
+    // Use max age rather than an absolute expiry embedded by callers: the server
+    // is the sole authority for how long anonymous visit attribution remains valid.
     if (now - payload.issuedAt > this.ttlSeconds) {
       throw new UnauthorizedException("visit_token expired");
     }

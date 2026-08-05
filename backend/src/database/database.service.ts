@@ -47,6 +47,8 @@ export class DatabaseService implements OnModuleDestroy {
     try {
       await client.query("BEGIN");
       const result = await callback(client);
+      // Callers such as TenantTx set transaction-local RLS context; COMMIT is
+      // the boundary that releases both the client transaction and those GUCs.
       await client.query("COMMIT");
       return result;
     } catch (error) {
@@ -86,6 +88,8 @@ export class DatabaseService implements OnModuleDestroy {
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
+  // Invalid operational knobs fall back instead of crashing local/test startup;
+  // production-required settings are enforced by AppConfig before use.
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
