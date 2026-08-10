@@ -64,6 +64,11 @@ const state = {
   memberCard: null,
   companyProfile: null,
   companyHonors: [],
+  companyVideos: [],
+  companyActiveTab: "base",
+  companyDirty: false,
+  companyPreviewStyle: "classic",
+  companyPreviewBrand: "#2f6df6",
   deletedHonorIds: [],
   videoCapability: null,
   fieldSettings: [],
@@ -77,6 +82,47 @@ const state = {
   platformAuditView: "operations",
   tenantOps: { offset: 0, limit: 50, total: 0 },
   platformOps: { offset: 0, limit: 50, total: 0 }
+};
+
+const COMPANY_BUILDER_TABS = [
+  { key: "base", title: "基础资料", moduleKey: "", panel: "profile", hint: "名称、Logo、官网与地址，保存后会同步到企业主页头部。" },
+  { key: "intro", title: "企业简介", moduleKey: "profile", panel: "intro", hint: "用内容块维护企业介绍，支持段落、引用、图片、图集和视频引用。" },
+  { key: "services", title: "服务项目", moduleKey: "services", panel: "services", hint: "选择展示布局，维护服务列表与排序。" },
+  { key: "video", title: "企业视频", moduleKey: "videos", panel: "video", hint: "从已发布视频中选择引用，不需要填写编号。" },
+  { key: "honors", title: "荣誉资质", moduleKey: "honors", panel: "honors", hint: "维护证书、奖项和资质图片，支持排序与展示状态。" }
+];
+
+const COMPANY_MODULE_DEFAULTS = [
+  { key: "services", title: "服务项目", visible: true, sort_order: 10, layout: "graphic" },
+  { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+  { key: "videos", title: "企业视频", visible: true, sort_order: 30, layout: "carousel" },
+  { key: "honors", title: "荣誉资质", visible: true, sort_order: 40, layout: "grid" }
+];
+
+const COMPANY_LAYOUTS = [
+  { value: "graphic", label: "图文列表", desc: "适合服务项目" },
+  { value: "grid", label: "宫格", desc: "适合多项并列" },
+  { value: "carousel", label: "轮播", desc: "适合图片和证书" },
+  { value: "text", label: "纯文字", desc: "突出文案" },
+  { value: "image", label: "图片", desc: "图片优先展示" }
+];
+
+const COMPANY_INTRO_TYPES = [
+  { type: "paragraph", label: "段落" },
+  { type: "heading", label: "标题" },
+  { type: "quote", label: "引用" },
+  { type: "image", label: "图片" },
+  { type: "gallery", label: "图集" },
+  { type: "video", label: "视频" }
+];
+
+const COMPANY_BRANDS = {
+  "#2f6df6": { brand: "#2f6df6", strong: "#1e56d6", bright: "#2f6df6", soft: "#eaf1ff", ring: "rgba(47, 109, 246, .16)" },
+  "#ef4f5f": { brand: "#ef4f5f", strong: "#c93546", bright: "#ef4f5f", soft: "#fff0f2", ring: "rgba(239, 79, 95, .16)" },
+  "#7957e6": { brand: "#7957e6", strong: "#5f3ed0", bright: "#7957e6", soft: "#f1edff", ring: "rgba(121, 87, 230, .16)" },
+  "#198f63": { brand: "#198f63", strong: "#0f744e", bright: "#198f63", soft: "#e9f7f0", ring: "rgba(25, 143, 99, .16)" },
+  "#f0830f": { brand: "#f0830f", strong: "#c96a09", bright: "#f0830f", soft: "#fff3e3", ring: "rgba(240, 131, 15, .16)" },
+  "#119c9a": { brand: "#119c9a", strong: "#0d7d7b", bright: "#119c9a", soft: "#e8f8f7", ring: "rgba(17, 156, 154, .16)" }
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -973,17 +1019,18 @@ async function updateMemberCardStatus(item, status) {
 }
 
 async function loadCompanyProfileBundle() {
-  const [profile, capability, honors] = await Promise.all([
+  const [profile, capability, honors, videos] = await Promise.all([
     adminRequest("/admin/company-profile"),
     adminRequest("/admin/features/company-video").catch(() => null),
-    adminRequest("/admin/company-honors").catch(() => ({ items: [] }))
+    adminRequest("/admin/company-honors").catch(() => ({ items: [] })),
+    adminRequest("/admin/company-videos").catch(() => ({ items: [] }))
   ]);
   state.videoCapability = capability;
   state.companyHonors = honors.items || [];
+  state.companyVideos = videos.items || [];
   state.deletedHonorIds = [];
   fillCompany(profile);
-  renderHonorEditors();
-  return { profile, capability, honors };
+  return { profile, capability, honors, videos };
 }
 
 async function loadCompanyProfileOnly() {
@@ -993,7 +1040,8 @@ async function loadCompanyProfileOnly() {
 }
 
 function fillCompany(profile) {
-  state.companyProfile = structuredClone(profile);
+  state.companyProfile = normalizeCompanyProfile(profile);
+  state.companyDirty = false;
   const form = $("#companyForm");
   form.display_name.value = profile.display_name || "";
   form.short_name.value = profile.short_name || "";
@@ -1002,10 +1050,13 @@ function fillCompany(profile) {
   form.address.value = profile.address || "";
   form.status.value = profile.status || "draft";
   form.visible.checked = Boolean(profile.visible);
+  renderCompanyLogoPreview();
   renderCompanyEditors();
   renderCompanyPreview();
   renderCompanyCompleteness();
+  applyCompanyPreviewStyle();
   applyCompanyPermission();
+  renderCompanyDirtyState();
   $("#companyStatusTag").innerHTML = profile.status === "published" ? tag("已发布", "success") : tag("草稿", "warning");
 }
 
@@ -1020,87 +1071,543 @@ function input(value, key, index, group, placeholder = "", type = "text") {
   return node;
 }
 
+function normalizeCompanyProfile(profile = {}) {
+  return {
+    ...structuredClone(profile),
+    display_modules: normalizeCompanyModules(profile.display_modules || []),
+    intro_blocks: Array.isArray(profile.intro_blocks) ? structuredClone(profile.intro_blocks) : [],
+    service_items: Array.isArray(profile.service_items) ? structuredClone(profile.service_items) : []
+  };
+}
+
+function normalizeCompanyModules(modules = []) {
+  const byKey = new Map((modules || []).map((module) => [module.key, module]));
+  return COMPANY_MODULE_DEFAULTS.map((fallback, index) => ({
+    ...fallback,
+    ...(byKey.get(fallback.key) || {}),
+    visible: byKey.has(fallback.key) ? byKey.get(fallback.key).visible !== false : fallback.visible,
+    sort_order: Number(byKey.get(fallback.key)?.sort_order ?? fallback.sort_order ?? index * 10),
+    layout: byKey.get(fallback.key)?.layout || fallback.layout
+  })).sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+}
+
+function companyTabMeta(key = state.companyActiveTab) {
+  return COMPANY_BUILDER_TABS.find((item) => item.key === key) || COMPANY_BUILDER_TABS[0];
+}
+
+function companyModuleByKey(key) {
+  return (state.companyProfile?.display_modules || []).find((item) => item.key === key);
+}
+
+function companyModuleForTab(key = state.companyActiveTab) {
+  const meta = companyTabMeta(key);
+  return meta.moduleKey ? companyModuleByKey(meta.moduleKey) : null;
+}
+
+function sortedCompanyModules() {
+  return [...(state.companyProfile?.display_modules || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+}
+
+function sortedCompanyVideos() {
+  return [...(state.companyVideos || [])].sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+}
+
+function selectableCompanyVideos() {
+  return sortedCompanyVideos().filter((item) => item.visible !== false && item.status === "published");
+}
+
+function companyVideoTitle(videoId) {
+  const item = (state.companyVideos || []).find((video) => String(video.video_id || "") === String(videoId || ""));
+  return item ? item.title : "";
+}
+
+function markCompanyDirty() {
+  state.companyDirty = true;
+  renderCompanyDirtyState();
+}
+
+function renderCompanyDirtyState() {
+  const node = $("#companyDirtyTag");
+  if (!node) return;
+  node.classList.toggle("hidden", !state.companyDirty);
+}
+
+function applyCompanyPreviewStyle() {
+  const shell = $("#companyBuilderShell");
+  if (!shell) return;
+  shell.classList.remove("company-style-classic", "company-style-plain", "company-style-dark");
+  shell.classList.add(`company-style-${state.companyPreviewStyle}`);
+  const brand = COMPANY_BRANDS[state.companyPreviewBrand] || COMPANY_BRANDS["#2f6df6"];
+  shell.style.setProperty("--brand", brand.brand);
+  shell.style.setProperty("--brand-strong", brand.strong);
+  shell.style.setProperty("--brand-bright", brand.bright);
+  shell.style.setProperty("--brand-soft", brand.soft);
+  shell.style.setProperty("--brand-ring", brand.ring);
+  $$(".builder-style-card").forEach((node) => {
+    node.classList.toggle("builder-style-card--active", node.dataset.companyStyle === state.companyPreviewStyle);
+  });
+  $$(".builder-swatches button").forEach((node) => {
+    node.classList.toggle("active", node.dataset.companyBrand === state.companyPreviewBrand);
+  });
+}
+
+function publishCheckRows() {
+  const form = $("#companyForm");
+  const profile = state.companyProfile || {};
+  const checks = [
+    {
+      ok: [form?.display_name?.value, form?.logo_url?.value, form?.website_url?.value, form?.address?.value]
+        .every((value) => String(value || "").trim()),
+      title: "基础资料",
+      detail: "企业名称、Logo、官网和地址会展示在主页头部。"
+    },
+    {
+      ok: (profile.intro_blocks || []).length > 0,
+      title: "企业简介",
+      detail: `${(profile.intro_blocks || []).length} 个内容块。`
+    },
+    {
+      ok: (profile.service_items || []).some((item) => item.visible !== false),
+      title: "服务项目",
+      detail: `${(profile.service_items || []).filter((item) => item.visible !== false).length} 项对访客展示。`
+    },
+    {
+      ok: !state.videoCapability?.enabled || selectableCompanyVideos().length > 0,
+      title: "企业视频",
+      detail: state.videoCapability?.enabled
+        ? (selectableCompanyVideos().length ? `${selectableCompanyVideos().length} 个已发布视频。` : "未选择视频，发布后该模块不展示。")
+        : "视频能力未开通，自动跳过。"
+    },
+    {
+      ok: (state.companyHonors || []).some((item) => item.visible !== false && item.status === "published"),
+      title: "荣誉资质",
+      detail: `${(state.companyHonors || []).filter((item) => item.visible !== false).length} 项荣誉。`
+    }
+  ];
+  return checks;
+}
+
+function openCompanyPublishDialog() {
+  syncCompanyEditors();
+  const list = $("#companyPublishChecks");
+  if (list) {
+    list.replaceChildren(...publishCheckRows().map((item) => {
+      const row = document.createElement("div");
+      row.className = `publish-check-row ${item.ok ? "" : "is-warning"}`;
+      row.innerHTML = `<span class="publish-check-dot"></span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.detail)}</small></span>`;
+      return row;
+    }));
+  }
+  $("#companyPublishDialog")?.classList.remove("hidden");
+}
+
+function closeCompanyPublishDialog() {
+  $("#companyPublishDialog")?.classList.add("hidden");
+}
+
+function showCompanyVisitorPreview() {
+  $(".company-phone")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  notify("中间手机视图已按访客视角预览，发布后访客端生效");
+}
+
+function companyTabStatus(key) {
+  const form = $("#companyForm");
+  const profile = state.companyProfile || {};
+  if (key === "base") {
+    const missing = [form?.display_name?.value, form?.logo_url?.value, form?.website_url?.value, form?.address?.value].filter((value) => !String(value || "").trim()).length;
+    return missing ? { text: "待完善", tone: "warning", summary: `${4 - missing}/4 项` } : { text: "已完善", tone: "success", summary: "基础资料完整" };
+  }
+  if (key === "intro") {
+    const count = (profile.intro_blocks || []).length;
+    return count ? { text: "已完善", tone: "success", summary: `${count} 个内容块` } : { text: "缺内容", tone: "warning", summary: "未配置内容块" };
+  }
+  if (key === "services") {
+    const count = (profile.service_items || []).filter((item) => item.visible !== false).length;
+    return count ? { text: "已完善", tone: "success", summary: `${count} 项服务` } : { text: "缺内容", tone: "warning", summary: "未配置服务" };
+  }
+  if (key === "video") {
+    if (state.videoCapability && !state.videoCapability.enabled) return { text: "未开通", tone: "muted", summary: "视频能力未开启" };
+    const count = selectableCompanyVideos().length;
+    return count ? { text: "可展示", tone: "success", summary: `${count} 个已发布视频` } : { text: "待选择", tone: "warning", summary: "暂无已发布视频" };
+  }
+  const honors = state.companyHonors || [];
+  if (!honors.length) return { text: "缺内容", tone: "warning", summary: "未配置荣誉" };
+  return { text: "已完善", tone: "success", summary: `${honors.length} 项荣誉` };
+}
+
+function renderCompanyLogoPreview() {
+  const form = $("#companyForm");
+  const preview = $("#companyLogoPreview");
+  if (!form || !preview) return;
+  preview.replaceChildren();
+  const url = form.logo_url.value.trim();
+  if (url) {
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = "企业 LOGO";
+    preview.append(image);
+    return;
+  }
+  preview.textContent = (form.display_name.value.trim() || "企").charAt(0);
+}
+
+function renderCompanyStructure() {
+  const root = $("#companyStructure");
+  if (!root) return;
+  root.replaceChildren(...COMPANY_BUILDER_TABS.map((meta) => {
+    const status = companyTabStatus(meta.key);
+    const row = document.createElement("div");
+    row.className = `builder-structure-item ${state.companyActiveTab === meta.key ? "active" : ""}`;
+    row.dataset.companyTab = meta.key;
+    row.tabIndex = 0;
+
+    const grip = document.createElement("span");
+    grip.className = "builder-grip";
+    grip.textContent = "::";
+
+    const main = document.createElement("div");
+    main.className = "builder-structure-main";
+    const title = document.createElement("strong");
+    title.textContent = meta.title;
+    const summary = document.createElement("small");
+    summary.textContent = status.summary;
+    main.append(title, summary);
+
+    const stateNode = document.createElement("span");
+    stateNode.className = "builder-structure-status";
+    stateNode.innerHTML = tag(status.text, status.tone);
+
+    row.append(grip, main, stateNode);
+    const module = meta.moduleKey ? companyModuleByKey(meta.moduleKey) : null;
+    if (module) {
+      const label = document.createElement("label");
+      label.className = "builder-switch";
+      label.title = module.visible === false ? "当前模块对访客隐藏" : "当前模块对访客展示";
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.checked = module.visible !== false;
+      toggle.dataset.companyModuleVisible = module.key;
+      label.append(toggle, document.createElement("i"));
+      row.append(label);
+    }
+    return row;
+  }));
+}
+
+function selectCompanyTab(key = "base") {
+  state.companyActiveTab = companyTabMeta(key).key;
+  const meta = companyTabMeta(state.companyActiveTab);
+  $$("#companyStructure [data-company-tab]").forEach((node) => {
+    node.classList.toggle("active", node.dataset.companyTab === state.companyActiveTab);
+  });
+  $$("#companyEditorPanels [data-company-panel]").forEach((node) => {
+    node.classList.toggle("active", node.dataset.companyPanel === meta.panel);
+  });
+  $("#companyTabTitle").textContent = meta.title;
+  $("#companyPanelHint").textContent = meta.hint;
+  const status = companyTabStatus(state.companyActiveTab);
+  $("#companyPanelStatus").innerHTML = tag(status.text, status.tone);
+}
+
+function renderServiceLayoutChoices() {
+  const root = $("#serviceLayoutChoices");
+  const module = companyModuleByKey("services");
+  if (!root || !module) return;
+  root.replaceChildren(...COMPANY_LAYOUTS.map((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `layout-choice ${module.layout === item.value ? "active" : ""}`;
+    button.dataset.serviceLayout = item.value;
+    button.innerHTML = `<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.desc)}</small>`;
+    return button;
+  }));
+}
+
 function renderCompanyEditors() {
   const profile = state.companyProfile || { display_modules: [], service_items: [], intro_blocks: [] };
-  const modules = $("#moduleEditor");
-  modules.replaceChildren(...[...profile.display_modules].sort((a, b) => a.sort_order - b.sort_order).map((item, index) => {
-    const row = document.createElement("div");
-    row.className = "editor-row";
-    const name = document.createElement("strong");
-    name.textContent = item.key;
-    const title = input(item.title, "title", index, "module", "模块标题");
-    const layout = input(item.layout, "layout", index, "module", "布局");
-    const visible = input("", "visible", index, "module", "", "checkbox");
-    visible.checked = item.visible;
-    const label = document.createElement("label");
-    label.className = "check-line";
-    label.append(visible, document.createTextNode("可见"));
-    row.append(name, title, layout, label);
-    return row;
-  }));
-  const services = $("#serviceEditor");
-  services.replaceChildren(...profile.service_items.map((item, index) => {
-    const row = document.createElement("div");
-    row.className = "editor-row service";
-    row.append(
-      input(item.title, "title", index, "service", "服务标题"),
-      input(item.description, "description", index, "service", "服务描述", "textarea"),
-      input(item.image_url, "image_url", index, "service", "图片 URL"),
-      actionButton("删除", () => { profile.service_items.splice(index, 1); renderCompanyEditors(); }, "secondary danger-lite")
-    );
-    return row;
-  }));
-  const intro = $("#introEditor");
-  intro.replaceChildren(...profile.intro_blocks.map((item, index) => {
-    const row = document.createElement("div");
-    row.className = "editor-row intro";
-    const type = document.createElement("strong");
-    type.textContent = item.type;
-    if (item.type === "heading" || item.type === "paragraph" || item.type === "quote") {
-      row.append(type, input(item.text, "text", index, "intro", "内容", "textarea"));
-    } else if (item.type === "image") {
-      row.append(type, input(item.url, "url", index, "intro", "图片 URL"), input(item.caption, "caption", index, "intro", "说明"));
-    } else if (item.type === "gallery") {
-      row.append(type, input((item.images || []).map((image) => `${image.url}|${image.caption || ""}`).join("\n"), "images", index, "intro", "每行 URL|说明", "textarea"));
-    } else if (item.type === "video") {
-      row.append(type, input(item.video_id, "video_id", index, "intro", "视频 ID"));
-    }
-    row.append(actionButton("删除", () => { profile.intro_blocks.splice(index, 1); renderCompanyEditors(); }, "secondary danger-lite"));
-    return row;
-  }));
+  profile.display_modules = normalizeCompanyModules(profile.display_modules || []);
+  renderCompanyStructure();
+  renderServiceLayoutChoices();
+  renderIntroEditor();
+  renderServiceEditor();
+  renderHonorEditors();
   const videoHint = $("#videoCapabilityHint");
   const addVideo = $("#addVideo");
-  addVideo.disabled = !state.videoCapability?.enabled;
+  addVideo.disabled = !state.videoCapability?.enabled || !selectableCompanyVideos().length;
   videoHint.textContent = state.videoCapability?.enabled
-    ? `视频能力已开通，上限 ${state.videoCapability.effective_limit_mb} MB`
+    ? `视频能力已开通，上限 ${state.videoCapability.effective_limit_mb} MB；视频块从已发布视频中选择。`
     : "视频是高级功能，当前企业未开通时不会提交视频模块。";
   renderVideoPanel();
+  selectCompanyTab(state.companyActiveTab);
   renderCompanyPreview();
   renderCompanyCompleteness();
   applyCompanyPermission();
 }
 
+function editorCard({ type, title, summary, index, actions = [] }) {
+  const row = document.createElement("div");
+  row.className = `builder-item builder-item--${type}`;
+  const head = document.createElement("div");
+  head.className = "builder-item-head";
+  const label = document.createElement("span");
+  label.className = "builder-type";
+  label.textContent = type;
+  const main = document.createElement("div");
+  main.className = "builder-item-main";
+  const strong = document.createElement("strong");
+  strong.textContent = title;
+  const small = document.createElement("small");
+  small.textContent = summary || "";
+  main.append(strong, small);
+  const controls = document.createElement("div");
+  controls.className = "builder-item-actions";
+  actions.forEach((button) => controls.append(button));
+  head.append(label, main, controls);
+  if (Number.isInteger(index)) row.dataset.index = String(index);
+  row.append(head);
+  return row;
+}
+
+function renderEmptyEditor(root, text) {
+  root.innerHTML = `<div class="builder-empty">${escapeHtml(text)}</div>`;
+}
+
+function renderIntroEditor() {
+  const root = $("#introEditor");
+  const blocks = state.companyProfile?.intro_blocks || [];
+  if (!root) return;
+  if (!blocks.length) {
+    renderEmptyEditor(root, "暂无内容块，先添加段落、图片或引用。");
+    return;
+  }
+  root.replaceChildren(...blocks.map((item, index) => {
+    const label = companyIntroLabel(item.type);
+    const row = editorCard({
+      type: label,
+      title: companyIntroTitle(item),
+      summary: companyIntroSummary(item),
+      index,
+      actions: [
+        actionButton("上移", () => moveCompanyArrayItem("intro_blocks", index, -1), "ghost compact"),
+        actionButton("下移", () => moveCompanyArrayItem("intro_blocks", index, 1), "ghost compact"),
+        actionButton("删除", () => deleteCompanyIntroBlock(index), "ghost danger-lite compact")
+      ]
+    });
+    if (["heading", "paragraph", "quote"].includes(item.type)) {
+      const text = input(item.text, "text", index, "intro", "填写内容", "textarea");
+      text.className = "builder-textarea";
+      row.append(text);
+    } else if (item.type === "image") {
+      row.append(companyAssetEditor({
+        value: item.url,
+        caption: item.caption,
+        index,
+        group: "intro",
+        urlKey: "url",
+        captionKey: "caption",
+        category: "company-images",
+        label: "正文图片"
+      }));
+    } else if (item.type === "gallery") {
+      row.append(galleryEditor(item, index));
+    } else if (item.type === "video") {
+      row.append(videoPickerEditor(item, index));
+    } else if (item.type === "list") {
+      const text = input((item.items || []).join("\n"), "items", index, "intro", "每行一项", "textarea");
+      text.className = "builder-textarea";
+      row.append(text);
+    }
+    return row;
+  }));
+}
+
+function renderServiceEditor() {
+  const root = $("#serviceEditor");
+  const services = state.companyProfile?.service_items || [];
+  if (!root) return;
+  if (!services.length) {
+    renderEmptyEditor(root, "暂无服务项目，点击上方按钮添加。");
+    return;
+  }
+  root.replaceChildren(...services.map((item, index) => {
+    const row = editorCard({
+      type: "服务",
+      title: item.title || "未命名服务",
+      summary: item.visible === false ? "对访客隐藏" : (item.description || "已展示"),
+      index,
+      actions: [
+        actionButton("上移", () => moveCompanyArrayItem("service_items", index, -1), "ghost compact"),
+        actionButton("下移", () => moveCompanyArrayItem("service_items", index, 1), "ghost compact"),
+        actionButton("删除", () => deleteCompanyService(index), "ghost danger-lite compact")
+      ]
+    });
+    const title = input(item.title, "title", index, "service", "服务名称");
+    title.className = "builder-input";
+    const desc = input(item.description, "description", index, "service", "一句话说明这项服务", "textarea");
+    desc.className = "builder-textarea";
+    const visible = input("", "visible", index, "service", "", "checkbox");
+    visible.checked = item.visible !== false;
+    const visibleLabel = document.createElement("label");
+    visibleLabel.className = "check-line";
+    visibleLabel.append(visible, document.createTextNode("对访客展示"));
+    row.append(title, desc, companyAssetEditor({
+      value: item.image_url,
+      index,
+      group: "service",
+      urlKey: "image_url",
+      category: "company-images",
+      label: "服务图片"
+    }), visibleLabel);
+    return row;
+  }));
+}
+
+function galleryEditor(item, index) {
+  const wrap = document.createElement("div");
+  wrap.className = "gallery-editor";
+  const images = item.images || [];
+  const grid = document.createElement("div");
+  grid.className = "gallery-editor-grid";
+  images.forEach((image, imageIndex) => {
+    const cell = document.createElement("div");
+    cell.className = "gallery-editor-item";
+    cell.innerHTML = image.url ? `<img src="${escapeAttr(image.url)}" alt="" />` : `<span>图片</span>`;
+    const caption = input(image.caption || "", "caption", index, "intro-gallery", "图片说明");
+    caption.dataset.imageIndex = imageIndex;
+    const remove = actionButton("删除", () => {
+      syncCompanyEditors();
+      const current = state.companyProfile.intro_blocks[index];
+      current.images = (current.images || []).filter((_, itemIndex) => itemIndex !== imageIndex);
+      markCompanyDirty();
+      renderCompanyEditors();
+    }, "ghost danger-lite compact");
+    cell.append(caption, remove);
+    grid.append(cell);
+  });
+  const upload = actionButton("+ 上传图片", async () => {
+    await uploadIntroGalleryImages(index);
+  }, "secondary");
+  wrap.append(grid, upload);
+  return wrap;
+}
+
+function videoPickerEditor(item, index) {
+  const wrap = document.createElement("div");
+  wrap.className = "video-picker";
+  const hidden = input(item.video_id || "", "video_id", index, "intro", "", "hidden");
+  wrap.append(hidden);
+  const videos = selectableCompanyVideos();
+  if (!videos.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "暂无已发布视频，请先在企业视频中上传并发布。";
+    wrap.append(empty);
+    return wrap;
+  }
+  videos.forEach((video) => {
+    const label = document.createElement("label");
+    label.className = `video-choice ${String(item.video_id || "") === String(video.video_id || "") ? "active" : ""}`;
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = `company-intro-video-${index}`;
+    radio.value = video.video_id;
+    radio.checked = String(item.video_id || "") === String(video.video_id || "");
+    radio.dataset.group = "intro";
+    radio.dataset.key = "video_id";
+    radio.dataset.index = index;
+    const body = document.createElement("span");
+    body.innerHTML = `<strong>${escapeHtml(video.title || "未命名视频")}</strong><small>${escapeHtml(video.status === "published" ? "已发布" : "草稿")}</small>`;
+    label.append(radio, body);
+    wrap.append(label);
+  });
+  return wrap;
+}
+
+function companyAssetEditor({ value, caption = "", index, group, urlKey, captionKey = "", category, label }) {
+  const wrap = document.createElement("div");
+  wrap.className = "asset-editor";
+  const hidden = input(value || "", urlKey, index, group, "", "hidden");
+  wrap.append(hidden);
+  const preview = document.createElement("div");
+  preview.className = "asset-editor-preview";
+  if (value) preview.innerHTML = `<img src="${escapeAttr(value)}" alt="" />`;
+  else preview.textContent = label || "图片";
+  const actions = document.createElement("div");
+  actions.className = "asset-editor-actions";
+  actions.append(
+    actionButton(value ? "替换图片" : "上传图片", async () => {
+      await uploadCompanyImageInto({ group, index, urlKey, category });
+    }, "secondary"),
+    actionButton("清除", () => {
+      syncCompanyEditors();
+      setCompanyEditorValue({ group, index, key: urlKey, value: null });
+      markCompanyDirty();
+      renderCompanyEditors();
+    }, "ghost")
+  );
+  wrap.append(preview, actions);
+  if (captionKey) {
+    const captionInput = input(caption || "", captionKey, index, group, "图片说明");
+    captionInput.className = "builder-input";
+    wrap.append(captionInput);
+  }
+  return wrap;
+}
+
+function companyIntroLabel(type) {
+  const found = COMPANY_INTRO_TYPES.find((item) => item.type === type);
+  return found ? found.label : type || "内容";
+}
+
+function companyIntroTitle(item) {
+  if (["heading", "paragraph", "quote"].includes(item.type)) return String(item.text || "未填写内容").slice(0, 26);
+  if (item.type === "image") return item.caption || "正文图片";
+  if (item.type === "gallery") return "图集";
+  if (item.type === "video") return companyVideoTitle(item.video_id) || "企业视频";
+  if (item.type === "list") return "列表";
+  return "内容块";
+}
+
+function companyIntroSummary(item) {
+  if (item.type === "gallery") return `${(item.images || []).length} 张图片`;
+  if (item.type === "video") return item.video_id ? "已选择视频" : "未选择视频";
+  if (item.type === "list") return `${(item.items || []).length} 项`;
+  return "";
+}
+
 function syncCompanyEditors() {
   const profile = state.companyProfile;
+  if (!profile) return;
   $$('[data-group="module"]').forEach((node) => {
-    const item = [...profile.display_modules].sort((a, b) => a.sort_order - b.sort_order)[Number(node.dataset.index)];
+    const item = sortedCompanyModules()[Number(node.dataset.index)];
+    if (!item) return;
     item[node.dataset.key] = node.type === "checkbox" ? node.checked : node.value;
   });
   $$('[data-group="service"]').forEach((node) => {
     const item = profile.service_items[Number(node.dataset.index)];
-    item[node.dataset.key] = node.value || null;
+    if (!item) return;
+    item[node.dataset.key] = node.type === "checkbox" ? node.checked : (node.value || null);
   });
   $$('[data-group="intro"]').forEach((node) => {
     const item = profile.intro_blocks[Number(node.dataset.index)];
+    if (!item) return;
     if (node.dataset.key === "images") {
       item.images = node.value.split(/\n/).filter(Boolean).map((line) => {
         const [url, ...caption] = line.split("|");
         return { url: url.trim(), caption: caption.join("|").trim() };
       });
+    } else if (node.dataset.key === "items") {
+      item.items = node.value.split(/\n/).map((line) => line.trim()).filter(Boolean);
     } else {
-      item[node.dataset.key] = node.value;
+      item[node.dataset.key] = node.type === "radio" ? (node.checked ? node.value : item[node.dataset.key]) : node.value;
     }
   });
+  $$('[data-group="intro-gallery"]').forEach((node) => {
+    const item = profile.intro_blocks[Number(node.dataset.index)];
+    const image = item?.images?.[Number(node.dataset.imageIndex)];
+    if (image) image[node.dataset.key] = node.value;
+  });
+  resequenceCompanyProfile();
 }
 
 function companyPayloadFromForm() {
@@ -1114,9 +1621,9 @@ function companyPayloadFromForm() {
     address: form.address.value.trim() || null,
     visible: form.visible.checked,
     status: form.status.value,
-    intro_blocks: state.companyProfile.intro_blocks,
-    service_items: state.companyProfile.service_items,
-    display_modules: state.companyProfile.display_modules
+    intro_blocks: cleanIntroBlocksForPayload(state.companyProfile.intro_blocks),
+    service_items: cleanServicesForPayload(state.companyProfile.service_items),
+    display_modules: normalizeCompanyModules(state.companyProfile.display_modules)
   };
 }
 
@@ -1135,18 +1642,82 @@ function renderCompanyPreview() {
     logo.classList.add("hidden");
   }
   $("#previewCompanyInitial").textContent = (name || "企").charAt(0);
+  renderCompanyLogoPreview();
   const profile = state.companyProfile || {};
   const textBlock = (profile.intro_blocks || []).find((block) => ["heading", "paragraph", "quote"].includes(block.type) && String(block.text || "").trim());
-  $("#previewCompanyIntro").textContent = textBlock ? String(textBlock.text).slice(0, 80) : form.address.value.trim() || "主页资料读取后展示预览。";
-  $("#previewServiceCount").textContent = String((profile.service_items || []).length);
-  $("#previewHonorCount").textContent = String((state.companyHonors || []).length);
+  $("#previewCompanyBasics").innerHTML = [
+    form.address.value.trim(),
+    form.website_url.value.trim()
+  ].filter(Boolean).map((item) => `<span>${escapeHtml(item)}</span>`).join("");
   const root = $("#previewModules");
-  const modules = [...(profile.display_modules || [])].sort((a, b) => a.sort_order - b.sort_order);
-  root.replaceChildren(...modules.filter((item) => item.visible).map((item) => {
-    const div = document.createElement("div");
-    div.textContent = item.title;
-    return div;
-  }));
+  const modules = sortedCompanyModules();
+  root.replaceChildren(...modules.filter((item) => item.visible).map((item) => previewModule(item, textBlock)));
+}
+
+function previewModule(module, textBlock) {
+  const card = document.createElement("section");
+  card.className = `preview-module preview-module--${module.key}`;
+  card.dataset.previewTab = COMPANY_BUILDER_TABS.find((item) => item.moduleKey === module.key)?.key || "";
+  const title = document.createElement("h4");
+  title.textContent = module.title;
+  card.append(title);
+  if (module.key === "profile") {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = textBlock ? String(textBlock.text).slice(0, 86) : "点击右侧添加段落、图片、引用等内容块。";
+    card.append(paragraph);
+    const media = (state.companyProfile?.intro_blocks || []).find((block) => block.type === "image" || block.type === "gallery");
+    if (media) {
+      const box = document.createElement("div");
+      box.className = "preview-media-box";
+      const url = media.type === "image" ? media.url : media.images?.[0]?.url;
+      if (url) box.innerHTML = `<img src="${escapeAttr(url)}" alt="" />`;
+      else box.textContent = "图片";
+      card.append(box);
+    }
+  } else if (module.key === "services") {
+    const services = (state.companyProfile?.service_items || []).filter((item) => item.visible !== false).slice(0, 4);
+    card.append(previewList(services, "暂无服务项目", (item) => [item.title || "未命名服务", item.description || "一句话说明"]));
+  } else if (module.key === "videos") {
+    const video = selectableCompanyVideos()[0];
+    if (video) {
+      const box = document.createElement("div");
+      box.className = "preview-video-card";
+      if (video.cover_url) box.innerHTML = `<img src="${escapeAttr(video.cover_url)}" alt="" />`;
+      const play = document.createElement("span");
+      play.className = "preview-video-play";
+      const titleNode = document.createElement("strong");
+      titleNode.className = "preview-video-title";
+      titleNode.textContent = video.title || "企业视频";
+      box.append(play, titleNode);
+      card.append(box);
+    } else {
+      card.append(previewList([], "未选择视频，发布后访客不可见", () => []));
+    }
+  } else if (module.key === "honors") {
+    const honors = (state.companyHonors || []).filter((item) => item.visible !== false).slice(0, 2);
+    card.append(previewList(honors, "暂无荣誉资质", (item) => [item.title || "荣誉资质", item.body || `${(item.images || []).length} 张图片`]));
+  }
+  return card;
+}
+
+function previewList(items, emptyText, formatter) {
+  const wrap = document.createElement("div");
+  wrap.className = "preview-list";
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "preview-empty";
+    empty.textContent = emptyText;
+    wrap.append(empty);
+    return wrap;
+  }
+  items.forEach((item) => {
+    const [title, desc] = formatter(item);
+    const row = document.createElement("div");
+    row.className = "preview-list-item";
+    row.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(desc || "")}</span>`;
+    wrap.append(row);
+  });
+  return wrap;
 }
 
 // 完整度条：复用 profileCompleteness 的确定性规则，缺失项补充视频与荣誉图片检查。
@@ -1206,11 +1777,47 @@ function renderVideoPanel() {
       <p class="hint">如需开通，请联系平台或服务商升级版本。</p>`;
     return;
   }
-  const videoBlocks = (state.companyProfile?.intro_blocks || []).filter((block) => block.type === "video");
-  root.innerHTML = `
-    <div class="video-status">${tag("已开启", "success")}<span class="hint">单视频上限 ${escapeHtml(String(capability.effective_limit_mb))} MB</span></div>
-    <p>当前已在「介绍」中配置 <strong>${videoBlocks.length}</strong> 个视频块。</p>
-    <p class="hint">视频块在「介绍」标签页中添加与排序；未填写视频 ID 的块不会展示在主页。</p>`;
+  const published = selectableCompanyVideos();
+  const header = document.createElement("div");
+  header.className = "video-status";
+  header.innerHTML = `${tag("已开启", "success")}<span class="hint">从已发布视频中选择，不需要填写视频编号。</span>`;
+  root.replaceChildren(header);
+  if (!published.length) {
+    const empty = document.createElement("div");
+    empty.className = "builder-empty";
+    empty.textContent = "暂无已发布视频。视频上传和审核完成后，会自动出现在这里供选择。";
+    root.append(empty);
+    return;
+  }
+  const card = document.createElement("div");
+  card.className = "video-feature-card";
+  const current = published[0];
+  const currentRow = document.createElement("div");
+  currentRow.className = "video-feature-current";
+  const thumb = document.createElement("div");
+  thumb.className = "video-feature-thumb";
+  if (current.cover_url) thumb.innerHTML = `<img src="${escapeAttr(current.cover_url)}" alt="" />`;
+  const main = document.createElement("div");
+  main.className = "video-feature-main";
+  main.innerHTML = `<strong>${escapeHtml(current.title || "企业视频")}</strong><small>当前展示 · 已通过审核</small>`;
+  currentRow.append(thumb, main, actionButton("引用到简介", () => addIntroVideoBlock(current.video_id), "secondary compact"));
+  card.append(currentRow);
+  const choices = document.createElement("div");
+  choices.className = "video-picker";
+  published.slice(0, 6).forEach((video) => {
+    const choice = document.createElement("button");
+    choice.type = "button";
+    choice.className = "video-choice";
+    choice.innerHTML = `<span class="video-feature-thumb">${video.cover_url ? `<img src="${escapeAttr(video.cover_url)}" alt="" />` : ""}</span><span><strong>${escapeHtml(video.title || "未命名视频")}</strong><small>已发布，可引用到企业简介</small></span>`;
+    choice.addEventListener("click", () => addIntroVideoBlock(video.video_id));
+    choices.append(choice);
+  });
+  card.append(choices);
+  root.append(card);
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = `当前可展示 ${published.length} 个已发布视频；公开页的视频模块会按视频排序展示。`;
+  root.append(hint);
 }
 
 function applyCompanyPermission() {
@@ -1227,22 +1834,43 @@ function renderHonorEditors() {
   const root = $("#honorEditor");
   const honors = state.companyHonors || [];
   if (!honors.length) {
-    root.innerHTML = `<p class="hint">暂无荣誉资质</p>`;
+    renderEmptyEditor(root, "暂无荣誉资质，点击上方按钮添加。");
     return;
   }
   root.replaceChildren(...honors.map((honor, index) => {
-    const row = document.createElement("div");
-    row.className = "editor-row honor";
-    row.append(
-      input(honor.title, "title", index, "honor", "荣誉标题"),
-      input(honor.body || "", "body", index, "honor", "说明", "textarea"),
-      input(honor.sort_order, "sort_order", index, "honor", "排序", "number"),
-      actionButton("删除", () => {
+    const row = editorCard({
+      type: "荣誉",
+      title: honor.title || "未命名荣誉",
+      summary: honor.visible === false ? "对访客隐藏" : `${(honor.images || []).length} 张图片`,
+      index,
+      actions: [
+        actionButton("上移", () => moveCompanyHonor(index, -1), "ghost compact"),
+        actionButton("下移", () => moveCompanyHonor(index, 1), "ghost compact"),
+        actionButton("删除", () => {
+          syncHonorEditors();
         if (!String(honor.honor_id).startsWith("draft_")) state.deletedHonorIds.push(honor.honor_id);
         honors.splice(index, 1);
+          markCompanyDirty();
         renderHonorEditors();
-      }, "secondary danger-lite")
-    );
+        }, "ghost danger-lite compact")
+      ]
+    });
+    const title = input(honor.title, "title", index, "honor", "荣誉标题");
+    title.className = "builder-input";
+    const body = input(honor.body || "", "body", index, "honor", "荣誉说明", "textarea");
+    body.className = "builder-textarea";
+    const visible = input("", "visible", index, "honor", "", "checkbox");
+    visible.checked = honor.visible !== false;
+    const status = document.createElement("select");
+    status.dataset.key = "status";
+    status.dataset.index = index;
+    status.dataset.group = "honor";
+    status.innerHTML = `<option value="draft">草稿</option><option value="published">发布</option>`;
+    status.value = honor.status || "draft";
+    const visibleLabel = document.createElement("label");
+    visibleLabel.className = "check-line";
+    visibleLabel.append(visible, document.createTextNode("对访客展示"));
+    row.append(title, body, honorImagesEditor(honor, index), status, visibleLabel);
     return row;
   }));
   renderCompanyPreview();
@@ -1250,11 +1878,251 @@ function renderHonorEditors() {
   applyCompanyPermission();
 }
 
+function honorImagesEditor(honor, index) {
+  const wrap = document.createElement("div");
+  wrap.className = "gallery-editor";
+  const grid = document.createElement("div");
+  grid.className = "gallery-editor-grid";
+  (honor.images || []).forEach((image, imageIndex) => {
+    const cell = document.createElement("div");
+    cell.className = "gallery-editor-item";
+    cell.innerHTML = image.image_url ? `<img src="${escapeAttr(image.image_url)}" alt="" />` : `<span>图片</span>`;
+    const title = input(image.title || "", "title", index, "honor-image", "图片标题");
+    title.dataset.imageIndex = imageIndex;
+    const caption = input(image.caption || "", "caption", index, "honor-image", "图片说明");
+    caption.dataset.imageIndex = imageIndex;
+    const remove = actionButton("删除", () => {
+      syncHonorEditors();
+      honor.images = (honor.images || []).filter((_, itemIndex) => itemIndex !== imageIndex);
+      markCompanyDirty();
+      renderHonorEditors();
+    }, "ghost danger-lite compact");
+    cell.append(title, caption, remove);
+    grid.append(cell);
+  });
+  const upload = actionButton("+ 上传证书图", async () => {
+    await uploadHonorImages(index);
+  }, "secondary");
+  wrap.append(grid, upload);
+  return wrap;
+}
+
 function syncHonorEditors() {
   $$('[data-group="honor"]').forEach((node) => {
     const item = state.companyHonors[Number(node.dataset.index)];
-    item[node.dataset.key] = node.dataset.key === "sort_order" ? Number(node.value || 0) : node.value;
+    if (!item) return;
+    if (node.type === "checkbox") item[node.dataset.key] = node.checked;
+    else item[node.dataset.key] = node.dataset.key === "sort_order" ? Number(node.value || 0) : node.value;
   });
+  $$('[data-group="honor-image"]').forEach((node) => {
+    const honor = state.companyHonors[Number(node.dataset.index)];
+    const image = honor?.images?.[Number(node.dataset.imageIndex)];
+    if (image) image[node.dataset.key] = node.value || null;
+  });
+}
+
+function resequenceCompanyProfile() {
+  if (!state.companyProfile) return;
+  state.companyProfile.display_modules = normalizeCompanyModules(state.companyProfile.display_modules || []).map((item, index) => ({
+    ...item,
+    sort_order: (index + 1) * 10
+  }));
+  state.companyProfile.service_items = (state.companyProfile.service_items || []).map((item, index) => ({
+    ...item,
+    sort_order: (index + 1) * 10
+  }));
+}
+
+function moveCompanyArrayItem(key, index, direction) {
+  syncCompanyEditors();
+  const list = state.companyProfile?.[key];
+  if (!Array.isArray(list)) return;
+  const nextIndex = index + direction;
+  if (!list[index] || !list[nextIndex]) return;
+  [list[index], list[nextIndex]] = [list[nextIndex], list[index]];
+  resequenceCompanyProfile();
+  markCompanyDirty();
+  renderCompanyEditors();
+}
+
+function moveCompanyHonor(index, direction) {
+  syncHonorEditors();
+  const list = state.companyHonors || [];
+  const nextIndex = index + direction;
+  if (!list[index] || !list[nextIndex]) return;
+  [list[index], list[nextIndex]] = [list[nextIndex], list[index]];
+  list.forEach((item, itemIndex) => { item.sort_order = (itemIndex + 1) * 10; });
+  markCompanyDirty();
+  renderHonorEditors();
+}
+
+function deleteCompanyIntroBlock(index) {
+  syncCompanyEditors();
+  state.companyProfile.intro_blocks.splice(index, 1);
+  markCompanyDirty();
+  renderCompanyEditors();
+}
+
+function deleteCompanyService(index) {
+  syncCompanyEditors();
+  state.companyProfile.service_items.splice(index, 1);
+  markCompanyDirty();
+  renderCompanyEditors();
+}
+
+function setCompanyEditorValue({ group, index, key, value }) {
+  if (group === "service") {
+    const item = state.companyProfile?.service_items?.[index];
+    if (item) item[key] = value;
+    return;
+  }
+  if (group === "intro") {
+    const item = state.companyProfile?.intro_blocks?.[index];
+    if (item) item[key] = value;
+  }
+}
+
+function cleanServicesForPayload(items = []) {
+  return items
+    .map((item, index) => ({
+      id: /^service_[A-Za-z0-9_-]{1,64}$/.test(String(item.id || "")) ? item.id : `service_${Date.now()}_${index}`,
+      title: String(item.title || "").trim(),
+      description: String(item.description || "").trim(),
+      image_url: item.image_url || null,
+      visible: item.visible !== false,
+      sort_order: Number(item.sort_order || (index + 1) * 10)
+    }))
+    .filter((item) => item.title || item.image_url);
+}
+
+function cleanIntroBlocksForPayload(blocks = []) {
+  return blocks.map((block) => {
+    if (["heading", "paragraph", "quote"].includes(block.type)) {
+      return { type: block.type, text: String(block.text || "").trim() };
+    }
+    if (block.type === "list") {
+      return { type: "list", items: (block.items || []).map((item) => String(item || "").trim()).filter(Boolean) };
+    }
+    if (block.type === "image") {
+      return { type: "image", url: String(block.url || "").trim(), caption: String(block.caption || "").trim() };
+    }
+    if (block.type === "gallery") {
+      return {
+        type: "gallery",
+        images: (block.images || [])
+          .map((image) => ({ url: String(image.url || "").trim(), caption: String(image.caption || "").trim() }))
+          .filter((image) => image.url)
+          .slice(0, 12)
+      };
+    }
+    if (block.type === "video") {
+      return { type: "video", video_id: String(block.video_id || "").trim() };
+    }
+    return null;
+  }).filter((block) => {
+    if (!block) return false;
+    if (["heading", "paragraph", "quote"].includes(block.type)) return Boolean(block.text);
+    if (block.type === "list") return block.items.length > 0;
+    if (block.type === "image") return Boolean(block.url);
+    if (block.type === "gallery") return block.images.length > 0;
+    if (block.type === "video") return /^\d+$/.test(block.video_id);
+    return false;
+  });
+}
+
+function addIntroVideoBlock(videoId) {
+  const selected = String(videoId || selectableCompanyVideos()[0]?.video_id || "").trim();
+  if (!selected) {
+    notify("暂无可引用的已发布视频", "warning");
+    return;
+  }
+  addIntro("video", { video_id: selected });
+  selectCompanyTab("intro");
+}
+
+async function uploadCompanyImageInto({ group, index, urlKey, category }) {
+  syncCompanyEditors();
+  const urls = await chooseAndUploadCompanyImages(category, false);
+  if (!urls.length) return;
+  setCompanyEditorValue({ group, index, key: urlKey, value: urls[0] });
+  markCompanyDirty();
+  renderCompanyEditors();
+}
+
+async function uploadIntroGalleryImages(index) {
+  syncCompanyEditors();
+  const urls = await chooseAndUploadCompanyImages("company-images", true);
+  if (!urls.length) return;
+  const block = state.companyProfile?.intro_blocks?.[index];
+  if (!block) return;
+  block.images = [...(block.images || []), ...urls.map((url) => ({ url, caption: "" }))].slice(0, 12);
+  markCompanyDirty();
+  renderCompanyEditors();
+}
+
+async function uploadHonorImages(index) {
+  syncHonorEditors();
+  const urls = await chooseAndUploadCompanyImages("honors", true);
+  if (!urls.length) return;
+  const honor = state.companyHonors?.[index];
+  if (!honor) return;
+  honor.images = [...(honor.images || []), ...urls.map((url, imageIndex) => ({
+    image_url: url,
+    title: null,
+    caption: null,
+    sort_order: (honor.images || []).length + imageIndex
+  }))].slice(0, 12);
+  markCompanyDirty();
+  renderHonorEditors();
+}
+
+async function chooseAndUploadCompanyImages(category, multiple) {
+  if (!requirePermission("tenant.company.write")) return [];
+  const files = await chooseBrowserFiles({ accept: "image/*", multiple });
+  if (!files.length) return [];
+  return run("上传图片", async () => {
+    const urls = [];
+    for (const file of files) {
+      const result = await uploadAdminBinary("/admin/uploads/images", file, { category, file_name: file.name || "image" });
+      if (result.url) urls.push(result.url);
+    }
+    return urls;
+  });
+}
+
+function chooseBrowserFiles({ accept, multiple = false }) {
+  return new Promise((resolve) => {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = accept;
+    picker.multiple = multiple;
+    picker.addEventListener("change", () => resolve(Array.from(picker.files || [])), { once: true });
+    picker.click();
+  });
+}
+
+async function uploadAdminBinary(path, file, query = {}) {
+  const params = new URLSearchParams(query);
+  const headers = { "content-type": file.type || "application/octet-stream" };
+  if (state.adminToken) headers.authorization = `Bearer ${state.adminToken}`;
+  const response = await fetch(`${apiBase()}${path}?${params.toString()}`, {
+    method: "POST",
+    headers,
+    body: file
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch (_error) {
+    body = { message: `服务响应异常 (${response.status})` };
+  }
+  if (!response.ok) {
+    const error = new Error(body?.message || `${response.status} ${response.statusText}`);
+    error.status = response.status;
+    throw error;
+  }
+  return body && typeof body === "object" && "data" in body ? body.data : body;
 }
 
 async function saveHonors() {
@@ -2972,7 +3840,9 @@ function promptTextInput({ title, body, label, value = "", placeholder = "", min
 
 function addIntro(type, value) {
   if (!state.companyProfile) return;
+  syncCompanyEditors();
   state.companyProfile.intro_blocks.push({ type, ...value });
+  markCompanyDirty();
   renderCompanyEditors();
 }
 
@@ -3065,41 +3935,129 @@ $("#syncMembers").addEventListener("click", async () => {
 });
 
 $("#loadCompanyProfile").addEventListener("click", () => run("读取主页", loadCompanyProfileBundle));
+$("#visitorPreviewCompany").addEventListener("click", showCompanyVisitorPreview);
 $("#saveCompanyProfile").addEventListener("click", async () => {
   if (!requirePermission("tenant.company.write")) return;
   if (!state.companyProfile) await loadCompanyProfileOnly();
   const profile = await run("保存主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: companyPayloadFromForm() }));
   fillCompany(profile);
+  state.companyDirty = false;
+  renderCompanyDirtyState();
   notify("企业主页已保存");
 });
-$("#publishCompanyProfile").addEventListener("click", async () => {
+async function publishCompanyProfile() {
   if (!requirePermission("tenant.company.write")) return;
   if (!state.companyProfile) await loadCompanyProfileOnly();
   const profile = await run("发布主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: { ...companyPayloadFromForm(), status: "published" } }));
   fillCompany(profile);
+  state.companyDirty = false;
+  renderCompanyDirtyState();
+  closeCompanyPublishDialog();
   notify("企业主页已发布");
+}
+$("#publishCompanyProfile").addEventListener("click", openCompanyPublishDialog);
+$("#closeCompanyPublishDialog").addEventListener("click", closeCompanyPublishDialog);
+$("#cancelCompanyPublish").addEventListener("click", closeCompanyPublishDialog);
+$("#companyPublishDialog").addEventListener("click", (event) => {
+  if (event.target.id === "companyPublishDialog") closeCompanyPublishDialog();
 });
+$("#confirmCompanyPublish").addEventListener("click", publishCompanyProfile);
 $("#companyForm").addEventListener("input", () => {
+  markCompanyDirty();
+  renderCompanyLogoPreview();
+  renderCompanyStructure();
+  selectCompanyTab(state.companyActiveTab);
   renderCompanyPreview();
   renderCompanyCompleteness();
 });
-$$("[data-company-tab]").forEach((button) => {
-  button.addEventListener("click", () => {
-    $$("[data-company-tab]").forEach((node) => node.classList.toggle("active", node === button));
-    $$("[data-company-panel]").forEach((node) => node.classList.toggle("active", node.dataset.companyPanel === button.dataset.companyTab));
-    $("#companyTabTitle").textContent = button.textContent;
+$("#companyStructure").addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-company-module-visible]");
+  if (toggle) {
+    const module = companyModuleByKey(toggle.dataset.companyModuleVisible);
+    if (module) {
+      module.visible = toggle.checked;
+      markCompanyDirty();
+      renderCompanyEditors();
+    }
+    return;
+  }
+  const tab = event.target.closest("[data-company-tab]");
+  if (tab) selectCompanyTab(tab.dataset.companyTab);
+});
+$("#companyStructure").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const tab = event.target.closest("[data-company-tab]");
+  if (!tab) return;
+  event.preventDefault();
+  selectCompanyTab(tab.dataset.companyTab);
+});
+$$(".builder-style-card").forEach((node) => {
+  node.addEventListener("click", () => {
+    state.companyPreviewStyle = node.dataset.companyStyle || "classic";
+    applyCompanyPreviewStyle();
   });
+});
+$$(".builder-swatches button").forEach((node) => {
+  node.addEventListener("click", () => {
+    state.companyPreviewBrand = node.dataset.companyBrand || "#2f6df6";
+    applyCompanyPreviewStyle();
+  });
+});
+$("#companyEditorPanels").addEventListener("input", () => {
+  syncCompanyEditors();
+  markCompanyDirty();
+  renderCompanyStructure();
+  selectCompanyTab(state.companyActiveTab);
+  renderCompanyPreview();
+  renderCompanyCompleteness();
+});
+$("#companyEditorPanels").addEventListener("change", (event) => {
+  syncCompanyEditors();
+  markCompanyDirty();
+  if (event.target.matches("[type='checkbox'], [type='radio'], select")) {
+    renderCompanyEditors();
+    return;
+  }
+  renderCompanyStructure();
+  selectCompanyTab(state.companyActiveTab);
+  renderCompanyPreview();
+  renderCompanyCompleteness();
+});
+$("#serviceLayoutChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-service-layout]");
+  if (!button) return;
+  const module = companyModuleByKey("services");
+  if (!module) return;
+  module.layout = button.dataset.serviceLayout;
+  markCompanyDirty();
+  renderCompanyEditors();
+});
+$("#uploadCompanyLogo").addEventListener("click", async () => {
+  const urls = await chooseAndUploadCompanyImages("logos", false);
+  if (!urls.length) return;
+  $("#companyForm").logo_url.value = urls[0];
+  markCompanyDirty();
+  renderCompanyLogoPreview();
+  renderCompanyEditors();
+});
+$("#clearCompanyLogo").addEventListener("click", () => {
+  $("#companyForm").logo_url.value = "";
+  markCompanyDirty();
+  renderCompanyLogoPreview();
+  renderCompanyEditors();
 });
 $("#addService").addEventListener("click", () => {
   if (!state.companyProfile) return;
+  syncCompanyEditors();
   state.companyProfile.service_items.push({ id: `service_${Date.now()}`, title: "", description: "", image_url: null, visible: true, sort_order: (state.companyProfile.service_items.length + 1) * 10 });
+  markCompanyDirty();
   renderCompanyEditors();
 });
 $("#addHeading").addEventListener("click", () => addIntro("heading", { text: "新标题" }));
 $("#addParagraph").addEventListener("click", () => addIntro("paragraph", { text: "正文" }));
-$("#addImage").addEventListener("click", () => addIntro("image", { url: "https://", caption: "" }));
+$("#addImage").addEventListener("click", () => addIntro("image", { url: "", caption: "" }));
 $("#addGallery").addEventListener("click", () => addIntro("gallery", { images: [] }));
-$("#addVideo").addEventListener("click", () => state.videoCapability?.enabled && addIntro("video", { video_id: "" }));
+$("#addVideo").addEventListener("click", () => state.videoCapability?.enabled && addIntroVideoBlock());
 $("#loadHonors").addEventListener("click", () => run("读取荣誉", async () => {
   const result = await adminRequest("/admin/company-honors");
   state.companyHonors = result.items || [];
@@ -3108,10 +4066,17 @@ $("#loadHonors").addEventListener("click", () => run("读取荣誉", async () =>
   return result;
 }));
 $("#addHonor").addEventListener("click", () => {
+  syncHonorEditors();
   state.companyHonors.push({ honor_id: `draft_${Date.now()}`, title: "新荣誉", body: null, sort_order: (state.companyHonors.length + 1) * 10, visible: true, status: "draft", images: [] });
+  markCompanyDirty();
   renderHonorEditors();
 });
-$("#saveHonors").addEventListener("click", () => run("保存荣誉", saveHonors));
+$("#saveHonors").addEventListener("click", () => run("保存荣誉", async () => {
+  const result = await saveHonors();
+  state.companyDirty = false;
+  renderCompanyDirtyState();
+  return result;
+}));
 
 $("#loadFieldSettings").addEventListener("click", () => run("读取字段", loadFieldSettings));
 $("#saveFieldSettings").addEventListener("click", async () => {

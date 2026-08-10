@@ -1,91 +1,164 @@
 <section class="page" data-page="tenant-company">
-          <div class="page-head">
-            <div><h2>企业主页</h2><p>编辑企业资料、产品服务、简介、荣誉与视频模块。</p></div>
-            <div class="page-head-actions">
-              <span id="companyStatusTag"></span>
-              <button id="saveCompanyProfile" type="button" class="secondary">保存草稿</button>
-              <button id="publishCompanyProfile" type="button">发布</button>
+  <div class="company-builder-top">
+    <div>
+      <p class="eyebrow">企业后台 / 企业主页</p>
+      <h2>主页搭建器</h2>
+      <p>像搭建手机主页一样维护基础资料、简介、服务、视频与荣誉。</p>
+    </div>
+    <div class="page-head-actions company-builder-actions">
+      <span id="companyStatusTag"></span>
+      <span id="companyDirtyTag" class="company-dirty-tag hidden">有未保存的修改</span>
+      <div class="builder-completeness">
+        <span>完整度</span>
+        <div class="progress"><i id="companyCompletenessBar"></i></div>
+        <strong id="companyCompletenessValue">--</strong>
+      </div>
+      <button id="visitorPreviewCompany" type="button" class="secondary">访客预览</button>
+      <button id="loadCompanyProfile" type="button" class="ghost">刷新数据</button>
+      <button id="saveCompanyProfile" type="button" class="secondary">保存草稿</button>
+      <button id="publishCompanyProfile" type="button">发布</button>
+    </div>
+  </div>
+
+  <div id="companyBuilderShell" class="company-builder-shell company-style-classic">
+    <aside class="company-builder-nav">
+      <div class="builder-label">主页结构</div>
+      <div id="companyStructure" class="builder-structure"></div>
+      <p class="builder-help">点击模块会定位到中间预览并在右侧打开编辑。关闭开关后访客不可见，但已填写内容会保留。</p>
+
+      <div class="builder-label builder-label--spaced">模板样式</div>
+      <div class="builder-style-list" aria-label="模板样式预览">
+        <button type="button" class="builder-style-card builder-style-card--active" data-company-style="classic">
+          <span class="style-thumb style-thumb--classic"></span>
+          <strong>经典渐变</strong>
+          <small>品牌色渐变头图</small>
+        </button>
+        <button type="button" class="builder-style-card" data-company-style="plain">
+          <span class="style-thumb style-thumb--plain"></span>
+          <strong>极简白</strong>
+          <small>白底轻量，品牌点缀</small>
+        </button>
+        <button type="button" class="builder-style-card" data-company-style="dark">
+          <span class="style-thumb style-thumb--dark"></span>
+          <strong>深色商务</strong>
+          <small>深色头图，沉稳大气</small>
+        </button>
+      </div>
+
+      <div class="builder-label builder-label--spaced">品牌主色</div>
+      <div class="builder-swatches" aria-label="品牌主色">
+        <button type="button" class="active" style="background:#2f6df6" data-company-brand="#2f6df6" aria-label="蓝色"></button>
+        <button type="button" style="background:#ef4f5f" data-company-brand="#ef4f5f" aria-label="红色"></button>
+        <button type="button" style="background:#7957e6" data-company-brand="#7957e6" aria-label="紫色"></button>
+        <button type="button" style="background:#198f63" data-company-brand="#198f63" aria-label="绿色"></button>
+        <button type="button" style="background:#f0830f" data-company-brand="#f0830f" aria-label="橙色"></button>
+        <button type="button" style="background:#119c9a" data-company-brand="#119c9a" aria-label="青色"></button>
+      </div>
+      <p class="builder-help">主色目前沿用企业模板配置，这里先用于预览切换。</p>
+    </aside>
+
+    <main class="company-builder-stage">
+      <div class="company-phone">
+        <div class="company-phone__screen">
+          <section class="company-preview-hero" data-preview-tab="profile">
+            <div class="preview-card-head">
+              <span class="preview-logo"><img id="previewCompanyLogo" class="hidden" alt="" /><b id="previewCompanyInitial">企</b></span>
+              <div class="preview-title">
+                <strong id="previewCompanyName">企业名称</strong>
+                <small id="previewCompanyShort">--</small>
+              </div>
             </div>
-          </div>
-          <div class="completeness-bar">
-            <div class="completeness-info">
-              <strong id="companyCompletenessValue">--</strong>
-              <span class="hint" id="companyCompletenessHint">读取主页资料后计算完整度。</span>
+            <div id="previewCompanyBasics" class="preview-basics"></div>
+          </section>
+          <div id="previewModules" class="builder-phone-modules"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="company-inspector">
+      <div class="inspector-head">
+        <div>
+          <h3 id="companyTabTitle">基础资料</h3>
+          <p id="companyPanelHint">名称、联系方式与头图数据，改动会同步到中间预览。</p>
+        </div>
+        <span id="companyPanelStatus" class="tag success">已完善</span>
+      </div>
+      <p class="hint" id="companyCompletenessHint">读取主页资料后计算完整度。</p>
+
+      <div id="companyEditorPanels" class="company-editor-panels">
+        <div class="company-tab active" data-company-panel="profile">
+          <form id="companyForm" class="inspector-form">
+            <div class="asset-row">
+              <span class="asset-preview" id="companyLogoPreview">企</span>
+              <div>
+                <strong>企业 LOGO</strong>
+                <p>PNG / JPG，建议 200x200 以上</p>
+              </div>
+              <button id="uploadCompanyLogo" type="button" class="secondary">替换 LOGO</button>
+              <button id="clearCompanyLogo" type="button" class="ghost">清除</button>
+              <input name="logo_url" type="hidden" />
             </div>
-            <div class="progress"><i id="companyCompletenessBar"></i></div>
+            <label><span>企业名称 *</span><input name="display_name" required /></label>
+            <label><span>行业标签</span><input name="short_name" placeholder="例如 企业数字化服务" /></label>
+            <label><span>办公地址</span><input name="address" /></label>
+            <label><span>官网</span><input name="website_url" /></label>
+            <input name="status" type="hidden" value="draft" />
+            <label class="check-line"><input name="visible" type="checkbox" /> 对访客展示企业主页</label>
+          </form>
+          <div id="moduleEditor" class="hidden"></div>
+        </div>
+
+        <div class="company-tab" data-company-panel="intro">
+          <div class="layout-choice-row" id="introBlockActions">
+            <button id="addParagraph" type="button" class="secondary">段落</button>
+            <button id="addHeading" type="button" class="secondary">标题</button>
+            <button id="addImage" type="button" class="secondary">图片</button>
+            <button id="addGallery" type="button" class="secondary">图集</button>
+            <button id="addVideo" type="button" class="secondary">视频</button>
           </div>
-          <div class="company-layout">
-            <aside class="module-tabs">
-              <button data-company-tab="profile" class="active" type="button">基础资料</button>
-              <button data-company-tab="services" type="button">服务</button>
-              <button data-company-tab="intro" type="button">介绍</button>
-              <button data-company-tab="honors" type="button">荣誉</button>
-              <button data-company-tab="video" type="button">视频</button>
-            </aside>
-            <article class="panel company-editor">
-              <div class="panel-head">
-                <h3 id="companyTabTitle">基础资料</h3>
-                <button id="loadCompanyProfile" type="button" class="secondary">读取主页</button>
-              </div>
-              <div class="company-tab active" data-company-panel="profile">
-                <form id="companyForm" class="form-grid">
-                  <label><span>企业名称</span><input name="display_name" required /></label>
-                  <label><span>企业简称</span><input name="short_name" /></label>
-                  <label><span>Logo URL</span><input name="logo_url" /></label>
-                  <label><span>官网</span><input name="website_url" /></label>
-                  <label><span>状态</span><select name="status"><option value="draft">草稿</option><option value="published">已发布</option></select></label>
-                  <label class="check-line"><input name="visible" type="checkbox" /> 公开可见</label>
-                  <label class="wide"><span>地址</span><input name="address" /></label>
-                </form>
-                <div class="editor-stack module-config">
-                  <h4 class="editor-subhead">主页模块展示</h4>
-                  <div id="moduleEditor" class="editor-stack"></div>
-                </div>
-              </div>
-              <div class="company-tab editor-stack" data-company-panel="services">
-                <div class="inline-actions"><button id="addService" type="button" class="secondary">新增服务</button></div>
-                <div id="serviceEditor"></div>
-              </div>
-              <div class="company-tab editor-stack" data-company-panel="intro">
-                <div class="inline-actions">
-                  <button id="addHeading" type="button" class="secondary">标题</button>
-                  <button id="addParagraph" type="button" class="secondary">正文</button>
-                  <button id="addImage" type="button" class="secondary">图片</button>
-                  <button id="addGallery" type="button" class="secondary">相册</button>
-                  <button id="addVideo" type="button" class="secondary">视频</button>
-                </div>
-                <p id="videoCapabilityHint" class="hint"></p>
-                <div id="introEditor"></div>
-              </div>
-              <div class="company-tab editor-stack" data-company-panel="honors">
-                <div class="inline-actions">
-                  <button id="loadHonors" type="button" class="secondary">读取荣誉</button>
-                  <button id="addHonor" type="button" class="secondary">新增荣誉</button>
-                  <button id="saveHonors" type="button">保存荣誉</button>
-                </div>
-                <div id="honorEditor"></div>
-              </div>
-              <div class="company-tab editor-stack" data-company-panel="video">
-                <div id="videoPanel" class="video-panel"></div>
-              </div>
-            </article>
-            <aside class="phone-preview company-preview">
-              <span>实时预览</span>
-              <div class="preview-card">
-                <div class="preview-card-head">
-                  <span class="preview-logo"><img id="previewCompanyLogo" class="hidden" alt="" /><b id="previewCompanyInitial">企</b></span>
-                  <div class="preview-title">
-                    <strong id="previewCompanyName">企业名称</strong>
-                    <small id="previewCompanyShort">--</small>
-                  </div>
-                </div>
-                <p id="previewCompanyIntro">主页资料读取后展示预览。</p>
-                <div class="preview-stats">
-                  <span><strong id="previewServiceCount">0</strong> 项服务</span>
-                  <span><strong id="previewHonorCount">0</strong> 项荣誉</span>
-                </div>
-                <div id="previewModules" class="preview-modules"></div>
-              </div>
-            </aside>
+          <p id="videoCapabilityHint" class="hint"></p>
+          <div id="introEditor" class="builder-list"></div>
+        </div>
+
+        <div class="company-tab" data-company-panel="services">
+          <div class="builder-subhead">
+            <strong>展示布局</strong>
+            <div id="serviceLayoutChoices" class="layout-choice-row"></div>
           </div>
-        </section>
+          <div class="inline-actions"><button id="addService" type="button" class="secondary">+ 添加服务</button></div>
+          <div id="serviceEditor" class="builder-list"></div>
+        </div>
+
+        <div class="company-tab" data-company-panel="video">
+          <div id="videoPanel" class="video-panel"></div>
+        </div>
+
+        <div class="company-tab" data-company-panel="honors">
+          <div class="inline-actions">
+            <button id="loadHonors" type="button" class="secondary">读取荣誉</button>
+            <button id="addHonor" type="button" class="secondary">+ 添加荣誉</button>
+            <button id="saveHonors" type="button">保存荣誉</button>
+          </div>
+          <div id="honorEditor" class="builder-list"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="companyPublishDialog" class="modal-backdrop hidden">
+    <div class="modal-card company-publish-card" role="dialog" aria-modal="true" aria-labelledby="companyPublishTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="companyPublishTitle">发布前检查</h3>
+          <p>发布后，访客打开企业名片即可看到最新企业主页。</p>
+        </div>
+        <button id="closeCompanyPublishDialog" type="button" class="ghost compact" aria-label="关闭">×</button>
+      </div>
+      <div id="companyPublishChecks" class="publish-check-list"></div>
+      <div class="modal-actions">
+        <button id="cancelCompanyPublish" type="button" class="secondary">暂不发布</button>
+        <button id="confirmCompanyPublish" type="button">确认发布</button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -119,10 +119,16 @@ Page({
     joinRequests: [],
     honors: [],
     videos: [],
+    publishedVideos: [],
     videoFeature: null,
+    homeModules: [],
+    homeCompleteness: { percent: 0, done: 0, total: 6 },
+    introSectionTitle: "企业简介",
     memberSearch: "",
     memberStatus: "all",
     panel: "",
+    panelDirty: false,
+    leaveGuardVisible: false,
     profileDraft: {},
     templateDraft: {},
     templateId: "",
@@ -314,6 +320,9 @@ Page({
       const tenant = mergeTenantStatus(this.data.tenant, overview);
       const decoratedTemplates = decorateTemplates(templates.items || []);
       const joinCodeTheme = buildTheme(activeTemplatePrimary(decoratedTemplates));
+      const decoratedHonors = decorateHonors(honors.items || []);
+      const decoratedVideos = decorateVideos(videos.items || []);
+      const publishedVideos = publishedCompanyVideos(decoratedVideos);
       this.setData({
         overview,
         tenant,
@@ -321,9 +330,12 @@ Page({
         templates: decoratedTemplates,
         members: decorateMembers(members.items || []),
         joinRequests: decorateJoinRequests(joinRequests.items || []),
-        honors: decorateHonors(honors.items || []),
-        videos: decorateVideos(videos.items || []),
+        honors: decoratedHonors,
+        videos: decoratedVideos,
+        publishedVideos,
         videoFeature,
+        homeModules: buildHomeModules(profile, decoratedHonors, decoratedVideos, videoFeature),
+        homeCompleteness: homeCompleteness(profile, decoratedHonors, decoratedVideos, videoFeature),
         canSyncMembers: canSyncMembersForTenant(tenant, overview),
         joinCodeThemeStyle: buildThemeStyle(joinCodeTheme)
       });
@@ -533,6 +545,8 @@ Page({
     const profile = this.data.profile || {};
     this.setData({
       panel: "profile",
+      panelDirty: false,
+      leaveGuardVisible: false,
       profileDraft: {
         display_name: profile.display_name || "",
         short_name: profile.short_name || "",
@@ -550,6 +564,7 @@ Page({
   onProfileInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ profileDraft: { ...this.data.profileDraft, [key]: event.detail.value } });
+    this.markPanelDirty();
   },
 
   /**
@@ -557,6 +572,7 @@ Page({
    */
   onProfileVisible(event) {
     this.setData({ profileDraft: { ...this.data.profileDraft, visible: event.detail.value } });
+    this.markPanelDirty();
   },
 
   /**
@@ -564,7 +580,7 @@ Page({
    */
   uploadProfileLogo() {
     this.uploadSingleImage("logos", (url) => {
-      this.setData({ "profileDraft.logo_url": url });
+      this.setData({ "profileDraft.logo_url": url, panelDirty: true });
     });
   },
 
@@ -572,7 +588,7 @@ Page({
    * 清空企业 logo 草稿。
    */
   clearProfileLogo() {
-    this.setData({ "profileDraft.logo_url": "" });
+    this.setData({ "profileDraft.logo_url": "", panelDirty: true });
   },
 
   /**
@@ -594,8 +610,45 @@ Page({
           visible: Boolean(draft.visible)
         }
       });
-      this.setData({ profile, panel: "" });
+      this.setData({
+        profile,
+        panel: "",
+        panelDirty: false,
+        leaveGuardVisible: false,
+        homeModules: buildHomeModules(profile, this.data.honors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(profile, this.data.honors, this.data.videos, this.data.videoFeature)
+      });
     }, "企业信息已保存");
+  },
+
+  /**
+   * 发布企业主页当前草稿，让访客端可见最新已保存内容。
+   */
+  async publishCompanyHome() {
+    if (!this.requireAdmin()) return;
+    await this.saveWithToast(async () => {
+      const profile = await this.adminRequest("/admin/company-profile", {
+        method: "PUT",
+        data: { status: "published", visible: true }
+      });
+      this.setData({
+        profile,
+        homeModules: buildHomeModules(profile, this.data.honors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(profile, this.data.honors, this.data.videos, this.data.videoFeature)
+      });
+    }, "企业主页已发布");
+  },
+
+  /**
+   * 从企业主页维护卡片进入对应编辑流。
+   */
+  openHomeModule(event) {
+    const dataset = event.currentTarget.dataset || {};
+    if (dataset.key === "base") {
+      this.openProfilePanel();
+      return;
+    }
+    this.openIntroPanelSection(event);
   },
 
   /**
@@ -634,7 +687,8 @@ Page({
       backgroundPresets: backgroundState.backgroundPresets,
       backgroundOpacity: backgroundState.backgroundOpacity,
       backgroundPreviewStyle: backgroundStyle(backgroundState.backgroundUrl, backgroundState.backgroundOpacity, variant),
-      backgroundError: ""
+      backgroundError: "",
+      panelDirty: true
     });
   },
 
@@ -646,6 +700,8 @@ Page({
     const state = buildTemplateEditorState(template, this.data.profile, this.data.members, this.data.tenant);
     this.setData({
       panel: "template",
+      panelDirty: false,
+      leaveGuardVisible: false,
       ...state
     });
   },
@@ -712,6 +768,7 @@ Page({
       patch.templateDraft = { ...this.data.templateDraft, primary: theme.themeBrand };
     }
     this.setData(patch);
+    this.markPanelDirty();
   },
 
   /**
@@ -760,7 +817,8 @@ Page({
         backgroundPresetId: "",
         templateBackgrounds,
         backgroundPreviewStyle: backgroundStyle(uploaded.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
-        backgroundError: ""
+        backgroundError: "",
+        panelDirty: true
       });
       wx.showToast({ title: "背景图已上传", icon: "success" });
     } catch (error) {
@@ -794,7 +852,8 @@ Page({
       backgroundPresetId: preset.id,
       templateBackgrounds,
       backgroundPreviewStyle: backgroundStyle(preset.url, this.data.backgroundOpacity, this.data.templateDraft.variant),
-      backgroundError: ""
+      backgroundError: "",
+      panelDirty: true
     });
   },
 
@@ -823,7 +882,8 @@ Page({
       backgroundPresets: backgroundState.backgroundPresets,
       backgroundOpacity: backgroundState.backgroundOpacity,
       backgroundPreviewStyle: backgroundStyle(backgroundState.backgroundUrl, backgroundState.backgroundOpacity, this.data.templateDraft.variant),
-      backgroundError: ""
+      backgroundError: "",
+      panelDirty: true
     });
   },
 
@@ -837,7 +897,8 @@ Page({
     this.setData({
       backgroundOpacity,
       templateBackgrounds,
-      backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateDraft.variant)
+      backgroundPreviewStyle: backgroundStyle(this.data.backgroundUrl, backgroundOpacity, this.data.templateDraft.variant),
+      panelDirty: true
     });
   },
 
@@ -847,7 +908,8 @@ Page({
   onPortraitPhotoChange(event) {
     if (!this.requireAdmin()) return;
     this.setData({
-      portraitPhotoUrl: String(event.detail && event.detail.url ? event.detail.url : "")
+      portraitPhotoUrl: String(event.detail && event.detail.url ? event.detail.url : ""),
+      panelDirty: true
     });
   },
 
@@ -856,10 +918,10 @@ Page({
    * 包含模板风格、品牌色、背景、人像图和模块布局等展示层设置。
    */
   async saveTemplate() {
-    if (!this.requireAdmin()) return;
+    if (!this.requireAdmin()) return false;
     const draft = this.data.templateDraft;
-    if (!draft.template_id) return;
-    await this.saveWithToast(async () => {
+    if (!draft.template_id) return false;
+    return this.saveWithToast(async () => {
       const templateBackgrounds = withCurrentVariantBackground(this.data);
       const primary = buildTheme(this.data.primary || DEFAULT_BRAND).themeBrand;
       const variant = draft.variant || "horizontal-business";
@@ -905,28 +967,45 @@ Page({
   /**
    * 打开企业介绍内容面板，并把当前企业资料拆成可编辑草稿。
    */
-  openIntroPanel() {
+  openIntroPanel(event) {
+    const dataset = event && event.currentTarget ? event.currentTarget.dataset || {} : {};
+    const section = dataset.section || "profile";
     const profile = this.data.profile || {};
+    const modules = decorateModules(profile.display_modules || []);
+    const draft = withActiveIntroModule({
+      ...emptyIntroDraft(),
+      activeSection: section,
+      display_modules: modules,
+      intro_blocks: decorateIntroBlocks(profile.intro_blocks || []),
+      service_items: decorateServices(profile.service_items || [])
+    });
     this.setData({
       panel: "intro",
-      introDraft: {
-        ...emptyIntroDraft(),
-        display_modules: decorateModules(profile.display_modules || []),
-        intro_blocks: decorateIntroBlocks(profile.intro_blocks || []),
-        service_items: decorateServices(profile.service_items || [])
-      }
+      panelDirty: false,
+      leaveGuardVisible: false,
+      introDraft: draft,
+      introSectionTitle: introSectionTitle(section)
     });
+  },
+
+  /**
+   * 从企业主页卡片直接进入指定模块维护。
+   */
+  openIntroPanelSection(event) {
+    this.openIntroPanel(event);
   },
 
   /**
    * 切换企业介绍面板中的内容分区。
    */
   switchIntroSection(event) {
+    const section = event.currentTarget.dataset.section || "profile";
     this.setData({
-      introDraft: {
+      introDraft: withActiveIntroModule({
         ...this.data.introDraft,
-        activeSection: event.currentTarget.dataset.section || "profile"
-      }
+        activeSection: section
+      }),
+      introSectionTitle: introSectionTitle(section)
     });
   },
 
@@ -938,7 +1017,7 @@ Page({
     const modules = cloneArray(this.data.introDraft.display_modules);
     if (!modules[index]) return;
     modules[index].visible = event.detail.value;
-    this.setData({ introDraft: { ...this.data.introDraft, display_modules: modules } });
+    this.setData({ introDraft: withActiveIntroModule({ ...this.data.introDraft, display_modules: modules }), panelDirty: true });
   },
 
   /**
@@ -951,7 +1030,19 @@ Page({
     if (!modules[index] || !MODULE_LAYOUTS[layoutIndex]) return;
     modules[index].layout = MODULE_LAYOUTS[layoutIndex].value;
     modules[index].layoutLabel = MODULE_LAYOUTS[layoutIndex].label;
-    this.setData({ introDraft: { ...this.data.introDraft, display_modules: modules } });
+    this.setData({ introDraft: withActiveIntroModule({ ...this.data.introDraft, display_modules: modules }), panelDirty: true });
+  },
+
+  /**
+   * 选择介绍内容块要引用的已发布视频。
+   */
+  selectIntroVideo(event) {
+    const videoId = String(event.currentTarget.dataset.id || "");
+    if (!videoId) return;
+    this.setData({
+      "introDraft.videoId": videoId,
+      panelDirty: this.data.introDraft.activeSection === "profile" ? true : this.data.panelDirty
+    });
   },
 
   /**
@@ -960,6 +1051,7 @@ Page({
   onIntroInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ introDraft: { ...this.data.introDraft, [key]: event.detail.value } });
+    this.markPanelDirty();
   },
 
   /**
@@ -967,7 +1059,7 @@ Page({
    */
   uploadIntroImage() {
     this.uploadSingleImage("company-images", (url) => {
-      this.setData({ "introDraft.imageUrl": url });
+      this.setData({ "introDraft.imageUrl": url, panelDirty: true });
     });
   },
 
@@ -975,7 +1067,7 @@ Page({
    * 清空企业介绍主图草稿。
    */
   clearIntroImage() {
-    this.setData({ "introDraft.imageUrl": "" });
+    this.setData({ "introDraft.imageUrl": "", panelDirty: true });
   },
 
   /**
@@ -986,7 +1078,7 @@ Page({
       const images = normalizeGalleryImages(this.data.introDraft.galleryImages)
         .concat(urls.map((url) => ({ url, caption: "" })))
         .slice(0, 12);
-      this.setData({ "introDraft.galleryImages": images });
+      this.setData({ "introDraft.galleryImages": images, panelDirty: true });
     });
   },
 
@@ -999,7 +1091,7 @@ Page({
     const images = normalizeGalleryImages(this.data.introDraft.galleryImages);
     if (!images[index]) return;
     images[index] = { ...images[index], [key]: event.detail.value };
-    this.setData({ "introDraft.galleryImages": images });
+    this.setData({ "introDraft.galleryImages": images, panelDirty: true });
   },
 
   /**
@@ -1010,7 +1102,7 @@ Page({
     const images = normalizeGalleryImages(this.data.introDraft.galleryImages);
     if (!images[index]) return;
     images.splice(index, 1);
-    this.setData({ "introDraft.galleryImages": images });
+    this.setData({ "introDraft.galleryImages": images, panelDirty: true });
   },
 
   /**
@@ -1021,7 +1113,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         blockType: event.currentTarget.dataset.type || "paragraph"
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1076,7 +1169,8 @@ Page({
         ...emptyIntroBlockFields(draft.blockType),
         editingBlockIndex: -1,
         intro_blocks: decorateIntroBlocks(blocks)
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1090,7 +1184,7 @@ Page({
     const nextIndex = index + direction;
     if (!blocks[index] || !blocks[nextIndex]) return;
     [blocks[index], blocks[nextIndex]] = [blocks[nextIndex], blocks[index]];
-    this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) } });
+    this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) }, panelDirty: true });
   },
 
   /**
@@ -1100,7 +1194,7 @@ Page({
     const index = Number(event.currentTarget.dataset.index);
     const blocks = stripIntroBlockRuntime(this.data.introDraft.intro_blocks);
     blocks.splice(index, 1);
-    this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) } });
+    this.setData({ introDraft: { ...this.data.introDraft, intro_blocks: decorateIntroBlocks(blocks) }, panelDirty: true });
   },
 
   /**
@@ -1112,7 +1206,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         serviceDraft: { ...this.data.introDraft.serviceDraft, [key]: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1124,7 +1219,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         serviceDraft: { ...this.data.introDraft.serviceDraft, visible: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1133,7 +1229,7 @@ Page({
    */
   uploadServiceImage() {
     this.uploadSingleImage("company-images", (url) => {
-      this.setData({ "introDraft.serviceDraft.image_url": url });
+      this.setData({ "introDraft.serviceDraft.image_url": url, panelDirty: true });
     });
   },
 
@@ -1141,7 +1237,7 @@ Page({
    * 清空服务项目图片草稿。
    */
   clearServiceImage() {
-    this.setData({ "introDraft.serviceDraft.image_url": "" });
+    this.setData({ "introDraft.serviceDraft.image_url": "", panelDirty: true });
   },
 
   /**
@@ -1192,7 +1288,8 @@ Page({
         editingServiceIndex: -1,
         serviceDraft: emptyServiceDraft(),
         service_items: decorateServices(services)
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1206,7 +1303,7 @@ Page({
     const nextIndex = index + direction;
     if (!services[index] || !services[nextIndex]) return;
     [services[index], services[nextIndex]] = [services[nextIndex], services[index]];
-    this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) } });
+    this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) }, panelDirty: true });
   },
 
   /**
@@ -1216,7 +1313,7 @@ Page({
     const index = Number(event.currentTarget.dataset.index);
     const services = stripServiceRuntime(this.data.introDraft.service_items);
     services.splice(index, 1);
-    this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) } });
+    this.setData({ introDraft: { ...this.data.introDraft, service_items: decorateServices(resequenceSort(services)) }, panelDirty: true });
   },
 
   /**
@@ -1270,7 +1367,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         videoDraft: { ...this.data.introDraft.videoDraft, [key]: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1282,7 +1380,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         videoDraft: { ...this.data.introDraft.videoDraft, visible: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1294,7 +1393,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         videoDraft: { ...this.data.introDraft.videoDraft, status: event.currentTarget.dataset.status || "draft" }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1303,7 +1403,7 @@ Page({
    */
   uploadVideoFile() {
     this.uploadSingleVideo((url) => {
-      this.setData({ "introDraft.videoDraft.video_url": url });
+      this.setData({ "introDraft.videoDraft.video_url": url, panelDirty: true });
     });
   },
 
@@ -1311,7 +1411,7 @@ Page({
    * 清空视频文件草稿。
    */
   clearVideoFile() {
-    this.setData({ "introDraft.videoDraft.video_url": "" });
+    this.setData({ "introDraft.videoDraft.video_url": "", panelDirty: true });
   },
 
   /**
@@ -1319,7 +1419,7 @@ Page({
    */
   uploadVideoCover() {
     this.uploadSingleImage("company-images", (url) => {
-      this.setData({ "introDraft.videoDraft.cover_url": url });
+      this.setData({ "introDraft.videoDraft.cover_url": url, panelDirty: true });
     });
   },
 
@@ -1327,7 +1427,7 @@ Page({
    * 清空视频封面草稿。
    */
   clearVideoCover() {
-    this.setData({ "introDraft.videoDraft.cover_url": "" });
+    this.setData({ "introDraft.videoDraft.cover_url": "", panelDirty: true });
   },
 
   /**
@@ -1354,13 +1454,19 @@ Page({
         }
       );
       const videos = upsertById(this.data.videos, video, "video_id");
+      const decoratedVideos = decorateVideos(videos);
       this.setData({
-        videos: decorateVideos(videos),
+        videos: decoratedVideos,
+        publishedVideos: publishedCompanyVideos(decoratedVideos),
+        homeModules: buildHomeModules(this.data.profile, this.data.honors, decoratedVideos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(this.data.profile, this.data.honors, decoratedVideos, this.data.videoFeature),
         introDraft: {
           ...this.data.introDraft,
           editingVideoId: "",
           videoDraft: emptyVideoDraft()
-        }
+        },
+        panelDirty: false,
+        leaveGuardVisible: false
       });
     }, "视频已保存");
   },
@@ -1375,7 +1481,13 @@ Page({
     if (!ok) return;
     await this.saveWithToast(async () => {
       await this.adminRequest(`/admin/company-videos/${encodeURIComponent(videoId)}`, { method: "DELETE" });
-      this.setData({ videos: this.data.videos.filter((item) => item.video_id !== videoId) });
+      const decoratedVideos = this.data.videos.filter((item) => item.video_id !== videoId);
+      this.setData({
+        videos: decoratedVideos,
+        publishedVideos: publishedCompanyVideos(decoratedVideos),
+        homeModules: buildHomeModules(this.data.profile, this.data.honors, decoratedVideos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(this.data.profile, this.data.honors, decoratedVideos, this.data.videoFeature)
+      });
     }, "视频已删除");
   },
 
@@ -1384,6 +1496,14 @@ Page({
    */
   addVideoBlockFromList(event) {
     const videoId = String(event.currentTarget.dataset.id || "");
+    this.addVideoBlockById(videoId);
+  },
+
+  addSelectedVideoBlock() {
+    this.addVideoBlockById(String(this.data.introDraft.videoId || ""));
+  },
+
+  addVideoBlockById(videoId) {
     if (!videoId) return;
     const draft = this.data.introDraft;
     const blocks = stripIntroBlockRuntime(draft.intro_blocks);
@@ -1397,7 +1517,8 @@ Page({
         ...draft,
         activeSection: "profile",
         intro_blocks: decorateIntroBlocks(blocks)
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1452,7 +1573,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         honorDraft: { ...this.data.introDraft.honorDraft, [key]: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1464,7 +1586,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         honorDraft: { ...this.data.introDraft.honorDraft, visible: event.detail.value }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1476,7 +1599,8 @@ Page({
       introDraft: {
         ...this.data.introDraft,
         honorDraft: { ...this.data.introDraft.honorDraft, status: event.currentTarget.dataset.status || "draft" }
-      }
+      },
+      panelDirty: true
     });
   },
 
@@ -1489,7 +1613,8 @@ Page({
         .concat(urls.map((url) => ({ image_url: url, title: "", caption: "" })))
         .slice(0, 12);
       this.setData({
-        "introDraft.honorDraft.images": resequenceHonorImages(images)
+        "introDraft.honorDraft.images": resequenceHonorImages(images),
+        panelDirty: true
       });
     });
   },
@@ -1503,7 +1628,7 @@ Page({
     const images = normalizeHonorImages(this.data.introDraft.honorDraft.images);
     if (!images[index]) return;
     images[index] = { ...images[index], [key]: event.detail.value };
-    this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images) });
+    this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images), panelDirty: true });
   },
 
   /**
@@ -1514,7 +1639,7 @@ Page({
     const images = normalizeHonorImages(this.data.introDraft.honorDraft.images);
     if (!images[index]) return;
     images.splice(index, 1);
-    this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images) });
+    this.setData({ "introDraft.honorDraft.images": resequenceHonorImages(images), panelDirty: true });
   },
 
   /**
@@ -1536,8 +1661,13 @@ Page({
         }
       );
       const honors = upsertById(this.data.honors, honor, "honor_id");
+      const decoratedHonors = decorateHonors(honors);
       this.setData({
-        honors: decorateHonors(honors),
+        honors: decoratedHonors,
+        homeModules: buildHomeModules(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature),
+        panelDirty: false,
+        leaveGuardVisible: false,
         introDraft: {
           ...this.data.introDraft,
           editingHonorId: "",
@@ -1557,8 +1687,43 @@ Page({
     if (!ok) return;
     await this.saveWithToast(async () => {
       await this.adminRequest(`/admin/company-honors/${encodeURIComponent(honorId)}`, { method: "DELETE" });
-      this.setData({ honors: this.data.honors.filter((item) => item.honor_id !== honorId) });
+      const decoratedHonors = this.data.honors.filter((item) => item.honor_id !== honorId);
+      this.setData({
+        honors: decoratedHonors,
+        homeModules: buildHomeModules(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature)
+      });
     }, "荣誉已删除");
+  },
+
+  async moveHonorItem(event) {
+    if (!this.requireAdmin()) return;
+    const index = Number(event.currentTarget.dataset.index);
+    const direction = event.currentTarget.dataset.direction === "up" ? -1 : 1;
+    const nextIndex = index + direction;
+    const honors = stripHonorRuntime(this.data.honors);
+    if (!honors[index] || !honors[nextIndex]) return;
+    [honors[index], honors[nextIndex]] = [honors[nextIndex], honors[index]];
+    const resequenced = honors.map((item, itemIndex) => ({ ...item, sort_order: (itemIndex + 1) * 10 }));
+    const payloads = resequenced.map((item) => ({
+      item,
+      payload: buildHonorPayload(honorDraftFromItem(item))
+    }));
+    if (payloads.some((entry) => !entry.payload)) return;
+    await this.saveWithToast(async () => {
+      await Promise.all(payloads.map(({ item, payload }) =>
+        this.adminRequest(`/admin/company-honors/${encodeURIComponent(item.honor_id)}`, {
+          method: "PUT",
+          data: payload
+        })
+      ));
+      const decoratedHonors = decorateHonors(resequenced);
+      this.setData({
+        honors: decoratedHonors,
+        homeModules: buildHomeModules(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(this.data.profile, decoratedHonors, this.data.videos, this.data.videoFeature)
+      });
+    }, "荣誉排序已更新");
   },
 
   /**
@@ -1577,7 +1742,14 @@ Page({
           status: "published"
         }
       });
-      this.setData({ profile, panel: "" });
+      this.setData({
+        profile,
+        panel: "",
+        panelDirty: false,
+        leaveGuardVisible: false,
+        homeModules: buildHomeModules(profile, this.data.honors, this.data.videos, this.data.videoFeature),
+        homeCompleteness: homeCompleteness(profile, this.data.honors, this.data.videos, this.data.videoFeature)
+      });
     }, "企业介绍已保存");
   },
 
@@ -1596,6 +1768,8 @@ Page({
       const card = await this.adminRequest(`/admin/members/${encodeURIComponent(memberId)}/card`);
       this.setData({
         panel: "member",
+        panelDirty: false,
+        leaveGuardVisible: false,
         memberDraft: {
           member_identity_id: memberId,
           display_name: card.display_name || "",
@@ -1617,13 +1791,14 @@ Page({
   onMemberDraftInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({ memberDraft: { ...this.data.memberDraft, [key]: event.detail.value } });
+    this.markPanelDirty();
   },
 
   /**
    * 更新成员草稿状态。
    */
   setMemberDraftStatus(event) {
-    this.setData({ memberDraft: { ...this.data.memberDraft, status: event.currentTarget.dataset.status } });
+    this.setData({ memberDraft: { ...this.data.memberDraft, status: event.currentTarget.dataset.status }, panelDirty: true });
   },
 
   /**
@@ -1647,7 +1822,7 @@ Page({
           status: draft.status === "disabled" ? "disabled" : "active"
         }
       });
-      this.setData({ panel: "" });
+      this.setData({ panel: "", panelDirty: false, leaveGuardVisible: false });
       await this.refreshMembers();
     }, "人员名片已保存");
   },
@@ -1861,8 +2036,52 @@ Page({
    * 关闭当前编辑面板并清理面板态。
    */
   closePanel() {
+    if (this.data.panelDirty) {
+      this.setData({ leaveGuardVisible: true });
+      return;
+    }
+    this.forceClosePanel();
+  },
+
+  forceClosePanel() {
     setPageTheme(this);
-    this.setData({ panel: "" });
+    this.setData({ panel: "", panelDirty: false, leaveGuardVisible: false });
+  },
+
+  markPanelDirty() {
+    if (!this.data.panelDirty) this.setData({ panelDirty: true });
+  },
+
+  dismissLeaveGuard() {
+    this.setData({ leaveGuardVisible: false });
+  },
+
+  discardPanelChanges() {
+    this.forceClosePanel();
+  },
+
+  noop() {},
+
+  async saveDraftAndLeave() {
+    const panel = this.data.panel;
+    if (panel === "profile") {
+      await this.saveProfile();
+      return;
+    }
+    if (panel === "template") {
+      const saved = await this.saveTemplate();
+      if (saved) this.forceClosePanel();
+      return;
+    }
+    if (panel === "intro") {
+      await this.saveIntro();
+      return;
+    }
+    if (panel === "member") {
+      await this.saveMember();
+      return;
+    }
+    this.forceClosePanel();
   },
 
   /**
@@ -1882,8 +2101,10 @@ Page({
     try {
       await action();
       wx.showToast({ title, icon: "success" });
+      return true;
     } catch (error) {
       wx.showToast({ title: formatError(error, "保存失败"), icon: "none" });
+      return false;
     } finally {
       this.setData({ saving: false });
     }
@@ -2046,7 +2267,7 @@ function buildIntroBlock(draft, videoFeature, videos = []) {
     }
     const videoId = String(draft.videoId || "").trim();
     if (!/^\d+$/.test(videoId)) {
-      wx.showToast({ title: "请输入数字视频 ID", icon: "none" });
+      wx.showToast({ title: "请选择已发布视频", icon: "none" });
       return null;
     }
     const match = videos.find((item) => String(item.video_id || "") === videoId);
@@ -2085,7 +2306,7 @@ function decorateIntroBlocks(blocks) {
       };
     }
     if (block.type === "video") {
-      return { ...block, _label: label, _summary: `视频 ID ${block.video_id || ""}` };
+      return { ...block, _label: label, _summary: block.video_id ? "已选择视频" : "未选择视频" };
     }
     return { ...block, _label: label, _summary: block.text || "" };
   });
@@ -2291,6 +2512,130 @@ function decorateHonors(items) {
         _visibleLabel: item.visible === false ? "隐藏" : "展示"
       };
     });
+}
+
+function stripHonorRuntime(items) {
+  return cloneArray(items).filter((item) => item && typeof item === "object").map((item) => {
+    const { _cover, _summary, statusLabel, statusClass, _visibleLabel, ...rest } = item;
+    return rest;
+  });
+}
+
+/**
+ * 返回企业主页维护首页的 5 张模块卡片。
+ */
+function buildHomeModules(profile = {}, honors = [], videos = [], videoFeature = null) {
+  const blocks = profile.intro_blocks || [];
+  const services = profile.service_items || [];
+  const publishedVideos = publishedCompanyVideos(videos);
+  return [
+    {
+      key: "base",
+      title: "企业信息",
+      desc: profile.display_name || "名称、Logo、官网与地址",
+      action: "编辑",
+      statusLabel: profile.display_name && profile.logo_url ? "已完善" : "待完善",
+      statusClass: profile.display_name && profile.logo_url ? "badge--success" : "badge--warning",
+      icon: "icon-building",
+      panel: "profile"
+    },
+    {
+      key: "profile",
+      title: "企业简介",
+      desc: blocks.length ? `${blocks.length} 个内容块` : "段落、图片、引用和图集",
+      action: "编辑",
+      statusLabel: blocks.length ? "已完善" : "待完善",
+      statusClass: blocks.length ? "badge--success" : "badge--warning",
+      icon: "icon-text",
+      section: "profile"
+    },
+    {
+      key: "services",
+      title: "服务项目",
+      desc: services.length ? `${services.length} 项服务` : "服务列表与展示布局",
+      action: "编辑",
+      statusLabel: services.length ? "已完善" : "待完善",
+      statusClass: services.length ? "badge--success" : "badge--warning",
+      icon: "icon-style",
+      section: "services"
+    },
+    {
+      key: "videos",
+      title: "企业视频",
+      desc: videoFeature && !videoFeature.enabled ? "视频能力未开通" : (publishedVideos.length ? `${publishedVideos.length} 个已发布视频` : "未选择视频，发布后不展示"),
+      action: videoFeature && !videoFeature.enabled ? "查看" : "去选择",
+      statusLabel: videoFeature && !videoFeature.enabled ? "未开通" : (publishedVideos.length ? "已完善" : "待完善"),
+      statusClass: videoFeature && !videoFeature.enabled ? "badge--muted" : (publishedVideos.length ? "badge--success" : "badge--warning"),
+      icon: "icon-video",
+      section: "videos"
+    },
+    {
+      key: "honors",
+      title: "荣誉资质",
+      desc: honors.length ? `${honors.length} 项荣誉` : "证书、奖项与资质图片",
+      action: "编辑",
+      statusLabel: honors.length ? "已完善" : "待完善",
+      statusClass: honors.length ? "badge--success" : "badge--warning",
+      icon: "icon-paper",
+      section: "honors"
+    }
+  ];
+}
+
+/**
+ * 企业主页完整度，保持与后台六项基础检查一致。
+ */
+function homeCompleteness(profile = {}, honors = [], videos = [], videoFeature = null) {
+  const checks = [
+    Boolean(profile.display_name),
+    Boolean(profile.logo_url),
+    Boolean(profile.website_url),
+    Boolean(profile.address),
+    (profile.intro_blocks || []).length > 0,
+    (profile.service_items || []).length > 0
+  ];
+  const done = checks.filter(Boolean).length;
+  const warnings = [];
+  if (videoFeature && videoFeature.enabled && !publishedCompanyVideos(videos).length) warnings.push("企业视频待选择");
+  if (!honors.length) warnings.push("荣誉资质待完善");
+  return {
+    done,
+    total: checks.length,
+    percent: Math.round((done / checks.length) * 100),
+    warnings: warnings.join(" · ")
+  };
+}
+
+/**
+ * 小程序端只让用户选择已发布且可见的视频。
+ */
+function publishedCompanyVideos(videos = []) {
+  return cloneArray(videos).filter((item) => item.visible !== false && item.status === "published");
+}
+
+function introSectionTitle(section) {
+  const found = INTRO_CONTENT_SECTIONS.find((item) => item.value === section);
+  return found ? found.label : "企业简介";
+}
+
+function introModuleKey(section) {
+  return {
+    profile: "profile",
+    services: "services",
+    videos: "videos",
+    honors: "honors"
+  }[section || "profile"] || "profile";
+}
+
+function withActiveIntroModule(draft) {
+  const moduleKey = introModuleKey(draft.activeSection);
+  const index = (draft.display_modules || []).findIndex((item) => item.key === moduleKey);
+  const module = index >= 0 ? draft.display_modules[index] : null;
+  return {
+    ...draft,
+    activeModuleIndex: index,
+    activeModule: module
+  };
 }
 
 /**
