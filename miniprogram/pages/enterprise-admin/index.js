@@ -1738,8 +1738,7 @@ Page({
         data: {
           intro_blocks: stripIntroBlockRuntime(draft.intro_blocks),
           service_items: stripServiceRuntime(draft.service_items),
-          display_modules: stripModuleLabels(draft.display_modules),
-          status: "published"
+          display_modules: stripModuleLabels(draft.display_modules)
         }
       });
       this.setData({

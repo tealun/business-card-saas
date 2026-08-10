@@ -194,7 +194,7 @@
         </view>
 
         <view class="home-alert" wx:if="{{profile.status !== 'published'}}">
-          <text>有未发布的修改，发布后访客才能看到</text>
+          <text>主页尚未发布，发布后访客才能看到</text>
           <text class="home-alert__action" bindtap="publishCompanyHome">去发布</text>
         </view>
 
