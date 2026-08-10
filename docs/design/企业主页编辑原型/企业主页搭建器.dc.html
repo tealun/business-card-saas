@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;background:#F6F7F9;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;}
+  a{color:#4A5AC2;text-decoration:none;} a:hover{color:#3B49A8;text-decoration:underline;}
+  input,textarea,select,button{font-family:inherit;}
+  ::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:#D9DCE3;border-radius:4px}
+</style>
+</helmet>
+<div data-screen-label="企业主页搭建器" style="height:100vh;display:flex;flex-direction:column;color:#111827;overflow:hidden;">
+
+  <div style="height:52px;flex:none;background:#fff;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:14px;padding:0 20px;">
+    <div style="display:flex;align-items:center;gap:9px;">
+      <img src="uploads/black-line.png" style="width:22px;height:22px;object-fit:contain;" alt=""/>
+      <span style="font-size:13px;color:#667085;">企业后台 / 企业主页</span>
+      <span style="font-size:14px;font-weight:700;">主页搭建器</span>
+    </div>
+    <a href="小程序端-企业主页维护.dc.html" style="font-size:12px;">小程序端方案 →</a>
+    <div style="flex:1;"></div>
+    <sc-if value="{{ draft }}" hint-placeholder-val="{{ true }}">
+      <span style="font-size:12px;color:#B45309;background:#FEF3E2;border-radius:6px;padding:4px 10px;">有未发布的修改</span>
+    </sc-if>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#667085;">完整度</span>
+      <div style="width:110px;height:6px;background:#F1F2F4;border-radius:3px;overflow:hidden;"><div style="height:100%;background:#4A5AC2;width:{{ completeness }}%;"></div></div>
+      <span style="font-size:12px;font-weight:700;">{{ completeness }}%</span>
+    </div>
+    <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;color:#111827;cursor:pointer;" onClick="{{ onVisitorPreview }}">访客预览</button>
+    <button style="background:#4A5AC2;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;" onClick="{{ onOpenPublish }}">发布</button>
+  </div>
+
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:248px 1fr 380px;">
+
+    <div style="background:#fff;border-right:1px solid #E5E7EB;padding:16px 12px;overflow:auto;">
+      <div style="font-size:12px;color:#667085;font-weight:600;letter-spacing:.04em;padding:0 8px 10px;">主页结构</div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <sc-for list="{{ outline }}" as="it" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:6px;cursor:pointer;{{ it.selCss }}" style-hover="background:#F6F7FB;" onClick="{{ it.onClick }}">
+            <span style="color:#C6CAD3;font-size:11px;cursor:grab;letter-spacing:-1px;flex:none;">⠿</span>
+            <span style="flex:1;font-size:13px;font-weight:600;{{ it.labelCss }}">{{ it.label }}</span>
+            <span style="font-size:11px;flex:none;{{ it.statusCss }}">{{ it.statusText }}</span>
+            <sc-if value="{{ it.sw }}" hint-placeholder-val="{{ true }}">
+              <div style="width:26px;height:15px;border-radius:8px;position:relative;flex:none;transition:background .15s;{{ it.trackCss }}" onClick="{{ it.onToggle }}">
+                <div style="width:11px;height:11px;border-radius:50%;background:#fff;position:absolute;top:2px;transition:left .15s;{{ it.thumbCss }}"></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top:14px;padding:12px 8px 0;border-top:1px solid #F1F2F4;font-size:11px;color:#9AA1AF;line-height:1.8;">拖拽 ⠿ 调整模块顺序。关闭开关可隐藏模块，隐藏后访客不可见，不影响已填内容。</div>
+      <div style="margin-top:18px;">
+        <div style="font-size:12px;color:#667085;font-weight:600;letter-spacing:.04em;padding:0 8px 10px;">模板样式</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ tplOptions }}" as="tp" hint-placeholder-count="3">
+            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:8px;cursor:pointer;display:flex;align-items:center;gap:10px;{{ tp.selCss }}" style-hover="border-color:#B9C0E8;" onClick="{{ tp.onClick }}">
+              <div style="width:52px;height:38px;border-radius:5px;flex:none;box-sizing:border-box;padding:7px 6px;{{ tp.thumbCss }}">
+                <div style="width:14px;height:5px;border-radius:2px;{{ tp.barCss }}"></div>
+                <div style="margin-top:4px;height:3px;border-radius:2px;background:rgba(127,134,150,.35);"></div>
+                <div style="margin-top:3px;width:60%;height:3px;border-radius:2px;background:rgba(127,134,150,.25);"></div>
+              </div>
+              <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;">{{ tp.name }}</div><div style="font-size:11px;color:#9AA1AF;margin-top:2px;">{{ tp.desc }}</div></div>
+              <sc-if value="{{ tp.on }}"><span style="color:#4A5AC2;font-size:12px;font-weight:700;flex:none;">✓</span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="margin-top:18px;">
+        <div style="font-size:12px;color:#667085;font-weight:600;letter-spacing:.04em;padding:0 8px 10px;">品牌主色</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;padding:2px 8px;">
+          <sc-for list="{{ swatches }}" as="sw" hint-placeholder-count="6">
+            <div title="{{ sw.name }}" style="width:22px;height:22px;border-radius:50%;cursor:pointer;{{ sw.css }}" onClick="{{ sw.onClick }}"></div>
+          </sc-for>
+        </div>
+        <div style="padding:10px 8px 0;font-size:11px;color:#9AA1AF;line-height:1.7;">主页自动跟随企业设定的品牌主色（含推导的深色 / 浅底 / 柔和三档），此处可模拟切换查看适配效果。</div>
+      </div>
+    </div>
+
+    <div ref="{{ midRef }}" style="overflow:auto;padding:22px 24px 48px;">
+      <div style="text-align:center;font-size:12px;color:#9AA1AF;margin-bottom:14px;">点击预览里的模块，右侧即可编辑 · 所见即访客所见</div>
+      <div style="width:375px;margin:0 auto;border-radius:40px;border:10px solid #171A21;overflow:hidden;background:#F4F6F8;box-shadow:0 24px 60px rgba(17,24,39,.16);font-size:14px;color:#1A1D1F;">
+
+        <div ref="{{ refBasic }}" style="cursor:pointer;{{ selBasicHero }}" onClick="{{ selectBasic }}">
+          <sc-if value="{{ tplClassic }}" hint-placeholder-val="{{ true }}"><div style="background:linear-gradient(160deg,{{ B.deep }},{{ B.c }});position:relative;overflow:hidden;padding-bottom:20px;">
+            <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.12) 1px,transparent 1px);background-size:20px 20px;"></div>
+            <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:12px;font-weight:500;color:#fff;"><span>9:41</span><span style="letter-spacing:2px;">▂▄▆ ⌁ ▮</span></div>
+            <div style="position:relative;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#fff;">企业名片</div>
+            <div style="position:relative;padding:12px 20px 0;display:flex;align-items:center;gap:14px;">
+              <div style="width:64px;height:64px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;">
+                <svg width="40" height="40" viewBox="0 0 64 64"><path d="M19 40.5a10.5 10.5 0 0 1 1.6-20.9 14.5 14.5 0 0 1 27.9 3.1A9.5 9.5 0 0 1 47 41.5H19z" fill="{{ B.c }}"/><rect x="22" y="29" width="30" height="19" rx="4" fill="#fff" stroke="#EDEFF2" stroke-width="1"/><circle cx="29" cy="36" r="2.6" fill="{{ B.c }}"/><rect x="34" y="34" width="13" height="2.2" rx="1.1" fill="{{ B.c }}"/><rect x="34" y="38" width="9" height="2.2" rx="1.1" fill="{{ B.soft }}"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:19px;font-weight:700;color:#fff;">{{ f.name }}</div>
+                <div style="margin-top:6px;display:flex;gap:6px;"><span style="font-size:10px;color:{{ B.c }};background:#fff;border-radius:5px;padding:2px 7px;font-weight:500;">已认证</span><span style="font-size:10px;color:#fff;background:rgba(255,255,255,.2);border-radius:5px;padding:2px 7px;">{{ f.tag }}</span></div>
+              </div>
+            </div>
+            <div style="position:relative;margin:16px 20px 0;display:flex;background:rgba(255,255,255,.15);border-radius:12px;padding:12px 0;">
+              <div style="flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.2);"><div style="font-size:18px;font-weight:700;color:#fff;">{{ f.members }}</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">在职成员</div></div>
+              <div style="flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.2);"><div style="font-size:18px;font-weight:700;color:#fff;">{{ f.clients }}</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">服务客户</div></div>
+              <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#fff;">{{ f.founded }}</div><div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">成立年份</div></div>
+            </div>
+          </div></sc-if>
+          <sc-if value="{{ tplMinimal }}">
+            <div style="background:#fff;position:relative;padding-bottom:20px;border-bottom:1px solid #EDEFF2;">
+              <div style="height:3px;background:{{ B.c }};"></div>
+              <div style="height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:12px;font-weight:500;color:#1A1D1F;"><span>9:41</span><span style="letter-spacing:2px;">▂▄▆ ⌁ ▮</span></div>
+              <div style="height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#1A1D1F;">企业名片</div>
+              <div style="padding:12px 20px 0;display:flex;align-items:center;gap:14px;">
+                <div style="width:64px;height:64px;border-radius:14px;background:{{ B.tint }};display:flex;align-items:center;justify-content:center;flex:none;">
+                  <svg width="40" height="40" viewBox="0 0 64 64"><path d="M19 40.5a10.5 10.5 0 0 1 1.6-20.9 14.5 14.5 0 0 1 27.9 3.1A9.5 9.5 0 0 1 47 41.5H19z" fill="{{ B.c }}"></path><rect x="22" y="29" width="30" height="19" rx="4" fill="#fff" stroke="#EDEFF2" stroke-width="1"></rect><circle cx="29" cy="36" r="2.6" fill="{{ B.c }}"></circle><rect x="34" y="34" width="13" height="2.2" rx="1.1" fill="{{ B.c }}"></rect><rect x="34" y="38" width="9" height="2.2" rx="1.1" fill="{{ B.soft }}"></rect></svg>
+                </div>
+                <div style="flex:1;">
+                  <div style="font-size:19px;font-weight:700;color:#1A1D1F;">{{ f.name }}</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;"><span style="font-size:10px;color:#fff;background:{{ B.c }};border-radius:5px;padding:2px 7px;font-weight:500;">已认证</span><span style="font-size:10px;color:#6B7280;background:#F0F2F5;border-radius:5px;padding:2px 7px;">{{ f.tag }}</span></div>
+                </div>
+              </div>
+              <div style="margin:16px 20px 0;display:flex;background:{{ B.tint }};border-radius:12px;padding:12px 0;">
+                <div style="flex:1;text-align:center;border-right:1px solid #fff;"><div style="font-size:18px;font-weight:700;color:{{ B.c }};">{{ f.members }}</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">在职成员</div></div>
+                <div style="flex:1;text-align:center;border-right:1px solid #fff;"><div style="font-size:18px;font-weight:700;color:{{ B.c }};">{{ f.clients }}</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">服务客户</div></div>
+                <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:{{ B.c }};">{{ f.founded }}</div><div style="font-size:11px;color:#6B7280;margin-top:2px;">成立年份</div></div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ tplDark }}">
+            <div style="background:#1D2129;position:relative;overflow:hidden;padding-bottom:20px;">
+              <div style="position:absolute;top:-70px;right:-50px;width:230px;height:230px;border-radius:50%;background:{{ B.glow }};filter:blur(46px);"></div>
+              <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:12px;font-weight:500;color:#fff;"><span>9:41</span><span style="letter-spacing:2px;">▂▄▆ ⌁ ▮</span></div>
+              <div style="position:relative;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;color:#fff;">企业名片</div>
+              <div style="position:relative;padding:12px 20px 0;display:flex;align-items:center;gap:14px;">
+                <div style="width:64px;height:64px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none;">
+                  <svg width="40" height="40" viewBox="0 0 64 64"><path d="M19 40.5a10.5 10.5 0 0 1 1.6-20.9 14.5 14.5 0 0 1 27.9 3.1A9.5 9.5 0 0 1 47 41.5H19z" fill="{{ B.c }}"></path><rect x="22" y="29" width="30" height="19" rx="4" fill="#fff" stroke="#EDEFF2" stroke-width="1"></rect><circle cx="29" cy="36" r="2.6" fill="{{ B.c }}"></circle><rect x="34" y="34" width="13" height="2.2" rx="1.1" fill="{{ B.c }}"></rect><rect x="34" y="38" width="9" height="2.2" rx="1.1" fill="{{ B.soft }}"></rect></svg>
+                </div>
+                <div style="flex:1;">
+                  <div style="font-size:19px;font-weight:700;color:#fff;">{{ f.name }}</div>
+                  <div style="margin-top:6px;display:flex;gap:6px;"><span style="font-size:10px;color:#fff;background:{{ B.c }};border-radius:5px;padding:2px 7px;font-weight:500;">已认证</span><span style="font-size:10px;color:#fff;background:rgba(255,255,255,.15);border-radius:5px;padding:2px 7px;">{{ f.tag }}</span></div>
+                </div>
+              </div>
+              <div style="position:relative;margin:16px 20px 0;display:flex;background:rgba(255,255,255,.08);border-radius:12px;padding:12px 0;">
+                <div style="flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.14);"><div style="font-size:18px;font-weight:700;color:{{ B.soft }};">{{ f.members }}</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;">在职成员</div></div>
+                <div style="flex:1;text-align:center;border-right:1px solid rgba(255,255,255,.14);"><div style="font-size:18px;font-weight:700;color:{{ B.soft }};">{{ f.clients }}</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;">服务客户</div></div>
+                <div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:{{ B.soft }};">{{ f.founded }}</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px;">成立年份</div></div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px;">
+
+          <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:0 16px;cursor:pointer;{{ selBasic }}" onClick="{{ selectBasic }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #EDEFF2;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z" stroke="#6B7280" stroke-width="1.5"/><circle cx="12" cy="10" r="2.5" stroke="#6B7280" stroke-width="1.5"/></svg>
+              <span style="flex:1;font-size:14px;">{{ f.address }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #EDEFF2;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="#6B7280" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              <span style="flex:1;font-size:14px;">{{ f.phone }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#6B7280" stroke-width="1.5"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" stroke="#6B7280" stroke-width="1.5"/></svg>
+              <span style="flex:1;font-size:14px;">{{ f.site }}</span>
+            </div>
+          </div>
+
+          <sc-if value="{{ visIntro }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:16px;cursor:pointer;{{ selIntro }}{{ hidIntro }}" ref="{{ refIntro }}" onClick="{{ selectIntro }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:16px;font-weight:500;">企业简介</span><sc-if value="{{ hidIntroBadge }}"><span style="font-size:10px;color:#667085;background:#F1F2F4;border-radius:5px;padding:2px 7px;">已隐藏</span></sc-if></div>
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:12px;">
+                <sc-for list="{{ pvBlocks }}" as="pb" hint-placeholder-count="3">
+                  <sc-if value="{{ pb.isPara }}"><div style="font-size:14px;line-height:1.7;">{{ pb.text }}</div></sc-if>
+                  <sc-if value="{{ pb.isList }}"><div style="font-size:14px;line-height:1.9;white-space:pre-line;">{{ pb.listText }}</div></sc-if>
+                  <sc-if value="{{ pb.isQuote }}"><div style="border-left:3px solid {{ B.c }};background:{{ B.tint }};padding:10px 12px;border-radius:0 8px 8px 0;font-size:13px;color:#3D4654;line-height:1.6;">{{ pb.text }}</div></sc-if>
+                  <sc-if value="{{ pb.isImage }}"><div><div style="height:150px;border-radius:8px;background:{{ B.tint }};display:flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{ B.soft }}" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 18l5-5 3.5 3.5L16 13l3.5 4"/></svg></div><div style="margin-top:6px;font-size:11px;color:#9AA1AC;text-align:center;">{{ pb.caption }}</div></div></sc-if>
+                  <sc-if value="{{ pb.isGallery }}"><div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;"><div style="height:78px;border-radius:8px;background:{{ B.tint }};"></div><div style="height:78px;border-radius:8px;background:{{ B.tint }};"></div><div style="height:78px;border-radius:8px;background:{{ B.tint }};"></div><div style="height:78px;border-radius:8px;background:{{ B.tint }};"></div></div><div style="margin-top:6px;font-size:11px;color:#9AA1AC;text-align:center;">{{ pb.caption }}</div></div></sc-if>
+                  <sc-if value="{{ pb.isVideo }}"><div style="height:150px;border-radius:8px;background:#1A1D1F;position:relative;display:flex;align-items:center;justify-content:center;"><div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-left:14px solid #1A1D1F;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:4px;"></div></div><span style="position:absolute;right:8px;bottom:8px;font-size:10px;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;padding:2px 6px;">01:24</span></div></sc-if>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ visServices }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:16px;cursor:pointer;{{ selServices }}{{ hidServices }}" ref="{{ refServices }}" onClick="{{ selectServices }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:16px;font-weight:500;">服务项目</span><sc-if value="{{ hidServicesBadge }}"><span style="font-size:10px;color:#667085;background:#F1F2F4;border-radius:5px;padding:2px 7px;">已隐藏</span></sc-if></div>
+              <sc-if value="{{ layList }}">
+                <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+                  <sc-for list="{{ pvServices }}" as="sv" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <div style="width:40px;height:40px;border-radius:8px;background:{{ B.tint }};display:flex;align-items:center;justify-content:center;flex:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ B.c }}" stroke-width="1.5"><rect x="4" y="6" width="16" height="13" rx="2"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6"/></svg></div>
+                      <div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;">{{ sv.title }}</div><div style="font-size:12px;color:#9AA1AC;margin-top:2px;">{{ sv.desc }}</div></div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ layGrid }}">
+                <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <sc-for list="{{ pvServices }}" as="sv" hint-placeholder-count="3">
+                    <div style="border:1px solid #EDEFF2;border-radius:10px;padding:10px;"><div style="height:56px;border-radius:6px;background:{{ B.tint }};"></div><div style="font-size:13px;font-weight:500;margin-top:8px;">{{ sv.title }}</div><div style="font-size:11px;color:#9AA1AC;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sv.desc }}</div></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ layCarousel }}">
+                <div style="margin-top:12px;display:flex;gap:10px;overflow:hidden;">
+                  <sc-for list="{{ pvServices }}" as="sv" hint-placeholder-count="3">
+                    <div style="width:140px;flex:none;border:1px solid #EDEFF2;border-radius:10px;padding:10px;"><div style="height:64px;border-radius:6px;background:{{ B.tint }};"></div><div style="font-size:13px;font-weight:500;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sv.title }}</div><div style="font-size:11px;color:#9AA1AC;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sv.desc }}</div></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ layText }}">
+                <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+                  <sc-for list="{{ pvServices }}" as="sv" hint-placeholder-count="3">
+                    <span style="font-size:12px;color:{{ B.c }};background:{{ B.tint }};border-radius:6px;padding:5px 10px;">{{ sv.title }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ visVideo }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:16px;cursor:pointer;{{ selVideo }}{{ hidVideo }}" ref="{{ refVideo }}" onClick="{{ selectVideo }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:16px;font-weight:500;">企业视频</span><sc-if value="{{ hidVideoBadge }}"><span style="font-size:10px;color:#667085;background:#F1F2F4;border-radius:5px;padding:2px 7px;">已隐藏</span></sc-if></div>
+              <sc-if value="{{ hasVideo }}">
+                <div style="margin-top:12px;height:176px;border-radius:8px;background:#1A1D1F;position:relative;display:flex;align-items:center;justify-content:center;">
+                  <div style="width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-left:16px solid #1A1D1F;border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:5px;"></div></div>
+                  <span style="position:absolute;left:10px;bottom:10px;font-size:11px;color:#fff;">{{ videoTitle }}</span>
+                  <span style="position:absolute;right:10px;bottom:10px;font-size:10px;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;padding:2px 6px;">{{ videoDur }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ noVideo }}">
+                <div style="margin-top:12px;height:110px;border:1.5px dashed #D5D8DF;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#9AA1AC;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9AA1AC" stroke-width="1.5"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2"/></svg>
+                  <span style="font-size:12px;">未选择视频 · 发布后该模块不对访客展示</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ visHonors }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.06);padding:16px;cursor:pointer;{{ selHonors }}{{ hidHonors }}" ref="{{ refHonors }}" onClick="{{ selectHonors }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:16px;font-weight:500;">荣誉资质</span><sc-if value="{{ hidHonorsBadge }}"><span style="font-size:10px;color:#667085;background:#F1F2F4;border-radius:5px;padding:2px 7px;">已隐藏</span></sc-if></div>
+              <div style="margin-top:12px;display:flex;gap:10px;overflow:hidden;">
+                <sc-for list="{{ pvHonors }}" as="ho" hint-placeholder-count="2">
+                  <div style="width:160px;flex:none;border:1px solid #EDEFF2;border-radius:10px;padding:10px;">
+                    <div style="height:90px;border-radius:6px;background:#FFF8EC;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E8A23D" stroke-width="1.5"><circle cx="12" cy="9" r="5"/><path d="M9 13.5L7.5 21l4.5-2.5L16.5 21 15 13.5"/></svg></div>
+                    <div style="font-size:12px;font-weight:500;margin-top:8px;line-height:1.4;">{{ ho.title }}</div>
+                    <div style="font-size:11px;color:#9AA1AC;margin-top:2px;">{{ ho.year }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+
+        <div style="background:#fff;border-top:1px solid #EDEFF2;padding:10px 16px 24px;display:flex;gap:10px;">
+          <div style="flex:1;height:44px;border-radius:10px;border:1.5px solid {{ B.c }};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:{{ B.c }};">保存到通讯录</div>
+          <div style="flex:1;height:44px;border-radius:10px;background:{{ B.c }};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:500;color:#fff;">我也做一个</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border-left:1px solid #E5E7EB;overflow:auto;display:flex;flex-direction:column;">
+      <div style="padding:16px 18px 12px;border-bottom:1px solid #F1F2F4;flex:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:15px;font-weight:700;">{{ panelTitle }}</div>
+          <span style="font-size:11px;border-radius:6px;padding:3px 8px;{{ panelTagCss }}">{{ panelTagText }}</span>
+        </div>
+        <div style="font-size:12px;color:#9AA1AF;margin-top:4px;">{{ panelHint }}</div>
+      </div>
+      <div style="padding:16px 18px 40px;">
+
+        <sc-if value="{{ isBasic }}">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px;">
+            <div style="font-size:12px;font-weight:700;">品牌形象</div>
+            <div>
+              <div style="font-size:12px;color:#667085;margin-bottom:6px;">企业 LOGO</div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="width:48px;height:48px;border-radius:10px;background:#EEF0FC;display:flex;align-items:center;justify-content:center;"><img src="uploads/black-line.png" style="width:28px;height:28px;object-fit:contain;" alt=""/></div>
+                <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ onFakeUpload }}">替换 LOGO</button>
+                <span style="font-size:11px;color:#9AA1AF;">PNG / JPG，建议 ≥ 200×200</span>
+              </div>
+            </div>
+            <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">企业名称 <span style="color:#DC2626;">*</span></div><input value="{{ f.name }}" onChange="{{ setName }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+            <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">行业标签</div><input value="{{ f.tag }}" onChange="{{ setTag }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+            </div>
+            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px;">
+            <div style="font-size:12px;font-weight:700;">联系方式</div>
+            <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">办公地址</div><input value="{{ f.address }}" onChange="{{ setAddress }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">联系电话</div><input value="{{ f.phone }}" onChange="{{ setPhone }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+              <div><div style="font-size:12px;color:#667085;margin-bottom:6px;">官网</div><input value="{{ f.site }}" onChange="{{ setSite }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/></div>
+            </div>
+            </div>
+            <div style="border:1px solid #E5E7EB;border-radius:8px;padding:14px;">
+              <div style="font-size:12px;font-weight:700;margin-bottom:10px;">头图数据条</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                <div><input value="{{ f.members }}" onChange="{{ setMembers }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/><div style="font-size:11px;color:#9AA1AF;margin-top:4px;text-align:center;">在职成员</div></div>
+                <div><input value="{{ f.clients }}" onChange="{{ setClients }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/><div style="font-size:11px;color:#9AA1AF;margin-top:4px;text-align:center;">服务客户</div></div>
+                <div><input value="{{ f.founded }}" onChange="{{ setFounded }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;"/><div style="font-size:11px;color:#9AA1AF;margin-top:4px;text-align:center;">成立年份</div></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isIntro }}">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="4">
+              <div style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;{{ b.selCss }}">
+                <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;" onClick="{{ b.onClick }}">
+                  <span style="color:#C6CAD3;font-size:11px;cursor:grab;letter-spacing:-1px;flex:none;">⠿</span>
+                  <span style="font-size:11px;font-weight:600;color:#4A5AC2;background:#EEF0FC;border-radius:5px;padding:2px 7px;flex:none;">{{ b.typeLabel }}</span>
+                  <span style="flex:1;font-size:12px;color:#667085;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ b.summary }}</span>
+                  <span title="复制" style="cursor:pointer;color:#9AA1AF;font-size:13px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ b.onDup }}">⧉</span>
+                  <span title="上移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ b.onUp }}">↑</span>
+                  <span title="下移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ b.onDown }}">↓</span>
+                  <span title="删除" style="cursor:pointer;color:#C6CAD3;font-size:12px;flex:none;" style-hover="color:#DC2626;" onClick="{{ b.onDel }}">✕</span>
+                </div>
+                <sc-if value="{{ b.expanded }}">
+                  <div style="border-top:1px solid #F1F2F4;padding:12px;background:#FAFAFB;">
+                    <sc-if value="{{ b.isPara }}"><textarea value="{{ b.text }}" onChange="{{ b.onText }}" style="width:100%;box-sizing:border-box;height:96px;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;line-height:1.6;outline:none;resize:vertical;background:#fff;"></textarea></sc-if>
+                    <sc-if value="{{ b.isList }}"><div style="font-size:11px;color:#9AA1AF;margin-bottom:6px;">每行一条，展示时自动加项目符号</div><textarea value="{{ b.text }}" onChange="{{ b.onText }}" style="width:100%;box-sizing:border-box;height:80px;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;line-height:1.6;outline:none;resize:vertical;background:#fff;"></textarea></sc-if>
+                    <sc-if value="{{ b.isQuote }}"><input value="{{ b.text }}" onChange="{{ b.onText }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:13px;outline:none;background:#fff;"/></sc-if>
+                    <sc-if value="{{ b.isImage }}">
+                      <div style="height:90px;border-radius:6px;background:#EEF0FC;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8892D6" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 18l5-5 3.5 3.5L16 13l3.5 4"/></svg></div>
+                      <div style="display:flex;gap:8px;margin-top:10px;">
+                        <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ onFakeUpload }}">替换图片</button>
+                        <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ onFakeLibrary }}">从素材库选择</button>
+                      </div>
+                      <div style="margin-top:10px;"><div style="font-size:11px;color:#9AA1AF;margin-bottom:4px;">图片说明（选填）</div><input value="{{ b.caption }}" onChange="{{ b.onCaption }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:12px;outline:none;background:#fff;"/></div>
+                    </sc-if>
+                    <sc-if value="{{ b.isGallery }}">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+                        <div style="height:52px;border-radius:6px;background:#EEF0FC;"></div>
+                        <div style="height:52px;border-radius:6px;background:#EEF0FC;"></div>
+                        <div style="height:52px;border-radius:6px;background:#EEF0FC;"></div>
+                        <div style="height:52px;border-radius:6px;border:1.5px dashed #C6CAD3;display:flex;align-items:center;justify-content:center;font-size:16px;color:#9AA1AF;cursor:pointer;" onClick="{{ onFakeUpload }}">+</div>
+                      </div>
+                      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+                        <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ onFakeUpload }}">批量上传</button>
+                        <span style="font-size:11px;color:#9AA1AF;">最多 9 张，可拖拽排序</span>
+                      </div>
+                      <div style="margin-top:10px;"><div style="font-size:11px;color:#9AA1AF;margin-bottom:4px;">图集说明（选填）</div><input value="{{ b.caption }}" onChange="{{ b.onCaption }}" style="width:100%;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:6px;padding:8px 10px;font-size:12px;outline:none;background:#fff;"/></div>
+                    </sc-if>
+                    <sc-if value="{{ b.isVideo }}">
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:64px;height:36px;border-radius:5px;background:#1A1D1F;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:0;height:0;border-left:8px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px;"></div></div>
+                        <div style="flex:1;font-size:12px;font-weight:600;">{{ b.text }}</div>
+                        <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;" onClick="{{ onFakeLibrary }}">更换</button>
+                      </div>
+                      <div style="font-size:11px;color:#9AA1AF;margin-top:8px;">从已发布的视频中选择，无需填写视频 ID</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+            <button style="border:1.5px dashed #C6CAD3;background:#fff;border-radius:8px;padding:10px;font-size:13px;font-weight:600;color:#4A5AC2;cursor:pointer;" onClick="{{ togglePicker }}">+ 添加内容块</button>
+            <sc-if value="{{ pickerOpen }}">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:#FAFAFB;border:1px solid #F1F2F4;border-radius:8px;">
+                <sc-for list="{{ pickTypes }}" as="pt" hint-placeholder-count="6">
+                  <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;" style-hover="border-color:#4A5AC2;color:#4A5AC2;" onClick="{{ pt.onAdd }}">{{ pt.label }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isServices }}">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div>
+              <div style="font-size:12px;color:#667085;margin-bottom:8px;">展示布局</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+                <div style="border:1px solid #E5E7EB;border-radius:8px;padding:9px 6px;cursor:pointer;text-align:center;{{ layListSel }}" onClick="{{ setLayList }}">
+                  <div style="display:flex;flex-direction:column;gap:3px;padding:2px 5px;height:30px;justify-content:center;"><div style="display:flex;gap:3px;align-items:center;"><div style="width:9px;height:7px;background:#B9C0E8;border-radius:2px;flex:none;"></div><div style="flex:1;height:3px;background:#D9DCE9;border-radius:2px;"></div></div><div style="display:flex;gap:3px;align-items:center;"><div style="width:9px;height:7px;background:#B9C0E8;border-radius:2px;flex:none;"></div><div style="flex:1;height:3px;background:#D9DCE9;border-radius:2px;"></div></div><div style="display:flex;gap:3px;align-items:center;"><div style="width:9px;height:7px;background:#B9C0E8;border-radius:2px;flex:none;"></div><div style="flex:1;height:3px;background:#D9DCE9;border-radius:2px;"></div></div></div>
+                  <div style="font-size:11px;color:#667085;margin-top:6px;">图文列表</div>
+                </div>
+                <div style="border:1px solid #E5E7EB;border-radius:8px;padding:9px 6px;cursor:pointer;text-align:center;{{ layGridSel }}" onClick="{{ setLayGrid }}">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:2px 8px;height:30px;align-content:center;"><div style="height:11px;background:#B9C0E8;border-radius:2px;"></div><div style="height:11px;background:#B9C0E8;border-radius:2px;"></div><div style="height:11px;background:#D9DCE9;border-radius:2px;"></div><div style="height:11px;background:#D9DCE9;border-radius:2px;"></div></div>
+                  <div style="font-size:11px;color:#667085;margin-top:6px;">宫格</div>
+                </div>
+                <div style="border:1px solid #E5E7EB;border-radius:8px;padding:9px 6px;cursor:pointer;text-align:center;{{ layCarouselSel }}" onClick="{{ setLayCarousel }}">
+                  <div style="display:flex;gap:3px;justify-content:center;align-items:center;height:30px;"><div style="width:8px;height:16px;background:#D9DCE9;border-radius:2px;"></div><div style="width:16px;height:24px;background:#B9C0E8;border-radius:3px;"></div><div style="width:8px;height:16px;background:#D9DCE9;border-radius:2px;"></div></div>
+                  <div style="font-size:11px;color:#667085;margin-top:6px;">轮播</div>
+                </div>
+                <div style="border:1px solid #E5E7EB;border-radius:8px;padding:9px 6px;cursor:pointer;text-align:center;{{ layTextSel }}" onClick="{{ setLayText }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;align-content:center;height:30px;padding:0 4px;"><div style="width:20px;height:8px;background:#B9C0E8;border-radius:4px;"></div><div style="width:13px;height:8px;background:#D9DCE9;border-radius:4px;"></div><div style="width:16px;height:8px;background:#D9DCE9;border-radius:4px;"></div><div style="width:12px;height:8px;background:#D9DCE9;border-radius:4px;"></div></div>
+                  <div style="font-size:11px;color:#667085;margin-top:6px;">纯文字</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:#667085;margin-bottom:8px;">服务列表</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <sc-for list="{{ svcRows }}" as="sr" hint-placeholder-count="3">
+                  <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+                    <span style="color:#C6CAD3;font-size:11px;cursor:grab;letter-spacing:-1px;flex:none;">⠿</span>
+                    <div style="width:36px;height:36px;border-radius:8px;background:#EEF0FC;display:flex;align-items:center;justify-content:center;flex:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A5AC2" stroke-width="1.5"><rect x="4" y="6" width="16" height="13" rx="2"/><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6"/></svg></div>
+                    <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">{{ sr.title }}</div><div style="font-size:12px;color:#9AA1AF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sr.desc }}</div></div>
+                    <span title="上移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ sr.onUp }}">↑</span>
+                    <span title="下移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ sr.onDown }}">↓</span>
+                    <span title="删除" style="cursor:pointer;color:#C6CAD3;font-size:12px;flex:none;" style-hover="color:#DC2626;" onClick="{{ sr.onDel }}">✕</span>
+                  </div>
+                </sc-for>
+              </div>
+              <button style="width:100%;margin-top:8px;border:1.5px dashed #C6CAD3;background:#fff;border-radius:8px;padding:10px;font-size:13px;font-weight:600;color:#4A5AC2;cursor:pointer;" onClick="{{ addService }}">+ 添加服务</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isVideo }}">
+          <sc-if value="{{ videoLocked }}">
+            <div style="text-align:center;padding:40px 20px;color:#667085;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9AA1AF" stroke-width="1.6" style="margin:0 auto 12px auto;display:block;"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2"/></svg>
+              <div style="font-size:13px;font-weight:600;">视频能力未开通</div>
+              <div style="font-size:12px;margin-top:6px;">请联系平台开通视频介绍能力</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ videoUnlocked }}">
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <sc-if value="{{ hasVideo }}">
+                <div style="border:1px solid #E5E7EB;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+                  <div style="width:96px;height:54px;border-radius:6px;background:#1A1D1F;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:0;height:0;border-left:12px solid #fff;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px;"></div></div>
+                  <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">{{ videoTitle }}</div><div style="font-size:12px;color:#9AA1AF;margin-top:2px;">时长 {{ videoDur }} · 已通过审核</div></div>
+                  <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:none;" onClick="{{ openVideoPick }}">更换</button>
+                  <span style="color:#DC2626;font-size:12px;font-weight:600;cursor:pointer;flex:none;" onClick="{{ clearVideo }}">移除</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ noVideo }}">
+                <div style="border:1.5px dashed #C6CAD3;border-radius:8px;padding:28px 16px;text-align:center;">
+                  <div style="font-size:13px;color:#667085;">还没有选择企业视频</div>
+                  <button style="margin-top:12px;background:#4A5AC2;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;" onClick="{{ openVideoPick }}">从已发布视频中选择</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ videoPickOpen }}">
+                <div>
+                  <div style="font-size:12px;color:#667085;margin-bottom:8px;">已发布的视频</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <sc-for list="{{ videos }}" as="vd" hint-placeholder-count="3">
+                      <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;" style-hover="border-color:#4A5AC2;" onClick="{{ vd.onPick }}">
+                        <div style="width:64px;height:36px;border-radius:5px;background:#1A1D1F;display:flex;align-items:center;justify-content:center;flex:none;"><div style="width:0;height:0;border-left:8px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent;margin-left:2px;"></div></div>
+                        <div style="flex:1;min-width:0;font-size:13px;font-weight:600;">{{ vd.title }}</div>
+                        <span style="font-size:12px;color:#9AA1AF;flex:none;">{{ vd.dur }}</span>
+                        <span style="font-size:12px;color:#4A5AC2;font-weight:600;flex:none;">选择</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="font-size:11px;color:#9AA1AF;">仅限已过审视频；未选择时该模块不对访客展示。</div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ isHonors }}">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ honorRows }}" as="hr" hint-placeholder-count="2">
+              <div style="border:1px solid #E5E7EB;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+                <span style="color:#C6CAD3;font-size:11px;cursor:grab;letter-spacing:-1px;flex:none;">⠿</span>
+                <div style="width:36px;height:36px;border-radius:8px;background:#FFF8EC;display:flex;align-items:center;justify-content:center;flex:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8A23D" stroke-width="1.5"><circle cx="12" cy="9" r="5"/><path d="M9 13.5L7.5 21l4.5-2.5L16.5 21 15 13.5"/></svg></div>
+                <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">{{ hr.title }}</div><div style="font-size:12px;color:#9AA1AF;">{{ hr.year }} 年获得</div></div>
+                <span title="上移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ hr.onUp }}">↑</span>
+                <span title="下移" style="cursor:pointer;color:#9AA1AF;font-size:12px;flex:none;" style-hover="color:#4A5AC2;" onClick="{{ hr.onDown }}">↓</span>
+                <span title="删除" style="cursor:pointer;color:#C6CAD3;font-size:12px;flex:none;" style-hover="color:#DC2626;" onClick="{{ hr.onDel }}">✕</span>
+              </div>
+            </sc-for>
+            <button style="border:1.5px dashed #C6CAD3;background:#fff;border-radius:8px;padding:10px;font-size:13px;font-weight:600;color:#4A5AC2;cursor:pointer;" onClick="{{ addHonor }}">+ 添加荣誉</button>
+            <div style="font-size:11px;color:#9AA1AF;margin-top:4px;">证书图走上传 · <span style="color:#4A5AC2;cursor:pointer;" onClick="{{ onFakeLibrary }}">批量编辑说明</span></div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ publishOpen }}">
+    <div style="position:fixed;inset:0;background:rgba(17,24,39,.42);display:flex;align-items:center;justify-content:center;z-index:50;" onClick="{{ closePublish }}">
+      <div style="width:440px;background:#fff;border-radius:10px;padding:22px 24px;box-shadow:0 20px 50px rgba(17,24,39,.2);" onClick="{{ stopClick }}">
+        <div style="font-size:16px;font-weight:700;">发布前检查</div>
+        <div style="font-size:12px;color:#667085;margin-top:4px;">发布后，访客打开企业名片即可看到最新主页。</div>
+        <div style="margin:16px 0 20px;display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ checks }}" as="ck" hint-placeholder-count="5">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <span style="width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none;{{ ck.iconCss }}">{{ ck.icon }}</span>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">{{ ck.label }}</div>
+                <sc-if value="{{ ck.hasNote }}"><div style="font-size:12px;color:#B45309;margin-top:2px;">{{ ck.note }}</div></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button style="background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;" onClick="{{ closePublish }}">暂不发布</button>
+          <button style="background:#4A5AC2;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;" onClick="{{ confirmPublish }}">确认发布</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}">
+    <div style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;font-size:13px;padding:10px 18px;border-radius:8px;z-index:100;box-shadow:0 8px 24px rgba(17,24,39,.3);">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;videoCapability&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;能力开关&quot;, &quot;description&quot;: &quot;关闭后模拟未购买视频能力的企业：视频模块锁定&quot;}, &quot;showHiddenModules&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;预览&quot;, &quot;description&quot;: &quot;在手机预览中以半透明显示已隐藏的模块&quot;}}">
+class Component extends DCLogic {
+  state = {
+    sel: 'intro', selBlock: 0, pickerOpen: false, publishOpen: false, toast: null,
+    videoPickOpen: false, video: null, layout: 'list', draft: true, tpl: 'classic', brand: '#2B6CFF',
+    vis: { intro: true, services: true, video: true, honors: true },
+    form: {
+      name: '智云科技（深圳）有限公司', tag: '企业数字化服务',
+      address: '深圳市南山区科技园智云大厦 18 层', phone: '400-800 6666', site: 'www.zhiyun.tech',
+      members: '128', clients: '3,000+', founded: '2016'
+    },
+    blocks: [
+      { type: 'para', text: '智云科技专注为制造业与商贸企业提供数字化经营工具，核心产品覆盖数字名片、客户管理与营销转化，帮助企业沉淀客户资产、提升获客效率。' },
+      { type: 'quote', text: '让每一次商务连接都有迹可循。' },
+      { type: 'image', caption: '总部办公环境' },
+      { type: 'gallery', caption: '团队与客户活动' }
+    ],
+    services: [
+      { title: '数字名片', desc: '企业统一下发，员工一键分发' },
+      { title: '客户管理', desc: '访客轨迹沉淀为客户资产' },
+      { title: '营销转化', desc: '内容触达与线索转化分析' }
+    ],
+    honors: [
+      { title: '国家高新技术企业', year: '2023' },
+      { title: 'ISO 27001 信息安全认证', year: '2024' }
+    ]
+  };
+  TL = { para: '段落', list: '列表', quote: '引用', image: '图片', gallery: '图集', video: '视频' };
+  BRANDS = [
+    { name: '智云蓝', c: '#2B6CFF' }, { name: '商务红', c: '#E5484D' }, { name: '科技紫', c: '#7C5CFC' },
+    { name: '沉稳墨绿', c: '#1F8A5B' }, { name: '活力橙', c: '#F5820D' }, { name: '深海青', c: '#0E9C9C' }
+  ];
+  TPLS = [
+    { key: 'classic', name: '经典渐变', desc: '品牌色渐变头图' },
+    { key: 'minimal', name: '极简白', desc: '白底轻量，品牌点缀' },
+    { key: 'dark', name: '深色商务', desc: '深色头图，沉稳大气' }
+  ];
+  derive(hex) {
+    const n = hex.replace('#', '');
+    const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
+    const h = (r2, g2, b2) => '#' + [r2, g2, b2].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+    const mixW = t => h(r + (255 - r) * t, g + (255 - g) * t, b + (255 - b) * t);
+    return { c: hex, deep: h(r * 0.8, g * 0.8, b * 0.8), tint: mixW(0.92), soft: mixW(0.6), glow: 'rgba(' + r + ',' + g + ',' + b + ',.35)' };
+  }
+  midRef = React.createRef();
+  pvRefs = { basic: React.createRef(), intro: React.createRef(), services: React.createRef(), video: React.createRef(), honors: React.createRef() };
+  select(key, scroll) {
+    this.setState({ sel: key }, () => {
+      if (!scroll) return;
+      const c = this.midRef.current, el = this.pvRefs[key] && this.pvRefs[key].current;
+      if (!c || !el) return;
+      const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - 70;
+      c.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    });
+  }
+  showToast(m) { clearTimeout(this._tt); this.setState({ toast: m }); this._tt = setTimeout(() => this.setState({ toast: null }), 2200); }
+  mut(key, fn, extra) { const a = [...this.state[key]]; fn(a); this.setState(Object.assign({ [key]: a, draft: true }, extra || {})); }
+  renderVals() {
+    const s = this.state;
+    const cap = this.props.videoCapability ?? true;
+    const showHid = this.props.showHiddenModules ?? false;
+    const stop = e => { if (e && e.stopPropagation) e.stopPropagation(); };
+    const hasVideo = !!s.video;
+    const completeness = hasVideo ? 100 : 85;
+
+    const B = this.derive(s.brand);
+    const tplOptions = this.TPLS.map(t => ({
+      name: t.name, desc: t.desc, on: s.tpl === t.key,
+      selCss: s.tpl === t.key ? 'border-color:#4A5AC2;box-shadow:0 0 0 1px #4A5AC2;' : '',
+      thumbCss: t.key === 'classic' ? 'background:linear-gradient(160deg,' + B.deep + ',' + B.c + ');' : t.key === 'minimal' ? 'background:#fff;border:1px solid #E5E7EB;' : 'background:#1D2129;',
+      barCss: t.key === 'minimal' ? 'background:' + B.c + ';' : 'background:rgba(255,255,255,.85);',
+      onClick: () => this.setState({ tpl: t.key, draft: true })
+    }));
+    const swatches = this.BRANDS.map(bd => ({
+      name: bd.name,
+      css: 'background:' + bd.c + ';' + (s.brand === bd.c ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px ' + bd.c + ';' : ''),
+      onClick: () => this.setState({ brand: bd.c, draft: true })
+    }));
+    const tplName = this.TPLS.find(t => t.key === s.tpl).name;
+    const brandName = (this.BRANDS.find(bd => bd.c === s.brand) || { name: s.brand }).name;
+
+    const mods = [
+      { key: 'basic', label: '基础资料', status: 'ok', sw: false },
+      { key: 'intro', label: '企业简介', status: 'ok', sw: true },
+      { key: 'services', label: '服务项目', status: 'ok', sw: true },
+      { key: 'video', label: '企业视频', status: !cap ? 'lock' : (hasVideo ? 'ok' : 'warn'), sw: cap },
+      { key: 'honors', label: '荣誉资质', status: 'ok', sw: true }
+    ];
+    const statusMap = { ok: '展示中', warn: '缺内容·不展示', off: '已隐藏·不展示', lock: '未开通' };
+    const outline = mods.map(m => {
+      const hidden = m.sw && !s.vis[m.key];
+      const st = hidden ? 'off' : m.status;
+      return {
+        label: m.label, sw: m.sw,
+        selCss: s.sel === m.key ? 'background:#EEF0FC;' : '',
+        labelCss: hidden || st === 'lock' ? 'color:#9AA1AF;' : '',
+        statusText: statusMap[st],
+        statusCss: 'color:' + (st === 'ok' ? '#16A34A' : st === 'warn' ? '#B45309' : '#9AA1AF') + ';',
+        trackCss: 'background:' + (!hidden ? '#4A5AC2' : '#D5D8DF') + ';',
+        thumbCss: !hidden ? 'left:13px;' : 'left:2px;',
+        onToggle: e => { stop(e); this.setState({ vis: { ...s.vis, [m.key]: !s.vis[m.key] }, draft: true }); },
+        onClick: () => this.select(m.key, true)
+      };
+    });
+
+    const selCss = k => s.sel === k ? 'outline:2px solid #4A5AC2;outline-offset:3px;' : '';
+    const hidCss = k => (!s.vis[k] && showHid) ? 'opacity:.4;' : '';
+    const hidBadge = k => !s.vis[k] && showHid;
+    const vis = k => s.vis[k] || showHid;
+
+    const blocks = s.blocks.map((b, i) => ({
+      typeLabel: this.TL[b.type],
+      summary: (b.type === 'image' || b.type === 'gallery') ? (b.caption || '未命名') : ((b.text || '').slice(0, 26) || '（空）'),
+      selCss: s.selBlock === i ? 'border-color:#4A5AC2;box-shadow:0 0 0 1px #4A5AC2;' : '',
+      expanded: s.selBlock === i,
+      isPara: b.type === 'para', isList: b.type === 'list', isQuote: b.type === 'quote',
+      isImage: b.type === 'image', isGallery: b.type === 'gallery', isVideo: b.type === 'video',
+      text: b.text || '', caption: b.caption || '',
+      onClick: () => this.setState({ selBlock: s.selBlock === i ? -1 : i }),
+      onText: e => this.mut('blocks', a => a[i] = { ...a[i], text: e.target.value }),
+      onCaption: e => this.mut('blocks', a => a[i] = { ...a[i], caption: e.target.value }),
+      onDup: e => { stop(e); this.mut('blocks', a => a.splice(i + 1, 0, { ...a[i] }), { selBlock: i + 1 }); },
+      onUp: e => { stop(e); if (i > 0) this.mut('blocks', a => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }, { selBlock: i - 1 }); },
+      onDown: e => { stop(e); if (i < s.blocks.length - 1) this.mut('blocks', a => { [a[i], a[i + 1]] = [a[i + 1], a[i]]; }, { selBlock: i + 1 }); },
+      onDel: e => { stop(e); this.mut('blocks', a => a.splice(i, 1), { selBlock: -1 }); }
+    }));
+    const pvBlocks = s.blocks.map(b => ({
+      isPara: b.type === 'para', isList: b.type === 'list', isQuote: b.type === 'quote',
+      isImage: b.type === 'image', isGallery: b.type === 'gallery', isVideo: b.type === 'video',
+      text: b.text || '', caption: b.caption || '',
+      listText: (b.text || '').split('\n').filter(Boolean).map(l => '•  ' + l).join('\n')
+    }));
+    const defs = {
+      para: { type: 'para', text: '新的段落，点击编辑内容。' }, list: { type: 'list', text: '第一条\n第二条' },
+      quote: { type: 'quote', text: '在这里输入引用语。' }, image: { type: 'image', caption: '' },
+      gallery: { type: 'gallery', caption: '' }, video: { type: 'video', text: '企业宣传片 2026' }
+    };
+    const pickTypes = ['para', 'list', 'quote', 'image', 'gallery', 'video'].map(t => ({
+      label: this.TL[t],
+      onAdd: () => this.mut('blocks', a => a.push({ ...defs[t] }), { selBlock: s.blocks.length, pickerOpen: false })
+    }));
+
+    const svcRows = s.services.map((sv, i) => ({
+      ...sv,
+      onUp: e => { stop(e); if (i > 0) this.mut('services', a => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }); },
+      onDown: e => { stop(e); if (i < s.services.length - 1) this.mut('services', a => { [a[i], a[i + 1]] = [a[i + 1], a[i]]; }); },
+      onDel: e => { stop(e); this.mut('services', a => a.splice(i, 1)); }
+    }));
+    const honorRows = s.honors.map((h, i) => ({
+      ...h,
+      onUp: e => { stop(e); if (i > 0) this.mut('honors', a => { [a[i - 1], a[i]] = [a[i], a[i - 1]]; }); },
+      onDown: e => { stop(e); if (i < s.honors.length - 1) this.mut('honors', a => { [a[i], a[i + 1]] = [a[i + 1], a[i]]; }); },
+      onDel: e => { stop(e); this.mut('honors', a => a.splice(i, 1)); }
+    }));
+
+    const laySel = k => s.layout === k ? 'border-color:#4A5AC2;background:#EEF0FC;box-shadow:0 0 0 1px #4A5AC2;' : '';
+    const videoLib = [
+      { title: '企业宣传片 2026', dur: '01:24' },
+      { title: '产品介绍 · 数字名片', dur: '02:05' },
+      { title: '客户案例合集', dur: '03:12' }
+    ];
+    const videos = videoLib.map(v => ({ ...v, onPick: () => { this.setState({ video: v, videoPickOpen: false, draft: true }); this.showToast('已选择「' + v.title + '」'); } }));
+
+    const hiddenCount = ['intro', 'services', 'video', 'honors'].filter(k => !s.vis[k]).length;
+    const checksRaw = [
+      { ok: true, label: '基础资料完整' },
+      { ok: true, label: '企业简介 · ' + s.blocks.length + ' 个内容块' },
+      { ok: true, label: '服务项目 · ' + s.services.length + ' 项（' + ({ list: '图文列表', grid: '宫格', carousel: '轮播', text: '纯文字' })[s.layout] + '）' },
+      !cap ? { ok: true, label: '企业视频能力未开通，自动跳过' }
+        : hasVideo ? { ok: true, label: '企业视频 · ' + s.video.title }
+        : { ok: false, label: '企业视频未选择', note: '可直接发布，该模块暂不对访客展示' },
+      { ok: true, label: '荣誉资质 · ' + s.honors.length + ' 项' },
+      { ok: true, label: '模板 · ' + tplName + '，品牌主色 · ' + brandName }
+    ];
+    if (hiddenCount > 0) checksRaw.push({ ok: false, label: hiddenCount + ' 个模块已设为隐藏', note: '发布后访客不会看到隐藏模块' });
+    const checks = checksRaw.map(c => ({
+      ...c, icon: c.ok ? '✓' : '!',
+      iconCss: c.ok ? 'background:#E7F7ED;color:#16803C;' : 'background:#FEF3E2;color:#B45309;',
+      hasNote: !!c.note
+    }));
+
+    const panelMeta = {
+      basic: ['基础资料', '改动实时反映到预览'],
+      intro: ['企业简介', '点卡片编辑内容块'],
+      services: ['服务项目', '布局与列表排序'],
+      video: ['企业视频', '从已发布视频中选择'],
+      honors: ['荣誉资质', '证书列表与排序']
+    };
+    const curMod = mods.find(m => m.key === s.sel);
+    const curHidden = curMod.sw && !s.vis[s.sel];
+    const curSt = curHidden ? 'off' : curMod.status;
+    const tagCssMap = { ok: 'background:#E7F7ED;color:#16803C;', warn: 'background:#FEF3E2;color:#B45309;', off: 'background:#F1F2F4;color:#667085;', lock: 'background:#F1F2F4;color:#667085;' };
+
+    const mkSet = k => e => this.setState({ form: { ...s.form, [k]: e.target.value }, draft: true });
+
+    return {
+      draft: s.draft, completeness, toast: s.toast,
+      onVisitorPreview: () => this.showToast('已生成访客预览链接，有效期 24 小时'),
+      onOpenPublish: () => this.setState({ publishOpen: true }),
+      closePublish: () => this.setState({ publishOpen: false }),
+      confirmPublish: () => { this.setState({ publishOpen: false, draft: false }); this.showToast('企业主页已发布'); },
+      stopClick: stop, publishOpen: s.publishOpen, checks,
+      outline, B, tplOptions, swatches,
+      midRef: this.midRef, refBasic: this.pvRefs.basic, refIntro: this.pvRefs.intro,
+      refServices: this.pvRefs.services, refVideo: this.pvRefs.video, refHonors: this.pvRefs.honors,
+      tplClassic: s.tpl === 'classic', tplMinimal: s.tpl === 'minimal', tplDark: s.tpl === 'dark',
+      f: s.form,
+      setName: mkSet('name'), setTag: mkSet('tag'), setAddress: mkSet('address'),
+      setPhone: mkSet('phone'), setSite: mkSet('site'),
+      setMembers: mkSet('members'), setClients: mkSet('clients'), setFounded: mkSet('founded'),
+      onFakeUpload: e => { stop(e); this.showToast('原型示意：此处调起本地文件上传'); },
+      onFakeLibrary: e => { stop(e); this.showToast('原型示意：此处打开素材库'); },
+      selBasicHero: s.sel === 'basic' ? 'outline:2px solid #4A5AC2;outline-offset:-2px;' : '',
+      selBasic: selCss('basic'), selIntro: selCss('intro'), selServices: selCss('services'),
+      selVideo: selCss('video'), selHonors: selCss('honors'),
+      hidIntro: hidCss('intro'), hidServices: hidCss('services'), hidVideo: hidCss('video'), hidHonors: hidCss('honors'),
+      hidIntroBadge: hidBadge('intro'), hidServicesBadge: hidBadge('services'), hidVideoBadge: hidBadge('video'), hidHonorsBadge: hidBadge('honors'),
+      visIntro: vis('intro'), visServices: vis('services'), visVideo: cap && vis('video'), visHonors: vis('honors'),
+      selectBasic: () => this.setState({ sel: 'basic' }),
+      selectIntro: () => this.setState({ sel: 'intro' }),
+      selectServices: () => this.setState({ sel: 'services' }),
+      selectVideo: () => this.setState({ sel: 'video' }),
+      selectHonors: () => this.setState({ sel: 'honors' }),
+      pvBlocks, blocks, pickTypes, pickerOpen: s.pickerOpen,
+      togglePicker: () => this.setState({ pickerOpen: !s.pickerOpen }),
+      pvServices: s.services, svcRows,
+      addService: () => this.mut('services', a => a.push({ title: '新服务项目', desc: '一句话说明这项服务' })),
+      layList: s.layout === 'list', layGrid: s.layout === 'grid', layCarousel: s.layout === 'carousel', layText: s.layout === 'text',
+      layListSel: laySel('list'), layGridSel: laySel('grid'), layCarouselSel: laySel('carousel'), layTextSel: laySel('text'),
+      setLayList: () => this.setState({ layout: 'list', draft: true }),
+      setLayGrid: () => this.setState({ layout: 'grid', draft: true }),
+      setLayCarousel: () => this.setState({ layout: 'carousel', draft: true }),
+      setLayText: () => this.setState({ layout: 'text', draft: true }),
+      hasVideo, noVideo: cap && !hasVideo,
+      videoTitle: hasVideo ? s.video.title : '', videoDur: hasVideo ? s.video.dur : '',
+      videoLocked: !cap, videoUnlocked: cap,
+      videoPickOpen: s.videoPickOpen, videos,
+      openVideoPick: e => { stop(e); this.setState({ videoPickOpen: true }); },
+      clearVideo: e => { stop(e); this.setState({ video: null, videoPickOpen: false, draft: true }); },
+      pvHonors: s.honors, honorRows,
+      addHonor: () => this.mut('honors', a => a.push({ title: '新增荣誉资质', year: '2026' })),
+      isBasic: s.sel === 'basic', isIntro: s.sel === 'intro', isServices: s.sel === 'services',
+      isVideo: s.sel === 'video', isHonors: s.sel === 'honors',
+      panelTitle: panelMeta[s.sel][0], panelHint: panelMeta[s.sel][1],
+      panelTagText: statusMap[curSt], panelTagCss: tagCssMap[curSt]
+    };
+  }
+}
+</script>
+</body>
+</html>
