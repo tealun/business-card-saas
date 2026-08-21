@@ -1158,11 +1158,7 @@ export class EmployeeCardRepository {
     if (!this.storage) {
       return qrcodeUrl;
     }
-    const stored = await this.storage.storeImageDataUrl({
-      tenantId: session.tenantId,
-      category: "wechat-qrcodes",
-      dataUrl: qrcodeUrl
-    });
+    const stored = await this.storage.storeRegeneratedQrCodeDataUrl({ tenantId: session.tenantId, dataUrl: qrcodeUrl });
     return stored.publicUrl;
   }
 

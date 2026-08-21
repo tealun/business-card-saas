@@ -8,6 +8,7 @@ const MIME_TYPES = {
   png: "image/png",
   webp: "image/webp"
 };
+const { showRestriction, showError } = require("../../utils/feedback");
 
 Component({
   properties: {
@@ -41,7 +42,7 @@ Component({
   methods: {
     async onChoosePhoto() {
       if (!this.data.editable) {
-        wx.showToast({ title: this.data.deniedText, icon: "none" });
+        showRestriction(this.data.deniedText);
         return;
       }
       if (this.data.choosing) {
@@ -61,7 +62,7 @@ Component({
       } catch (error) {
         const message = error && error.message ? error.message : "形象照不符合要求";
         this.setData({ error: message });
-        wx.showToast({ title: message, icon: "none" });
+        showError(error, message);
       } finally {
         this.setData({ choosing: false });
       }
@@ -69,7 +70,7 @@ Component({
 
     onClearPhoto() {
       if (!this.data.editable) {
-        wx.showToast({ title: this.data.deniedText, icon: "none" });
+        showRestriction(this.data.deniedText);
         return;
       }
       this.setData({ error: "" });
@@ -120,7 +121,7 @@ function choosePortraitPhoto() {
       });
       return;
     }
-    wx.showToast({ title: "当前微信版本暂不支持选择图片", icon: "none" });
+    showRestriction("当前微信版本暂不支持选择图片，请升级微信后重试");
     resolve("");
   });
 }

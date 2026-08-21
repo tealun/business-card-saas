@@ -87,13 +87,13 @@
 
       <view class="card action-grid">
         <view class="action-grid__item" bindtap="callPhone"><view class="icon icon-phone"></view><text>手机号</text></view>
-        <view class="action-grid__item" bindtap="copyEmail"><view class="icon icon-mail"></view><text>发邮件</text></view>
+        <view class="action-grid__item" bindtap="sendEmail"><view class="icon icon-mail"></view><text>发邮件</text></view>
         <view class="action-grid__item" bindtap="openMap"><view class="icon icon-location"></view><text>去拜访</text></view>
         <view class="action-grid__item" bindtap="copyWechat"><view class="icon icon-wechat"></view><text>加微信</text></view>
         <view class="action-grid__item" bindtap="viewPaperCard"><view class="icon icon-paper"></view><text>纸质名片</text></view>
       </view>
 
-      <company-module wx:for="{{displayModules}}" wx:key="key" module="{{item}}" bindpreview="previewModuleImage" />
+      <company-module wx:for="{{displayModules}}" wx:key="key" module="{{item}}" bindpreview="previewModuleImage" bindmediaerror="onCompanyMediaError" />
 
       <view class="card upgrade-card" wx:if="{{isDemo}}">
         <view class="upgrade-card__copy">
@@ -119,8 +119,7 @@
     </view>
     <view class="wechat-qr">
       <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="aspectFit" webp="{{true}}" />
-      <view wx:else class="wechat-qr__placeholder"></view>
-      <view class="wechat-qr__tip">长按识别加微信</view>
+      <view class="wechat-qr__tip" wx:if="{{wechatQrUrl}}">长按识别加微信</view>
     </view>
   </view>
 

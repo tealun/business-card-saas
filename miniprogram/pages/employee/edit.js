@@ -2,6 +2,7 @@ const app = getApp();
 const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { setPageTheme } = require("../../utils/theme");
+const { showRestriction, showError } = require("../../utils/feedback");
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
@@ -85,7 +86,7 @@ Page({
       await this.loadCard();
     } catch (error) {
       this.setData({ loading: false, error: true });
-      wx.showToast({ title: error.message || "登录失败，请稍后重试", icon: "none" });
+      showError(error, "登录失败，请稍后重试");
     }
   },
 
@@ -142,7 +143,7 @@ Page({
       });
     } catch (error) {
       this.setData({ loading: false, error: true });
-      wx.showToast({ title: error.message || "名片读取失败，请稍后重试", icon: "none" });
+      showError(error, "名片读取失败，请稍后重试");
     }
   },
 
@@ -199,12 +200,12 @@ Page({
 
   openPrivacyContract() {
     if (typeof wx.openPrivacyContract !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持查看隐私指引", icon: "none" });
+      showRestriction("当前微信版本暂不支持查看隐私指引，请升级微信后重试");
       return;
     }
     wx.openPrivacyContract({
       fail: () => {
-        wx.showToast({ title: "隐私指引打开失败，请稍后重试", icon: "none" });
+        showError(null, "隐私指引打开失败，请稍后重试");
       }
     });
   },
@@ -212,7 +213,7 @@ Page({
   onAgreePrivacyAuthorization(event) {
     const errMsg = String(event.detail && event.detail.errMsg || "");
     if (errMsg && errMsg.indexOf("ok") === -1) {
-      wx.showToast({ title: "同意隐私指引后才能设置头像", icon: "none" });
+      showRestriction("同意隐私指引后才能设置头像");
       return;
     }
     this.setData({
@@ -235,10 +236,17 @@ Page({
     try {
       const tempFilePath = await chooseImageFromAlbum();
       if (tempFilePath) {
-        await this.setAvatarFromPath(tempFilePath);
+        if (typeof wx.cropImage !== "function") {
+          showRestriction("当前微信版本不支持头像裁切，请升级微信后重试");
+          return;
+        }
+        const croppedPath = await cropSquareImage(tempFilePath);
+        if (!croppedPath) return;
+        const compressedPath = await compressWebAvatar(croppedPath);
+        await this.setAvatarFromPath(compressedPath);
       }
     } catch (error) {
-      wx.showToast({ title: error.message || "头像选择失败，请重新选择", icon: "none" });
+      if (!isCancelError(error)) showError(error, "头像选择失败，请重新选择");
     }
   },
 
@@ -251,7 +259,7 @@ Page({
       const avatarUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
       this.setData({ "form.avatar_url": avatarUrl });
     } catch (error) {
-      wx.showToast({ title: error.message || "头像读取失败，请重新选择", icon: "none" });
+      showError(error, "头像读取失败，请重新选择");
     }
   },
 
@@ -259,7 +267,7 @@ Page({
     const avatarUrl = this.data.form.avatar_url;
     if (isTemporaryImageUrl(avatarUrl)) {
       this.setData({ "form.avatar_url": "" });
-      wx.showToast({ title: "头像临时文件已失效，请重新选择", icon: "none" });
+      showError(null, "头像临时文件已失效，请重新选择");
     }
   },
 
@@ -269,7 +277,7 @@ Page({
       return;
     }
     if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持选择LOGO", icon: "none" });
+      showRestriction("当前微信版本暂不支持选择LOGO，请升级微信后重试");
       return;
     }
     wx.chooseMedia({
@@ -286,6 +294,23 @@ Page({
     });
   },
 
+  async chooseWechatQrCode() {
+    if (!this.canEdit("wechat_id")) {
+      this.lockedTip();
+      return;
+    }
+    try {
+      const path = await chooseImageFromAlbum();
+      if (!path) return;
+      const info = await getImageInfo(path).catch(() => null);
+      const dataUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
+      await request("/employee/cards/current/wechat-qrcode", { method: "PUT", data: { qrcode_url: dataUrl } });
+      wx.showToast({ title: "二维码已识别并保存", icon: "success" });
+    } catch (error) {
+      if (!isCancelError(error)) showError(error, "微信二维码识别失败");
+    }
+  },
+
   setLogoFromPath(path) {
     getImageInfo(path)
       .catch(() => null)
@@ -294,7 +319,7 @@ Page({
         this.setData({ "form.logo_url": logoUrl });
       })
       .catch((error) => {
-        wx.showToast({ title: error.message || "LOGO读取失败，请重新选择", icon: "none" });
+        showError(error, "LOGO读取失败，请重新选择");
       });
   },
 
@@ -307,7 +332,7 @@ Page({
   },
 
   lockedTip() {
-    wx.showToast({ title: "该字段由企业统一维护", icon: "none" });
+    showRestriction("该字段由企业统一维护，当前账号不能修改");
   },
 
   onLockedFieldTap(event) {
@@ -538,6 +563,31 @@ function chooseImageFromAlbum() {
       return;
     }
     reject(new Error("当前微信版本暂不支持选择头像"));
+  });
+}
+
+function cropSquareImage(src) {
+  return new Promise((resolve, reject) => {
+    wx.cropImage({
+      src,
+      cropScale: "1:1",
+      success: (result) => resolve(result.tempFilePath || ""),
+      fail: (error) => isCancelError(error) ? resolve("") : reject(error)
+    });
+  });
+}
+
+function compressWebAvatar(src) {
+  if (typeof wx.compressImage !== "function") return Promise.resolve(src);
+  return new Promise((resolve, reject) => {
+    wx.compressImage({
+      src,
+      quality: 78,
+      compressedWidth: 720,
+      compressedHeight: 720,
+      success: (result) => resolve(result.tempFilePath || src),
+      fail: reject
+    });
   });
 }
 

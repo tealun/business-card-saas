@@ -3,6 +3,7 @@ const { request, uploadBinary } = require("../../utils/api");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, setPageTheme, themeStyle: buildThemeStyle } = require("../../utils/theme");
 const { normalizeWebsiteUrl } = require("../../utils/website-url");
+const { showRestriction } = require("../../utils/feedback");
 const ADMIN_BOOTSTRAP_STORAGE_KEY = "wecomcard.admin.bootstrap.v1";
 
 const ROLE_LABELS = {
@@ -431,7 +432,7 @@ Page({
   async uploadSingleVideo(onUploaded) {
     if (!this.requireAdmin() || this.data.uploading) return;
     if (this.data.videoFeature && !this.data.videoFeature.enabled) {
-      wx.showToast({ title: "当前企业未开通视频功能", icon: "none" });
+      showRestriction("当前企业未开通视频功能，请联系平台管理员开通后使用");
       return;
     }
     const files = await chooseLocalMedia(["video"], 1).catch(() => []);
@@ -1437,7 +1438,7 @@ Page({
   async saveVideoDraft() {
     if (!this.requireAdmin()) return;
     if (this.data.videoFeature && !this.data.videoFeature.enabled) {
-      wx.showToast({ title: "当前企业未开通视频功能", icon: "none" });
+      showRestriction("当前企业未开通视频功能，请联系平台管理员开通后使用");
       return;
     }
     const draft = this.data.introDraft.videoDraft;
@@ -1758,7 +1759,7 @@ Page({
    */
   async openMemberEditor(event) {
     if (!this.data.permissions.canOperator) {
-      wx.showToast({ title: "当前角色无权编辑人员", icon: "none" });
+      showRestriction("当前角色无权编辑人员，请联系企业 Owner 或管理员");
       return;
     }
     const memberId = event.currentTarget.dataset.id;
@@ -1831,7 +1832,7 @@ Page({
    */
   async toggleMemberStatus(event) {
     if (!this.data.permissions.canOperator) {
-      wx.showToast({ title: "当前角色无权操作人员", icon: "none" });
+      showRestriction("当前角色无权操作人员，请联系企业 Owner 或管理员");
       return;
     }
     const memberId = event.currentTarget.dataset.id;
@@ -2088,7 +2089,7 @@ Page({
    */
   requireAdmin() {
     if (this.data.permissions.canAdmin) return true;
-    wx.showToast({ title: "当前角色无权执行该操作", icon: "none" });
+    showRestriction("当前角色无权执行该操作，请联系企业 Owner 或管理员");
     return false;
   },
 
@@ -2261,7 +2262,7 @@ function buildIntroBlock(draft, videoFeature, videos = []) {
   }
   if (type === "video") {
     if (videoFeature && !videoFeature.enabled) {
-      wx.showToast({ title: "当前企业未开通视频功能", icon: "none" });
+      showRestriction("当前企业未开通视频功能，请联系平台管理员开通后使用");
       return null;
     }
     const videoId = String(draft.videoId || "").trim();
@@ -2761,7 +2762,7 @@ function chooseLocalMedia(mediaType, count) {
       });
       return;
     }
-    wx.showToast({ title: "当前微信版本暂不支持选择媒体", icon: "none" });
+    showRestriction("当前微信版本暂不支持选择媒体，请升级微信后重试");
     resolve([]);
   });
 }

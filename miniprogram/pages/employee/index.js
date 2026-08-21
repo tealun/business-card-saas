@@ -1,4 +1,5 @@
 const app = getApp();
+const { showRestriction, showError } = require("../../utils/feedback");
 const { ensureSession, refreshSessionIdentities, switchIdentity } = require("../../utils/auth");
 const { request, isWeComRuntime } = require("../../utils/api");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
@@ -646,7 +647,7 @@ Page({
       return;
     }
     if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持拍照上传", icon: "none" });
+      showRestriction("当前微信版本暂不支持拍照上传，请升级微信后重试");
       return;
     }
     wx.chooseMedia({
@@ -696,7 +697,7 @@ Page({
     }
     if (selfService.qrcode_source === "employee_upload_only") {
       if (selfService.allow_wecom_qrcode_upload === false) {
-        wx.showToast({ title: "企业统一维护二维码", icon: "none" });
+        showRestriction("微信二维码由企业统一维护，当前账号不能修改");
         return;
       }
       this.choosePersonalWechatQr("wecom_member");
@@ -734,11 +735,11 @@ Page({
       return;
     }
     if (identityType !== "personal" && this.data.selfService.allow_wecom_qrcode_upload === false) {
-      wx.showToast({ title: "企业统一维护二维码", icon: "none" });
+      showRestriction("微信二维码由企业统一维护，当前账号不能修改");
       return;
     }
     if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持上传二维码", icon: "none" });
+      showRestriction("当前微信版本暂不支持上传二维码，请升级微信后重试");
       return;
     }
     wx.chooseMedia({
@@ -775,6 +776,7 @@ Page({
           this.setData({ previewQrUrl: qrUrl || tempPath, previewPath: "长按识别加微信", previewQrLoading: false, previewError: "" });
         } catch (error) {
           this.setData({ previewPath: "请重新上传二维码", previewQrLoading: false, previewError: error.message || "二维码上传失败" });
+          showError(error, "二维码识别或上传失败");
         } finally {
           this.setData({ submitting: false });
         }

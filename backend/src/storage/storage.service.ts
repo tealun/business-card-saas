@@ -4,6 +4,9 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
+import jsQR from "jsqr";
+import QRCode from "qrcode";
+import sharp from "sharp";
 import { AppConfig } from "../config/app-config.js";
 
 export type StorageCategory =
@@ -77,6 +80,41 @@ export class StorageService {
       throw new BadRequestException("uploaded image exceeds STORAGE_MAX_UPLOAD_BYTES");
     }
     return this.storeBuffer(input.tenantId, input.category, parsed.ext, parsed.contentType, parsed.buffer);
+  }
+
+  async storeRegeneratedQrCodeDataUrl(input: { tenantId: string; dataUrl: string }): Promise<StoredObject> {
+    const parsed = parseImageDataUrl(input.dataUrl);
+    if (parsed.buffer.length > this.config.storageMaxUploadBytes) {
+      throw new BadRequestException("二维码图片过大，请选择较小的图片");
+    }
+    const decodedImage = await sharp(parsed.buffer)
+      .rotate()
+      .ensureAlpha()
+      .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+      .catch(() => null);
+    if (!decodedImage) {
+      throw new BadRequestException("二维码图片无法读取，请重新选择清晰图片");
+    }
+    const code = jsQR(
+      new Uint8ClampedArray(decodedImage.data),
+      decodedImage.info.width,
+      decodedImage.info.height,
+      { inversionAttempts: "dontInvert" }
+    );
+    const content = String(code?.data || "").trim();
+    if (!content) {
+      throw new BadRequestException("未识别到有效二维码，请上传完整、清晰的微信二维码");
+    }
+    const regenerated = await QRCode.toBuffer(content, {
+      type: "png",
+      width: 720,
+      margin: 3,
+      errorCorrectionLevel: "M",
+      color: { dark: "#000000", light: "#ffffff" }
+    });
+    return this.storeBuffer(input.tenantId, "wechat-qrcodes", "png", "image/png", regenerated);
   }
 
   async storeImageBuffer(input: {

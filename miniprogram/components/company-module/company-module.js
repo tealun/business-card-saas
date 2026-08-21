@@ -26,6 +26,9 @@ Component({
       const url = event.currentTarget.dataset.url || urls[0];
       if (!url) return;
       this.triggerEvent("preview", { url, urls: Array.isArray(urls) ? urls : [url] });
+    },
+    onMediaError(event) {
+      this.triggerEvent("mediaerror", { message: (event.detail && event.detail.errMsg) || "媒体资源加载失败" });
     }
   }
 });

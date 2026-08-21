@@ -1,3 +1,5 @@
+const { showRestriction } = require("../../utils/feedback");
+
 Component({
   properties: {
     accountType: {
@@ -157,10 +159,7 @@ Component({
       if (this.data[key]) {
         return true;
       }
-      wx.showToast({
-        title: this.data.accountType === "enterprise" ? "当前账号无权限修改此项" : "暂无权限修改",
-        icon: "none"
-      });
+      showRestriction(this.data.accountType === "enterprise" ? "当前账号无权限修改此项" : "暂无权限修改");
       return false;
     }
   }

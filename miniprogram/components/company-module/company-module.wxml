@@ -1,4 +1,4 @@
-<view class="card company-module module-enter">
+<view class="card company-module {{module.key === 'profile' ? 'company-module--profile' : ''}} module-enter">
   <view class="section-head">
     <text class="card__title">{{module.title}}</text>
   </view>
@@ -35,19 +35,19 @@
           </view>
         </view>
         <view class="intro-image-card" wx:elif="{{block.type === 'image'}}" bindtap="previewImage" data-url="{{block.image_url}}" data-urls="{{block.preview_urls}}">
-          <image class="intro-image-card__image" src="{{block.image_url}}" mode="aspectFill" webp="{{true}}" />
+          <image class="intro-image-card__image" src="{{block.image_url}}" mode="aspectFill" webp="{{true}}" binderror="onMediaError" />
           <view class="intro-image-card__caption" wx:if="{{block.caption}}">{{block.caption}}</view>
         </view>
         <scroll-view wx:elif="{{block.type === 'gallery'}}" class="module-scroll intro-gallery" scroll-x enhanced show-scrollbar="{{false}}">
           <view class="module-scroll__track">
             <view class="gallery-card" wx:for="{{block.images}}" wx:for-item="image" wx:key="url" bindtap="previewImage" data-url="{{image.url}}" data-urls="{{block.preview_urls}}">
-              <image class="gallery-image" src="{{image.url}}" mode="aspectFill" webp="{{true}}" />
+              <image class="gallery-image" src="{{image.url}}" mode="aspectFill" webp="{{true}}" binderror="onMediaError" />
               <view class="gallery-card__caption" wx:if="{{image.caption}}">{{image.caption}}</view>
             </view>
           </view>
         </scroll-view>
         <view wx:elif="{{block.type === 'video' && block.video_url}}" class="intro-video-card">
-          <video wx:if="{{activeVideoKey === block.video_key}}" id="company-video-{{block.video_key}}" class="company-video intro-video-card__video" src="{{block.video_url}}" poster="{{block.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay />
+          <video wx:if="{{activeVideoKey === block.video_key}}" id="company-video-{{block.video_key}}" class="company-video intro-video-card__video" src="{{block.video_url}}" poster="{{block.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay binderror="onMediaError" />
           <view wx:else class="company-video-cover intro-video-card__video" bindtap="playVideo" data-video-key="{{block.video_key}}">
             <image wx:if="{{block.cover_url}}" class="company-video-cover__image" src="{{block.cover_url}}" mode="aspectFill" webp="{{true}}" />
             <view wx:else class="company-video-cover__fallback"></view>

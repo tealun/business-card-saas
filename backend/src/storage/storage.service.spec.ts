@@ -4,6 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { AppConfig } from "../config/app-config.js";
 import { StorageService } from "./storage.service.js";
+import QRCode from "qrcode";
 
 jest.mock("@aws-sdk/client-s3", () => ({
   S3Client: class {
@@ -78,6 +79,36 @@ describe("StorageService", () => {
     expect(stored.storageKey).toMatch(/^tenant\/tenant-001\/company-images\/.+\.webp$/);
     const file = await readFile(path.join(tempDir, stored.storageKey));
     expect(file.toString("utf8")).toBe("image");
+  });
+
+  it("decodes and regenerates uploaded QR-code images before storage", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    const service = new StorageService(new AppConfig());
+    const original = await QRCode.toBuffer("weixin://dl/chat?demo-contact", { width: 480, margin: 1 });
+
+    const stored = await service.storeRegeneratedQrCodeDataUrl({
+      tenantId: "tenant-001",
+      dataUrl: `data:image/png;base64,${original.toString("base64")}`
+    });
+
+    expect(stored.storageKey).toMatch(/^tenant\/tenant-001\/wechat-qrcodes\/.+\.png$/);
+    const regenerated = await readFile(path.join(tempDir, stored.storageKey));
+    expect(regenerated.length).toBeLessThan(200_000);
+    expect(regenerated.subarray(1, 4).toString("ascii")).toBe("PNG");
+  }, 15_000);
+
+  it("rejects uploaded images that do not contain a QR code", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "bc-storage-"));
+    process.env.STORAGE_DRIVER = "local";
+    process.env.STORAGE_LOCAL_ROOT = tempDir;
+    const service = new StorageService(new AppConfig());
+
+    await expect(service.storeRegeneratedQrCodeDataUrl({
+      tenantId: "tenant-001",
+      dataUrl: "data:image/png;base64,aGVsbG8="
+    })).rejects.toThrow("二维码图片无法读取");
   });
 
   it("stores raw video uploads and enforces the effective limit", async () => {

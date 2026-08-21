@@ -4,6 +4,7 @@ const { buildShareCardImage } = require("../../utils/share-card-image");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, themeStyle } = require("../../utils/theme");
 const config = require("../../config");
+const { showRestriction, showError } = require("../../utils/feedback");
 
 const VISITOR_ANON_STORAGE_KEY = "wecomcard.public_anon_id.v1";
 const VISITOR_ANON_TTL_MS = 24 * 60 * 60 * 1000;
@@ -590,14 +591,18 @@ Page({
   /**
    * 复制名片邮箱到剪贴板，并记录复制行为。
    */
-  copyEmail() {
+  sendEmail() {
     const email = this.data.card.card.fields && this.data.card.card.fields.email;
     if (!email) {
-      wx.showToast({ title: "暂无邮箱", icon: "none" });
+      showRestriction("对方暂未设置邮箱");
       return;
     }
     this.recordAction("copy_email");
-    wx.setClipboardData({ data: email });
+    if (typeof wx.openUrl === "function") {
+      wx.openUrl({ url: `mailto:${encodeURIComponent(email)}`, fail: (error) => showError(error, "无法调起邮件程序") });
+      return;
+    }
+    showRestriction("当前微信版本不支持直接调起邮件程序，请升级微信后重试");
   },
 
   /**
@@ -605,21 +610,40 @@ Page({
    */
   openMap() {
     const fields = this.data.card.card.fields || {};
-    const address = (this.data.card.company_profile || {}).address || fields.address;
+    const profile = this.data.card.company_profile || {};
+    const address = profile.address || fields.address;
     if (!address) {
-      wx.showToast({ title: "暂无地址", icon: "none" });
+      showRestriction("对方暂未设置地址");
+      return;
+    }
+    const latitude = Number(profile.latitude ?? fields.latitude);
+    const longitude = Number(profile.longitude ?? fields.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      showRestriction("该地址尚未设置地图位置，请联系企业管理员完善经纬度后再导航");
       return;
     }
     this.recordAction("open_map");
-    wx.setClipboardData({ data: address, success() { wx.showToast({ title: "地址已复制", icon: "none" }); } });
+    wx.openLocation({ latitude, longitude, name: profile.name || this.data.card.card.company || "目的地", address, scale: 16, fail: (error) => showError(error, "地图导航打开失败") });
   },
 
   /**
    * 打开微信二维码弹层，并记录复制/查看微信行为。
    */
   copyWechat() {
+    const qrUrl = publicWechatQrUrl(this.data.card);
+    if (!qrUrl) {
+      showRestriction("对方暂未设置微信二维码");
+      return;
+    }
     this.recordAction("copy_wechat");
-    this.setData({ wechatSheetVisible: true, wechatQrUrl: publicWechatQrUrl(this.data.card) });
+    this.setData({ wechatSheetVisible: true, wechatQrUrl: qrUrl });
+  },
+
+  onCompanyMediaError(event) {
+    const now = Date.now();
+    if (now - Number(this._lastMediaErrorAt || 0) < 1500) return;
+    this._lastMediaErrorAt = now;
+    showError(event.detail, "媒体资源加载失败，请检查网络后重试");
   },
 
   /**

@@ -1,4 +1,5 @@
 const app = getApp();
+const { showRestriction } = require("../../utils/feedback");
 const { request } = require("../../utils/api");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { DEFAULT_BRAND, buildTheme, setPageTheme, themeStyle } = require("../../utils/theme");
@@ -231,7 +232,7 @@ const stylePage = {
    */
   async applyStyle() {
     if (!this.data.canEditTemplates && !this.data.canEditPortraitPhoto) {
-      wx.showToast({ title: "企业统一维护", icon: "none" });
+      showRestriction("该样式由企业统一维护，当前账号不能修改");
       return;
     }
     if (this.data.submitting) {

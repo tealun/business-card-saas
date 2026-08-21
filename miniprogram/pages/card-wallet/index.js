@@ -1,4 +1,5 @@
 const app = getApp();
+const { showRestriction } = require("../../utils/feedback");
 const { request } = require("../../utils/api");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { setPageTheme } = require("../../utils/theme");
@@ -165,7 +166,7 @@ Page({
    */
   captureOfflineCard() {
     if (typeof wx.chooseMedia !== "function") {
-      wx.showToast({ title: "当前微信版本暂不支持拍照识别", icon: "none" });
+      showRestriction("当前微信版本暂不支持拍照识别，请升级微信后重试");
       return;
     }
     wx.chooseMedia({
