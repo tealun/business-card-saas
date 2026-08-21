@@ -1,7 +1,4 @@
 const PORTRAIT_PHOTO_MIN_WIDTH = 500;
-const PORTRAIT_PHOTO_MIN_HEIGHT = 500;
-const PORTRAIT_PHOTO_MIN_RATIO = 0.95;
-const PORTRAIT_PHOTO_MAX_RATIO = 1.05;
 const MIME_TYPES = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
@@ -9,6 +6,7 @@ const MIME_TYPES = {
   webp: "image/webp"
 };
 const { showRestriction, showError } = require("../../utils/feedback");
+const { imagePathToDataUrl } = require("../../utils/image-data");
 
 Component({
   properties: {
@@ -36,7 +34,10 @@ Component({
 
   data: {
     choosing: false,
-    error: ""
+    error: "",
+    cropVisible: false,
+    cropSource: "",
+    cropFileType: "jpg"
   },
 
   methods: {
@@ -54,11 +55,14 @@ Component({
         if (!tempFilePath) {
           return;
         }
-        const info = await getImageInfo(tempFilePath);
-        validatePortraitPhoto(info);
-        const dataUrl = await pathToDataUrl(tempFilePath, imageMime(info));
-        this.setData({ error: "" });
-        this.triggerEvent("change", { url: dataUrl, dirty: true });
+        const sourceInfo = await getImageInfo(tempFilePath);
+        validatePortraitSource(sourceInfo);
+        const sourceMime = imageMime(sourceInfo);
+        this.setData({
+          cropVisible: true,
+          cropSource: tempFilePath,
+          cropFileType: sourceMime === "image/png" ? "png" : "jpg"
+        });
       } catch (error) {
         const message = error && error.message ? error.message : "形象照不符合要求";
         this.setData({ error: message });
@@ -66,6 +70,32 @@ Component({
       } finally {
         this.setData({ choosing: false });
       }
+    },
+
+    onCropCancel() {
+      this.setData({ cropVisible: false, cropSource: "", choosing: false });
+    },
+
+    async onCropConfirm(event) {
+      const croppedPath = String(event.detail && event.detail.tempFilePath || "");
+      if (!croppedPath) return;
+      try {
+        const sourceMime = this.data.cropFileType === "png" ? "image/png" : "image/jpeg";
+        const optimizedPath = await compressPortraitPhoto(croppedPath, sourceMime);
+        const info = await getImageInfo(optimizedPath).catch(() => null);
+        const dataUrl = await imagePathToDataUrl(optimizedPath, info ? imageMime(info) : sourceMime);
+        this.setData({ cropVisible: false, cropSource: "", choosing: false, error: "" });
+        this.triggerEvent("change", { url: dataUrl, dirty: true });
+      } catch (error) {
+        this.setData({ cropVisible: false, cropSource: "", choosing: false, error: error.message || "形象照处理失败" });
+        showError(error, "形象照处理失败，请重新选择");
+      }
+    },
+
+    onCropError(event) {
+      const error = event.detail && event.detail.error;
+      this.setData({ choosing: false });
+      showError(error, "形象照裁切失败，请重新选择");
     },
 
     onClearPhoto() {
@@ -126,21 +156,32 @@ function choosePortraitPhoto() {
   });
 }
 
-function validatePortraitPhoto(info) {
+function validatePortraitSource(info) {
   const mime = imageMime(info);
-  if (mime !== "image/png") {
-    throw new Error("形象照仅支持 PNG 图片");
+  if (!mime) {
+    throw new Error("形象照仅支持 JPG、PNG、WebP 图片");
   }
   if (!info || !info.width || !info.height) {
     throw new Error("无法读取图片尺寸");
   }
-  const ratio = info.width / info.height;
-  if (ratio < PORTRAIT_PHOTO_MIN_RATIO || ratio > PORTRAIT_PHOTO_MAX_RATIO) {
-    throw new Error("形象照请使用 1:1 正方形");
+  if (Math.min(info.width, info.height) < PORTRAIT_PHOTO_MIN_WIDTH) {
+    throw new Error("形象照较短边不能小于 500 像素");
   }
-  if (info.width < PORTRAIT_PHOTO_MIN_WIDTH || info.height < PORTRAIT_PHOTO_MIN_HEIGHT) {
-    throw new Error("形象照请上传不小于 500×500 的图片");
-  }
+}
+
+function compressPortraitPhoto(src, sourceMime) {
+  // PNG 形象照通常依赖透明背景，跳过压缩以免透明通道被转换丢失。
+  if (sourceMime === "image/png" || typeof wx.compressImage !== "function") return Promise.resolve(src);
+  return new Promise((resolve, reject) => {
+    wx.compressImage({
+      src,
+      quality: 82,
+      compressedWidth: 900,
+      compressedHeight: 900,
+      success: (result) => resolve(result.tempFilePath || src),
+      fail: reject
+    });
+  });
 }
 
 function imageMime(info) {
@@ -150,26 +191,4 @@ function imageMime(info) {
   }
   const match = String(info.path || "").toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
   return match ? MIME_TYPES[match[1]] || "" : "";
-}
-
-function pathToDataUrl(path, mime) {
-  if (/^data:image\//.test(path) || /^https?:\/\//.test(path)) {
-    return Promise.resolve(path);
-  }
-  return new Promise((resolve, reject) => {
-    const fs = wx.getFileSystemManager && wx.getFileSystemManager();
-    if (!fs || typeof fs.readFile !== "function") {
-      reject(new Error("文件系统不可用"));
-      return;
-    }
-    const filePath = path.startsWith("/") ? path.slice(1) : path;
-    fs.readFile({
-      filePath,
-      encoding: "base64",
-      success(result) {
-        resolve(`data:${mime};base64,${result.data}`);
-      },
-      fail: reject
-    });
-  });
 }

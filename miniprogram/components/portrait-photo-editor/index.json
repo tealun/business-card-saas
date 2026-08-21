@@ -1,4 +1,7 @@
 {
   "component": true,
-  "styleIsolation": "apply-shared"
+  "styleIsolation": "apply-shared",
+  "usingComponents": {
+    "square-image-cropper": "/components/square-image-cropper/index"
+  }
 }

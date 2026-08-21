@@ -35,7 +35,7 @@
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  background: var(--brand-tint);
+  background: transparent;
   color: var(--brand);
   display: flex;
   align-items: center;

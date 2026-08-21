@@ -283,7 +283,7 @@ button::after { border: none; }
   width: 132rpx;
   height: 132rpx;
   border-radius: 50%;
-  background: #eef0f3;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -295,7 +295,7 @@ button::after { border: none; }
 }
 .biz-card--portrait {
   min-height: 432rpx;
-  padding: 40rpx 292rpx 32rpx 46rpx;
+  padding: 40rpx 350rpx 32rpx 46rpx;
 }
 
 .biz-card--portrait::after {
@@ -304,7 +304,7 @@ button::after { border: none; }
   top: 0;
   right: 0;
   bottom: 0;
-  width: 310rpx;
+  width: 410rpx;
   background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.42));
   z-index: 0;
   pointer-events: none;
@@ -318,7 +318,7 @@ button::after { border: none; }
 }
 
 .biz-card--portrait .biz-card__head {
-  max-width: 250rpx;
+  max-width: 240rpx;
 }
 
 .biz-card--portrait .biz-card__company,
@@ -337,7 +337,7 @@ button::after { border: none; }
 }
 
 .biz-card--portrait .biz-card__info {
-  max-width: 250rpx;
+  max-width: 240rpx;
   padding-right: 0;
 }
 
@@ -347,7 +347,7 @@ button::after { border: none; }
 
 .biz-card--portrait .biz-card__name {
   font-size: 42rpx;
-  max-width: 250rpx;
+  max-width: 240rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -356,22 +356,22 @@ button::after { border: none; }
 .biz-card--portrait .biz-card__role {
   margin-top: 6rpx;
   font-size: 26rpx;
-  max-width: 250rpx;
+  max-width: 240rpx;
 }
 
 .biz-card--portrait .biz-card__contact {
-  max-width: 250rpx;
+  max-width: 240rpx;
   margin-top: 20rpx;
 }
 
 .biz-card--portrait .biz-card__avatar {
   position: absolute;
   right: 0;
-  top: 0;
+  top: auto;
   bottom: 0;
   z-index: 1;
-  width: 292rpx;
-  height: auto;
+  width: 400rpx;
+  height: 400rpx;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -590,7 +590,7 @@ button::after { border: none; }
 
 .biz-card--campaign .biz-card__avatar {
   border-radius: 18rpx;
-  background: var(--brand-tint);
+  background: transparent;
 }
 
 .biz-card--campaign .biz-card__name {

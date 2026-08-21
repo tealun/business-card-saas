@@ -179,6 +179,16 @@
   </view>
 </view>
 
+<square-image-cropper
+  visible="{{avatarCropVisible}}"
+  src="{{avatarCropSource}}"
+  title="裁切头像"
+  file-type="{{avatarCropFileType}}"
+  bindcancel="onAvatarCropCancel"
+  bindconfirm="onAvatarCropConfirm"
+  binderror="onAvatarCropError"
+/>
+
 <view wx:if="{{privacyModalVisible}}" class="privacy-mask" catchtap="closeAvatarPrivacyModal"></view>
 <view wx:if="{{privacyModalVisible}}" class="privacy-dialog" catchtap="noop">
   <view class="privacy-dialog__title">隐私保护提示</view>

@@ -3,6 +3,7 @@ const { ensureSession } = require("../../utils/auth");
 const { request } = require("../../utils/api");
 const { setPageTheme } = require("../../utils/theme");
 const { showRestriction, showError } = require("../../utils/feedback");
+const { imagePathToDataUrl } = require("../../utils/image-data");
 
 const ALL_EDITABLE_FIELDS = [
   "avatar_url",
@@ -70,6 +71,9 @@ Page({
     privacyNeedAuthorization: false,
     privacyContractName: "用户隐私保护指引",
     privacyModalVisible: false,
+    avatarCropVisible: false,
+    avatarCropSource: "",
+    avatarCropFileType: "jpg",
     loading: true,
     error: false,
     submitting: false
@@ -236,27 +240,25 @@ Page({
     try {
       const tempFilePath = await chooseImageFromAlbum();
       if (tempFilePath) {
-        if (typeof wx.cropImage !== "function") {
-          showRestriction("当前微信版本不支持头像裁切，请升级微信后重试");
-          return;
-        }
-        const croppedPath = await cropSquareImage(tempFilePath);
-        if (!croppedPath) return;
-        const compressedPath = await compressWebAvatar(croppedPath);
-        await this.setAvatarFromPath(compressedPath);
+        const info = await getImageInfo(tempFilePath).catch(() => null);
+        this.setData({
+          avatarCropVisible: true,
+          avatarCropSource: tempFilePath,
+          avatarCropFileType: info && imageMime(info) === "image/png" ? "png" : "jpg"
+        });
       }
     } catch (error) {
       if (!isCancelError(error)) showError(error, "头像选择失败，请重新选择");
     }
   },
 
-  async setAvatarFromPath(path) {
+  async setAvatarFromPath(path, expectedMime = "") {
     try {
       let info = null;
       try {
         info = await getImageInfo(path);
       } catch (_error) {}
-      const avatarUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
+      const avatarUrl = await imagePathToDataUrl(path, expectedMime || (info ? imageMime(info) : "image/jpeg"));
       this.setData({ "form.avatar_url": avatarUrl });
     } catch (error) {
       showError(error, "头像读取失败，请重新选择");
@@ -294,6 +296,28 @@ Page({
     });
   },
 
+  onAvatarCropCancel() {
+    this.setData({ avatarCropVisible: false, avatarCropSource: "", avatarCropFileType: "jpg" });
+  },
+
+  async onAvatarCropConfirm(event) {
+    const croppedPath = String(event.detail && event.detail.tempFilePath || "");
+    if (!croppedPath) return;
+    const preserveTransparency = this.data.avatarCropFileType === "png";
+    this.setData({ avatarCropVisible: false, avatarCropSource: "", avatarCropFileType: "jpg" });
+    try {
+      const outputPath = preserveTransparency ? croppedPath : await compressWebAvatar(croppedPath);
+      await this.setAvatarFromPath(outputPath, preserveTransparency ? "image/png" : "image/jpeg");
+    } catch (error) {
+      showError(error, "头像处理失败，请重新选择");
+    }
+  },
+
+  onAvatarCropError(event) {
+    const error = event.detail && event.detail.error;
+    showError(error, "头像裁切失败，请重新选择");
+  },
+
   async chooseWechatQrCode() {
     if (!this.canEdit("wechat_id")) {
       this.lockedTip();
@@ -303,7 +327,7 @@ Page({
       const path = await chooseImageFromAlbum();
       if (!path) return;
       const info = await getImageInfo(path).catch(() => null);
-      const dataUrl = await pathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
+      const dataUrl = await imagePathToDataUrl(path, info ? imageMime(info) : "image/jpeg");
       await request("/employee/cards/current/wechat-qrcode", { method: "PUT", data: { qrcode_url: dataUrl } });
       wx.showToast({ title: "二维码已识别并保存", icon: "success" });
     } catch (error) {
@@ -314,7 +338,7 @@ Page({
   setLogoFromPath(path) {
     getImageInfo(path)
       .catch(() => null)
-      .then((info) => pathToDataUrl(path, info ? imageMime(info) : "image/jpeg"))
+      .then((info) => imagePathToDataUrl(path, info ? imageMime(info) : "image/jpeg"))
       .then((logoUrl) => {
         this.setData({ "form.logo_url": logoUrl });
       })
@@ -480,34 +504,6 @@ function validateCardForm(form, editable) {
   }
 }
 
-/**
- * 把头像/LOGO 路径转成可持久化值。
- *
- * 已持久化的 CDN/API URL 和 data URL 原样返回；微信临时文件会内联为 data URL，
- * 防止保存后引用一个会过期的本地路径。
- */
-function pathToDataUrl(path, mime = "image/jpeg") {
-  if (/^data:image\//.test(path) || (/^https?:\/\//.test(path) && !isTemporaryImageUrl(path))) {
-    // 已持久化 URL 和现有 data URL 足够稳定；只有微信临时文件需要保存前内联。
-    return Promise.resolve(path);
-  }
-  return new Promise((resolve, reject) => {
-    const fs = wx.getFileSystemManager && wx.getFileSystemManager();
-    if (!fs || typeof fs.readFile !== "function") {
-      reject(new Error("file system unavailable"));
-      return;
-    }
-    fs.readFile({
-      filePath: path,
-      encoding: "base64",
-      success(result) {
-        resolve(`data:${mime};base64,${result.data}`);
-      },
-      fail: reject
-    });
-  });
-}
-
 function getImageInfo(src) {
   return new Promise((resolve, reject) => {
     wx.getImageInfo({
@@ -536,7 +532,7 @@ function chooseImageFromAlbum() {
         count: 1,
         mediaType: ["image"],
         sourceType: ["album"],
-        sizeType: ["compressed"],
+        sizeType: ["original"],
         success(result) {
           const file = result.tempFiles && result.tempFiles[0];
           resolve(file && file.tempFilePath ? file.tempFilePath : "");
@@ -549,7 +545,7 @@ function chooseImageFromAlbum() {
       wx.chooseImage({
         count: 1,
         sourceType: ["album"],
-        sizeType: ["compressed"],
+        sizeType: ["original"],
         success(result) {
           const file = result.tempFiles && result.tempFiles[0];
           resolve(
@@ -563,17 +559,6 @@ function chooseImageFromAlbum() {
       return;
     }
     reject(new Error("当前微信版本暂不支持选择头像"));
-  });
-}
-
-function cropSquareImage(src) {
-  return new Promise((resolve, reject) => {
-    wx.cropImage({
-      src,
-      cropScale: "1:1",
-      success: (result) => resolve(result.tempFilePath || ""),
-      fail: (error) => isCancelError(error) ? resolve("") : reject(error)
-    });
   });
 }
 

@@ -1,0 +1,39 @@
+<root-portal enable="{{visible}}">
+<view wx:if="{{visible}}" class="cropper" catchtouchmove="noop">
+  <view class="cropper__panel">
+    <view class="cropper__head">
+      <view class="cropper__title">{{title}}</view>
+      <view class="cropper__hint">拖动图片调整位置，双指缩放</view>
+    </view>
+
+    <movable-area id="cropViewport" class="cropper__viewport">
+      <movable-view
+        wx:if="{{ready}}"
+        class="cropper__movable"
+        direction="all"
+        x="{{imageX}}"
+        y="{{imageY}}"
+        scale
+        scale-min="1"
+        scale-max="4"
+        scale-value="{{imageScale}}"
+        out-of-bounds="false"
+        bindchange="onImageMove"
+        bindscale="onImageScale"
+        style="width: {{imageWidth}}px; height: {{imageHeight}}px;"
+      >
+        <image class="cropper__image" src="{{src}}" mode="scaleToFill" />
+      </movable-view>
+      <view class="cropper__shade cropper__shade--top"></view>
+      <view class="cropper__shade cropper__shade--bottom"></view>
+      <view class="cropper__frame"></view>
+    </movable-area>
+
+    <view class="cropper__actions">
+      <button class="cropper__button cropper__button--cancel" bindtap="onCancel" disabled="{{exporting}}">取消</button>
+      <button class="cropper__button cropper__button--confirm" bindtap="onConfirm" loading="{{exporting}}" disabled="{{!ready || exporting}}">使用照片</button>
+    </view>
+  </view>
+  <canvas id="cropCanvas" type="2d" class="cropper__canvas"></canvas>
+</view>
+</root-portal>
