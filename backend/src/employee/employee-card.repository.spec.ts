@@ -181,6 +181,16 @@ describe("EmployeeCardRepository", () => {
         if (text.includes("card_style_overrides")) {
           return { rows: [] };
         }
+        if (text.includes("FROM templates")) {
+          return {
+            rows: [{
+              background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
+              logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+              color_scheme_json: { primary: "#0f766e", surface: "#ffffff" },
+              layout_json: { variant: "minimal", background_preset_id: "light-geometry" }
+            }]
+          };
+        }
         return { rows: [] };
       }
     };
@@ -213,6 +223,13 @@ describe("EmployeeCardRepository", () => {
       expect(preview.card.fields.address).toBe("Admin address");
       expect(preview.company_profile.address).toBe("Admin address");
       expect(preview.company_profile.website_url).toBe("https://admin.example.com/");
+      expect(preview.template).toMatchObject({
+        template_id: "tpl_minimal",
+        logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+        background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
+        color_scheme: { primary: "#0f766e", surface: "#ffffff" },
+        layout: { variant: "minimal", background_preset_id: "light-geometry" }
+      });
     } finally {
       if (originalDatabaseUrl) {
         process.env.DATABASE_URL = originalDatabaseUrl;

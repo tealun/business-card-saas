@@ -128,6 +128,23 @@ const TEMPLATE_VARIANTS = [
   { value: "campaign", label: "活动版", desc: "短期推广使用" }
 ];
 
+const TEMPLATE_BACKGROUND_PRESETS = {
+  "light-wave": "./assets/card-backgrounds/bg-light-wave.webp",
+  "light-geometry": "./assets/card-backgrounds/bg-light-geometry.webp",
+  "light-cubes": "./assets/card-backgrounds/bg-light-cubes.webp",
+  "blue-dot": "./assets/card-backgrounds/bg-blue-dot.webp",
+  "dark-dot": "./assets/card-backgrounds/bg-dark-dot.webp"
+};
+
+const TEMPLATE_VARIANT_DEFAULT_PRESETS = {
+  "horizontal-business": "light-wave",
+  minimal: "light-geometry",
+  "brand-image": "blue-dot",
+  "portrait-photo": "light-cubes",
+  dark: "dark-dot",
+  campaign: "light-cubes"
+};
+
 const TEMPLATE_BRAND_COLORS = ["#5272d6", "#0f766e", "#c2410c", "#7c3aed", "#111827"];
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -2219,8 +2236,8 @@ async function uploadHonorImages(index) {
   renderHonorEditors();
 }
 
-async function chooseAndUploadCompanyImages(category, multiple) {
-  if (!requirePermission("tenant.company.write")) return [];
+async function chooseAndUploadCompanyImages(category, multiple, permission = "tenant.company.write") {
+  if (!requirePermission(permission)) return [];
   const files = await chooseBrowserFiles({ accept: "image/*", multiple });
   if (!files.length) return [];
   return run("上传图片", async () => {
@@ -2363,61 +2380,10 @@ async function loadTemplates() {
     || state.templates.find((item) => item.is_default)
     || state.templates[0];
   state.selectedTemplateId = selected?.template_id || "";
-  renderTemplates();
   if (selected) fillTemplateForm(selected);
   else resetTemplateForm();
   return result;
 }
-
-function renderTemplates() {
-  const root = $("#templateCards");
-  $("#templateCount").textContent = String(state.templates.length);
-  if (!state.templates.length) {
-    root.innerHTML = `<p class="hint">暂无模板，点击顶部“新建模板”。</p>`;
-    return;
-  }
-  root.replaceChildren(...state.templates.map((item) => {
-    const card = document.createElement("article");
-    card.className = `template-card ${item.template_id === state.selectedTemplateId ? "template-card--selected" : ""}`;
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-    card.addEventListener("click", (event) => {
-      if (event.target.closest("button")) return;
-      fillTemplateForm(item);
-      renderTemplates();
-    });
-    card.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      fillTemplateForm(item);
-      renderTemplates();
-    });
-    const primary = normalizeHexColor(item.color_scheme?.primary, "#5272d6");
-    const surface = item.color_scheme?.surface || "#ffffff";
-    const swatch = document.createElement("div");
-    swatch.className = "template-swatch";
-    swatch.style.background = `linear-gradient(135deg, ${primary}, ${surface})`;
-    const visualUrl = item.background_url || item.logo_url;
-    if (visualUrl) {
-      const image = document.createElement("img");
-      image.src = mediaUrl(visualUrl);
-      image.alt = "";
-      image.loading = "lazy";
-      swatch.append(image);
-    }
-    const body = document.createElement("div");
-    body.className = "template-card-body";
-    const title = document.createElement("strong");
-    title.textContent = item.name;
-    const meta = document.createElement("div");
-    meta.className = "template-card-meta";
-    meta.innerHTML = `${item.is_default ? tag("当前默认", "brand") : ""}${tag(item.status === "active" ? "启用" : "停用", statusTone(item.status))}`;
-    body.append(title, meta);
-    card.append(swatch, body);
-    return card;
-  }));
-}
-
 
 function fillTemplateForm(template) {
   state.selectedTemplateId = template.template_id;
@@ -2425,7 +2391,7 @@ function fillTemplateForm(template) {
   $("#templateName").value = template.name || "";
   $("#templateStatus").value = template.status || "active";
   const variant = normalizeTemplateVariant(template.layout?.variant);
-  state.templateDraftBackgrounds = structuredClone(template.layout?.template_backgrounds || {});
+  state.templateDraftBackgrounds = normalizeTemplateBackgroundMap(template.layout?.template_backgrounds);
   if (!state.templateDraftBackgrounds[variant]) {
     state.templateDraftBackgrounds[variant] = {
       background_url: template.background_url || "",
@@ -2515,6 +2481,22 @@ function normalizeTemplateOpacity(value, fallback = 100) {
   return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : fallback;
 }
 
+function normalizeTemplateBackgroundMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.entries(value).reduce((result, [variant, config]) => {
+    if (!config || typeof config !== "object" || Array.isArray(config)) return result;
+    result[normalizeTemplateVariant(variant)] = structuredClone(config);
+    return result;
+  }, {});
+}
+
+function templateBackgroundVisualUrl(variant, customUrl = "", presetId = "") {
+  if (String(customUrl || "").trim()) return mediaUrl(customUrl);
+  const normalizedVariant = normalizeTemplateVariant(variant);
+  const resolvedPreset = presetId || TEMPLATE_VARIANT_DEFAULT_PRESETS[normalizedVariant];
+  return TEMPLATE_BACKGROUND_PRESETS[resolvedPreset] || "";
+}
+
 function resetTemplateForm() {
   state.selectedTemplateId = "";
   state.templateDraftBackgrounds = {};
@@ -2554,8 +2536,10 @@ function renderTemplateEditor() {
   preview.style.setProperty("--template-brand", primary);
   preview.style.setProperty("--template-brand-deep", mixHexColor(primary, "#000000", 0.22));
   const backgroundUrl = $("#templateBackgroundUrl").value.trim();
-  preview.style.backgroundImage = backgroundUrl
-    ? `linear-gradient(rgba(255,255,255,${1 - opacity / 100}), rgba(255,255,255,${1 - opacity / 100})), url("${mediaUrl(backgroundUrl).replaceAll('"', '%22')}")`
+  const backgroundPresetId = state.templateDraftBackgrounds[variant]?.background_preset_id || "";
+  const backgroundVisualUrl = templateBackgroundVisualUrl(variant, backgroundUrl, backgroundPresetId);
+  preview.style.backgroundImage = backgroundVisualUrl
+    ? `linear-gradient(rgba(255,255,255,${1 - opacity / 100}), rgba(255,255,255,${1 - opacity / 100})), url("${backgroundVisualUrl.replaceAll('"', '%22')}")`
     : "";
   $("#templatePreviewName").textContent = $("#templateName").value.trim() || "新模板";
   $("#templatePreviewState").textContent = $("#templateStatus").value === "disabled" ? "当前停用，不会分配给成员" : "保存后同步到企业成员名片";
@@ -2569,7 +2553,7 @@ function renderTemplateEditor() {
   defaultButton.textContent = current?.is_default ? "当前默认模板" : "设为默认模板";
   renderTemplateChoiceControls(variant, primary);
   renderTemplateAssetPreview("#templateLogoPreview", $("#templateLogoUrl").value, "未上传");
-  renderTemplateAssetPreview("#templateBackgroundPreview", backgroundUrl, "使用版式默认背景");
+  renderTemplateAssetPreview("#templateBackgroundPreview", backgroundVisualUrl, "使用版式默认背景");
   renderTemplateAssetPreview("#templatePortraitPreview", $("#templatePortraitUrl").value, "未上传");
   const logoUrl = $("#templateLogoUrl").value.trim();
   const logoNode = $("#templatePreviewLogo");
@@ -2584,6 +2568,7 @@ function renderTemplateChoiceControls(activeVariant, primary) {
     button.className = `template-variant-choice ${item.value === activeVariant ? "active" : ""}`;
     button.dataset.templateVariant = item.value;
     button.innerHTML = `<span class="template-variant-thumb template-variant-thumb--${item.value}"></span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.desc)}</small>`;
+    button.querySelector(".template-variant-thumb").style.backgroundImage = `url("${templateBackgroundVisualUrl(item.value).replaceAll('"', '%22')}")`;
     return button;
   }));
   $("#templateColorChoices").replaceChildren(...TEMPLATE_BRAND_COLORS.map((color) => {
@@ -4452,7 +4437,7 @@ $("#templatePrimaryColorPicker").addEventListener("input", (event) => {
 });
 async function uploadTemplateAsset(inputSelector, category) {
   if (!requirePermission("tenant.template.write")) return;
-  const urls = await chooseAndUploadCompanyImages(category, false);
+  const urls = await chooseAndUploadCompanyImages(category, false, "tenant.template.write");
   if (!urls.length) return;
   $(inputSelector).value = urls[0];
   renderTemplateEditor();

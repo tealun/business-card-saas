@@ -68,9 +68,18 @@ describe("PublicCardRepository", () => {
                 intro_json: [],
                 service_items_json: [],
                 display_modules_json: [],
-                background_url: null,
-                color_scheme_json: {},
-                layout_json: {}
+                tenant_type: "enterprise",
+                background_url: "/api/v1/storage/tenant/tenant-001/templates/stale.webp",
+                color_scheme_json: { primary: "#ff0000" },
+                layout_json: { __template_id: "tpl_dark", variant: "dark" },
+                default_template_background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
+                default_template_logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+                default_template_color_scheme_json: { primary: "#0f766e", surface: "#ffffff" },
+                default_template_layout_json: {
+                  variant: "minimal",
+                  background_preset_id: "light-geometry",
+                  template_backgrounds: { minimal: { background_preset_id: "light-geometry" } }
+                }
               }
             ]
           };
@@ -96,6 +105,17 @@ describe("PublicCardRepository", () => {
       expect(card.company_profile.name).toBe("Admin Corp");
       expect(card.company_profile.short_name).toBe("Admin");
       expect(card.company_profile.address).toBe("Admin address");
+      expect(card.template).toMatchObject({
+        template_id: "tpl_dark",
+        logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+        background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
+        color_scheme: { primary: "#0f766e", surface: "#ffffff" },
+        layout: {
+          variant: "dark",
+          background_preset_id: "light-geometry",
+          template_backgrounds: { minimal: { background_preset_id: "light-geometry" } }
+        }
+      });
     } finally {
       if (originalDatabaseUrl) {
         process.env.DATABASE_URL = originalDatabaseUrl;

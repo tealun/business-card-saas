@@ -13,31 +13,6 @@
   </div>
 
   <div class="template-studio">
-    <aside class="template-library" aria-label="企业模板列表">
-      <div class="template-library-head">
-        <strong>企业模板</strong>
-        <span id="templateCount">0</span>
-      </div>
-      <div id="templateCards" class="template-grid"></div>
-    </aside>
-
-    <main class="template-canvas">
-      <div class="template-canvas-head">
-        <div><span>预览</span><strong id="templatePreviewName">请选择模板</strong></div>
-        <span class="template-preview-live"><i></i>实时</span>
-      </div>
-      <section class="template-live-preview" aria-label="名片模板预览">
-        <div id="templatePreview" class="template-preview-card template-preview-card--horizontal-business">
-          <div class="template-preview-card__brand"><span id="templatePreviewLogo">企</span><strong id="templatePreviewCompany">企业名称</strong></div>
-          <div class="template-preview-card__person"><strong>成员姓名</strong><span>职位名称</span><small>138 0000 0000</small></div>
-        </div>
-        <div class="template-preview-meta">
-          <span id="templatePreviewState">保存后同步到企业成员名片</span>
-          <button id="setDefaultTemplate" type="button" class="secondary compact">设为默认模板</button>
-        </div>
-      </section>
-    </main>
-
     <aside class="template-inspector">
       <form id="templateForm">
         <input id="templateId" type="hidden" />
@@ -87,5 +62,22 @@
         </section>
       </form>
     </aside>
+
+    <main class="template-canvas">
+      <div class="template-canvas-head">
+        <div><span>预览</span><strong id="templatePreviewName">请选择模板</strong></div>
+        <span class="template-preview-live"><i></i>实时</span>
+      </div>
+      <section class="template-live-preview" aria-label="名片模板预览">
+        <div id="templatePreview" class="template-preview-card template-preview-card--horizontal-business">
+          <div class="template-preview-card__brand"><span id="templatePreviewLogo">企</span><strong id="templatePreviewCompany">企业名称</strong></div>
+          <div class="template-preview-card__person"><strong>成员姓名</strong><span>职位名称</span><small>138 0000 0000</small></div>
+        </div>
+        <div class="template-preview-meta">
+          <span id="templatePreviewState">保存后同步到企业成员名片</span>
+          <button id="setDefaultTemplate" type="button" class="secondary compact">设为默认模板</button>
+        </div>
+      </section>
+    </main>
   </div>
 </section>

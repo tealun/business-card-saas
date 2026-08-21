@@ -55,9 +55,14 @@ interface PublicCardRow extends QueryResultRow {
   intro_json: unknown;
   service_items_json: unknown;
   display_modules_json: unknown;
+  tenant_type?: "personal" | "enterprise";
   background_url: string | null;
   color_scheme_json: unknown;
   layout_json: unknown;
+  default_template_background_url?: string | null;
+  default_template_logo_url?: string | null;
+  default_template_color_scheme_json?: unknown;
+  default_template_layout_json?: unknown;
 }
 
 interface VideoRow extends QueryResultRow {
@@ -469,10 +474,17 @@ export class PublicCardRepository {
           company_profiles.intro_json,
           company_profiles.service_items_json,
           company_profiles.display_modules_json,
+          tenants.tenant_type,
           card_style_overrides.background_url,
           card_style_overrides.color_scheme_json,
-          card_style_overrides.layout_json
+          card_style_overrides.layout_json,
+          default_template.background_url AS default_template_background_url,
+          default_template.logo_url AS default_template_logo_url,
+          default_template.color_scheme_json AS default_template_color_scheme_json,
+          default_template.layout_json AS default_template_layout_json
         FROM cards
+        INNER JOIN tenants
+          ON tenants.id = cards.tenant_id
         LEFT JOIN company_profiles
           ON company_profiles.tenant_id = cards.tenant_id
           AND company_profiles.deleted_at IS NULL
@@ -487,6 +499,16 @@ export class PublicCardRepository {
           ORDER BY card_style_overrides.id DESC
           LIMIT 1
         ) card_style_overrides ON true
+        LEFT JOIN LATERAL (
+          SELECT background_url, logo_url, color_scheme_json, layout_json
+          FROM templates
+          WHERE templates.tenant_id = cards.tenant_id
+            AND templates.is_default = true
+            AND templates.status = 'active'
+            AND templates.deleted_at IS NULL
+          ORDER BY templates.id DESC
+          LIMIT 1
+        ) default_template ON true
         WHERE cards.tenant_id = $1
           AND cards.id = $2
           AND cards.public_id = $3
@@ -670,8 +692,18 @@ export class PublicCardRepository {
   ): PublicCardResponse {
     const fields = this.decryptFields(row.fields_encrypted);
     const privacy = parsePrivacy(row.privacy_json);
-    const layout = parseObject(row.layout_json);
-    const templateId = typeof layout.__template_id === "string" ? layout.__template_id : "tpl_demo_business";
+    const overrideLayout = parseObject(row.layout_json);
+    const useEnterpriseTemplate = row.tenant_type === "enterprise" && Boolean(row.default_template_layout_json);
+    const defaultLayout = useEnterpriseTemplate ? parseObject(row.default_template_layout_json) : {};
+    const layout = useEnterpriseTemplate
+      ? {
+          ...defaultLayout,
+          ...(typeof overrideLayout.variant === "string" ? { variant: overrideLayout.variant } : {}),
+          ...(typeof overrideLayout.portrait_photo_url === "string" ? { portrait_photo_url: overrideLayout.portrait_photo_url } : {}),
+          ...(typeof overrideLayout.__template_id === "string" ? { __template_id: overrideLayout.__template_id } : {})
+        }
+      : overrideLayout;
+    const templateId = typeof layout.__template_id === "string" ? layout.__template_id : normalizeTemplateId(layout.variant);
     const layoutLogoUrl = typeof layout.__logo_url === "string" ? layout.__logo_url : null;
     const { __template_id: _templateId, __logo_url: _logoUrl, ...rawPublicLayout } = layout;
     const publicLayout = sanitizeTemplateLayout(templateId, rawPublicLayout);
@@ -704,10 +736,10 @@ export class PublicCardRepository {
       },
       template: {
         template_id: templateId,
-        logo_url: layoutLogoUrl ?? row.company_logo_url,
-        background_url: row.background_url,
-        color_scheme: Object.keys(parseObject(row.color_scheme_json)).length
-          ? parseObject(row.color_scheme_json)
+        logo_url: useEnterpriseTemplate ? row.default_template_logo_url ?? row.company_logo_url : layoutLogoUrl ?? row.company_logo_url,
+        background_url: useEnterpriseTemplate ? row.default_template_background_url ?? null : row.background_url,
+        color_scheme: Object.keys(parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)).length
+          ? parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)
           : { primary: "#1677ff", surface: "#ffffff" },
         layout: Object.keys(publicLayout).length ? publicLayout : { variant: "horizontal-business" }
       },
@@ -982,13 +1014,18 @@ function isPortraitTemplateId(templateId: unknown): boolean {
 
 function normalizeTemplateId(templateId: unknown): string {
   const value = String(templateId || "").trim();
-  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
-    return "tpl_horizontal_business";
-  }
-  if (value === "tpl_portrait_photo" || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
-    return "tpl_portrait_photo";
-  }
-  return value || "tpl_horizontal_business";
+  const aliases: Record<string, string> = {
+    tpl_demo_business: "tpl_horizontal_business",
+    "horizontal-business": "tpl_horizontal_business",
+    minimal: "tpl_minimal",
+    "brand-image": "tpl_brand_image",
+    "portrait-photo": "tpl_portrait_photo",
+    "photo-portrait": "tpl_portrait_photo",
+    tpl_photo_portrait: "tpl_portrait_photo",
+    dark: "tpl_dark",
+    campaign: "tpl_campaign"
+  };
+  return aliases[value] || value || "tpl_horizontal_business";
 }
 
 function parseIntroBlocks(value: unknown): PublicCardResponse["company_profile"]["intro_blocks"] {

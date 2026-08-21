@@ -64,6 +64,7 @@ interface EmployeeCardRow extends QueryResultRow {
 
 interface StyleRow extends QueryResultRow {
   background_url: string | null;
+  logo_url?: string | null;
   color_scheme_json: unknown;
   layout_json: unknown;
 }
@@ -521,7 +522,12 @@ export class EmployeeCardRepository {
   async getPreview(session: EmployeeSession): Promise<EmployeeCardPreviewResponse> {
     const card = await this.getCurrentCard(session);
     const style = this.hasDatabase()
-      ? await this.tenantTx!.run(session.tenantId, async (tx) => this.readStyle(tx, session.tenantId, card.card_id))
+      ? await this.tenantTx!.run(session.tenantId, async (tx) => {
+          const override = await this.readStyle(tx, session.tenantId, card.card_id);
+          if (session.identityType === "personal") return override;
+          const enterpriseTemplate = await this.readDefaultTemplateStyle(tx, session.tenantId);
+          return mergeEnterpriseTemplateStyle(enterpriseTemplate, override);
+        })
       : this.styles.get(this.cardKey(session)) ?? {};
     return this.toPreview(card, style);
   }
@@ -546,7 +552,9 @@ export class EmployeeCardRepository {
         );
         const next = mergeStyle(current, materializedRequest);
         await this.upsertStyle(tx, session.tenantId, card.card_id, next);
-        return this.toPreview(card, next);
+        if (session.identityType === "personal") return this.toPreview(card, next);
+        const enterpriseTemplate = await this.readDefaultTemplateStyle(tx, session.tenantId);
+        return this.toPreview(card, mergeEnterpriseTemplateStyle(enterpriseTemplate, next));
       });
     }
 
@@ -743,6 +751,36 @@ export class EmployeeCardRepository {
       background_url: row.background_url,
       color_scheme: parseObject(row.color_scheme_json),
       layout: publicLayout
+    };
+  }
+
+  /** 读取企业当前默认模板，作为所有企业成员名片的展示基准。 */
+  private async readDefaultTemplateStyle(
+    tx: TenantTransactionClient,
+    tenantId: string
+  ): Promise<UpdateEmployeeCardStyleRequest> {
+    const result = await tx.query<StyleRow>(
+      `
+        SELECT background_url, logo_url, color_scheme_json, layout_json
+        FROM templates
+        WHERE tenant_id = $1
+          AND is_default = true
+          AND status = 'active'
+          AND deleted_at IS NULL
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [tenantId]
+    );
+    const row = result.rows[0];
+    if (!row) return {};
+    const layout = parseObject(row.layout_json);
+    return {
+      template_id: normalizeTemplateId(layout.variant),
+      logo_url: row.logo_url ?? null,
+      background_url: row.background_url,
+      color_scheme: parseObject(row.color_scheme_json),
+      layout
     };
   }
 
@@ -1391,6 +1429,31 @@ function mergeStyle(
   return sanitizeStyleForTemplate(next);
 }
 
+function mergeEnterpriseTemplateStyle(
+  template: UpdateEmployeeCardStyleRequest,
+  override: UpdateEmployeeCardStyleRequest
+): UpdateEmployeeCardStyleRequest {
+  if (!Object.keys(template).length) return sanitizeStyleForTemplate(override);
+  const overrideLayout = parseObject(override.layout);
+  const memberLayout = {
+    ...(typeof overrideLayout.variant === "string" ? { variant: overrideLayout.variant } : {}),
+    ...(typeof overrideLayout.portrait_photo_url === "string" ? { portrait_photo_url: overrideLayout.portrait_photo_url } : {})
+  };
+  const templateId = normalizeTemplateId(override.template_id ?? memberLayout.variant ?? template.template_id);
+  const layoutVariant = memberLayout.variant ?? parseObject(template.layout).variant ?? templateId;
+  return sanitizeStyleForTemplate({
+    template_id: templateId,
+    logo_url: template.logo_url ?? null,
+    background_url: template.background_url ?? null,
+    color_scheme: template.color_scheme ?? { primary: "#1677ff", surface: "#ffffff" },
+    layout: {
+      ...parseObject(template.layout),
+      ...memberLayout,
+      variant: layoutVariant
+    }
+  });
+}
+
 function sanitizeStyleRequestForEffectiveTemplate(
   current: UpdateEmployeeCardStyleRequest,
   request: UpdateEmployeeCardStyleRequest
@@ -1448,13 +1511,18 @@ function isPortraitTemplateId(templateId: unknown): boolean {
 
 function normalizeTemplateId(templateId: unknown): string {
   const value = String(templateId || "").trim();
-  if (value === "tpl_demo_business" || value === "tpl_horizontal_business" || value === "horizontal-business") {
-    return "tpl_horizontal_business";
-  }
-  if (value === "tpl_portrait_photo" || value === "tpl_photo_portrait" || value === "portrait-photo" || value === "photo-portrait") {
-    return "tpl_portrait_photo";
-  }
-  return value || "tpl_horizontal_business";
+  const aliases: Record<string, string> = {
+    tpl_demo_business: "tpl_horizontal_business",
+    "horizontal-business": "tpl_horizontal_business",
+    minimal: "tpl_minimal",
+    "brand-image": "tpl_brand_image",
+    "portrait-photo": "tpl_portrait_photo",
+    "photo-portrait": "tpl_portrait_photo",
+    tpl_photo_portrait: "tpl_portrait_photo",
+    dark: "tpl_dark",
+    campaign: "tpl_campaign"
+  };
+  return aliases[value] || value || "tpl_horizontal_business";
 }
 
 function defaultFields(): CardFields {
