@@ -6,7 +6,7 @@
   <scroll-view wx:if="{{module.key === 'services' && (module.layout === 'carousel' || module.layout === 'image')}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="module-scroll__track">
       <view class="service-item service-item--media" wx:for="{{module.content}}" wx:for-item="service" wx:key="id">
-        <image wx:if="{{service.image_url}}" src="{{service.image_url}}" mode="aspectFill" />
+        <image wx:if="{{service.image_url}}" src="{{service.image_url}}" mode="aspectFill" webp="{{true}}" />
         <view wx:if="{{module.layout !== 'image'}}" class="service-item__title">{{service.title}}</view>
         <view wx:if="{{module.layout === 'graphic' || module.layout === 'carousel'}}" class="service-item__desc">{{service.desc}}</view>
       </view>
@@ -15,7 +15,7 @@
 
   <view wx:elif="{{module.key === 'services'}}" class="service-grid service-grid--{{module.layout}}">
     <view class="service-item" wx:for="{{module.content}}" wx:for-item="service" wx:key="id">
-      <image wx:if="{{service.image_url && module.layout !== 'text'}}" src="{{service.image_url}}" mode="aspectFill" />
+      <image wx:if="{{service.image_url && module.layout !== 'text'}}" src="{{service.image_url}}" mode="aspectFill" webp="{{true}}" />
       <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{service.title}}</view>
       <view class="service-item__desc" wx:if="{{module.layout === 'graphic' || module.layout === 'grid'}}">{{service.desc}}</view>
     </view>
@@ -35,13 +35,13 @@
           </view>
         </view>
         <view class="intro-image-card" wx:elif="{{block.type === 'image'}}" bindtap="previewImage" data-url="{{block.image_url}}" data-urls="{{block.preview_urls}}">
-          <image class="intro-image-card__image" src="{{block.image_url}}" mode="aspectFill" />
+          <image class="intro-image-card__image" src="{{block.image_url}}" mode="aspectFill" webp="{{true}}" />
           <view class="intro-image-card__caption" wx:if="{{block.caption}}">{{block.caption}}</view>
         </view>
         <scroll-view wx:elif="{{block.type === 'gallery'}}" class="module-scroll intro-gallery" scroll-x enhanced show-scrollbar="{{false}}">
           <view class="module-scroll__track">
             <view class="gallery-card" wx:for="{{block.images}}" wx:for-item="image" wx:key="url" bindtap="previewImage" data-url="{{image.url}}" data-urls="{{block.preview_urls}}">
-              <image class="gallery-image" src="{{image.url}}" mode="aspectFill" />
+              <image class="gallery-image" src="{{image.url}}" mode="aspectFill" webp="{{true}}" />
               <view class="gallery-card__caption" wx:if="{{image.caption}}">{{image.caption}}</view>
             </view>
           </view>
@@ -49,7 +49,7 @@
         <view wx:elif="{{block.type === 'video' && block.video_url}}" class="intro-video-card">
           <video wx:if="{{activeVideoKey === block.video_key}}" id="company-video-{{block.video_key}}" class="company-video intro-video-card__video" src="{{block.video_url}}" poster="{{block.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay />
           <view wx:else class="company-video-cover intro-video-card__video" bindtap="playVideo" data-video-key="{{block.video_key}}">
-            <image wx:if="{{block.cover_url}}" class="company-video-cover__image" src="{{block.cover_url}}" mode="aspectFill" />
+            <image wx:if="{{block.cover_url}}" class="company-video-cover__image" src="{{block.cover_url}}" mode="aspectFill" webp="{{true}}" />
             <view wx:else class="company-video-cover__fallback"></view>
             <view class="company-video-cover__shade"></view>
             <view class="company-video-cover__play"><view class="icon icon-play icon--sm"></view></view>
@@ -70,7 +70,7 @@
   <scroll-view wx:elif="{{module.key === 'honors' && (module.layout === 'carousel' || module.layout === 'image')}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="module-scroll__track">
       <view class="honor-item" wx:for="{{module.content}}" wx:for-item="honor" wx:key="honor_id">
-        <image wx:if="{{honor.primary_image_url}}" src="{{honor.primary_image_url}}" mode="aspectFill" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
+        <image wx:if="{{honor.primary_image_url}}" src="{{honor.primary_image_url}}" mode="aspectFill" webp="{{true}}" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
         <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{honor.title}}</view>
         <view class="service-item__desc" wx:if="{{module.layout === 'carousel' && honor.body}}">{{honor.body}}</view>
       </view>
@@ -79,7 +79,7 @@
 
   <view wx:elif="{{module.key === 'honors'}}" class="service-grid service-grid--{{module.layout}}">
     <view class="service-item" wx:for="{{module.content}}" wx:for-item="honor" wx:key="honor_id">
-      <image wx:if="{{honor.primary_image_url && module.layout !== 'text'}}" src="{{honor.primary_image_url}}" mode="aspectFill" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
+      <image wx:if="{{honor.primary_image_url && module.layout !== 'text'}}" src="{{honor.primary_image_url}}" mode="aspectFill" webp="{{true}}" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
       <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{honor.title}}</view>
       <view class="service-item__desc" wx:if="{{module.layout === 'graphic' || module.layout === 'grid'}}">{{honor.body}}</view>
     </view>
@@ -89,7 +89,7 @@
     <view class="company-video-shell" wx:for="{{module.content}}" wx:for-item="video" wx:key="video_id">
       <video wx:if="{{activeVideoKey === video.video_key}}" id="company-video-{{video.video_key}}" class="company-video" src="{{video.video_url}}" poster="{{video.cover_url}}" object-fit="cover" show-center-play-btn="{{false}}" controls autoplay />
       <view wx:else class="company-video-cover company-video" bindtap="playVideo" data-video-key="{{video.video_key}}">
-        <image wx:if="{{video.cover_url}}" class="company-video-cover__image" src="{{video.cover_url}}" mode="aspectFill" />
+        <image wx:if="{{video.cover_url}}" class="company-video-cover__image" src="{{video.cover_url}}" mode="aspectFill" webp="{{true}}" />
         <view wx:else class="company-video-cover__fallback"></view>
         <view class="company-video-cover__shade"></view>
         <view class="company-video-cover__play"><view class="icon icon-play icon--sm"></view></view>

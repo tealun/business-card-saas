@@ -54,7 +54,7 @@
     <view class="card wallet-list">
       <view class="wallet-item" wx:for="{{item.items}}" wx:for-item="card" wx:key="id">
         <view class="wallet-item__avatar wallet-item__avatar--{{card.state}}">
-          <image wx:if="{{card.avatarUrl}}" src="{{card.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+          <image wx:if="{{card.avatarUrl}}" src="{{card.avatarUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
           <view wx:else class="avatar-placeholder"></view>
         </view>
         <view class="wallet-item__main">

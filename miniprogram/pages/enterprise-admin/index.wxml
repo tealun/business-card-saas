@@ -260,7 +260,7 @@
               <button wx:if="{{profileDraft.logo_url}}" class="mini-btn mini-btn--ghost" bindtap="clearProfileLogo">清除</button>
             </view>
           </view>
-          <image wx:if="{{profileDraft.logo_url}}" class="upload-preview upload-preview--logo" src="{{profileDraft.logo_url}}" mode="aspectFill" />
+          <image wx:if="{{profileDraft.logo_url}}" class="upload-preview upload-preview--logo" src="{{profileDraft.logo_url}}" mode="aspectFill" webp="{{true}}" />
         </view>
         <view class="form-row"><text>官网</text><input value="{{profileDraft.website_url}}" data-key="website_url" bindinput="onProfileInput" /></view>
         <view class="form-row"><text>地址</text><input value="{{profileDraft.address}}" data-key="address" bindinput="onProfileInput" /></view>
@@ -343,7 +343,7 @@
                   <button wx:if="{{introDraft.imageUrl}}" class="mini-btn mini-btn--ghost" bindtap="clearIntroImage">清除</button>
                 </view>
               </view>
-              <image wx:if="{{introDraft.imageUrl}}" class="upload-preview" src="{{introDraft.imageUrl}}" mode="aspectFill" />
+              <image wx:if="{{introDraft.imageUrl}}" class="upload-preview" src="{{introDraft.imageUrl}}" mode="aspectFill" webp="{{true}}" />
             </view>
             <view class="form-row"><text>说明</text><input value="{{introDraft.imageCaption}}" data-key="imageCaption" bindinput="onIntroInput" /></view>
           </block>
@@ -355,7 +355,7 @@
               </view>
               <view wx:if="{{introDraft.galleryImages.length}}" class="media-editor-list">
                 <view wx:for="{{introDraft.galleryImages}}" wx:key="url" class="media-editor">
-                  <image class="media-editor__thumb" src="{{item.url}}" mode="aspectFill" />
+                  <image class="media-editor__thumb" src="{{item.url}}" mode="aspectFill" webp="{{true}}" />
                   <view class="media-editor__main">
                     <input class="media-editor__input" value="{{item.caption}}" data-index="{{index}}" data-key="caption" placeholder="图片说明" bindinput="onGalleryImageInput" />
                     <button class="mini-btn mini-btn--danger media-editor__delete" data-index="{{index}}" bindtap="removeGalleryImage">删除</button>
@@ -375,7 +375,7 @@
                 bindtap="selectIntroVideo"
               >
                 <view class="video-select-item__thumb">
-                  <image wx:if="{{item._cover}}" src="{{item._cover}}" mode="aspectFill" />
+                  <image wx:if="{{item._cover}}" src="{{item._cover}}" mode="aspectFill" webp="{{true}}" />
                   <view wx:else class="icon icon-video icon--sm"></view>
                 </view>
                 <view class="video-select-item__main">
@@ -392,7 +392,7 @@
           <button wx:if="{{introDraft.editingBlockIndex >= 0}}" class="sheet-tertiary" bindtap="cancelIntroBlockEdit">取消编辑</button>
 
           <view wx:for="{{introDraft.intro_blocks}}" wx:key="index" class="content-card intro-block">
-            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" webp="{{true}}" />
             <view class="content-card__main">
               <view class="content-card__title">{{item._label}}</view>
               <view class="content-card__desc">{{item._summary}}</view>
@@ -416,7 +416,7 @@
                 <button wx:if="{{introDraft.serviceDraft.image_url}}" class="mini-btn mini-btn--ghost" bindtap="clearServiceImage">清除</button>
               </view>
             </view>
-            <image wx:if="{{introDraft.serviceDraft.image_url}}" class="upload-preview" src="{{introDraft.serviceDraft.image_url}}" mode="aspectFill" />
+            <image wx:if="{{introDraft.serviceDraft.image_url}}" class="upload-preview" src="{{introDraft.serviceDraft.image_url}}" mode="aspectFill" webp="{{true}}" />
           </view>
           <textarea class="intro-textarea" value="{{introDraft.serviceDraft.description}}" data-key="description" placeholder="服务描述" bindinput="onServiceInput"></textarea>
           <view class="switch-row"><text>展示服务</text><switch checked="{{introDraft.serviceDraft.visible}}" color="#5272d6" bindchange="onServiceVisible" /></view>
@@ -424,7 +424,7 @@
           <button wx:if="{{introDraft.editingServiceIndex >= 0}}" class="sheet-tertiary" bindtap="cancelServiceEdit">取消编辑</button>
 
           <view wx:for="{{introDraft.service_items}}" wx:key="id" class="content-card">
-            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" webp="{{true}}" />
             <view class="content-card__main">
               <view class="content-card__title">{{item.title || '未命名服务'}}</view>
               <view class="content-card__desc">{{item._summary}}</view>
@@ -464,7 +464,7 @@
               bindtap="selectIntroVideo"
             >
               <view class="video-select-item__thumb">
-                <image wx:if="{{item._cover}}" src="{{item._cover}}" mode="aspectFill" />
+                <image wx:if="{{item._cover}}" src="{{item._cover}}" mode="aspectFill" webp="{{true}}" />
                 <view wx:else class="icon icon-video icon--sm"></view>
               </view>
               <view class="video-select-item__main">
@@ -488,7 +488,7 @@
             </view>
             <view wx:if="{{introDraft.honorDraft.images.length}}" class="media-editor-list">
               <view wx:for="{{introDraft.honorDraft.images}}" wx:key="image_url" class="media-editor">
-                <image class="media-editor__thumb" src="{{item.image_url}}" mode="aspectFill" />
+                <image class="media-editor__thumb" src="{{item.image_url}}" mode="aspectFill" webp="{{true}}" />
                 <view class="media-editor__main">
                   <input class="media-editor__input" value="{{item.title}}" data-index="{{index}}" data-key="title" placeholder="图片标题" bindinput="onHonorImageInput" />
                   <input class="media-editor__input" value="{{item.caption}}" data-index="{{index}}" data-key="caption" placeholder="图片说明" bindinput="onHonorImageInput" />
@@ -507,7 +507,7 @@
           <button wx:if="{{introDraft.editingHonorId}}" class="sheet-tertiary" bindtap="cancelHonorEdit">取消编辑</button>
 
           <view wx:for="{{honors}}" wx:key="honor_id" class="content-card">
-            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" />
+            <image wx:if="{{item._cover}}" class="content-card__cover" src="{{item._cover}}" mode="aspectFill" webp="{{true}}" />
             <view class="content-card__main">
               <view class="content-card__title">{{item.title}}</view>
               <view class="content-card__desc">{{item._summary}}</view>

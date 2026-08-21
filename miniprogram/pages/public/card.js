@@ -171,6 +171,8 @@ Page({
     showCardHead: false,
     shareImageUrl: "",
     cardBackgroundStyle: "",
+    cardBackgroundUrl: "",
+    cardBackgroundOpacity: 1,
     cardTemplateClass: "biz-card--horizontal",
     portraitPhotoUrl: "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
@@ -250,6 +252,8 @@ Page({
       showCardHead: Boolean(cardMeta.logoUrl || cardMeta.companyShortName),
       cardTemplateClass: cardTemplateClass(templateId),
       portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
+      cardBackgroundUrl: background.url,
+      cardBackgroundOpacity: normalizeOpacity(background.opacity) / 100,
       cardBackgroundStyle: cardBackgroundStyle(
         background.url,
         background.opacity,
@@ -731,10 +735,7 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
       : "#ffffff";
   return [
     `background-color: ${fallbackColor}`,
-    `background-image: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}")`,
-    "background-position: center",
-    "background-size: cover",
-    "background-repeat: no-repeat"
+    `background-image: linear-gradient(${overlay}, ${overlay})`
   ].join(";") + ";";
 }
 

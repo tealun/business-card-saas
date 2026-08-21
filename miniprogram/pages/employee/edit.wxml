@@ -20,7 +20,7 @@
       </view>
       <button class="edit-avatar-btn" bindtap="chooseProfileImage" disabled="{{!editable.avatar_url}}">
         <view class="edit-avatar">
-          <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" binderror="onAvatarImageError" />
+          <image wx:if="{{form.avatar_url}}" src="{{form.avatar_url}}" mode="aspectFill" class="edit-avatar__img" webp="{{true}}" binderror="onAvatarImageError" />
           <view wx:else class="avatar-placeholder"></view>
         </view>
       </button>
@@ -60,7 +60,7 @@
       </view>
       <view class="edit-logo-actions">
         <view class="edit-logo">
-          <image wx:if="{{form.logo_url}}" src="{{form.logo_url}}" mode="aspectFit" class="edit-logo__img" />
+          <image wx:if="{{form.logo_url}}" src="{{form.logo_url}}" mode="aspectFit" class="edit-logo__img" webp="{{true}}" />
           <view wx:else class="edit-logo__empty">未设置</view>
         </view>
         <view wx:if="{{editable.logo_url}}" class="btn btn--sm btn--soft" bindtap="chooseLogoFromAlbum">选择</view>

@@ -31,9 +31,10 @@
       <view class="disabled-bar" wx:if="{{isDisabled}}">该名片已停用，内容仅供历史识别。</view>
 
       <view class="biz-card public-name-card {{cardTemplateClass}} {{showCardHead ? '' : 'biz-card--no-head'}}" style="{{cardBackgroundStyle}}">
+        <image wx:if="{{cardBackgroundUrl}}" class="biz-card__background" src="{{cardBackgroundUrl}}" mode="aspectFill" webp="{{true}}" style="opacity: {{cardBackgroundOpacity}};" />
         <view class="biz-card__head" wx:if="{{showCardHead}}">
           <view class="biz-card__logo" wx:if="{{cardLogoUrl}}">
-            <image class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" />
+            <image class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" webp="{{true}}" />
           </view>
           <text class="biz-card__company" wx:if="{{cardCompanyShortName}}">{{cardCompanyShortName}}</text>
         </view>
@@ -49,8 +50,8 @@
             </view>
           </view>
           <view class="biz-card__avatar" wx:if="{{cardTemplateClass === 'biz-card--portrait' || card.show_avatar}}">
-            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" />
-            <image wx:elif="{{card.card.avatar_url}}" src="{{card.card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
+            <image wx:elif="{{card.card.avatar_url}}" src="{{card.card.avatar_url}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
@@ -65,7 +66,7 @@
       <view class="card interact-card">
         <view class="visitor-avatars">
           <view class="visitor-avatar" wx:for="{{visitorAvatarSlots}}" wx:key="index">
-            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
@@ -117,7 +118,7 @@
       <view class="icon icon-close icon--sm" catchtap="closeWechatSheet"></view>
     </view>
     <view class="wechat-qr">
-      <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="aspectFit" />
+      <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="aspectFit" webp="{{true}}" />
       <view wx:else class="wechat-qr__placeholder"></view>
       <view class="wechat-qr__tip">长按识别加微信</view>
     </view>

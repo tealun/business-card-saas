@@ -42,9 +42,10 @@
 
     <block wx:else>
       <view class="biz-card home-card {{cardTemplateClass}}" style="{{cardBackgroundStyle}}" bindtap="goEdit">
+        <image wx:if="{{cardBackgroundUrl}}" class="biz-card__background" src="{{cardBackgroundUrl}}" mode="aspectFill" webp="{{true}}" style="opacity: {{cardBackgroundOpacity}};" />
         <view class="biz-card__head" wx:if="{{showCardHead}}">
           <view class="biz-card__logo" wx:if="{{cardLogoUrl || card.company_short_name}}">
-            <image wx:if="{{cardLogoUrl}}" class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" />
+            <image wx:if="{{cardLogoUrl}}" class="biz-card__logo-img" src="{{cardLogoUrl}}" mode="aspectFit" webp="{{true}}" />
             <block wx:else>
               <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
               <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
@@ -63,8 +64,8 @@
             </view>
           </view>
           <view class="biz-card__avatar" wx:if="{{cardTemplateClass === 'biz-card--portrait' || card.show_avatar}}">
-            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" />
-            <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+            <image wx:if="{{cardTemplateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
+            <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
         </view>
@@ -162,7 +163,7 @@
         <view class="f13 t-secondary" wx:if="{{!recentVisitors.length}}">暂无访客记录，发出名片后这里会展示访问动态。</view>
         <view class="visitor-item" wx:for="{{recentVisitors}}" wx:key="id">
           <view class="visitor-item__avatar visitor-item__avatar--{{item.state}}">
-            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
             <view wx:else class="avatar-placeholder"></view>
           </view>
           <view class="visitor-item__info">

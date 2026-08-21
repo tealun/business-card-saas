@@ -4555,15 +4555,30 @@ $("#createTemplate").addEventListener("click", async () => {
 });
 $("#updateTemplate").addEventListener("click", async () => {
   if (!requirePermission("tenant.template.write")) return;
+  const saveButton = $("#updateTemplate");
   const templateId = $("#templateId").value.trim();
   const name = $("#templateName").value.trim();
-  if (!name) throw new Error("请填写模板名称");
-  const template = await run("保存模板", () => templateId
-    ? adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) })
-    : adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
-  state.selectedTemplateId = template.template_id;
-  fillTemplateForm(template);
-  await loadTemplates();
+  if (!name) {
+    notify("请填写模板名称", "warning");
+    $("#templateName").focus();
+    return;
+  }
+  saveButton.disabled = true;
+  saveButton.textContent = "保存中...";
+  saveButton.setAttribute("aria-busy", "true");
+  try {
+    const template = await run("保存模板", () => templateId
+      ? adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) })
+      : adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
+    state.selectedTemplateId = template.template_id;
+    fillTemplateForm(template);
+    notify(`模板「${template.name || name}」已保存`);
+    await loadTemplates();
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "保存模板";
+    saveButton.removeAttribute("aria-busy");
+  }
 });
 $("#setDefaultTemplate").addEventListener("click", async () => {
   if (!requirePermission("tenant.template.write")) return;

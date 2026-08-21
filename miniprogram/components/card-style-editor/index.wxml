@@ -2,7 +2,7 @@
   <view class="biz-card style-preview {{templateClass}}" style="{{backgroundPreviewStyle}}">
     <view class="biz-card__head" wx:if="{{logoUrl || card.company_short_name}}">
       <view class="biz-card__logo" wx:if="{{logoUrl || card.company_short_name}}">
-        <image wx:if="{{logoUrl}}" class="biz-card__logo-img" src="{{logoUrl}}" mode="aspectFit" />
+        <image wx:if="{{logoUrl}}" class="biz-card__logo-img" src="{{logoUrl}}" mode="aspectFit" webp="{{true}}" />
         <block wx:else>
           <image class="biz-card__logo-img biz-card__logo-img--color" src="/assets/logo/color-nobg.png" mode="aspectFit" />
           <image class="biz-card__logo-img biz-card__logo-img--white" src="/assets/logo/white-nobg.png" mode="aspectFit" />
@@ -20,8 +20,8 @@
         </view>
       </view>
       <view class="biz-card__avatar" wx:if="{{templateClass === 'biz-card--portrait' || card.show_avatar}}">
-        <image wx:if="{{templateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" />
-        <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" />
+        <image wx:if="{{templateClass === 'biz-card--portrait'}}" src="{{portraitPhotoUrl || defaultPortraitPhotoUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
+        <image wx:elif="{{card.avatar_url}}" src="{{card.avatar_url}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
         <view wx:else class="avatar-placeholder"></view>
       </view>
     </view>
@@ -121,12 +121,12 @@
         data-id="{{item.id}}"
         bindtap="onPresetTap"
       >
-        <image class="background-preset__image" src="{{item.url}}" mode="aspectFill" />
+        <image class="background-preset__image" src="{{item.url}}" mode="aspectFill" webp="{{true}}" />
         <text class="background-preset__name">{{item.name}}</text>
       </view>
     </scroll-view>
     <view class="background-preview {{backgroundUrl ? 'background-preview--filled' : ''}} {{canEditBackground ? '' : 'background-preview--disabled'}}" bindtap="onChooseBackground">
-      <image wx:if="{{backgroundUrl}}" class="background-preview__image" src="{{backgroundUrl}}" mode="aspectFill" />
+      <image wx:if="{{backgroundUrl}}" class="background-preview__image" src="{{backgroundUrl}}" mode="aspectFill" webp="{{true}}" />
       <view wx:else class="background-preview__empty">
         <view class="icon icon-image"></view>
         <text>选择背景图</text>

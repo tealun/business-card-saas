@@ -1,5 +1,5 @@
 (function () {
-  const PARTIAL_VERSION = "20260821-template-studio7";
+  const PARTIAL_VERSION = "20260821-template-studio8";
   const PAGE_PARTIALS = [
     "tenant-dashboard",
     "tenant-members",

@@ -9,7 +9,7 @@
     </view>
   </view>
   <view class="portrait-photo-editor__preview {{url || defaultPhotoUrl ? 'portrait-photo-editor__preview--filled' : ''}}" bindtap="onChoosePhoto">
-    <image wx:if="{{url || defaultPhotoUrl}}" class="portrait-photo-editor__image" src="{{url || defaultPhotoUrl}}" mode="aspectFit" />
+    <image wx:if="{{url || defaultPhotoUrl}}" class="portrait-photo-editor__image" src="{{url || defaultPhotoUrl}}" mode="aspectFit" webp="{{true}}" />
     <view wx:else class="portrait-photo-editor__empty">
       <view class="icon icon-camera"></view>
       <text>{{editable ? "上传正方形形象照" : lockedText}}</text>

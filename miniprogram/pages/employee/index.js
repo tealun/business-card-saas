@@ -56,6 +56,8 @@ Page({
     cardLogoUrl: "/assets/logo/color-nobg.png",
     showCardHead: true,
     cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
+    cardBackgroundUrl: "",
+    cardBackgroundOpacity: 1,
     cardTemplateClass: "biz-card--horizontal",
     portraitPhotoUrl: "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
@@ -148,6 +150,8 @@ Page({
         identities: [demoIdentity(true)],
         card: demoCard,
         cardTemplateClass: "biz-card--horizontal",
+        cardBackgroundUrl: "",
+        cardBackgroundOpacity: 1,
         cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
         requests: demoRequests,
         stats: demoStats,
@@ -204,6 +208,8 @@ Page({
       loggedIn: false,
       card: demoCard,
       cardTemplateClass: "biz-card--horizontal",
+      cardBackgroundUrl: "",
+      cardBackgroundOpacity: 1,
       cardBackgroundStyle: cardBackgroundStyle("", 100, "tpl_horizontal_business"),
       requests: demoRequests,
       stats: demoStats,
@@ -270,6 +276,8 @@ Page({
         showCardHead: Boolean((preview.template && preview.template.logo_url) || (preview.card && preview.card.company_short_name)),
         cardTemplateClass: cardTemplateClass(templateId),
         portraitPhotoUrl: layoutImageUrl(layout, "portrait_photo_url"),
+        cardBackgroundUrl: background.url,
+        cardBackgroundOpacity: normalizeOpacity(background.opacity) / 100,
         cardBackgroundStyle: cardBackgroundStyle(
           background.url,
           background.opacity,
@@ -1217,7 +1225,7 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
   const overlay = normalizedTemplateId === "tpl_brand_image" || normalizedTemplateId === "tpl_dark"
     ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
     : `rgba(255,255,255,${alpha.toFixed(2)})`;
-  return `background: linear-gradient(${overlay}, ${overlay}), url("${backgroundUrl}") center / cover no-repeat;`;
+  return `background: linear-gradient(${overlay}, ${overlay});`;
 }
 
 function cardTemplateClass(templateId) {
