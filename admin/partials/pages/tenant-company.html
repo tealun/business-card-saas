@@ -47,14 +47,14 @@
 
       <div class="builder-label builder-label--spaced">品牌主色</div>
       <div class="builder-swatches" aria-label="品牌主色">
-        <button type="button" class="active" style="background:#2f6df6" data-company-brand="#2f6df6" aria-label="蓝色"></button>
-        <button type="button" style="background:#ef4f5f" data-company-brand="#ef4f5f" aria-label="红色"></button>
-        <button type="button" style="background:#7957e6" data-company-brand="#7957e6" aria-label="紫色"></button>
-        <button type="button" style="background:#198f63" data-company-brand="#198f63" aria-label="绿色"></button>
-        <button type="button" style="background:#f0830f" data-company-brand="#f0830f" aria-label="橙色"></button>
-        <button type="button" style="background:#119c9a" data-company-brand="#119c9a" aria-label="青色"></button>
+        <button type="button" class="active" style="background:#5272d6" data-company-brand="#5272d6" aria-label="蓝色"></button>
+        <button type="button" style="background:#0f766e" data-company-brand="#0f766e" aria-label="青绿色"></button>
+        <button type="button" style="background:#c2410c" data-company-brand="#c2410c" aria-label="橙色"></button>
+        <button type="button" style="background:#7c3aed" data-company-brand="#7c3aed" aria-label="紫色"></button>
+        <button type="button" style="background:#111827" data-company-brand="#111827" aria-label="深灰色"></button>
       </div>
-      <p class="builder-help">主色目前沿用企业模板配置，这里先用于预览切换。</p>
+      <label class="builder-brand-custom"><span>自定义</span><input id="companyBrandColor" maxlength="7" value="#5272d6" /></label>
+      <p class="builder-help">读取并保存到企业默认名片模板；手机端与 PC 端修改的是同一个主色。</p>
     </aside>
 
     <main class="company-builder-stage">
@@ -134,6 +134,10 @@
         </div>
 
         <div class="company-tab" data-company-panel="honors">
+          <div class="builder-subhead">
+            <strong>展示布局</strong>
+            <div id="honorLayoutChoices" class="layout-choice-row"></div>
+          </div>
           <div class="inline-actions">
             <button id="loadHonors" type="button" class="secondary">读取荣誉</button>
             <button id="addHonor" type="button" class="secondary">+ 添加荣誉</button>

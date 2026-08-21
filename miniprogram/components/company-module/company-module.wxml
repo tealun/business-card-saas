@@ -67,15 +67,23 @@
     </view>
   </view>
 
-  <scroll-view wx:elif="{{module.key === 'honors'}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+  <scroll-view wx:elif="{{module.key === 'honors' && (module.layout === 'carousel' || module.layout === 'image')}}" class="module-scroll" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="module-scroll__track">
       <view class="honor-item" wx:for="{{module.content}}" wx:for-item="honor" wx:key="honor_id">
         <image wx:if="{{honor.primary_image_url}}" src="{{honor.primary_image_url}}" mode="aspectFill" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
-        <view class="service-item__title">{{honor.title}}</view>
-        <view class="service-item__desc" wx:if="{{honor.body}}">{{honor.body}}</view>
+        <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{honor.title}}</view>
+        <view class="service-item__desc" wx:if="{{module.layout === 'carousel' && honor.body}}">{{honor.body}}</view>
       </view>
     </view>
   </scroll-view>
+
+  <view wx:elif="{{module.key === 'honors'}}" class="service-grid service-grid--{{module.layout}}">
+    <view class="service-item" wx:for="{{module.content}}" wx:for-item="honor" wx:key="honor_id">
+      <image wx:if="{{honor.primary_image_url && module.layout !== 'text'}}" src="{{honor.primary_image_url}}" mode="aspectFill" bindtap="previewImage" data-url="{{honor.primary_image_url}}" data-urls="{{honor.image_urls}}" />
+      <view class="service-item__title" wx:if="{{module.layout !== 'image'}}">{{honor.title}}</view>
+      <view class="service-item__desc" wx:if="{{module.layout === 'graphic' || module.layout === 'grid'}}">{{honor.body}}</view>
+    </view>
+  </view>
 
   <view wx:elif="{{module.key === 'videos'}}" class="company-video-list">
     <view class="company-video-shell" wx:for="{{module.content}}" wx:for-item="video" wx:key="video_id">

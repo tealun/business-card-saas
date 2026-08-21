@@ -1,6 +1,6 @@
 <section class="page" data-page="tenant-design">
           <div class="page-head">
-            <div><h2>字段与模板</h2><p>统一成员名片字段规则和企业默认模板。</p></div>
+            <div><h2>企业设置</h2><p>统一管理成员字段权限与企业名片模板。</p></div>
             <button id="saveFieldSettings" type="button">保存字段规则</button>
           </div>
           <article class="panel">
@@ -12,23 +12,78 @@
               </table>
             </div>
           </article>
-          <article class="panel">
-            <div class="panel-head"><h3>模板</h3><button id="loadTemplates" type="button" class="secondary">读取模板</button></div>
+          <article class="panel template-settings-panel">
+            <div class="panel-head">
+              <div><h3>企业名片模板</h3><p class="hint">PC 与手机端共用同一套企业模板配置，默认模板的品牌主色会同步到企业主页。</p></div>
+              <button id="loadTemplates" type="button" class="secondary">刷新模板</button>
+            </div>
             <div id="templateCards" class="template-grid"></div>
-            <form id="templateForm" class="stack-form compact-form template-form">
-              <h4 class="editor-subhead">新建 / 编辑模板</h4>
+            <form id="templateForm" class="template-workspace">
               <input id="templateId" type="hidden" />
-              <label><span>模板名称</span><input id="templateName" required /></label>
-              <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
-              <label><span>背景 URL</span><input id="templateBackgroundUrl" /></label>
-              <label><span>Logo URL</span><input id="templateLogoUrl" /></label>
-              <label><span>主色</span><input id="templatePrimaryColor" value="#2563eb" /></label>
-              <label><span>底色</span><input id="templateSurfaceColor" value="#ffffff" /></label>
-              <label><span>布局</span><input id="templateLayoutVariant" value="horizontal-business" /></label>
-              <div class="inline-actions">
-                <button id="createTemplate" type="button">新增</button>
-                <button id="updateTemplate" type="button" class="secondary">保存</button>
-                <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
+              <section class="template-live-preview" aria-label="名片模板预览">
+                <div id="templatePreview" class="template-preview-card template-preview-card--horizontal-business">
+                  <div class="template-preview-card__brand"><span id="templatePreviewLogo">企</span><strong id="templatePreviewCompany">企业名称</strong></div>
+                  <div class="template-preview-card__person"><strong>成员姓名</strong><span>职位名称</span><small>138 0000 0000</small></div>
+                  <span class="template-preview-card__badge">实时预览</span>
+                </div>
+                <div class="template-preview-meta">
+                  <span>当前编辑</span><strong id="templatePreviewName">请选择模板</strong><small id="templatePreviewState">保存后同步到企业成员名片</small>
+                </div>
+              </section>
+
+              <div class="template-control-stack">
+                <section class="template-control-section">
+                  <div class="template-control-head"><div><strong>基本信息</strong><small>用于后台识别和启停模板</small></div></div>
+                  <div class="template-field-grid">
+                    <label><span>模板名称</span><input id="templateName" required /></label>
+                    <label><span>状态</span><select id="templateStatus"><option value="active">启用</option><option value="disabled">停用</option></select></label>
+                  </div>
+                </section>
+
+                <section class="template-control-section">
+                  <div class="template-control-head"><div><strong>模板版式</strong><small>与手机端企业管理使用相同的 layout.variant</small></div></div>
+                  <div id="templateVariantChoices" class="template-variant-grid"></div>
+                  <input id="templateLayoutVariant" type="hidden" value="horizontal-business" />
+                </section>
+
+                <section class="template-control-section">
+                  <div class="template-control-head"><div><strong>品牌主色</strong><small>默认模板主色同时驱动企业主页</small></div><code id="templatePrimaryColorValue">#5272D6</code></div>
+                  <div id="templateColorChoices" class="template-color-row"></div>
+                  <div class="template-custom-color">
+                    <label for="templatePrimaryColor">自定义 HEX</label>
+                    <input id="templatePrimaryColor" value="#5272d6" maxlength="7" />
+                    <input id="templatePrimaryColorPicker" type="color" value="#5272d6" aria-label="选择自定义品牌色" />
+                  </div>
+                  <input id="templateSurfaceColor" type="hidden" value="#ffffff" />
+                </section>
+
+                <section class="template-control-section">
+                  <div class="template-control-head"><div><strong>品牌素材</strong><small>直接上传，无需手工填写 URL</small></div></div>
+                  <div class="template-asset-grid">
+                    <div class="template-asset-field">
+                      <span>企业 Logo</span><div id="templateLogoPreview" class="template-asset-preview">未上传</div>
+                      <div class="inline-actions"><button id="uploadTemplateLogo" type="button" class="secondary">上传 Logo</button><button id="clearTemplateLogo" type="button" class="ghost">清除</button></div>
+                    </div>
+                    <div class="template-asset-field">
+                      <span>模板背景</span><div id="templateBackgroundPreview" class="template-asset-preview template-asset-preview--wide">未上传</div>
+                      <div class="inline-actions"><button id="uploadTemplateBackground" type="button" class="secondary">上传背景</button><button id="clearTemplateBackground" type="button" class="ghost">恢复默认</button></div>
+                    </div>
+                  </div>
+                  <input id="templateLogoUrl" type="hidden" />
+                  <input id="templateBackgroundUrl" type="hidden" />
+                  <label class="template-range-field"><span>背景图透明度 <strong id="templateBackgroundOpacityValue">100%</strong></span><input id="templateBackgroundOpacity" type="range" min="0" max="100" step="5" value="100" /></label>
+                  <div id="templatePortraitField" class="template-asset-field hidden">
+                    <span>照片版形象照</span><div id="templatePortraitPreview" class="template-asset-preview">未上传</div>
+                    <input id="templatePortraitUrl" type="hidden" />
+                    <div class="inline-actions"><button id="uploadTemplatePortrait" type="button" class="secondary">上传形象照</button><button id="clearTemplatePortrait" type="button" class="ghost">清除</button></div>
+                  </div>
+                </section>
+
+                <div class="template-workspace-actions">
+                  <button id="createTemplate" type="button" class="secondary">新建模板</button>
+                  <button id="setDefaultTemplate" type="button" class="secondary">设为默认</button>
+                  <button id="updateTemplate" type="button">保存模板</button>
+                </div>
               </div>
             </form>
           </article>

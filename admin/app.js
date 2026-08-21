@@ -11,7 +11,7 @@ const PAGE_META = {
   "tenant-dashboard": ["企业后台", "企业总览", "企业状态、名片规模和待办事项"],
   "tenant-members": ["企业后台", "成员与名片", "成员同步和名片编辑"],
   "tenant-company": ["企业后台", "企业主页", "企业资料和主页内容"],
-  "tenant-design": ["企业后台", "字段与模板", "名片字段规则和模板"],
+  "tenant-design": ["企业后台", "企业设置", "成员字段规则和企业名片模板"],
   "tenant-sync": ["企业后台", "同步与回调", "企业同步事件"],
   "tenant-analytics": ["企业后台", "数据分析", "访问、互动和成员表现"],
   "tenant-billing": ["企业后台", "版本与额度", "商业化能力状态"],
@@ -33,7 +33,7 @@ const NAVS = {
     ["tenant-dashboard", "总览", "tenant.dashboard"],
     ["tenant-members", "成员与名片", "tenant.members"],
     ["tenant-company", "企业主页", "tenant.company"],
-    ["tenant-design", "字段与模板", "tenant.design"],
+    ["tenant-design", "企业设置", "tenant.design"],
     ["tenant-sync", "同步与回调", "tenant.sync"],
     ["tenant-analytics", "数据分析", "tenant.analytics"],
     ["tenant-billing", "版本与额度", "tenant.billing"],
@@ -68,11 +68,12 @@ const state = {
   companyActiveTab: "base",
   companyDirty: false,
   companyPreviewStyle: "classic",
-  companyPreviewBrand: "#2f6df6",
+  companyPreviewBrand: "#5272d6",
   deletedHonorIds: [],
   videoCapability: null,
   fieldSettings: [],
   templates: [],
+  templateDraftBackgrounds: {},
   wecomSettings: null,
   selectedTemplateId: "",
   tenantFeatures: [],
@@ -116,14 +117,16 @@ const COMPANY_INTRO_TYPES = [
   { type: "video", label: "视频" }
 ];
 
-const COMPANY_BRANDS = {
-  "#2f6df6": { brand: "#2f6df6", strong: "#1e56d6", bright: "#2f6df6", soft: "#eaf1ff", ring: "rgba(47, 109, 246, .16)" },
-  "#ef4f5f": { brand: "#ef4f5f", strong: "#c93546", bright: "#ef4f5f", soft: "#fff0f2", ring: "rgba(239, 79, 95, .16)" },
-  "#7957e6": { brand: "#7957e6", strong: "#5f3ed0", bright: "#7957e6", soft: "#f1edff", ring: "rgba(121, 87, 230, .16)" },
-  "#198f63": { brand: "#198f63", strong: "#0f744e", bright: "#198f63", soft: "#e9f7f0", ring: "rgba(25, 143, 99, .16)" },
-  "#f0830f": { brand: "#f0830f", strong: "#c96a09", bright: "#f0830f", soft: "#fff3e3", ring: "rgba(240, 131, 15, .16)" },
-  "#119c9a": { brand: "#119c9a", strong: "#0d7d7b", bright: "#119c9a", soft: "#e8f8f7", ring: "rgba(17, 156, 154, .16)" }
-};
+const TEMPLATE_VARIANTS = [
+  { value: "horizontal-business", label: "横版商务", desc: "企业级默认模板" },
+  { value: "minimal", label: "极简", desc: "信息更克制" },
+  { value: "brand-image", label: "品牌图", desc: "适合强品牌露出" },
+  { value: "portrait-photo", label: "照片版", desc: "突出成员形象" },
+  { value: "dark", label: "深色", desc: "高对比展示" },
+  { value: "campaign", label: "活动版", desc: "短期推广使用" }
+];
+
+const TEMPLATE_BRAND_COLORS = ["#5272d6", "#0f766e", "#c2410c", "#7c3aed", "#111827"];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -194,6 +197,36 @@ function mediaUrl(value) {
     return `${apiBase()}${url.slice("/api/v1".length)}`;
   }
   return url;
+}
+
+function normalizeHexColor(value, fallback = "") {
+  const input = String(value || "").trim();
+  const short = /^#([0-9a-f]{3})$/i.exec(input);
+  if (short) return `#${short[1].split("").map((char) => `${char}${char}`).join("")}`.toLowerCase();
+  return /^#[0-9a-f]{6}$/i.test(input) ? input.toLowerCase() : fallback;
+}
+
+function mixHexColor(color, target, ratio) {
+  const source = normalizeHexColor(color, "#5272d6").slice(1);
+  const destination = normalizeHexColor(target, "#ffffff").slice(1);
+  const amount = Math.max(0, Math.min(1, ratio));
+  const channels = [0, 2, 4].map((offset) => Math.round(
+    parseInt(source.slice(offset, offset + 2), 16) * (1 - amount)
+      + parseInt(destination.slice(offset, offset + 2), 16) * amount
+  ));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function brandTokens(primary) {
+  const brand = normalizeHexColor(primary, "#5272d6");
+  const rgb = [1, 3, 5].map((offset) => parseInt(brand.slice(offset, offset + 2), 16));
+  return {
+    brand,
+    strong: mixHexColor(brand, "#000000", 0.2),
+    bright: brand,
+    soft: mixHexColor(brand, "#ffffff", 0.9),
+    ring: `rgba(${rgb.join(", ")}, .18)`
+  };
 }
 
 async function request(path, options = {}) {
@@ -435,6 +468,12 @@ function refreshPermissionControls() {
   applyPermissionState("#createTemplate", "tenant.template.write");
   applyPermissionState("#updateTemplate", "tenant.template.write");
   applyPermissionState("#setDefaultTemplate", "tenant.template.write");
+  applyPermissionState("#uploadTemplateLogo", "tenant.template.write");
+  applyPermissionState("#clearTemplateLogo", "tenant.template.write");
+  applyPermissionState("#uploadTemplateBackground", "tenant.template.write");
+  applyPermissionState("#clearTemplateBackground", "tenant.template.write");
+  applyPermissionState("#uploadTemplatePortrait", "tenant.template.write");
+  applyPermissionState("#clearTemplatePortrait", "tenant.template.write");
   applyPermissionState("#saveWecomSettings", "tenant.member.sync");
   applyPermissionState("#retrySyncEvents", "tenant.sync.retry");
   applyPermissionState("#saveVideoFeatures", "platform.feature.write");
@@ -1028,18 +1067,21 @@ async function updateMemberCardStatus(item, status) {
 }
 
 async function loadCompanyProfileBundle() {
-  const [profile, capability, honors, videos] = await Promise.all([
+  const [profile, capability, honors, videos, templates] = await Promise.all([
     adminRequest("/admin/company-profile"),
     adminRequest("/admin/features/company-video").catch(() => null),
     adminRequest("/admin/company-honors").catch(() => ({ items: [] })),
-    adminRequest("/admin/company-videos").catch(() => ({ items: [] }))
+    adminRequest("/admin/company-videos").catch(() => ({ items: [] })),
+    adminRequest("/admin/templates").catch(() => ({ items: [] }))
   ]);
   state.videoCapability = capability;
   state.companyHonors = honors.items || [];
   state.companyVideos = videos.items || [];
+  state.templates = templates.items || [];
+  syncCompanyBrandFromDefaultTemplate();
   state.deletedHonorIds = [];
   fillCompany(profile);
-  return { profile, capability, honors, videos };
+  return { profile, capability, honors, videos, templates };
 }
 
 async function loadCompanyProfileOnly() {
@@ -1135,6 +1177,40 @@ function markCompanyDirty() {
   renderCompanyDirtyState();
 }
 
+function defaultCompanyTemplate() {
+  return (state.templates || []).find((item) => item.is_default)
+    || (state.templates || []).find((item) => item.status === "active")
+    || state.templates?.[0]
+    || null;
+}
+
+function syncCompanyBrandFromDefaultTemplate() {
+  const template = defaultCompanyTemplate();
+  state.companyPreviewBrand = normalizeHexColor(template?.color_scheme?.primary, "#5272d6");
+}
+
+function updateDefaultTemplateBrand(primary) {
+  const template = defaultCompanyTemplate();
+  if (!template) return false;
+  const color = normalizeHexColor(primary);
+  if (!color) return false;
+  template.color_scheme = { ...(template.color_scheme || {}), primary: color };
+  state.companyPreviewBrand = color;
+  return true;
+}
+
+async function saveDefaultTemplateBrand() {
+  const template = defaultCompanyTemplate();
+  if (!template) return null;
+  const updated = await adminRequest(`/admin/templates/${encodeURIComponent(template.template_id)}`, {
+    method: "PUT",
+    body: templateRecordPayload(template)
+  });
+  state.templates = state.templates.map((item) => item.template_id === updated.template_id ? updated : item);
+  syncCompanyBrandFromDefaultTemplate();
+  return updated;
+}
+
 function renderCompanyDirtyState() {
   const node = $("#companyDirtyTag");
   if (!node) return;
@@ -1146,7 +1222,7 @@ function applyCompanyPreviewStyle() {
   if (!shell) return;
   shell.classList.remove("company-style-classic", "company-style-plain", "company-style-dark");
   shell.classList.add(`company-style-${state.companyPreviewStyle}`);
-  const brand = COMPANY_BRANDS[state.companyPreviewBrand] || COMPANY_BRANDS["#2f6df6"];
+  const brand = brandTokens(state.companyPreviewBrand);
   shell.style.setProperty("--brand", brand.brand);
   shell.style.setProperty("--brand-strong", brand.strong);
   shell.style.setProperty("--brand-bright", brand.bright);
@@ -1156,8 +1232,10 @@ function applyCompanyPreviewStyle() {
     node.classList.toggle("builder-style-card--active", node.dataset.companyStyle === state.companyPreviewStyle);
   });
   $$(".builder-swatches button").forEach((node) => {
-    node.classList.toggle("active", node.dataset.companyBrand === state.companyPreviewBrand);
+    node.classList.toggle("active", normalizeHexColor(node.dataset.companyBrand) === state.companyPreviewBrand);
   });
+  const colorInput = $("#companyBrandColor");
+  if (colorInput && document.activeElement !== colorInput) colorInput.value = state.companyPreviewBrand;
 }
 
 function publishCheckRows() {
@@ -1319,14 +1397,22 @@ function selectCompanyTab(key = "base") {
 }
 
 function renderServiceLayoutChoices() {
-  const root = $("#serviceLayoutChoices");
-  const module = companyModuleByKey("services");
+  renderCompanyLayoutChoices("#serviceLayoutChoices", "services", "serviceLayout");
+}
+
+function renderHonorLayoutChoices() {
+  renderCompanyLayoutChoices("#honorLayoutChoices", "honors", "honorLayout");
+}
+
+function renderCompanyLayoutChoices(rootSelector, moduleKey, dataKey) {
+  const root = $(rootSelector);
+  const module = companyModuleByKey(moduleKey);
   if (!root || !module) return;
   root.replaceChildren(...COMPANY_LAYOUTS.map((item) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `layout-choice ${module.layout === item.value ? "active" : ""}`;
-    button.dataset.serviceLayout = item.value;
+    button.dataset[dataKey] = item.value;
     button.innerHTML = `<strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.desc)}</small>`;
     return button;
   }));
@@ -1337,6 +1423,7 @@ function renderCompanyEditors() {
   profile.display_modules = normalizeCompanyModules(profile.display_modules || []);
   renderCompanyStructure();
   renderServiceLayoutChoices();
+  renderHonorLayoutChoices();
   renderIntroEditor();
   renderServiceEditor();
   renderHonorEditors();
@@ -1685,7 +1772,7 @@ function previewModule(module, textBlock) {
     }
   } else if (module.key === "services") {
     const services = (state.companyProfile?.service_items || []).filter((item) => item.visible !== false).slice(0, 4);
-    card.append(previewList(services, "暂无服务项目", (item) => [item.title || "未命名服务", item.description || "一句话说明"]));
+    card.append(previewServices(services, module.layout));
   } else if (module.key === "videos") {
     const video = selectableCompanyVideos()[0];
     if (video) {
@@ -1703,10 +1790,54 @@ function previewModule(module, textBlock) {
       card.append(previewList([], "未选择视频，发布后访客不可见", () => []));
     }
   } else if (module.key === "honors") {
-    const honors = (state.companyHonors || []).filter((item) => item.visible !== false).slice(0, 2);
-    card.append(previewList(honors, "暂无荣誉资质", (item) => [item.title || "荣誉资质", item.body || `${(item.images || []).length} 张图片`]));
+    const honors = (state.companyHonors || []).filter((item) => item.visible !== false).slice(0, 4);
+    card.append(previewServices(honors.map((item) => ({
+      title: item.title || "荣誉资质",
+      description: item.body || item.images?.[0]?.caption || `${(item.images || []).length} 张图片`,
+      image_url: item.images?.[0]?.image_url || ""
+    })), module.layout, "暂无荣誉资质"));
   }
   return card;
+}
+
+function previewServices(services, layout = "graphic", emptyText = "暂无服务项目") {
+  const normalizedLayout = COMPANY_LAYOUTS.some((item) => item.value === layout) ? layout : "graphic";
+  const wrap = document.createElement("div");
+  wrap.className = `preview-services preview-services--${normalizedLayout}`;
+  if (!services.length) {
+    const empty = document.createElement("p");
+    empty.className = "preview-empty";
+    empty.textContent = emptyText;
+    wrap.append(empty);
+    return wrap;
+  }
+  services.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "preview-service-item";
+    if (item.image_url && normalizedLayout !== "text") {
+      const image = document.createElement("img");
+      image.src = mediaUrl(item.image_url);
+      image.alt = "";
+      row.append(image);
+    } else {
+      row.classList.add("preview-service-item--no-image");
+    }
+    if (normalizedLayout !== "image") {
+      const content = document.createElement("div");
+      content.className = "preview-service-content";
+      const title = document.createElement("strong");
+      title.textContent = item.title || "未命名服务";
+      content.append(title);
+      if (["graphic", "grid", "carousel"].includes(normalizedLayout)) {
+        const desc = document.createElement("span");
+        desc.textContent = item.description || "一句话说明";
+        content.append(desc);
+      }
+      row.append(content);
+    }
+    wrap.append(row);
+  });
+  return wrap;
 }
 
 function previewList(items, emptyText, formatter) {
@@ -2162,8 +2293,13 @@ async function saveHonors() {
 }
 
 async function loadDesignBundle() {
-  const [fields, templates] = await Promise.all([loadFieldSettings(), loadTemplates()]);
-  return { fields, templates };
+  const [fields, profile] = await Promise.all([
+    loadFieldSettings(),
+    adminRequest("/admin/company-profile").catch(() => null)
+  ]);
+  if (profile) state.companyProfile = normalizeCompanyProfile(profile);
+  const templates = await loadTemplates();
+  return { fields, templates, profile };
 }
 
 async function loadFieldSettings() {
@@ -2222,7 +2358,14 @@ function fieldSettingsPayload() {
 async function loadTemplates() {
   const result = await adminRequest("/admin/templates");
   state.templates = result.items || [];
+  syncCompanyBrandFromDefaultTemplate();
+  const selected = state.templates.find((item) => item.template_id === state.selectedTemplateId)
+    || state.templates.find((item) => item.is_default)
+    || state.templates[0];
+  state.selectedTemplateId = selected?.template_id || "";
   renderTemplates();
+  if (selected) fillTemplateForm(selected);
+  else resetTemplateForm();
   return result;
 }
 
@@ -2234,8 +2377,8 @@ function renderTemplates() {
   }
   root.replaceChildren(...state.templates.map((item) => {
     const card = document.createElement("article");
-    card.className = "template-card";
-    const primary = item.color_scheme?.primary || "#2563eb";
+    card.className = `template-card ${item.template_id === state.selectedTemplateId ? "template-card--selected" : ""}`;
+    const primary = normalizeHexColor(item.color_scheme?.primary, "#5272d6");
     const surface = item.color_scheme?.surface || "#ffffff";
     const swatch = document.createElement("div");
     swatch.className = "template-swatch";
@@ -2261,7 +2404,10 @@ function renderTemplates() {
     meta.innerHTML = `${item.is_default ? tag("当前默认", "brand") : ""}${tag(item.status === "active" ? "启用" : "停用", statusTone(item.status))}`;
     const actions = document.createElement("div");
     actions.className = "inline-actions";
-    actions.append(actionButton("编辑", () => fillTemplateForm(item), "secondary"));
+    actions.append(actionButton("编辑", () => {
+      fillTemplateForm(item);
+      renderTemplates();
+    }, "secondary"));
     if (!item.is_default) {
       actions.append(actionButton("设为默认", async () => {
         if (!requirePermission("tenant.template.write")) return;
@@ -2281,28 +2427,179 @@ function fillTemplateForm(template) {
   $("#templateId").value = template.template_id;
   $("#templateName").value = template.name || "";
   $("#templateStatus").value = template.status || "active";
-  $("#templateBackgroundUrl").value = template.background_url || "";
+  const variant = normalizeTemplateVariant(template.layout?.variant);
+  state.templateDraftBackgrounds = structuredClone(template.layout?.template_backgrounds || {});
+  if (!state.templateDraftBackgrounds[variant]) {
+    state.templateDraftBackgrounds[variant] = {
+      background_url: template.background_url || "",
+      background_preset_id: template.layout?.background_preset_id || null,
+      background_opacity: normalizeTemplateOpacity(template.layout?.background_opacity, 100)
+    };
+  }
+  $("#templateBackgroundUrl").value = state.templateDraftBackgrounds[variant]?.background_url || template.background_url || "";
   $("#templateLogoUrl").value = template.logo_url || "";
-  $("#templatePrimaryColor").value = template.color_scheme?.primary || "#2563eb";
+  $("#templatePrimaryColor").value = normalizeHexColor(template.color_scheme?.primary, "#5272d6");
   $("#templateSurfaceColor").value = template.color_scheme?.surface || "#ffffff";
-  $("#templateLayoutVariant").value = template.layout?.variant || "horizontal-business";
+  $("#templateLayoutVariant").value = variant;
+  $("#templateBackgroundOpacity").value = normalizeTemplateOpacity(state.templateDraftBackgrounds[variant]?.background_opacity, normalizeTemplateOpacity(template.layout?.background_opacity, 100));
+  $("#templatePortraitUrl").value = String(template.layout?.portrait_photo_url || "");
+  renderTemplateEditor();
 }
 
 function templatePayload(includeStatus = false) {
+  const current = selectedTemplateRecord();
+  const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
+  const backgroundUrl = $("#templateBackgroundUrl").value.trim() || null;
+  const backgroundOpacity = normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100);
+  captureTemplateVariantBackground();
+  const existingBackgrounds = state.templateDraftBackgrounds;
   const payload = {
     name: $("#templateName").value.trim(),
-    background_url: $("#templateBackgroundUrl").value.trim() || null,
+    background_url: backgroundUrl,
     logo_url: $("#templateLogoUrl").value.trim() || null,
     color_scheme: {
-      primary: $("#templatePrimaryColor").value.trim() || "#2563eb",
-      surface: $("#templateSurfaceColor").value.trim() || "#ffffff"
+      ...(current?.color_scheme || {}),
+      primary: normalizeHexColor($("#templatePrimaryColor").value, "#5272d6"),
+      surface: normalizeHexColor($("#templateSurfaceColor").value, "#ffffff")
     },
     layout: {
-      variant: $("#templateLayoutVariant").value.trim() || "horizontal-business"
+      ...(current?.layout || {}),
+      variant,
+      background_opacity: backgroundOpacity,
+      portrait_photo_url: $("#templatePortraitUrl").value.trim() || null,
+      template_backgrounds: {
+        ...existingBackgrounds,
+        [variant]: {
+          ...(existingBackgrounds[variant] || {}),
+          background_url: backgroundUrl || "",
+          background_preset_id: backgroundUrl ? "" : (existingBackgrounds[variant]?.background_preset_id || null),
+          background_opacity: backgroundOpacity
+        }
+      }
     }
   };
   if (includeStatus) payload.status = $("#templateStatus").value;
   return payload;
+}
+
+function templateRecordPayload(template) {
+  return {
+    name: template.name,
+    background_url: template.background_url || null,
+    logo_url: template.logo_url || null,
+    color_scheme: { ...(template.color_scheme || {}) },
+    layout: { ...(template.layout || {}) },
+    status: template.status || "active"
+  };
+}
+
+function selectedTemplateRecord() {
+  return (state.templates || []).find((item) => item.template_id === state.selectedTemplateId) || null;
+}
+
+function normalizeTemplateVariant(value) {
+  const aliases = {
+    tpl_horizontal_business: "horizontal-business",
+    tpl_demo_business: "horizontal-business",
+    tpl_minimal: "minimal",
+    tpl_brand_image: "brand-image",
+    tpl_portrait_photo: "portrait-photo",
+    tpl_photo_portrait: "portrait-photo",
+    "photo-portrait": "portrait-photo",
+    tpl_dark: "dark",
+    tpl_campaign: "campaign"
+  };
+  const normalized = aliases[value] || value;
+  return TEMPLATE_VARIANTS.some((item) => item.value === normalized) ? normalized : "horizontal-business";
+}
+
+function normalizeTemplateOpacity(value, fallback = 100) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : fallback;
+}
+
+function resetTemplateForm() {
+  state.selectedTemplateId = "";
+  state.templateDraftBackgrounds = {};
+  $("#templateForm").reset();
+  $("#templateId").value = "";
+  $("#templateLayoutVariant").value = "horizontal-business";
+  $("#templatePrimaryColor").value = "#5272d6";
+  $("#templateSurfaceColor").value = "#ffffff";
+  $("#templateBackgroundOpacity").value = "100";
+  renderTemplateEditor();
+}
+
+function captureTemplateVariantBackground() {
+  const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
+  const previous = state.templateDraftBackgrounds[variant] || {};
+  const backgroundUrl = $("#templateBackgroundUrl").value.trim();
+  state.templateDraftBackgrounds[variant] = {
+    ...previous,
+    background_url: backgroundUrl,
+    background_preset_id: backgroundUrl ? "" : (previous.background_preset_id || null),
+    background_opacity: normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100)
+  };
+}
+
+function loadTemplateVariantBackground(variant) {
+  const config = state.templateDraftBackgrounds[normalizeTemplateVariant(variant)] || {};
+  $("#templateBackgroundUrl").value = config.background_url || "";
+  $("#templateBackgroundOpacity").value = normalizeTemplateOpacity(config.background_opacity, 100);
+}
+
+function renderTemplateEditor() {
+  const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
+  const primary = normalizeHexColor($("#templatePrimaryColor").value, "#5272d6");
+  const opacity = normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100);
+  const preview = $("#templatePreview");
+  preview.className = `template-preview-card template-preview-card--${variant}`;
+  preview.style.setProperty("--template-brand", primary);
+  preview.style.setProperty("--template-brand-deep", mixHexColor(primary, "#000000", 0.22));
+  const backgroundUrl = $("#templateBackgroundUrl").value.trim();
+  preview.style.backgroundImage = backgroundUrl
+    ? `linear-gradient(rgba(255,255,255,${1 - opacity / 100}), rgba(255,255,255,${1 - opacity / 100})), url("${mediaUrl(backgroundUrl).replaceAll('"', '%22')}")`
+    : "";
+  $("#templatePreviewName").textContent = $("#templateName").value.trim() || "新模板";
+  $("#templatePreviewState").textContent = $("#templateStatus").value === "disabled" ? "当前停用，不会分配给成员" : "保存后同步到企业成员名片";
+  $("#templatePrimaryColorValue").textContent = primary.toUpperCase();
+  $("#templatePrimaryColorPicker").value = primary;
+  $("#templateBackgroundOpacityValue").textContent = `${opacity}%`;
+  $("#templatePortraitField").classList.toggle("hidden", variant !== "portrait-photo");
+  renderTemplateChoiceControls(variant, primary);
+  renderTemplateAssetPreview("#templateLogoPreview", $("#templateLogoUrl").value, "未上传");
+  renderTemplateAssetPreview("#templateBackgroundPreview", backgroundUrl, "使用版式默认背景");
+  renderTemplateAssetPreview("#templatePortraitPreview", $("#templatePortraitUrl").value, "未上传");
+  const logoUrl = $("#templateLogoUrl").value.trim();
+  const logoNode = $("#templatePreviewLogo");
+  logoNode.innerHTML = logoUrl ? `<img src="${escapeAttr(mediaUrl(logoUrl))}" alt="" />` : "企";
+  $("#templatePreviewCompany").textContent = state.companyProfile?.display_name || "企业名称";
+}
+
+function renderTemplateChoiceControls(activeVariant, primary) {
+  $("#templateVariantChoices").replaceChildren(...TEMPLATE_VARIANTS.map((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `template-variant-choice ${item.value === activeVariant ? "active" : ""}`;
+    button.dataset.templateVariant = item.value;
+    button.innerHTML = `<span class="template-variant-thumb template-variant-thumb--${item.value}"></span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.desc)}</small>`;
+    return button;
+  }));
+  $("#templateColorChoices").replaceChildren(...TEMPLATE_BRAND_COLORS.map((color) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `template-color-choice ${color === primary ? "active" : ""}`;
+    button.dataset.templateColor = color;
+    button.style.backgroundColor = color;
+    button.setAttribute("aria-label", color);
+    return button;
+  }));
+}
+
+function renderTemplateAssetPreview(selector, value, emptyText) {
+  const node = $(selector);
+  const url = String(value || "").trim();
+  node.innerHTML = url ? `<img src="${escapeAttr(mediaUrl(url))}" alt="" />` : `<span>${escapeHtml(emptyText)}</span>`;
 }
 
 async function loadSyncEvents() {
@@ -3948,7 +4245,11 @@ $("#visitorPreviewCompany").addEventListener("click", showCompanyVisitorPreview)
 $("#saveCompanyProfile").addEventListener("click", async () => {
   if (!requirePermission("tenant.company.write")) return;
   if (!state.companyProfile) await loadCompanyProfileOnly();
-  const profile = await run("保存主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: companyPayloadFromForm() }));
+  const profile = await run("保存主页", async () => {
+    const savedProfile = await adminRequest("/admin/company-profile", { method: "PUT", body: companyPayloadFromForm() });
+    await saveDefaultTemplateBrand();
+    return savedProfile;
+  });
   fillCompany(profile);
   state.companyDirty = false;
   renderCompanyDirtyState();
@@ -3957,7 +4258,11 @@ $("#saveCompanyProfile").addEventListener("click", async () => {
 async function publishCompanyProfile() {
   if (!requirePermission("tenant.company.write")) return;
   if (!state.companyProfile) await loadCompanyProfileOnly();
-  const profile = await run("发布主页", () => adminRequest("/admin/company-profile", { method: "PUT", body: { ...companyPayloadFromForm(), status: "published" } }));
+  const profile = await run("发布主页", async () => {
+    const publishedProfile = await adminRequest("/admin/company-profile", { method: "PUT", body: { ...companyPayloadFromForm(), status: "published" } });
+    await saveDefaultTemplateBrand();
+    return publishedProfile;
+  });
   fillCompany(profile);
   state.companyDirty = false;
   renderCompanyDirtyState();
@@ -4008,9 +4313,18 @@ $$(".builder-style-card").forEach((node) => {
 });
 $$(".builder-swatches button").forEach((node) => {
   node.addEventListener("click", () => {
-    state.companyPreviewBrand = node.dataset.companyBrand || "#2f6df6";
-    applyCompanyPreviewStyle();
+    if (updateDefaultTemplateBrand(node.dataset.companyBrand || "#5272d6")) {
+      markCompanyDirty();
+      applyCompanyPreviewStyle();
+    }
   });
+});
+$("#companyBrandColor").addEventListener("input", (event) => {
+  const color = normalizeHexColor(event.target.value);
+  event.target.classList.toggle("is-invalid", Boolean(event.target.value) && !color);
+  if (!color || !updateDefaultTemplateBrand(color)) return;
+  markCompanyDirty();
+  applyCompanyPreviewStyle();
 });
 $("#companyEditorPanels").addEventListener("input", () => {
   syncCompanyEditors();
@@ -4038,6 +4352,15 @@ $("#serviceLayoutChoices").addEventListener("click", (event) => {
   const module = companyModuleByKey("services");
   if (!module) return;
   module.layout = button.dataset.serviceLayout;
+  markCompanyDirty();
+  renderCompanyEditors();
+});
+$("#honorLayoutChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-honor-layout]");
+  if (!button) return;
+  const module = companyModuleByKey("honors");
+  if (!module) return;
+  module.layout = button.dataset.honorLayout;
   markCompanyDirty();
   renderCompanyEditors();
 });
@@ -4082,8 +4405,9 @@ $("#addHonor").addEventListener("click", () => {
 });
 $("#saveHonors").addEventListener("click", () => run("保存荣誉", async () => {
   const result = await saveHonors();
-  state.companyDirty = false;
-  renderCompanyDirtyState();
+  const profile = await adminRequest("/admin/company-profile", { method: "PUT", body: companyPayloadFromForm() });
+  await saveDefaultTemplateBrand();
+  fillCompany(profile);
   return result;
 }));
 
@@ -4096,10 +4420,60 @@ $("#saveFieldSettings").addEventListener("click", async () => {
   notify("字段规则已保存");
 });
 $("#templateForm").addEventListener("submit", (event) => event.preventDefault());
+$("#templateForm").addEventListener("input", (event) => {
+  if (event.target.id === "templatePrimaryColor") {
+    const color = normalizeHexColor(event.target.value);
+    event.target.classList.toggle("is-invalid", Boolean(event.target.value) && !color);
+    if (!color) return;
+  }
+  renderTemplateEditor();
+});
+$("#templateForm").addEventListener("change", renderTemplateEditor);
+$("#templateVariantChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-template-variant]");
+  if (!button) return;
+  captureTemplateVariantBackground();
+  $("#templateLayoutVariant").value = button.dataset.templateVariant;
+  loadTemplateVariantBackground(button.dataset.templateVariant);
+  renderTemplateEditor();
+});
+$("#templateColorChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-template-color]");
+  if (!button) return;
+  $("#templatePrimaryColor").value = button.dataset.templateColor;
+  $("#templatePrimaryColor").classList.remove("is-invalid");
+  renderTemplateEditor();
+});
+$("#templatePrimaryColorPicker").addEventListener("input", (event) => {
+  $("#templatePrimaryColor").value = normalizeHexColor(event.target.value, "#5272d6");
+  $("#templatePrimaryColor").classList.remove("is-invalid");
+  renderTemplateEditor();
+});
+async function uploadTemplateAsset(inputSelector, category) {
+  if (!requirePermission("tenant.template.write")) return;
+  const urls = await chooseAndUploadCompanyImages(category, false);
+  if (!urls.length) return;
+  $(inputSelector).value = urls[0];
+  renderTemplateEditor();
+}
+$("#uploadTemplateLogo").addEventListener("click", () => uploadTemplateAsset("#templateLogoUrl", "logos"));
+$("#uploadTemplateBackground").addEventListener("click", () => uploadTemplateAsset("#templateBackgroundUrl", "templates"));
+$("#uploadTemplatePortrait").addEventListener("click", () => uploadTemplateAsset("#templatePortraitUrl", "templates"));
+[
+  ["#clearTemplateLogo", "#templateLogoUrl"],
+  ["#clearTemplateBackground", "#templateBackgroundUrl"],
+  ["#clearTemplatePortrait", "#templatePortraitUrl"]
+].forEach(([buttonSelector, inputSelector]) => {
+  $(buttonSelector).addEventListener("click", () => {
+    $(inputSelector).value = "";
+    renderTemplateEditor();
+  });
+});
 $("#loadTemplates").addEventListener("click", () => run("读取模板", loadTemplates));
 $("#createTemplate").addEventListener("click", async () => {
   if (!requirePermission("tenant.template.write")) return;
   const template = await run("新增模板", () => adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
+  state.selectedTemplateId = template.template_id;
   fillTemplateForm(template);
   await loadTemplates();
 });
@@ -4108,6 +4482,7 @@ $("#updateTemplate").addEventListener("click", async () => {
   const templateId = $("#templateId").value.trim();
   if (!templateId) throw new Error("请先选择模板");
   const template = await run("保存模板", () => adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) }));
+  state.selectedTemplateId = template.template_id;
   fillTemplateForm(template);
   await loadTemplates();
 });
@@ -4116,6 +4491,7 @@ $("#setDefaultTemplate").addEventListener("click", async () => {
   const templateId = $("#templateId").value.trim();
   if (!templateId) throw new Error("请先选择模板");
   const template = await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(templateId)}/default`, { method: "PUT" }));
+  state.selectedTemplateId = template.template_id;
   fillTemplateForm(template);
   await loadTemplates();
 });
