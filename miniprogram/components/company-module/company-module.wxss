@@ -5,6 +5,9 @@
 }
 
 .company-module--profile {
+  width: auto;
+  margin-left: 16rpx;
+  margin-right: 16rpx;
   padding-left: 0;
   padding-right: 0;
   border: 0;
@@ -15,6 +18,33 @@
 
 .section-head {
   margin-bottom: 24rpx;
+}
+
+.company-module--profile .section-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 48rpx;
+  margin-bottom: 28rpx;
+  padding-left: 18rpx;
+}
+
+.company-module--profile .section-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7rpx;
+  bottom: 7rpx;
+  width: 6rpx;
+  border-radius: 3rpx;
+  background: var(--brand);
+}
+
+.company-module--profile .section-head .card__title {
+  color: var(--text-primary);
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .service-grid {
@@ -167,7 +197,7 @@
 .profile-story {
   position: relative;
   display: grid;
-  gap: 22rpx;
+  gap: 26rpx;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -207,7 +237,7 @@
 .company-module .intro-heading {
   position: relative;
   margin-top: 18rpx;
-  font-size: 40rpx;
+  font-size: 34rpx;
   font-weight: 800;
   line-height: 1.24;
   max-width: 100%;
@@ -219,8 +249,8 @@
   max-width: 100%;
   padding: 0;
   color: var(--text-primary);
-  font-size: 29rpx;
-  line-height: 1.82;
+  font-size: 26rpx;
+  line-height: 1.76;
   background: transparent;
   box-sizing: border-box;
   overflow-wrap: break-word;
@@ -237,7 +267,7 @@
   padding: 4rpx 0 4rpx 24rpx;
   border-left: 6rpx solid var(--brand);
   color: var(--text-primary);
-  font-size: 30rpx;
+  font-size: 27rpx;
   font-weight: 600;
   line-height: 1.68;
   background: transparent;

@@ -244,15 +244,17 @@ function layoutImageUrl(layout, key) {
 function activeTemplateBackground(layout, templateId, fallbackUrl) {
   const config = templateBackgroundConfig(layout, templateId);
   if (config) {
+    const presetId = config.background_preset_id || "";
     return {
-      url: config.background_url || "",
-      presetId: config.background_preset_id || "",
+      url: config.background_url || PRESET_BACKGROUNDS[presetId] || fallbackUrl || "",
+      presetId,
       opacity: config.background_opacity
     };
   }
+  const presetId = layout && typeof layout.background_preset_id === "string" ? layout.background_preset_id : "";
   return {
-    url: fallbackUrl || "",
-    presetId: layout && typeof layout.background_preset_id === "string" ? layout.background_preset_id : "",
+    url: fallbackUrl || PRESET_BACKGROUNDS[presetId] || TEMPLATE_BACKGROUNDS[normalizeTemplateId(templateId)] || "",
+    presetId,
     opacity: layout && layout.background_opacity
   };
 }
