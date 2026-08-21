@@ -11,7 +11,8 @@ const PAGE_META = {
   "tenant-dashboard": ["企业后台", "企业总览", "企业状态、名片规模和待办事项"],
   "tenant-members": ["企业后台", "成员与名片", "成员同步和名片编辑"],
   "tenant-company": ["企业后台", "企业主页", "企业资料和主页内容"],
-  "tenant-design": ["企业后台", "企业设置", "成员字段规则和企业名片模板"],
+  "tenant-design": ["企业后台", "企业设置", "成员字段权限与展示规则"],
+  "tenant-templates": ["企业后台", "名片模板", "企业成员名片的版式与品牌视觉"],
   "tenant-sync": ["企业后台", "同步与回调", "企业同步事件"],
   "tenant-analytics": ["企业后台", "数据分析", "访问、互动和成员表现"],
   "tenant-billing": ["企业后台", "版本与额度", "商业化能力状态"],
@@ -33,6 +34,7 @@ const NAVS = {
     ["tenant-dashboard", "总览", "tenant.dashboard"],
     ["tenant-members", "成员与名片", "tenant.members"],
     ["tenant-company", "企业主页", "tenant.company"],
+    ["tenant-templates", "名片模板", "tenant.design"],
     ["tenant-design", "企业设置", "tenant.design"],
     ["tenant-sync", "同步与回调", "tenant.sync"],
     ["tenant-analytics", "数据分析", "tenant.analytics"],
@@ -526,7 +528,8 @@ function loadCurrentPage() {
     "tenant-dashboard": loadTenantDashboard,
     "tenant-members": loadMembers,
     "tenant-company": loadCompanyProfileBundle,
-    "tenant-design": loadDesignBundle,
+    "tenant-design": loadFieldSettings,
+    "tenant-templates": loadTemplatePage,
     "tenant-sync": loadTenantSyncPage,
     "tenant-analytics": loadTenantAnalytics,
     "tenant-billing": loadTenantCommercial,
@@ -2292,14 +2295,11 @@ async function saveHonors() {
   return result;
 }
 
-async function loadDesignBundle() {
-  const [fields, profile] = await Promise.all([
-    loadFieldSettings(),
-    adminRequest("/admin/company-profile").catch(() => null)
-  ]);
+async function loadTemplatePage() {
+  const profile = await adminRequest("/admin/company-profile").catch(() => null);
   if (profile) state.companyProfile = normalizeCompanyProfile(profile);
   const templates = await loadTemplates();
-  return { fields, templates, profile };
+  return { templates, profile };
 }
 
 async function loadFieldSettings() {
@@ -2371,29 +2371,39 @@ async function loadTemplates() {
 
 function renderTemplates() {
   const root = $("#templateCards");
+  $("#templateCount").textContent = String(state.templates.length);
   if (!state.templates.length) {
-    root.innerHTML = `<p class="hint">暂无模板，请在下方新建。</p>`;
+    root.innerHTML = `<p class="hint">暂无模板，点击顶部“新建模板”。</p>`;
     return;
   }
   root.replaceChildren(...state.templates.map((item) => {
     const card = document.createElement("article");
     card.className = `template-card ${item.template_id === state.selectedTemplateId ? "template-card--selected" : ""}`;
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      fillTemplateForm(item);
+      renderTemplates();
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      fillTemplateForm(item);
+      renderTemplates();
+    });
     const primary = normalizeHexColor(item.color_scheme?.primary, "#5272d6");
     const surface = item.color_scheme?.surface || "#ffffff";
     const swatch = document.createElement("div");
     swatch.className = "template-swatch";
     swatch.style.background = `linear-gradient(135deg, ${primary}, ${surface})`;
-    if (item.logo_url || item.background_url) {
-      const thumbs = document.createElement("div");
-      thumbs.className = "template-thumbs";
-      [item.logo_url, item.background_url].filter(Boolean).forEach((url) => {
-        const img = document.createElement("img");
-        img.src = mediaUrl(url);
-        img.alt = "";
-        img.loading = "lazy";
-        thumbs.append(img);
-      });
-      swatch.append(thumbs);
+    const visualUrl = item.background_url || item.logo_url;
+    if (visualUrl) {
+      const image = document.createElement("img");
+      image.src = mediaUrl(visualUrl);
+      image.alt = "";
+      image.loading = "lazy";
+      swatch.append(image);
     }
     const body = document.createElement("div");
     body.className = "template-card-body";
@@ -2402,20 +2412,7 @@ function renderTemplates() {
     const meta = document.createElement("div");
     meta.className = "template-card-meta";
     meta.innerHTML = `${item.is_default ? tag("当前默认", "brand") : ""}${tag(item.status === "active" ? "启用" : "停用", statusTone(item.status))}`;
-    const actions = document.createElement("div");
-    actions.className = "inline-actions";
-    actions.append(actionButton("编辑", () => {
-      fillTemplateForm(item);
-      renderTemplates();
-    }, "secondary"));
-    if (!item.is_default) {
-      actions.append(actionButton("设为默认", async () => {
-        if (!requirePermission("tenant.template.write")) return;
-        await run("设置默认模板", () => adminRequest(`/admin/templates/${encodeURIComponent(item.template_id)}/default`, { method: "PUT" }));
-        await loadTemplates();
-      }, "secondary", "tenant.template.write"));
-    }
-    body.append(title, meta, actions);
+    body.append(title, meta);
     card.append(swatch, body);
     return card;
   }));
@@ -2566,6 +2563,10 @@ function renderTemplateEditor() {
   $("#templatePrimaryColorPicker").value = primary;
   $("#templateBackgroundOpacityValue").textContent = `${opacity}%`;
   $("#templatePortraitField").classList.toggle("hidden", variant !== "portrait-photo");
+  const current = selectedTemplateRecord();
+  const defaultButton = $("#setDefaultTemplate");
+  defaultButton.disabled = !current || current.is_default || !hasPermission("tenant.template.write");
+  defaultButton.textContent = current?.is_default ? "当前默认模板" : "设为默认模板";
   renderTemplateChoiceControls(variant, primary);
   renderTemplateAssetPreview("#templateLogoPreview", $("#templateLogoUrl").value, "未上传");
   renderTemplateAssetPreview("#templateBackgroundPreview", backgroundUrl, "使用版式默认背景");
@@ -4472,16 +4473,19 @@ $("#uploadTemplatePortrait").addEventListener("click", () => uploadTemplateAsset
 $("#loadTemplates").addEventListener("click", () => run("读取模板", loadTemplates));
 $("#createTemplate").addEventListener("click", async () => {
   if (!requirePermission("tenant.template.write")) return;
-  const template = await run("新增模板", () => adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
-  state.selectedTemplateId = template.template_id;
-  fillTemplateForm(template);
-  await loadTemplates();
+  resetTemplateForm();
+  $("#templateName").value = "新名片模板";
+  renderTemplateEditor();
+  $("#templateName").focus();
 });
 $("#updateTemplate").addEventListener("click", async () => {
   if (!requirePermission("tenant.template.write")) return;
   const templateId = $("#templateId").value.trim();
-  if (!templateId) throw new Error("请先选择模板");
-  const template = await run("保存模板", () => adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) }));
+  const name = $("#templateName").value.trim();
+  if (!name) throw new Error("请填写模板名称");
+  const template = await run("保存模板", () => templateId
+    ? adminRequest(`/admin/templates/${encodeURIComponent(templateId)}`, { method: "PUT", body: templatePayload(true) })
+    : adminRequest("/admin/templates", { method: "POST", body: templatePayload(false) }));
   state.selectedTemplateId = template.template_id;
   fillTemplateForm(template);
   await loadTemplates();

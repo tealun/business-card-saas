@@ -25,8 +25,8 @@ if (missing.length) {
 }
 
 const pageCount = [...html.matchAll(/<section class="page(?:\s|")/g)].length;
-if (pageCount !== 18) {
-  console.error(`Expected 18 admin pages after partial assembly, found ${pageCount}`);
+if (pageCount !== pageFiles.length) {
+  console.error(`Expected one admin page per partial file (${pageFiles.length}), found ${pageCount}`);
   process.exit(1);
 }
 
@@ -35,8 +35,9 @@ if (!indexHtml.includes("data-admin-page-partials")) {
   process.exit(1);
 }
 
-if (pageFiles.length !== 18) {
-  console.error(`Expected 18 page partial files, found ${pageFiles.length}`);
+const pageKeys = [...html.matchAll(/data-page="([^"]+)"/g)].map((match) => match[1]);
+if (new Set(pageKeys).size !== pageKeys.length) {
+  console.error("Duplicate admin data-page keys found");
   process.exit(1);
 }
 

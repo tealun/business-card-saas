@@ -25,7 +25,7 @@ localStorage.setItem("bc_api_base", "https://api.example.com/api/v1")
 ## 当前覆盖
 
 - API 健康检查
-- 分区式后台导航：概览、员工、企业资料、字段与模板、同步、授权与联调
+- 分区式后台导航：概览、成员与名片、企业主页、名片模板、企业设置、同步与数据分析
 - demo `qy-login`
 - 企业微信授权链接生成（需要 `x-wecom-launch-token`）
 - 企业微信扫码登录：页面请求 `/admin/auth/wecom/login-config` 跳转企微，回到本页后用 `code/state` 换取 Admin token
