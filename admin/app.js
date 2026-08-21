@@ -187,6 +187,15 @@ function apiBase() {
   return value;
 }
 
+function mediaUrl(value) {
+  const url = String(value || "").trim();
+  if (!url || /^(?:https?:|data:|blob:)/i.test(url)) return url;
+  if (url === "/api/v1" || url.startsWith("/api/v1/")) {
+    return `${apiBase()}${url.slice("/api/v1".length)}`;
+  }
+  return url;
+}
+
 async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const timeoutMs = options.timeoutMs || (method === "GET" ? 10000 : 15000);
@@ -1243,7 +1252,7 @@ function renderCompanyLogoPreview() {
   const url = form.logo_url.value.trim();
   if (url) {
     const image = document.createElement("img");
-    image.src = url;
+    image.src = mediaUrl(url);
     image.alt = "企业 LOGO";
     preview.append(image);
     return;
@@ -1471,7 +1480,7 @@ function galleryEditor(item, index) {
   images.forEach((image, imageIndex) => {
     const cell = document.createElement("div");
     cell.className = "gallery-editor-item";
-    cell.innerHTML = image.url ? `<img src="${escapeAttr(image.url)}" alt="" />` : `<span>图片</span>`;
+    cell.innerHTML = image.url ? `<img src="${escapeAttr(mediaUrl(image.url))}" alt="" />` : `<span>图片</span>`;
     const caption = input(image.caption || "", "caption", index, "intro-gallery", "图片说明");
     caption.dataset.imageIndex = imageIndex;
     const remove = actionButton("删除", () => {
@@ -1530,7 +1539,7 @@ function companyAssetEditor({ value, caption = "", index, group, urlKey, caption
   wrap.append(hidden);
   const preview = document.createElement("div");
   preview.className = "asset-editor-preview";
-  if (value) preview.innerHTML = `<img src="${escapeAttr(value)}" alt="" />`;
+  if (value) preview.innerHTML = `<img src="${escapeAttr(mediaUrl(value))}" alt="" />`;
   else preview.textContent = label || "图片";
   const actions = document.createElement("div");
   actions.className = "asset-editor-actions";
@@ -1635,7 +1644,7 @@ function renderCompanyPreview() {
   const logo = $("#previewCompanyLogo");
   const logoUrl = form.logo_url.value.trim();
   if (logoUrl) {
-    logo.src = logoUrl;
+    logo.src = mediaUrl(logoUrl);
     logo.classList.remove("hidden");
   } else {
     logo.removeAttribute("src");
@@ -1670,7 +1679,7 @@ function previewModule(module, textBlock) {
       const box = document.createElement("div");
       box.className = "preview-media-box";
       const url = media.type === "image" ? media.url : media.images?.[0]?.url;
-      if (url) box.innerHTML = `<img src="${escapeAttr(url)}" alt="" />`;
+      if (url) box.innerHTML = `<img src="${escapeAttr(mediaUrl(url))}" alt="" />`;
       else box.textContent = "图片";
       card.append(box);
     }
@@ -1682,7 +1691,7 @@ function previewModule(module, textBlock) {
     if (video) {
       const box = document.createElement("div");
       box.className = "preview-video-card";
-      if (video.cover_url) box.innerHTML = `<img src="${escapeAttr(video.cover_url)}" alt="" />`;
+      if (video.cover_url) box.innerHTML = `<img src="${escapeAttr(mediaUrl(video.cover_url))}" alt="" />`;
       const play = document.createElement("span");
       play.className = "preview-video-play";
       const titleNode = document.createElement("strong");
@@ -1796,7 +1805,7 @@ function renderVideoPanel() {
   currentRow.className = "video-feature-current";
   const thumb = document.createElement("div");
   thumb.className = "video-feature-thumb";
-  if (current.cover_url) thumb.innerHTML = `<img src="${escapeAttr(current.cover_url)}" alt="" />`;
+  if (current.cover_url) thumb.innerHTML = `<img src="${escapeAttr(mediaUrl(current.cover_url))}" alt="" />`;
   const main = document.createElement("div");
   main.className = "video-feature-main";
   main.innerHTML = `<strong>${escapeHtml(current.title || "企业视频")}</strong><small>当前展示 · 已通过审核</small>`;
@@ -1808,7 +1817,7 @@ function renderVideoPanel() {
     const choice = document.createElement("button");
     choice.type = "button";
     choice.className = "video-choice";
-    choice.innerHTML = `<span class="video-feature-thumb">${video.cover_url ? `<img src="${escapeAttr(video.cover_url)}" alt="" />` : ""}</span><span><strong>${escapeHtml(video.title || "未命名视频")}</strong><small>已发布，可引用到企业简介</small></span>`;
+    choice.innerHTML = `<span class="video-feature-thumb">${video.cover_url ? `<img src="${escapeAttr(mediaUrl(video.cover_url))}" alt="" />` : ""}</span><span><strong>${escapeHtml(video.title || "未命名视频")}</strong><small>已发布，可引用到企业简介</small></span>`;
     choice.addEventListener("click", () => addIntroVideoBlock(video.video_id));
     choices.append(choice);
   });
@@ -1886,7 +1895,7 @@ function honorImagesEditor(honor, index) {
   (honor.images || []).forEach((image, imageIndex) => {
     const cell = document.createElement("div");
     cell.className = "gallery-editor-item";
-    cell.innerHTML = image.image_url ? `<img src="${escapeAttr(image.image_url)}" alt="" />` : `<span>图片</span>`;
+    cell.innerHTML = image.image_url ? `<img src="${escapeAttr(mediaUrl(image.image_url))}" alt="" />` : `<span>图片</span>`;
     const title = input(image.title || "", "title", index, "honor-image", "图片标题");
     title.dataset.imageIndex = imageIndex;
     const caption = input(image.caption || "", "caption", index, "honor-image", "图片说明");
@@ -2236,7 +2245,7 @@ function renderTemplates() {
       thumbs.className = "template-thumbs";
       [item.logo_url, item.background_url].filter(Boolean).forEach((url) => {
         const img = document.createElement("img");
-        img.src = url;
+        img.src = mediaUrl(url);
         img.alt = "";
         img.loading = "lazy";
         thumbs.append(img);
