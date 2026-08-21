@@ -49,6 +49,7 @@
           </div>
           <div class="template-asset-field">
             <div class="template-asset-label"><strong>模板背景</strong><span>建议比例 1.58:1</span></div>
+            <div id="templateBackgroundPresetChoices" class="template-background-presets"></div>
             <div id="templateBackgroundPreview" class="template-asset-preview template-asset-preview--wide">使用版式默认背景</div>
             <div class="inline-actions"><button id="uploadTemplateBackground" type="button" class="secondary compact">上传背景</button><button id="clearTemplateBackground" type="button" class="ghost compact">恢复默认</button></div>
           </div>
@@ -70,8 +71,19 @@
       </div>
       <section class="template-live-preview" aria-label="名片模板预览">
         <div id="templatePreview" class="template-preview-card template-preview-card--horizontal-business">
-          <div class="template-preview-card__brand"><span id="templatePreviewLogo">企</span><strong id="templatePreviewCompany">企业名称</strong></div>
-          <div class="template-preview-card__person"><strong>成员姓名</strong><span>职位名称</span><small>138 0000 0000</small></div>
+          <div class="template-preview-card__head">
+            <span id="templatePreviewLogo" class="template-preview-card__logo"></span>
+            <strong id="templatePreviewCompanyShort" class="template-preview-card__company-short"></strong>
+          </div>
+          <div class="template-preview-card__body">
+            <div class="template-preview-card__info">
+              <div id="templatePreviewCompany" class="template-preview-card__company">企业名称</div>
+              <strong id="templatePreviewMemberName" class="template-preview-card__name">姓名</strong>
+              <span id="templatePreviewMemberTitle" class="template-preview-card__role">职位</span>
+              <small id="templatePreviewMemberMobile" class="template-preview-card__contact">联系方式未设置</small>
+            </div>
+            <div id="templatePreviewAvatar" class="template-preview-card__avatar"><span></span></div>
+          </div>
         </div>
         <div class="template-preview-meta">
           <span id="templatePreviewState">保存后同步到企业成员名片</span>

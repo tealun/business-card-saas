@@ -5183,6 +5183,266 @@ body:not(.dev-mode) [data-dev-only] {
   width: 58%;
 }
 
+/* Mirrors the Mini Program card-style-editor preview contract. */
+.template-preview-card {
+  min-height: 340px;
+  padding: 32px 32px 26px 37px;
+}
+
+.template-preview-card::before {
+  width: 10px;
+}
+
+.template-preview-card__head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.template-preview-card__logo {
+  width: 42px;
+  height: 35px;
+  flex: 0 0 42px;
+}
+
+.template-preview-card__logo img,
+.template-preview-card__avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.template-preview-card__logo img {
+  object-fit: contain;
+}
+
+.template-preview-card__company-short {
+  color: #667085;
+  font-size: 19px;
+}
+
+.template-preview-card__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 23px;
+}
+
+.template-preview-card__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.template-preview-card__company {
+  margin-bottom: 11px;
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.template-preview-card__name {
+  display: block;
+  font-size: 35px;
+  line-height: 1.2;
+}
+
+.template-preview-card__role {
+  display: block;
+  margin-top: 6px;
+  color: #667085;
+  font-size: 22px;
+}
+
+.template-preview-card__contact {
+  display: block;
+  margin-top: 19px;
+  color: #667085;
+  font-size: 19px;
+  line-height: 1.7;
+}
+
+.template-preview-card__avatar {
+  width: 106px;
+  height: 106px;
+  flex: 0 0 106px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #eef0f3;
+}
+
+.template-preview-card__avatar > span {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #eef0f3 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='24' r='12' fill='%239aa1ac'/%3E%3Cpath d='M12 56c2.8-12 10.2-19 20-19s17.2 7 20 19' fill='%239aa1ac'/%3E%3C/svg%3E") center / 66% no-repeat;
+}
+
+.template-preview-card--minimal::before,
+.template-preview-card--campaign::before,
+.template-preview-card--brand-image::before,
+.template-preview-card--dark::before {
+  display: none;
+}
+
+.template-preview-card--minimal {
+  padding: 35px 39px 30px;
+}
+
+.template-preview-card--minimal .template-preview-card__head {
+  max-width: calc(100% - 126px);
+  opacity: .72;
+}
+
+.template-preview-card--minimal .template-preview-card__logo {
+  display: none;
+}
+
+.template-preview-card--minimal .template-preview-card__body {
+  align-items: flex-start;
+  margin-top: 27px;
+}
+
+.template-preview-card--minimal .template-preview-card__name {
+  font-size: 39px;
+}
+
+.template-preview-card--minimal .template-preview-card__avatar {
+  width: 90px;
+  height: 90px;
+  flex-basis: 90px;
+}
+
+.template-preview-card--minimal .template-preview-card__contact {
+  margin-top: 68px;
+}
+
+.template-preview-card--brand-image,
+.template-preview-card--dark {
+  color: #fff;
+}
+
+.template-preview-card--brand-image .template-preview-card__company-short,
+.template-preview-card--brand-image .template-preview-card__company,
+.template-preview-card--brand-image .template-preview-card__name,
+.template-preview-card--brand-image .template-preview-card__role,
+.template-preview-card--brand-image .template-preview-card__contact,
+.template-preview-card--dark .template-preview-card__company-short,
+.template-preview-card--dark .template-preview-card__company,
+.template-preview-card--dark .template-preview-card__name {
+  color: rgba(255,255,255,.94);
+}
+
+.template-preview-card--brand-image .template-preview-card__name {
+  margin-top: 71px;
+  font-size: 40px;
+}
+
+.template-preview-card--dark .template-preview-card__role {
+  color: rgba(214,223,238,.72);
+}
+
+.template-preview-card--dark .template-preview-card__contact {
+  color: #a8c5ff;
+}
+
+.template-preview-card--dark .template-preview-card__avatar > span {
+  background-color: rgba(255,255,255,.12);
+}
+
+.template-preview-card--portrait-photo {
+  padding: 32px 235px 26px 37px;
+}
+
+.template-preview-card--portrait-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 0;
+  width: 250px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.42));
+}
+
+.template-preview-card--portrait-photo .template-preview-card__head,
+.template-preview-card--portrait-photo .template-preview-card__info {
+  z-index: 2;
+  max-width: 202px;
+}
+
+.template-preview-card--portrait-photo .template-preview-card__body {
+  position: static;
+  display: block;
+  margin-top: 24px;
+}
+
+.template-preview-card--portrait-photo .template-preview-card__company,
+.template-preview-card--portrait-photo .template-preview-card__name,
+.template-preview-card--portrait-photo .template-preview-card__role,
+.template-preview-card--portrait-photo .template-preview-card__contact {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-preview-card--portrait-photo .template-preview-card__name {
+  font-size: 34px;
+}
+
+.template-preview-card--portrait-photo .template-preview-card__avatar {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 1;
+  width: 235px;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+}
+
+.template-preview-card--campaign {
+  padding-top: 102px;
+}
+
+.template-preview-card--campaign::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 90px;
+  background: linear-gradient(120deg, var(--template-brand), var(--template-brand-soft));
+}
+
+.template-preview-card--campaign .template-preview-card__head {
+  position: absolute;
+  inset: 26px 35px auto;
+}
+
+.template-preview-card--campaign .template-preview-card__logo,
+.template-preview-card--campaign .template-preview-card__company {
+  display: none;
+}
+
+.template-preview-card--campaign .template-preview-card__company-short {
+  color: #fff;
+  font-size: 22px;
+}
+
+.template-preview-card--campaign .template-preview-card__body {
+  margin-top: 0;
+}
+
+.template-preview-card--campaign .template-preview-card__avatar {
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--template-brand) 8%, white);
+}
+
+.template-preview-card--campaign .template-preview-card__name {
+  font-size: 37px;
+}
+
 .template-preview-meta {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -5585,6 +5845,51 @@ body:not(.dev-mode) [data-dev-only] {
 .template-asset-field--inline > div:last-child > span {
   color: var(--muted);
   font-size: 11px;
+}
+
+.template-background-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.template-background-preset {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.template-background-preset:hover {
+  border-color: var(--brand);
+}
+
+.template-background-preset.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.template-background-preset img {
+  width: 72px;
+  height: 42px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.template-background-preset span {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .template-asset-field--inline {

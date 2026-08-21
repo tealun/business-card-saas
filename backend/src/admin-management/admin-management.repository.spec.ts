@@ -147,6 +147,7 @@ it("updates member, primary card, and public directory status in tenant scope", 
 
     expect(result?.display_name).toBe("Configured Name");
     expect(result?.title).toBe("Sales Lead");
+    expect(result?.avatar_url).toBe("https://cdn.example.com/member-avatar.png");
     expect(result?.fields).toMatchObject({
       mobile: "13800138000",
       email: "configured@example.com",
@@ -326,6 +327,7 @@ class FakeCardTransaction {
       public_id: "pub_001",
       display_name: "Original Name",
       title: null,
+      avatar_url: "https://cdn.example.com/member-avatar.png",
       email_encrypted: null,
       phone_encrypted: null,
       fields_encrypted: cipher.encrypt(
@@ -384,6 +386,7 @@ interface FakeCardRow {
   public_id: string;
   display_name: string;
   title: string | null;
+  avatar_url: string | null;
   email_encrypted: string | null;
   phone_encrypted: string | null;
   fields_encrypted: string | null;

@@ -68,6 +68,7 @@ interface MemberCardRow extends QueryResultRow {
   public_id: string | null;
   display_name: string | null;
   title: string | null;
+  avatar_url: string | null;
   email_encrypted: string | null;
   phone_encrypted: string | null;
   fields_encrypted: string | null;
@@ -623,6 +624,7 @@ export class AdminManagementRepository {
           cards.public_id,
           cards.display_name,
           cards.title,
+          cards.avatar_url,
           cards.email_encrypted,
           cards.phone_encrypted,
           cards.fields_encrypted,
@@ -635,6 +637,7 @@ export class AdminManagementRepository {
             public_id,
             display_name,
             title,
+            avatar_url,
             email_encrypted,
             phone_encrypted,
             fields_encrypted,
@@ -674,7 +677,7 @@ export class AdminManagementRepository {
       display_name: row.display_name ?? row.member_name,
       title: row.title,
       company: session.tenantName,
-      avatar_url: null,
+      avatar_url: row.avatar_url,
       fields: this.readFields(row),
       status: normalizeStatus(row.card_status ?? row.member_status),
       privacy: parsePrivacy(row.privacy_json)

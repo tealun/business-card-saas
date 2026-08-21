@@ -75,6 +75,7 @@ const state = {
   videoCapability: null,
   fieldSettings: [],
   templates: [],
+  templatePreviewCard: null,
   templateDraftBackgrounds: {},
   wecomSettings: null,
   selectedTemplateId: "",
@@ -136,6 +137,23 @@ const TEMPLATE_BACKGROUND_PRESETS = {
   "dark-dot": "./assets/card-backgrounds/bg-dark-dot.webp"
 };
 
+const TEMPLATE_BACKGROUND_PRESET_NAMES = {
+  "light-wave": "浅色波纹",
+  "light-geometry": "浅色几何",
+  "light-cubes": "浅色立方",
+  "blue-dot": "蓝色点阵",
+  "dark-dot": "深色点阵"
+};
+
+const TEMPLATE_VARIANT_PRESETS = {
+  "horizontal-business": ["light-wave", "light-cubes"],
+  minimal: ["light-geometry", "light-wave"],
+  "brand-image": ["blue-dot", "light-cubes"],
+  "portrait-photo": ["light-cubes", "light-wave"],
+  dark: ["dark-dot"],
+  campaign: ["light-cubes", "blue-dot"]
+};
+
 const TEMPLATE_VARIANT_DEFAULT_PRESETS = {
   "horizontal-business": "light-wave",
   minimal: "light-geometry",
@@ -145,7 +163,7 @@ const TEMPLATE_VARIANT_DEFAULT_PRESETS = {
   campaign: "light-cubes"
 };
 
-const TEMPLATE_BRAND_COLORS = ["#5272d6", "#0f766e", "#c2410c", "#7c3aed", "#111827"];
+const TEMPLATE_BRAND_COLORS = ["#5a70c8", "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -2313,10 +2331,27 @@ async function saveHonors() {
 }
 
 async function loadTemplatePage() {
-  const profile = await adminRequest("/admin/company-profile").catch(() => null);
+  const [profile, previewCard] = await Promise.all([
+    adminRequest("/admin/company-profile").catch(() => null),
+    loadTemplatePreviewCard()
+  ]);
   if (profile) state.companyProfile = normalizeCompanyProfile(profile);
+  state.templatePreviewCard = previewCard;
   const templates = await loadTemplates();
   return { templates, profile };
+}
+
+async function loadTemplatePreviewCard() {
+  const result = await adminRequest("/admin/members?search=&status=all&limit=1&offset=0").catch(() => null);
+  const member = result?.items?.[0];
+  if (!member) return null;
+  return adminRequest(`/admin/members/${encodeURIComponent(member.member_identity_id)}/card`).catch(() => ({
+    display_name: member.display_name,
+    title: member.title,
+    avatar_url: "",
+    fields: { mobile: member.mobile || "" },
+    privacy: { show_avatar: true }
+  }));
 }
 
 async function loadFieldSettings() {
@@ -2401,7 +2436,7 @@ function fillTemplateForm(template) {
   }
   $("#templateBackgroundUrl").value = state.templateDraftBackgrounds[variant]?.background_url || template.background_url || "";
   $("#templateLogoUrl").value = template.logo_url || "";
-  $("#templatePrimaryColor").value = normalizeHexColor(template.color_scheme?.primary, "#5272d6");
+  $("#templatePrimaryColor").value = normalizeHexColor(template.color_scheme?.primary, "#5a70c8");
   $("#templateSurfaceColor").value = template.color_scheme?.surface || "#ffffff";
   $("#templateLayoutVariant").value = variant;
   $("#templateBackgroundOpacity").value = normalizeTemplateOpacity(state.templateDraftBackgrounds[variant]?.background_opacity, normalizeTemplateOpacity(template.layout?.background_opacity, 100));
@@ -2422,7 +2457,7 @@ function templatePayload(includeStatus = false) {
     logo_url: $("#templateLogoUrl").value.trim() || null,
     color_scheme: {
       ...(current?.color_scheme || {}),
-      primary: normalizeHexColor($("#templatePrimaryColor").value, "#5272d6"),
+      primary: normalizeHexColor($("#templatePrimaryColor").value, "#5a70c8"),
       surface: normalizeHexColor($("#templateSurfaceColor").value, "#ffffff")
     },
     layout: {
@@ -2503,7 +2538,7 @@ function resetTemplateForm() {
   $("#templateForm").reset();
   $("#templateId").value = "";
   $("#templateLayoutVariant").value = "horizontal-business";
-  $("#templatePrimaryColor").value = "#5272d6";
+  $("#templatePrimaryColor").value = "#5a70c8";
   $("#templateSurfaceColor").value = "#ffffff";
   $("#templateBackgroundOpacity").value = "100";
   renderTemplateEditor();
@@ -2529,17 +2564,20 @@ function loadTemplateVariantBackground(variant) {
 
 function renderTemplateEditor() {
   const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
-  const primary = normalizeHexColor($("#templatePrimaryColor").value, "#5272d6");
+  const primary = normalizeHexColor($("#templatePrimaryColor").value, "#5a70c8");
   const opacity = normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100);
   const preview = $("#templatePreview");
   preview.className = `template-preview-card template-preview-card--${variant}`;
   preview.style.setProperty("--template-brand", primary);
   preview.style.setProperty("--template-brand-deep", mixHexColor(primary, "#000000", 0.22));
+  preview.style.setProperty("--template-brand-soft", mixHexColor(primary, "#ffffff", 0.4));
   const backgroundUrl = $("#templateBackgroundUrl").value.trim();
   const backgroundPresetId = state.templateDraftBackgrounds[variant]?.background_preset_id || "";
   const backgroundVisualUrl = templateBackgroundVisualUrl(variant, backgroundUrl, backgroundPresetId);
+  const overlayAlpha = ["brand-image", "dark"].includes(variant) ? (1 - opacity / 100) * 0.48 : 1 - opacity / 100;
+  const overlayColor = ["brand-image", "dark"].includes(variant) ? `rgba(0,0,0,${overlayAlpha})` : `rgba(255,255,255,${overlayAlpha})`;
   preview.style.backgroundImage = backgroundVisualUrl
-    ? `linear-gradient(rgba(255,255,255,${1 - opacity / 100}), rgba(255,255,255,${1 - opacity / 100})), url("${backgroundVisualUrl.replaceAll('"', '%22')}")`
+    ? `linear-gradient(${overlayColor}, ${overlayColor}), url("${backgroundVisualUrl.replaceAll('"', '%22')}")`
     : "";
   $("#templatePreviewName").textContent = $("#templateName").value.trim() || "新模板";
   $("#templatePreviewState").textContent = $("#templateStatus").value === "disabled" ? "当前停用，不会分配给成员" : "保存后同步到企业成员名片";
@@ -2552,13 +2590,29 @@ function renderTemplateEditor() {
   defaultButton.disabled = !current || current.is_default || !hasPermission("tenant.template.write");
   defaultButton.textContent = current?.is_default ? "当前默认模板" : "设为默认模板";
   renderTemplateChoiceControls(variant, primary);
+  renderTemplateBackgroundPresetControls(variant, backgroundPresetId, Boolean(backgroundUrl));
   renderTemplateAssetPreview("#templateLogoPreview", $("#templateLogoUrl").value, "未上传");
   renderTemplateAssetPreview("#templateBackgroundPreview", backgroundVisualUrl, "使用版式默认背景");
   renderTemplateAssetPreview("#templatePortraitPreview", $("#templatePortraitUrl").value, "未上传");
-  const logoUrl = $("#templateLogoUrl").value.trim();
+  const logoUrl = $("#templateLogoUrl").value.trim() || state.companyProfile?.logo_url || "";
   const logoNode = $("#templatePreviewLogo");
-  logoNode.innerHTML = logoUrl ? `<img src="${escapeAttr(mediaUrl(logoUrl))}" alt="" />` : "企";
+  logoNode.innerHTML = logoUrl ? `<img src="${escapeAttr(mediaUrl(logoUrl))}" alt="" />` : "";
+  logoNode.classList.toggle("hidden", !logoUrl);
+  const companyShort = state.companyProfile?.short_name || "";
+  $("#templatePreviewCompanyShort").textContent = companyShort;
+  $("#templatePreviewCompanyShort").classList.toggle("hidden", !companyShort);
   $("#templatePreviewCompany").textContent = state.companyProfile?.display_name || "企业名称";
+  const card = state.templatePreviewCard || {};
+  $("#templatePreviewMemberName").textContent = card.display_name || "姓名";
+  $("#templatePreviewMemberTitle").textContent = card.title || "职位";
+  $("#templatePreviewMemberMobile").textContent = card.fields?.mobile || "联系方式未设置";
+  const avatar = $("#templatePreviewAvatar");
+  const showAvatar = variant === "portrait-photo" || card.privacy?.show_avatar !== false;
+  const avatarUrl = variant === "portrait-photo"
+    ? ($("#templatePortraitUrl").value.trim() || `${apiBase()}/demo-assets/card-portraits/default-avatar-square.png?v=20260726-portrait`)
+    : (card.avatar_url || "");
+  avatar.classList.toggle("hidden", !showAvatar);
+  avatar.innerHTML = avatarUrl ? `<img src="${escapeAttr(mediaUrl(avatarUrl))}" alt="" />` : `<span aria-hidden="true"></span>`;
 }
 
 function renderTemplateChoiceControls(activeVariant, primary) {
@@ -2578,6 +2632,20 @@ function renderTemplateChoiceControls(activeVariant, primary) {
     button.dataset.templateColor = color;
     button.style.backgroundColor = color;
     button.setAttribute("aria-label", color);
+    return button;
+  }));
+}
+
+function renderTemplateBackgroundPresetControls(variant, activePresetId, hasCustomBackground) {
+  const normalizedVariant = normalizeTemplateVariant(variant);
+  const presetIds = TEMPLATE_VARIANT_PRESETS[normalizedVariant] || [];
+  $("#templateBackgroundPresetChoices").replaceChildren(...presetIds.map((presetId) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const activeId = activePresetId || TEMPLATE_VARIANT_DEFAULT_PRESETS[normalizedVariant];
+    button.className = `template-background-preset ${!hasCustomBackground && presetId === activeId ? "active" : ""}`;
+    button.dataset.templateBackgroundPreset = presetId;
+    button.innerHTML = `<img src="${escapeAttr(TEMPLATE_BACKGROUND_PRESETS[presetId])}" alt="" /><span>${escapeHtml(TEMPLATE_BACKGROUND_PRESET_NAMES[presetId])}</span>`;
     return button;
   }));
 }
@@ -4430,8 +4498,21 @@ $("#templateColorChoices").addEventListener("click", (event) => {
   $("#templatePrimaryColor").classList.remove("is-invalid");
   renderTemplateEditor();
 });
+$("#templateBackgroundPresetChoices").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-template-background-preset]");
+  if (!button) return;
+  const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
+  $("#templateBackgroundUrl").value = "";
+  state.templateDraftBackgrounds[variant] = {
+    ...(state.templateDraftBackgrounds[variant] || {}),
+    background_url: "",
+    background_preset_id: button.dataset.templateBackgroundPreset,
+    background_opacity: normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100)
+  };
+  renderTemplateEditor();
+});
 $("#templatePrimaryColorPicker").addEventListener("input", (event) => {
-  $("#templatePrimaryColor").value = normalizeHexColor(event.target.value, "#5272d6");
+  $("#templatePrimaryColor").value = normalizeHexColor(event.target.value, "#5a70c8");
   $("#templatePrimaryColor").classList.remove("is-invalid");
   renderTemplateEditor();
 });
@@ -4452,6 +4533,15 @@ $("#uploadTemplatePortrait").addEventListener("click", () => uploadTemplateAsset
 ].forEach(([buttonSelector, inputSelector]) => {
   $(buttonSelector).addEventListener("click", () => {
     $(inputSelector).value = "";
+    if (inputSelector === "#templateBackgroundUrl") {
+      const variant = normalizeTemplateVariant($("#templateLayoutVariant").value);
+      state.templateDraftBackgrounds[variant] = {
+        ...(state.templateDraftBackgrounds[variant] || {}),
+        background_url: "",
+        background_preset_id: TEMPLATE_VARIANT_DEFAULT_PRESETS[variant],
+        background_opacity: normalizeTemplateOpacity($("#templateBackgroundOpacity").value, 100)
+      };
+    }
     renderTemplateEditor();
   });
 });
