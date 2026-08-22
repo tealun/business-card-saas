@@ -3213,6 +3213,125 @@ button.compact {
   background: var(--surface-soft);
 }
 
+.video-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+.video-upload-action {
+  margin-left: auto;
+}
+
+.company-video-manager {
+  margin: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.company-video-manager__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.company-video-manager__head > div,
+.company-video-editor__fields {
+  display: grid;
+  gap: 4px;
+}
+
+.company-video-manager__head small {
+  color: var(--muted);
+}
+
+.company-video-list {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.company-video-editor {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.company-video-editor video {
+  width: 112px;
+  max-width: 100%;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  align-self: start;
+  border-radius: 4px;
+  background: #111827;
+  object-fit: cover;
+}
+
+.company-video-editor__fields {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+}
+
+.company-video-editor__fields > input,
+.company-video-editor__fields > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.company-video-editor__fields > input:first-child {
+  grid-column: 1 / -1;
+}
+
+.company-video-editor__fields .check-line,
+.company-video-editor__actions {
+  grid-column: 1 / -1;
+}
+
+.company-video-editor__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .video-status {
+    flex-wrap: wrap;
+  }
+
+  .video-upload-action {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .company-video-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .company-video-editor video {
+    width: 100%;
+  }
+
+  .company-video-editor__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .company-video-editor__actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
 .video-feature-current {
   display: grid;
   grid-template-columns: 104px minmax(0, 1fr) auto;

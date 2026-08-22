@@ -1958,12 +1958,16 @@ function renderVideoPanel() {
   const published = selectableCompanyVideos();
   const header = document.createElement("div");
   header.className = "video-status";
-  header.innerHTML = `${tag("已开启", "success")}<span class="hint">从已发布视频中选择，不需要填写视频编号。</span>`;
+  header.innerHTML = `${tag("已开启", "success")}<span class="hint">单个视频上限 ${escapeHtml(String(capability.effective_limit_mb))} MB</span>`;
+  const upload = actionButton("上传视频", () => uploadCompanyVideo(), "secondary", "tenant.company.write");
+  upload.classList.add("video-upload-action");
+  header.append(upload);
   root.replaceChildren(header);
+  root.append(renderCompanyVideoManager());
   if (!published.length) {
     const empty = document.createElement("div");
     empty.className = "builder-empty";
-    empty.textContent = "暂无已发布视频。视频上传和审核完成后，会自动出现在这里供选择。";
+    empty.textContent = "暂无已发布视频。上传后会自动发布并出现在这里。";
     root.append(empty);
     return;
   }
@@ -1996,6 +2000,163 @@ function renderVideoPanel() {
   hint.className = "hint";
   hint.textContent = `当前可展示 ${published.length} 个已发布视频；公开页的视频模块会按视频排序展示。`;
   root.append(hint);
+}
+
+function renderCompanyVideoManager() {
+  const section = document.createElement("section");
+  section.className = "company-video-manager";
+  const heading = document.createElement("div");
+  heading.className = "company-video-manager__head";
+  heading.innerHTML = `<div><strong>视频库</strong><small>上传、发布与管理企业视频</small></div><span>${sortedCompanyVideos().length} 个</span>`;
+  section.append(heading);
+  const videos = sortedCompanyVideos();
+  if (!videos.length) return section;
+  const list = document.createElement("div");
+  list.className = "company-video-list";
+  videos.forEach((video) => list.append(renderCompanyVideoEditor(video)));
+  section.append(list);
+  return section;
+}
+
+function renderCompanyVideoEditor(video) {
+  const writable = hasPermission("tenant.company.write");
+  const row = document.createElement("article");
+  row.className = "company-video-editor";
+  const media = document.createElement("video");
+  media.src = mediaUrl(video.video_url);
+  media.controls = true;
+  media.preload = "metadata";
+  if (video.cover_url) media.poster = mediaUrl(video.cover_url);
+  const fields = document.createElement("div");
+  fields.className = "company-video-editor__fields";
+  const title = input(video.title || "", "title", video.video_id, "companyVideo", "视频标题");
+  title.maxLength = 255;
+  title.disabled = !writable;
+  const sort = input(Number(video.sort_order || 0), "sort_order", video.video_id, "companyVideo", "排序", "number");
+  sort.min = "0";
+  sort.max = "999";
+  sort.disabled = !writable;
+  const status = document.createElement("select");
+  [["published", "已发布"], ["draft", "草稿"]].forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.selected = value === (video.status || "draft");
+    status.append(option);
+  });
+  status.disabled = !writable;
+  const visibleLabel = document.createElement("label");
+  visibleLabel.className = "check-line";
+  const visible = document.createElement("input");
+  visible.type = "checkbox";
+  visible.checked = video.visible !== false;
+  visible.disabled = !writable;
+  visibleLabel.append(visible, document.createTextNode("公开展示"));
+  const controls = document.createElement("div");
+  controls.className = "company-video-editor__actions";
+  controls.append(
+    actionButton("保存", () => saveCompanyVideo(video.video_id, { title, sort, status, visible }), "secondary", "tenant.company.write"),
+    actionButton("删除", () => deleteCompanyVideo(video), "danger-lite secondary", "tenant.company.write")
+  );
+  fields.append(title, sort, status, visibleLabel, controls);
+  row.append(media, fields);
+  return row;
+}
+
+async function uploadCompanyVideo() {
+  if (!requirePermission("tenant.company.write") || !state.videoCapability?.enabled) return;
+  const [file] = await chooseBrowserFiles({ accept: "video/mp4" });
+  if (!file) return;
+  const maxBytes = Number(state.videoCapability.effective_limit_bytes || 0);
+  if (maxBytes && file.size > maxBytes) {
+    notify(`视频不能超过 ${state.videoCapability.effective_limit_mb} MB`, "danger");
+    return;
+  }
+  await run("上传视频", async () => {
+    const uploaded = await uploadAdminBinary("/admin/uploads/videos", file, { file_name: file.name || "video.mp4" });
+    const title = String(file.name || "企业视频").replace(/\.[^.]+$/, "").slice(0, 255) || "企业视频";
+    const created = await adminRequest("/admin/company-videos", {
+      method: "POST",
+      body: {
+        title,
+        video_url: uploaded.url,
+        duration_seconds: await readVideoDuration(file),
+        sort_order: (sortedCompanyVideos().length + 1) * 10,
+        visible: true,
+        status: "published"
+      }
+    });
+    state.companyVideos.push(created);
+    renderVideoPanel();
+    renderCompanyEditors();
+    notify(`视频「${created.title}」已上传并发布`);
+    return created;
+  });
+}
+
+function readVideoDuration(file) {
+  return new Promise((resolve) => {
+    const media = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    const timeout = window.setTimeout(() => finish(null), 5000);
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    media.preload = "metadata";
+    media.addEventListener("loadedmetadata", () => finish(Number.isFinite(media.duration) ? Math.min(86400, Math.max(0, Math.round(media.duration))) : null), { once: true });
+    media.addEventListener("error", () => finish(null), { once: true });
+    media.src = url;
+  });
+}
+
+async function saveCompanyVideo(videoId, controls) {
+  if (!requirePermission("tenant.company.write")) return;
+  const title = controls.title.value.trim();
+  if (!title) {
+    notify("请填写视频标题", "danger");
+    return;
+  }
+  await run("保存视频", async () => {
+    const updated = await adminRequest(`/admin/company-videos/${encodeURIComponent(videoId)}`, {
+      method: "PUT",
+      body: {
+        title,
+        sort_order: Math.max(0, Math.min(999, Math.round(Number(controls.sort.value) || 0))),
+        status: controls.status.value,
+        visible: controls.visible.checked
+      }
+    });
+    state.companyVideos = state.companyVideos.map((item) => item.video_id === videoId ? updated : item);
+    renderVideoPanel();
+    renderCompanyEditors();
+    notify("视频设置已保存");
+    return updated;
+  });
+}
+
+async function deleteCompanyVideo(video) {
+  if (!requirePermission("tenant.company.write")) return;
+  const ok = await confirmAction({
+    title: "确认删除视频",
+    body: `删除「${video.title}」后，企业主页中对它的引用也会移除。`,
+    danger: true
+  });
+  if (!ok) return;
+  await run("删除视频", async () => {
+    await adminRequest(`/admin/company-videos/${encodeURIComponent(video.video_id)}`, { method: "DELETE" });
+    state.companyVideos = state.companyVideos.filter((item) => item.video_id !== video.video_id);
+    if (state.companyProfile) {
+      state.companyProfile.intro_blocks = state.companyProfile.intro_blocks.filter((block) => block.type !== "video" || block.video_id !== video.video_id);
+    }
+    renderVideoPanel();
+    renderCompanyEditors();
+    notify("视频已删除");
+  });
 }
 
 function applyCompanyPermission() {
