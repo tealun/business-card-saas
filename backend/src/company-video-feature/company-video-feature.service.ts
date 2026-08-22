@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminSession } from "../admin-auth/admin-session.js";
-import { requireAdminRole } from "../admin-auth/admin-rbac.js";
+import { requirePlatformAdminRole } from "../admin-auth/admin-rbac.js";
 import {
   platformVideoFeatureSchema,
   tenantVideoFeatureSchema,
@@ -38,7 +38,7 @@ export class CompanyVideoFeatureService {
 
   async updatePlatform(session: AdminSession, input: PlatformVideoFeatureRequest) {
     this.requirePlatform(session);
-    requireAdminRole(session.role, "admin");
+    requirePlatformAdminRole(session, "admin");
     const updated = this.formatPlatform(await this.repository.updatePlatform(input));
     await this.operationLogs?.record({
       session,
@@ -68,7 +68,7 @@ export class CompanyVideoFeatureService {
 
   async updateTenant(session: AdminSession, tenantId: string, input: TenantVideoFeatureRequest) {
     this.requirePlatform(session);
-    requireAdminRole(session.role, "admin");
+    requirePlatformAdminRole(session, "admin");
     const platform = await this.repository.getPlatform();
     if (input.limit_bytes !== null && input.limit_bytes > platform.defaultLimitBytes) {
       throw new BadRequestException("tenant video limit cannot exceed platform default");
