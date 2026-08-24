@@ -319,6 +319,16 @@
   font-size: 22rpx;
   line-height: 1.35;
 }
+
+.action-grid__item--disabled {
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.action-grid__item--disabled .icon {
+  background-color: var(--text-tertiary);
+  opacity: 0.55;
+}
 .module-enter { animation: module-enter 280ms ease-out both; }
 @keyframes module-enter { from { opacity: 0; transform: translateY(16rpx); } to { opacity: 1; transform: translateY(0); } }
 .module-scroll { width: 100%; white-space: nowrap; }

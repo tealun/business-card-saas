@@ -228,6 +228,19 @@
     <view class="sheet__tip">分享内容仅包含公开编号与渠道编号，敏感字段由隐私开关控制。</view>
   </view>
 
+  <view class="sheet-mask {{paperCardSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closePaperCardSheet"></view>
+  <view class="sheet paper-card-sheet {{paperCardSheetVisible ? 'sheet--show' : ''}}">
+    <view class="sheet__grab"></view>
+    <view class="row-between sheet__head">
+      <text class="card__title">纸质名片</text>
+      <view class="icon icon-close icon--sm" catchtap="closePaperCardSheet"></view>
+    </view>
+    <image class="paper-card-sheet__image" src="{{paperCardUrl}}" mode="widthFix" bindtap="previewPaperCardImage" />
+    <button class="btn btn--primary btn--block paper-card-sheet__replace" bindtap="replacePaperCardImage" loading="{{savingPaperCard}}" disabled="{{savingPaperCard}}">
+      {{savingPaperCard ? "保存中" : "更换纸质名片"}}
+    </button>
+  </view>
+
   <view class="sheet-mask {{previewSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closePreviewSheet"></view>
   <view class="sheet preview-sheet {{previewFullscreen ? 'preview-sheet--fullscreen' : ''}} {{previewMode === 'code' ? 'code-sheet' : ''}} {{previewSheetVisible ? 'sheet--show' : ''}}">
     <view class="sheet__grab"></view>

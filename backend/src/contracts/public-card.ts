@@ -42,6 +42,7 @@ export const publicCardFieldSchema = z.object({
   wechat_id: z.string().nullable(),
   wechat_qrcode_url: imageSourceSchema.nullable().optional(),
   wecom_qrcode_url: imageSourceSchema.nullable().optional(),
+  paper_card_url: imageSourceSchema.nullable().optional(),
   address: z.string().nullable()
 });
 

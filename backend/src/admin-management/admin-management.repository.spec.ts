@@ -159,6 +159,7 @@ it("updates member, primary card, and public directory status in tenant scope", 
       show_wechat: true,
       allow_forward: true,
       show_avatar: true,
+      show_paper_card: true,
       share_title: null
     });
     expect(result?.status).toBe("disabled");

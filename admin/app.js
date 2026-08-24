@@ -506,8 +506,6 @@ function refreshPermissionControls() {
   applyPermissionState("#createTemplate", "tenant.template.write");
   applyPermissionState("#updateTemplate", "tenant.template.write");
   applyPermissionState("#setDefaultTemplate", "tenant.template.write");
-  applyPermissionState("#uploadTemplateLogo", "tenant.template.write");
-  applyPermissionState("#clearTemplateLogo", "tenant.template.write");
   applyPermissionState("#uploadTemplateBackground", "tenant.template.write");
   applyPermissionState("#clearTemplateBackground", "tenant.template.write");
   applyPermissionState("#uploadTemplatePortrait", "tenant.template.write");
@@ -2738,7 +2736,6 @@ function templatePayload(includeStatus = false) {
   const payload = {
     name: $("#templateName").value.trim(),
     background_url: backgroundUrl,
-    logo_url: $("#templateLogoUrl").value.trim() || null,
     color_scheme: {
       ...(current?.color_scheme || {}),
       primary: normalizeHexColor($("#templatePrimaryColor").value, "#5a70c8"),
@@ -2875,10 +2872,9 @@ function renderTemplateEditor() {
   defaultButton.textContent = current?.is_default ? "当前默认模板" : "设为默认模板";
   renderTemplateChoiceControls(variant, primary);
   renderTemplateBackgroundPresetControls(variant, backgroundPresetId, Boolean(backgroundUrl));
-  renderTemplateAssetPreview("#templateLogoPreview", $("#templateLogoUrl").value, "未上传");
   renderTemplateAssetPreview("#templateBackgroundPreview", backgroundVisualUrl, "使用版式默认背景");
   renderTemplateAssetPreview("#templatePortraitPreview", $("#templatePortraitUrl").value, "未上传");
-  const logoUrl = $("#templateLogoUrl").value.trim() || state.companyProfile?.logo_url || "";
+  const logoUrl = state.companyProfile?.logo_url || $("#templateLogoUrl").value.trim() || "";
   const logoNode = $("#templatePreviewLogo");
   logoNode.innerHTML = logoUrl ? `<img src="${escapeAttr(mediaUrl(logoUrl))}" alt="" />` : "";
   logoNode.classList.toggle("hidden", !logoUrl);
@@ -4807,11 +4803,9 @@ async function uploadTemplateAsset(inputSelector, category) {
   $(inputSelector).value = urls[0];
   renderTemplateEditor();
 }
-$("#uploadTemplateLogo").addEventListener("click", () => uploadTemplateAsset("#templateLogoUrl", "logos"));
 $("#uploadTemplateBackground").addEventListener("click", () => uploadTemplateAsset("#templateBackgroundUrl", "templates"));
 $("#uploadTemplatePortrait").addEventListener("click", () => uploadTemplateAsset("#templatePortraitUrl", "templates"));
 [
-  ["#clearTemplateLogo", "#templateLogoUrl"],
   ["#clearTemplateBackground", "#templateBackgroundUrl"],
   ["#clearTemplatePortrait", "#templatePortraitUrl"]
 ].forEach(([buttonSelector, inputSelector]) => {

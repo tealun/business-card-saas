@@ -43,12 +43,18 @@ describe("LocalEnterpriseService", () => {
     expect(repository.reviewJoinRequest).toHaveBeenCalledWith(expect.objectContaining({tenantId:"20",requestId:"9",decision:"approved"}));
   });
 
-  it("does not persist a join code when Mini Program code generation fails", async () => {
+  it("keeps the join invitation usable when Mini Program code generation fails", async () => {
     const repository={createJoinCode:jest.fn()};
     const failingJoinQr={...joinQr,generate:jest.fn(async()=>{throw new Error("WeChat code failed");})};
     const service=new LocalEnterpriseService(repository as never,{} as never,audit as never,failingJoinQr as never);
-    await expect(service.createJoinCode(owner)).rejects.toThrow("WeChat code failed");
-    expect(repository.createJoinCode).not.toHaveBeenCalled();
+    await expect(service.createJoinCode(owner)).resolves.toEqual(expect.objectContaining({
+      join_token:expect.stringMatching(/^join_/),
+      join_path:expect.stringContaining("pages/enterprise-join/index?token="),
+      qr_code_data_url:null,
+      qr_code_error:"小程序码暂时无法生成，可直接分享邀请"
+    }));
+    expect(repository.createJoinCode).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({detail:expect.objectContaining({qr_generated:false})}));
   });
 
   it("reissues an admin token only for an active local admin bound to the account",async()=>{

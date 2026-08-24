@@ -56,9 +56,10 @@ describe("PublicCardRepository", () => {
                   company_short_name: "Legacy",
                   address: "Legacy address",
                   mobile: "13800138000",
-                  email: "ada@example.com"
+                  email: "ada@example.com",
+                  paper_card_url: "/api/v1/storage/tenant/tenant-001/paper-cards/card.png"
                 }),
-                privacy_json: { show_mobile: true, show_email: true, show_wechat: false, allow_forward: true },
+                privacy_json: { show_mobile: true, show_email: true, show_wechat: false, show_paper_card: false, allow_forward: true },
                 card_status: "active",
                 company_name: "Admin Corp",
                 company_short_name: "Admin",
@@ -102,6 +103,7 @@ describe("PublicCardRepository", () => {
       expect(card.card.fields.company).toBe("Admin Corp");
       expect(card.card.fields.company_short_name).toBe("Admin");
       expect(card.card.fields.address).toBe("Admin address");
+      expect(card.card.fields.paper_card_url).toBeNull();
       expect(card.company_profile.name).toBe("Admin Corp");
       expect(card.company_profile.short_name).toBe("Admin");
       expect(card.company_profile.address).toBe("Admin address");

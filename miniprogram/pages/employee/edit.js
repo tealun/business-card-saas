@@ -60,7 +60,8 @@ Page({
       show_email: true,
       show_wechat: false,
       allow_forward: true,
-      show_avatar: true
+      show_avatar: true,
+      show_paper_card: true
     },
     selfService: {
       allow_privacy_edit: true,
@@ -370,7 +371,7 @@ Page({
     if (fieldKey === "share_title" || fieldKey === "allow_forward") {
       return this.data.selfService.allow_share_edit !== false;
     }
-    if (fieldKey === "show_mobile" || fieldKey === "show_email" || fieldKey === "show_wechat" || fieldKey === "show_avatar") {
+    if (fieldKey === "show_mobile" || fieldKey === "show_email" || fieldKey === "show_wechat" || fieldKey === "show_avatar" || fieldKey === "show_paper_card") {
       return this.data.selfService.allow_privacy_edit !== false;
     }
     return this.data.editable[fieldKey] !== false;
@@ -399,12 +400,6 @@ Page({
         // 根据可编辑/自助开关构造 payload，被禁用字段直接省略。
         data: buildPayload(form, this.data.privacy, this.data.editable, this.data.selfService)
       });
-      if (this.data.editable.logo_url) {
-        await request("/employee/cards/current/style", {
-          method: "PUT",
-          data: { logo_url: form.logo_url || null }
-        });
-      }
       app.globalData.currentCard = card;
       wx.showToast({ title: "已保存", icon: "success" });
       setTimeout(() => wx.navigateBack(), 600);
@@ -462,6 +457,7 @@ function buildPayload(form, privacy, editable, selfService) {
     privacyPayload.show_email = privacy.show_email;
     privacyPayload.show_wechat = privacy.show_wechat;
     privacyPayload.show_avatar = privacy.show_avatar;
+    privacyPayload.show_paper_card = privacy.show_paper_card;
   }
   if (selfService.allow_share_edit !== false) {
     privacyPayload.allow_forward = privacy.allow_forward;

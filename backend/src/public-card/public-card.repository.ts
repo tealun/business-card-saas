@@ -726,17 +726,18 @@ export class PublicCardRepository {
           company: companyName,
           company_short_name: companyShortName,
           mobile: privacy.show_mobile ? fields.mobile : null,
-          phone: fields.phone,
+          phone: privacy.show_mobile ? fields.phone : null,
           email: privacy.show_email ? fields.email : null,
           wechat_id: privacy.show_wechat ? fields.wechat_id : null,
-          wechat_qrcode_url: fields.wechat_qrcode_url ?? null,
-          wecom_qrcode_url: fields.wecom_qrcode_url ?? null,
+          wechat_qrcode_url: privacy.show_wechat ? fields.wechat_qrcode_url ?? null : null,
+          wecom_qrcode_url: privacy.show_wechat ? fields.wecom_qrcode_url ?? null : null,
+          paper_card_url: privacy.show_paper_card ? fields.paper_card_url ?? null : null,
           address: companyAddress
         }
       },
       template: {
         template_id: templateId,
-        logo_url: (useEnterpriseTemplate ? row.company_logo_url ?? row.default_template_logo_url : layoutLogoUrl ?? row.company_logo_url) ?? null,
+        logo_url: (row.company_logo_url ?? (useEnterpriseTemplate ? row.default_template_logo_url : layoutLogoUrl)) ?? null,
         background_url: useEnterpriseTemplate ? row.default_template_background_url ?? null : row.background_url,
         color_scheme: Object.keys(parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)).length
           ? parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)
@@ -984,7 +985,7 @@ export class PublicCardRepository {
   }
 }
 
-function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean; allow_forward: boolean; show_avatar: boolean; share_title: string | null } {
+function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boolean; show_wechat: boolean; allow_forward: boolean; show_avatar: boolean; show_paper_card: boolean; share_title: string | null } {
   const record = parseObject(value);
   return {
     show_mobile: typeof record.show_mobile === "boolean" ? record.show_mobile : false,
@@ -992,6 +993,7 @@ function parsePrivacy(value: unknown): { show_mobile: boolean; show_email: boole
     show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
     allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true,
     show_avatar: typeof record.show_avatar === "boolean" ? record.show_avatar : true,
+    show_paper_card: typeof record.show_paper_card === "boolean" ? record.show_paper_card : true,
     share_title: typeof record.share_title === "string" && record.share_title.trim() ? record.share_title.trim().slice(0, 50) : null
   };
 }

@@ -16,6 +16,7 @@ export type StorageCategory =
   | "portrait-photos"
   | "wechat-qrcodes"
   | "company-images"
+  | "paper-cards"
   | "videos"
   | "honors"
   | "templates";

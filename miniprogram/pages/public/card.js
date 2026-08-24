@@ -164,6 +164,11 @@ Page({
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
     wechatQrUrl: "",
+    canCall: false,
+    canEmail: false,
+    canOpenMap: false,
+    canWechat: false,
+    canViewPaperCard: false,
     serviceItems: demoServiceItems,
     introBlocks: demoPublicCard.company_profile.intro_blocks,
     displayModules: [],
@@ -243,6 +248,8 @@ Page({
     const canShare = isOwnCard || card.allow_forward !== false;
     const templateId = card.template && card.template.template_id;
     const background = activeTemplateBackground(layout, templateId, card.template && card.template.background_url);
+    const fields = (card.card && card.card.fields) || {};
+    const profile = card.company_profile || {};
     this.setData({
       card,
       ...theme,
@@ -266,6 +273,11 @@ Page({
       isOwnCard,
       isDemo: Boolean(isDemo),
       canShare,
+      canCall: Boolean(fields.mobile || fields.phone),
+      canEmail: Boolean(fields.email),
+      canOpenMap: Boolean((profile.address || fields.address) && Number.isFinite(Number(profile.latitude ?? fields.latitude)) && Number.isFinite(Number(profile.longitude ?? fields.longitude))),
+      canWechat: Boolean(publicWechatQrUrl(card)),
+      canViewPaperCard: Boolean(fields.paper_card_url),
       serviceItems: resolveServiceItems(card, isDemo),
       introBlocks: resolveIntroBlocks(card),
       displayModules: resolveDisplayModules(card, isDemo),
@@ -433,7 +445,6 @@ Page({
     const fields = this.data.card.card.fields || {};
     const number = fields.mobile || fields.phone;
     if (!number) {
-      wx.showToast({ title: "暂无可拨打电话", icon: "none" });
       return;
     }
     this.recordAction("call_phone");
@@ -616,7 +627,6 @@ Page({
   sendEmail() {
     const email = this.data.card.card.fields && this.data.card.card.fields.email;
     if (!email) {
-      showRestriction("对方暂未设置邮箱");
       return;
     }
     this.recordAction("copy_email");
@@ -641,7 +651,6 @@ Page({
     const latitude = Number(profile.latitude ?? fields.latitude);
     const longitude = Number(profile.longitude ?? fields.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      showRestriction("该地址尚未设置地图位置，请联系企业管理员完善经纬度后再导航");
       return;
     }
     this.recordAction("open_map");
@@ -654,7 +663,6 @@ Page({
   copyWechat() {
     const qrUrl = publicWechatQrUrl(this.data.card);
     if (!qrUrl) {
-      showRestriction("对方暂未设置微信二维码");
       return;
     }
     this.recordAction("copy_wechat");
@@ -679,8 +687,10 @@ Page({
    * 查看纸质名片信息的行为入口。
    */
   viewPaperCard() {
+    const paperCardUrl = this.data.card.card.fields && this.data.card.card.fields.paper_card_url;
+    if (!paperCardUrl) return;
     this.recordAction("view_paper_card");
-    wx.showToast({ title: "纸质名片信息已记录", icon: "none" });
+    wx.previewImage({ current: paperCardUrl, urls: [paperCardUrl] });
   },
 
   /**

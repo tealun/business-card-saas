@@ -6,6 +6,7 @@ const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { buildVisitedCardLabel, mapRecentVisitors } = require("../../utils/format");
 const { DEFAULT_BRAND, setPageTheme } = require("../../utils/theme");
 const { DEMO_CARD_ID, DEMO_CARD_ROUTE, demoIdentity } = require("../../utils/demo-card");
+const { imagePathToDataUrl } = require("../../utils/image-data");
 
 const demoCard = {
   display_name: "李明",
@@ -83,6 +84,9 @@ Page({
     sharePath: "",
     sharePreparing: false,
     personalWechatQr: "",
+    paperCardUrl: "",
+    paperCardSheetVisible: false,
+    savingPaperCard: false,
     selfService: {
       allow_privacy_edit: true,
       allow_share_edit: true,
@@ -121,7 +125,7 @@ Page({
     if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
       this.getTabBar().applyTheme();
-      this.setTabBarHidden(this.data.sheetVisible || this.data.previewSheetVisible || this.data.identitySheetVisible);
+      this.setTabBarHidden(this.data.sheetVisible || this.data.previewSheetVisible || this.data.paperCardSheetVisible || this.data.identitySheetVisible);
     }
     if (this.data.loggedIn && app.globalData.token) {
       await this.loadPreview();
@@ -278,6 +282,7 @@ Page({
           show_avatar: preview.show_avatar !== false,
           share_title: preview.share_title || ""
         }),
+        paperCardUrl: (current.fields && current.fields.paper_card_url) || "",
         cardLogoUrl: (preview.template && preview.template.logo_url) || "",
         showCardHead: Boolean((preview.template && preview.template.logo_url) || (preview.card && preview.card.company_short_name)),
         cardTemplateClass: cardTemplateClass(templateId),
@@ -661,14 +666,32 @@ Page({
     this.setTabBarHidden(false);
   },
 
-  /**
-   * 选择纸质名片图片，为后续 OCR 识别入口预留。
-   * 当前只做能力提示，不上传文件或写入名片资料。
-   */
+  /** 打开已有纸质名片预览；尚未设置时直接进入选择与保存流程。 */
   choosePaperCardImage() {
     if (!this.ensureLoggedIn("请先登录后上传纸质名片")) {
       return;
     }
+    if (this.data.paperCardUrl) {
+      this.setData({ paperCardSheetVisible: true, sheetVisible: false });
+      this.setTabBarHidden(true);
+      return;
+    }
+    this.replacePaperCardImage();
+  },
+
+  closePaperCardSheet() {
+    this.setData({ paperCardSheetVisible: false });
+    this.setTabBarHidden(false);
+  },
+
+  previewPaperCardImage() {
+    if (this.data.paperCardUrl) {
+      wx.previewImage({ current: this.data.paperCardUrl, urls: [this.data.paperCardUrl] });
+    }
+  },
+
+  replacePaperCardImage() {
+    if (this.data.savingPaperCard) return;
     if (typeof wx.chooseMedia !== "function") {
       showRestriction("当前微信版本暂不支持拍照上传，请升级微信后重试");
       return;
@@ -677,8 +700,31 @@ Page({
       count: 1,
       mediaType: ["image"],
       sourceType: ["camera", "album"],
-      success: () => {
-        wx.showToast({ title: "纸质名片已选择，识别保存即将上线", icon: "none" });
+      sizeType: ["compressed"],
+      success: async (result) => {
+        const file = result.tempFiles && result.tempFiles[0];
+        const path = file && (file.tempFilePath || file.path);
+        if (!path) return;
+        this.setData({ savingPaperCard: true });
+        try {
+          const dataUrl = await imagePathToDataUrl(path, imageMimeFromPath(path));
+          const saved = await request("/employee/cards/current", {
+            method: "PUT",
+            data: { fields: { paper_card_url: dataUrl } }
+          });
+          const paperCardUrl = saved.fields && saved.fields.paper_card_url ? saved.fields.paper_card_url : "";
+          const card = Object.assign({}, this.data.card, {
+            fields: Object.assign({}, this.data.card.fields || {}, { paper_card_url: paperCardUrl })
+          });
+          app.globalData.currentCard = Object.assign({}, app.globalData.currentCard || {}, saved);
+          this.setData({ card, paperCardUrl, paperCardSheetVisible: Boolean(paperCardUrl) });
+          this.setTabBarHidden(Boolean(paperCardUrl));
+          wx.showToast({ title: "纸质名片已保存", icon: "success" });
+        } catch (error) {
+          showError(error, "纸质名片保存失败，请重试");
+        } finally {
+          this.setData({ savingPaperCard: false });
+        }
       }
     });
   },
@@ -1267,6 +1313,13 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
     ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
     : `rgba(255,255,255,${alpha.toFixed(2)})`;
   return `background: linear-gradient(${overlay}, ${overlay});`;
+}
+
+function imageMimeFromPath(path) {
+  const normalized = String(path || "").toLowerCase().split("?")[0];
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
 }
 
 function cardTemplateClass(templateId) {

@@ -284,6 +284,7 @@ function fakeRepository(overviewOverrides: Partial<{
       show_wechat: false,
       allow_forward: true,
       show_avatar: true,
+      show_paper_card: true,
       share_title: null
     },
     status: "disabled"

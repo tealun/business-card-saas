@@ -898,6 +898,7 @@ function normalizeFields(value: unknown): CardFields {
     phone: nullableString(record.phone),
     email: nullableString(record.email),
     wechat_id: nullableString(record.wechat_id),
+    paper_card_url: nullableString(record.paper_card_url),
     address: nullableString(record.address),
     website: nullableString(record.website)
   } as CardFields;
@@ -913,6 +914,7 @@ function mergePrivacy(current: CardPrivacy, patch: UpdateAdminMemberCardRequest[
     show_wechat: patch.show_wechat !== undefined ? patch.show_wechat : current.show_wechat,
     allow_forward: patch.allow_forward !== undefined ? patch.allow_forward : current.allow_forward,
     show_avatar: patch.show_avatar !== undefined ? patch.show_avatar : current.show_avatar,
+    show_paper_card: current.show_paper_card,
     share_title: patch.share_title !== undefined ? patch.share_title : current.share_title
   };
 }
@@ -924,6 +926,7 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_wechat: false,
     allow_forward: true,
     show_avatar: true,
+    show_paper_card: true,
     share_title: null
   };
   if (!value) {
@@ -940,6 +943,7 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_wechat: typeof privacy.show_wechat === "boolean" ? privacy.show_wechat : fallback.show_wechat,
     allow_forward: typeof privacy.allow_forward === "boolean" ? privacy.allow_forward : fallback.allow_forward,
     show_avatar: typeof privacy.show_avatar === "boolean" ? privacy.show_avatar : fallback.show_avatar,
+    show_paper_card: typeof privacy.show_paper_card === "boolean" ? privacy.show_paper_card : fallback.show_paper_card,
     share_title: typeof privacy.share_title === "string" && privacy.share_title.trim() ? privacy.share_title.trim().slice(0, 50) : fallback.share_title
   };
 }

@@ -576,12 +576,12 @@
             <text>{{joinCodeSheetTitle === "邀请成员" ? "正在生成邀请" : "正在生成入企码"}}</text>
           </view>
           <view wx:else class="join-code-card__state join-code-card__state--error">
-            <view>生成失败</view>
+            <view>{{joinCode && joinCode.join_path ? "邀请已生成" : "生成失败"}}</view>
             <text>{{joinCodeError || "请稍后重试"}}</text>
           </view>
         </view>
-        <view class="join-code-card__hint">{{joinCodeLoading ? (joinCodeSheetTitle === "邀请成员" ? "生成后可直接分享给微信联系人" : "生成后可扫码提交加入申请") : (joinCodeError ? "请重新生成入企邀请" : "扫码提交加入申请，管理员审核后创建企业名片")}}</view>
-        <view wx:if="{{joinCode && joinCode.expires_at && !joinCodeLoading && !joinCodeError}}" class="join-code-card__expiry">有效期至 {{joinCode.expires_at}}</view>
+        <view class="join-code-card__hint">{{joinCodeLoading ? (joinCodeSheetTitle === "邀请成员" ? "生成后可直接分享给微信联系人" : "生成后可扫码提交加入申请") : (joinCode && joinCode.join_path ? (joinCode.qr_code_data_url ? "扫码提交加入申请，管理员审核后创建企业名片" : "二维码暂不可用，可直接转发邀请") : "请重新生成入企邀请")}}</view>
+        <view wx:if="{{joinCode && joinCode.expires_at && !joinCodeLoading}}" class="join-code-card__expiry">有效期至 {{joinCode.expires_at}}</view>
       </view>
     </view>
 

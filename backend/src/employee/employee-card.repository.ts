@@ -40,6 +40,7 @@ type EditableFieldKey =
   | "wechat_id"
   | "wechat_qrcode_url"
   | "wecom_qrcode_url"
+  | "paper_card_url"
   | "address"
   | "website";
 type StyleFieldKey = keyof UpdateEmployeeCardStyleRequest;
@@ -987,11 +988,12 @@ export class EmployeeCardRepository {
           company: card.company ?? null,
           company_short_name: card.company_short_name ?? null,
           mobile: card.privacy.show_mobile ? card.fields.mobile : null,
-          phone: card.fields.phone ?? null,
+          phone: card.privacy.show_mobile ? card.fields.phone ?? null : null,
           email,
           wechat_id: card.privacy.show_wechat ? card.fields.wechat_id : null,
-          wechat_qrcode_url: card.fields.wechat_qrcode_url ?? null,
-          wecom_qrcode_url: card.fields.wecom_qrcode_url ?? null,
+          wechat_qrcode_url: card.privacy.show_wechat ? card.fields.wechat_qrcode_url ?? null : null,
+          wecom_qrcode_url: card.privacy.show_wechat ? card.fields.wecom_qrcode_url ?? null : null,
+          paper_card_url: card.privacy.show_paper_card !== false ? card.fields.paper_card_url ?? null : null,
           address: card.fields.address ?? null
         }
       },
@@ -1153,6 +1155,14 @@ export class EmployeeCardRepository {
           wecom_qrcode_url: await this.materializeWechatQrCode(session, request.fields.wecom_qrcode_url)
         }
       };
+    }
+    if (request.fields?.paper_card_url?.startsWith("data:image/") && this.storage) {
+      const stored = await this.storage.storeImageDataUrl({
+        tenantId: session.tenantId,
+        category: "paper-cards",
+        dataUrl: request.fields.paper_card_url
+      });
+      next = { ...next, fields: { ...next.fields, paper_card_url: stored.publicUrl } };
     }
     return next;
   }
@@ -1369,6 +1379,9 @@ function mergeCard(
   if (allowedFields.includes("wecom_qrcode_url") && request.fields?.wecom_qrcode_url !== undefined) {
     next.fields.wecom_qrcode_url = request.fields.wecom_qrcode_url;
   }
+  if (allowedFields.includes("paper_card_url") && request.fields?.paper_card_url !== undefined) {
+    next.fields.paper_card_url = request.fields.paper_card_url;
+  }
   if (allowedFields.includes("address") && request.fields?.address !== undefined) {
     next.fields.address = request.fields.address;
   }
@@ -1390,6 +1403,9 @@ function mergeCard(
 
   if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_avatar !== undefined) {
     next.privacy.show_avatar = request.privacy.show_avatar;
+  }
+  if (wecomSettings.allowEmployeePrivacyEdit && request.privacy?.show_paper_card !== undefined) {
+    next.privacy.show_paper_card = request.privacy.show_paper_card;
   }
   if (wecomSettings.allowEmployeeShareEdit && request.privacy?.share_title !== undefined) {
     next.privacy.share_title = request.privacy.share_title;
@@ -1568,6 +1584,7 @@ function normalizeFields(value: unknown): CardFields {
     wechat_id: typeof record.wechat_id === "string" ? record.wechat_id : null,
     wechat_qrcode_url: typeof record.wechat_qrcode_url === "string" ? record.wechat_qrcode_url : null,
     wecom_qrcode_url: typeof record.wecom_qrcode_url === "string" ? record.wecom_qrcode_url : null,
+    paper_card_url: typeof record.paper_card_url === "string" ? record.paper_card_url : null,
     address: typeof record.address === "string" ? record.address : null,
     website: typeof record.website === "string" ? record.website : null,
     wecom_sensitive_synced_at: typeof record.wecom_sensitive_synced_at === "string" ? record.wecom_sensitive_synced_at : null
@@ -1581,16 +1598,17 @@ function defaultPrivacy(): CardPrivacy {
     show_wechat: false,
     allow_forward: true,
     show_avatar: true,
+    show_paper_card: true,
     share_title: null
   };
 }
 
 function defaultEditableFields(): EditableFieldKey[] {
-  return ["avatar_url", "display_name", "title", "company", "company_short_name", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "address", "website"];
+  return ["avatar_url", "display_name", "title", "company", "company_short_name", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "paper_card_url", "address", "website"];
 }
 
 function defaultEnterpriseEditableFields(): EditableFieldKey[] {
-  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url"];
+  return ["avatar_url", "display_name", "title", "department", "mobile", "phone", "email", "wechat_id", "wechat_qrcode_url", "wecom_qrcode_url", "paper_card_url"];
 }
 
 function defaultEmployeeWecomSettings(): EmployeeWecomSettings {
@@ -1674,6 +1692,7 @@ function assertCanUpdatePrivacy(request: UpdateEmployeeCardRequest, settings: Em
     if (privacy.show_email !== undefined) denied.push("show_email");
     if (privacy.show_wechat !== undefined) denied.push("show_wechat");
     if (privacy.show_avatar !== undefined) denied.push("show_avatar");
+    if (privacy.show_paper_card !== undefined) denied.push("show_paper_card");
   }
   if (!settings.allowEmployeeShareEdit) {
     if (privacy.allow_forward !== undefined) denied.push("allow_forward");
@@ -1698,6 +1717,7 @@ function requestedEditableFields(request: UpdateEmployeeCardRequest): EditableFi
   if (request.fields?.wechat_id !== undefined) fields.add("wechat_id");
   if (request.fields?.wechat_qrcode_url !== undefined) fields.add("wechat_qrcode_url");
   if (request.fields?.wecom_qrcode_url !== undefined) fields.add("wecom_qrcode_url");
+  if (request.fields?.paper_card_url !== undefined) fields.add("paper_card_url");
   if (request.fields?.address !== undefined) fields.add("address");
   if (request.fields?.website !== undefined) fields.add("website");
   return [...fields];
@@ -1717,6 +1737,7 @@ function isEditableFieldKey(value: unknown): value is EditableFieldKey {
     value === "wechat_id" ||
     value === "wechat_qrcode_url" ||
     value === "wecom_qrcode_url" ||
+    value === "paper_card_url" ||
     value === "address" ||
     value === "website"
   );
@@ -1730,6 +1751,7 @@ function parsePrivacy(value: unknown): CardPrivacy {
     show_wechat: typeof record.show_wechat === "boolean" ? record.show_wechat : false,
     allow_forward: typeof record.allow_forward === "boolean" ? record.allow_forward : true,
     show_avatar: typeof record.show_avatar === "boolean" ? record.show_avatar : true,
+    show_paper_card: typeof record.show_paper_card === "boolean" ? record.show_paper_card : true,
     share_title: typeof record.share_title === "string" && record.share_title.trim() ? record.share_title.trim().slice(0, 50) : null
   };
 }

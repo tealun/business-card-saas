@@ -274,6 +274,7 @@ describe("EmployeeCardRepository", () => {
         show_wechat: false,
         allow_forward: true,
         show_avatar: true,
+        show_paper_card: true,
         share_title: null
       }
     };
@@ -375,6 +376,35 @@ describe("EmployeeCardRepository", () => {
     expect(preview.template.background_url).toBe(
       "http://localhost:3000/api/v1/storage/tenant/tenant-001/card-backgrounds/background.png"
     );
+  });
+
+  it("persists paper card images and hides them from previews when disabled", async () => {
+    const storage = {
+      storeImageDataUrl: jest.fn(async () => ({
+        storageKey: "tenant/tenant-paper/paper-cards/card.png",
+        publicUrl: "/api/v1/storage/tenant/tenant-paper/paper-cards/card.png"
+      }))
+    };
+    const repository = new EmployeeCardRepository(undefined, undefined, storage as never);
+    const session = {
+      accountId: "acct-paper",
+      identityType: "personal" as const,
+      tenantId: "tenant-paper",
+      tenantName: "Personal",
+      memberIdentityId: "member-paper",
+      displayName: "Ada",
+      openUserid: "ou-paper",
+      publicId: "pub_paper001"
+    };
+
+    const saved = await repository.updateCurrentCard(session, {
+      fields: { paper_card_url: "data:image/png;base64,aGVsbG8=" }
+    });
+    expect(saved.fields.paper_card_url).toBe("/api/v1/storage/tenant/tenant-paper/paper-cards/card.png");
+    expect((await repository.getPreview(session)).card.fields.paper_card_url).toBe(saved.fields.paper_card_url);
+
+    await repository.updateCurrentCard(session, { privacy: { show_paper_card: false } });
+    expect((await repository.getPreview(session)).card.fields.paper_card_url).toBeNull();
   });
 
   it("materializes per-template card background data URLs before saving style", async () => {

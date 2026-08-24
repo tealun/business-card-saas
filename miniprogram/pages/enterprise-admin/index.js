@@ -941,7 +941,6 @@ Page({
         method: "PUT",
         data: {
           name: textOrNull(draft.name) || "企业名片模板",
-          logo_url: textOrNull(draft.logo_url),
           background_url: backgroundUrl || null,
           color_scheme: { primary, surface: draft.surface || "#ffffff" },
           layout,
@@ -1905,7 +1904,7 @@ Page({
       this.setData({
         joinCode: normalizedJoinCode,
         joinCodeLoading: false,
-        joinCodeError: ""
+        joinCodeError: normalizedJoinCode.qr_code_error || ""
       });
       this.prepareJoinCodeCardImage(normalizedJoinCode);
       wx.showToast({ title: sheetTitle === "邀请成员" ? "邀请已生成" : "入企码已生成", icon: "success" });
@@ -2935,6 +2934,7 @@ function normalizeJoinCode(joinCode = {}) {
     join_token: token,
     join_path: joinPath,
     qr_code_data_url: String(joinCode.qr_code_data_url || "").trim(),
+    qr_code_error: String(joinCode.qr_code_error || "").trim(),
     expires_at: expiresAtText,
     expiresAtText
   };
@@ -3013,7 +3013,7 @@ function buildTemplateEditorState(template, profile, members, tenant) {
     customHexError: "",
     customColorExpanded: ![DEFAULT_BRAND, "#c1666b", "#8d7ec7", "#4c8868", "#d68a4e", "#3f9999"].includes(primary),
     card,
-    logoUrl: draft.logo_url || ((profile && profile.logo_url) || ""),
+    logoUrl: (profile && profile.logo_url) || draft.logo_url || "",
     portraitPhotoUrl: isPortraitVariant(variant) ? layoutImageUrl(layout, "portrait_photo_url") : "",
     defaultPortraitPhotoUrl: DEFAULT_PORTRAIT_PHOTO_URL,
     backgroundUrl: backgroundState.backgroundUrl,

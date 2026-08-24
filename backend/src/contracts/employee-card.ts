@@ -31,6 +31,7 @@ export const employeeCardResponseSchema = z.object({
     wechat_id: z.string().nullable(),
     wechat_qrcode_url: imageSourceSchema.nullable().optional(),
     wecom_qrcode_url: imageSourceSchema.nullable().optional(),
+    paper_card_url: imageSourceSchema.nullable().optional(),
     address: z.string().nullable().optional(),
     website: z.string().url().nullable().optional(),
     wecom_sensitive_synced_at: z.string().datetime().nullable().optional()
@@ -42,6 +43,7 @@ export const employeeCardResponseSchema = z.object({
     show_wechat: z.boolean(),
     allow_forward: z.boolean(),
     show_avatar: z.boolean().default(true),
+    show_paper_card: z.boolean().default(true),
     share_title: z.string().max(50).nullable().default(null)
   }),
   employee_self_service: z
@@ -80,6 +82,7 @@ export const updateEmployeeCardRequestSchema = z.object({
       wechat_id: z.string().max(128).nullable().optional(),
       wechat_qrcode_url: persistedImageSourceSchema.nullable().optional(),
       wecom_qrcode_url: persistedImageSourceSchema.nullable().optional(),
+      paper_card_url: persistedImageSourceSchema.nullable().optional(),
       address: z.string().max(255).nullable().optional(),
       website: z.string().url().nullable().optional()
     })
@@ -91,6 +94,7 @@ export const updateEmployeeCardRequestSchema = z.object({
       show_wechat: z.boolean().optional(),
       allow_forward: z.boolean().optional(),
       show_avatar: z.boolean().optional(),
+      show_paper_card: z.boolean().optional(),
       share_title: z.string().max(50).nullable().optional()
     })
     .optional()

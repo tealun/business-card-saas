@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { randomToken } from "../common/id.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
@@ -12,6 +12,8 @@ import { adminCapabilities } from "../admin-auth/admin-permissions.js";
 
 @Injectable()
 export class LocalEnterpriseService {
+  private readonly logger = new Logger(LocalEnterpriseService.name);
+
   constructor(private readonly repository: LocalEnterpriseRepository, private readonly adminTokens: AdminSessionTokenService, private readonly audit: AdminOperationLogService, private readonly joinQr:WechatJoinQrService) {}
 
   /**
@@ -126,7 +128,24 @@ export class LocalEnterpriseService {
    *
    * 仅租户 admin 及以上可用，生成 30 天有效的加入 token 和二维码。
    */
-  async createJoinCode(session:AdminSession) { requireTenantAdminRole(session,"admin"); const token=randomToken("join",20); const expiresAt=new Date(Date.now()+30*24*60*60*1000); const qrCodeDataUrl=await this.joinQr.generate(token); await this.repository.createJoinCode({tenantId:session.tenantId,tokenHash:createHash("sha256").update(token).digest("hex"),expiresAt}); await this.audit.record({session,action:"local_join_code.rotate",targetType:"tenant",targetId:session.tenantId,detail:{expires_at:expiresAt.toISOString(),qr_generated:true}}); return {join_token:token,join_path:`pages/enterprise-join/index?token=${encodeURIComponent(token)}`,qr_code_data_url:qrCodeDataUrl,expires_at:expiresAt.toISOString()}; }
+  async createJoinCode(session:AdminSession) {
+    requireTenantAdminRole(session,"admin");
+    const token=randomToken("join",20);
+    const expiresAt=new Date(Date.now()+30*24*60*60*1000);
+    await this.repository.createJoinCode({tenantId:session.tenantId,tokenHash:createHash("sha256").update(token).digest("hex"),expiresAt});
+
+    let qrCodeDataUrl:string|null=null;
+    let qrCodeError:string|null=null;
+    try {
+      qrCodeDataUrl=await this.joinQr.generate(token);
+    } catch (error) {
+      qrCodeError="小程序码暂时无法生成，可直接分享邀请";
+      this.logger.warn(`Mini Program join code generation failed for tenant ${session.tenantId}: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+
+    await this.audit.record({session,action:"local_join_code.rotate",targetType:"tenant",targetId:session.tenantId,detail:{expires_at:expiresAt.toISOString(),qr_generated:Boolean(qrCodeDataUrl)}});
+    return {join_token:token,join_path:`pages/enterprise-join/index?token=${encodeURIComponent(token)}`,qr_code_data_url:qrCodeDataUrl,qr_code_error:qrCodeError,expires_at:expiresAt.toISOString()};
+  }
   /**
    * 普通微信用户提交本地企业加入申请。
    */
