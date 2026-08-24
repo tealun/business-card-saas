@@ -220,7 +220,7 @@ jobs:
               "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/database/"
           fi
 
-      - name: Run optional restart command
+      - name: Activate backend automatically when configured
         env:
           DEPLOY_RESTART_COMMAND: ${{ secrets.DEPLOY_RESTART_COMMAND }}
           DEPLOY_PASSWORD_SECRET: ${{ secrets.DEPLOY_PASSWORD }}
@@ -229,7 +229,13 @@ jobs:
           set -euo pipefail
 
           if [ -z "${DEPLOY_RESTART_COMMAND:-}" ]; then
-            echo "DEPLOY_RESTART_COMMAND is empty; synced files only."
+            echo "Source sync completed. BaoTa manual activation mode is enabled; build/restart the backend from BaoTa to activate this commit."
+            {
+              echo "## Backend deployment"
+              echo "- Source sync: completed"
+              echo "- Runtime activation: pending manual BaoTa build/restart"
+              echo "- Commit: ${GITHUB_SHA}"
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -249,6 +255,13 @@ jobs:
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "cd '${DEPLOY_PATH}' && bash -s"
           fi
+
+          {
+            echo "## Backend deployment"
+            echo "- Source sync: completed"
+            echo "- Runtime activation: automatic restart command completed"
+            echo "- Commit: ${GITHUB_SHA}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify deployed CORS preflight
         env:

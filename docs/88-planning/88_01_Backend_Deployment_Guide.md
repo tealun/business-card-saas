@@ -43,7 +43,7 @@ Optional restart:
 
 | Secret | Required | Notes |
 |--------|----------|-------|
-| `DEPLOY_RESTART_COMMAND` | no | Server-side shell script run after sync from `${DEPLOY_PATH}`. If empty, CI only syncs files. |
+| `DEPLOY_RESTART_COMMAND` | no | Server-side shell script run after sync from `${DEPLOY_PATH}`. Leave empty when BaoTa owns build/start; the workflow summary will mark runtime activation as pending manual BaoTa action. |
 
 Optional post-deploy verification:
 
