@@ -31,7 +31,13 @@
   "miniprogramRoot": "./",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "file", "value": "assets/card-backgrounds/bg-light-wave.webp" },
+      { "type": "file", "value": "assets/card-backgrounds/bg-light-geometry.webp" },
+      { "type": "file", "value": "assets/card-backgrounds/bg-light-cubes.webp" },
+      { "type": "file", "value": "assets/card-backgrounds/bg-blue-dot.webp" },
+      { "type": "file", "value": "assets/card-backgrounds/bg-dark-dot.webp" }
+    ],
     "include": []
   },
   "editorSetting": {}
