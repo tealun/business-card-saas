@@ -185,7 +185,7 @@ describe("EmployeeCardRepository", () => {
           return {
             rows: [{
               background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
-              logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+              logo_url: "/api/v1/storage/tenant/tenant-001/logos/enterprise.png",
               color_scheme_json: { primary: "#0f766e", surface: "#ffffff" },
               layout_json: { variant: "minimal", background_preset_id: "light-geometry" }
             }]
@@ -225,7 +225,7 @@ describe("EmployeeCardRepository", () => {
       expect(preview.company_profile.website_url).toBe("https://admin.example.com/");
       expect(preview.template).toMatchObject({
         template_id: "tpl_minimal",
-        logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+        logo_url: "/api/v1/storage/tenant/tenant-001/logos/enterprise.png",
         background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
         color_scheme: { primary: "#0f766e", surface: "#ffffff" },
         layout: { variant: "minimal", background_preset_id: "light-geometry" }

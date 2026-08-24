@@ -761,13 +761,22 @@ export class EmployeeCardRepository {
   ): Promise<UpdateEmployeeCardStyleRequest> {
     const result = await tx.query<StyleRow>(
       `
-        SELECT background_url, logo_url, color_scheme_json, layout_json
+        SELECT
+          templates.background_url,
+          COALESCE(company_profiles.logo_url, templates.logo_url) AS logo_url,
+          templates.color_scheme_json,
+          templates.layout_json
         FROM templates
-        WHERE tenant_id = $1
-          AND is_default = true
-          AND status = 'active'
-          AND deleted_at IS NULL
-        ORDER BY id DESC
+        LEFT JOIN company_profiles
+          ON company_profiles.tenant_id = templates.tenant_id
+          AND company_profiles.deleted_at IS NULL
+          AND company_profiles.visible = true
+          AND company_profiles.status = 'published'
+        WHERE templates.tenant_id = $1
+          AND templates.is_default = true
+          AND templates.status = 'active'
+          AND templates.deleted_at IS NULL
+        ORDER BY templates.id DESC
         LIMIT 1
       `,
       [tenantId]

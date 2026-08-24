@@ -62,7 +62,7 @@ describe("PublicCardRepository", () => {
                 card_status: "active",
                 company_name: "Admin Corp",
                 company_short_name: "Admin",
-                company_logo_url: null,
+                company_logo_url: "/api/v1/storage/tenant/tenant-001/logos/enterprise.png",
                 website_url: "https://admin.example.com",
                 address: "Admin address",
                 intro_json: [],
@@ -73,7 +73,7 @@ describe("PublicCardRepository", () => {
                 color_scheme_json: { primary: "#ff0000" },
                 layout_json: { __template_id: "tpl_dark", variant: "dark" },
                 default_template_background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
-                default_template_logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+                default_template_logo_url: "/api/v1/storage/system/logos/placeholder.png",
                 default_template_color_scheme_json: { primary: "#0f766e", surface: "#ffffff" },
                 default_template_layout_json: {
                   variant: "minimal",
@@ -107,7 +107,7 @@ describe("PublicCardRepository", () => {
       expect(card.company_profile.address).toBe("Admin address");
       expect(card.template).toMatchObject({
         template_id: "tpl_dark",
-        logo_url: "/api/v1/storage/tenant/tenant-001/logos/company.png",
+        logo_url: "/api/v1/storage/tenant/tenant-001/logos/enterprise.png",
         background_url: "/api/v1/storage/tenant/tenant-001/templates/company.webp",
         color_scheme: { primary: "#0f766e", surface: "#ffffff" },
         layout: {

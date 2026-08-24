@@ -736,7 +736,7 @@ export class PublicCardRepository {
       },
       template: {
         template_id: templateId,
-        logo_url: useEnterpriseTemplate ? row.default_template_logo_url ?? row.company_logo_url : layoutLogoUrl ?? row.company_logo_url,
+        logo_url: (useEnterpriseTemplate ? row.company_logo_url ?? row.default_template_logo_url : layoutLogoUrl ?? row.company_logo_url) ?? null,
         background_url: useEnterpriseTemplate ? row.default_template_background_url ?? null : row.background_url,
         color_scheme: Object.keys(parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)).length
           ? parseObject(useEnterpriseTemplate ? row.default_template_color_scheme_json : row.color_scheme_json)
