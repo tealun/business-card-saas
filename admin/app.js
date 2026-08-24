@@ -73,6 +73,7 @@ const state = {
   companyPreviewBrand: "#5272d6",
   deletedHonorIds: [],
   videoCapability: null,
+  videoUpload: null,
   fieldSettings: [],
   templates: [],
   templatePreviewCard: null,
@@ -1959,10 +1960,18 @@ function renderVideoPanel() {
   const header = document.createElement("div");
   header.className = "video-status";
   header.innerHTML = `${tag("已开启", "success")}<span class="hint">单个视频上限 ${escapeHtml(String(capability.effective_limit_mb))} MB</span>`;
-  const upload = actionButton("上传视频", () => uploadCompanyVideo(), "secondary", "tenant.company.write");
+  const upload = actionButton("上传视频", () => void uploadCompanyVideo().catch(() => {}), "secondary", "tenant.company.write");
   upload.classList.add("video-upload-action");
+  if (state.videoUpload?.status === "uploading" || state.videoUpload?.status === "processing") {
+    upload.disabled = true;
+    upload.textContent = "上传中";
+  }
   header.append(upload);
   root.replaceChildren(header);
+  const progress = document.createElement("div");
+  progress.id = "videoUploadProgress";
+  root.append(progress);
+  renderVideoUploadProgress();
   root.append(renderCompanyVideoManager());
   if (!published.length) {
     const empty = document.createElement("div");
@@ -2000,6 +2009,63 @@ function renderVideoPanel() {
   hint.className = "hint";
   hint.textContent = `当前可展示 ${published.length} 个已发布视频；公开页的视频模块会按视频排序展示。`;
   root.append(hint);
+}
+
+function renderVideoUploadProgress() {
+  const root = document.getElementById("videoUploadProgress");
+  if (!root) return;
+  const task = state.videoUpload;
+  if (!task) {
+    root.replaceChildren();
+    return;
+  }
+  const card = document.createElement("div");
+  card.className = `video-upload-progress video-upload-progress--${task.status}`;
+  const head = document.createElement("div");
+  head.className = "video-upload-progress__head";
+  const identity = document.createElement("div");
+  identity.className = "video-upload-progress__identity";
+  const title = document.createElement("strong");
+  title.textContent = task.fileName;
+  const status = document.createElement("small");
+  status.textContent = videoUploadStatusText(task);
+  identity.append(title, status);
+  const percent = document.createElement("b");
+  percent.textContent = `${Math.round(task.percent || 0)}%`;
+  head.append(identity, percent);
+  const track = document.createElement("div");
+  track.className = "video-upload-progress__track";
+  const fill = document.createElement("i");
+  fill.style.width = `${Math.max(0, Math.min(100, task.percent || 0))}%`;
+  track.append(fill);
+  const footer = document.createElement("div");
+  footer.className = "video-upload-progress__footer";
+  const size = document.createElement("span");
+  size.textContent = task.total > 0
+    ? `${formatFileSize(task.loaded)} / ${formatFileSize(task.total)}`
+    : formatFileSize(task.loaded);
+  footer.append(size);
+  if (task.status === "uploading" && task.cancel) {
+    footer.append(actionButton("取消上传", task.cancel, "ghost compact"));
+  }
+  card.append(head, track, footer);
+  root.replaceChildren(card);
+}
+
+function videoUploadStatusText(task) {
+  if (task.status === "uploading") return "正在上传到服务器";
+  if (task.status === "processing") return "上传完成，服务器正在保存并发布";
+  if (task.status === "success") return "上传成功，视频已发布";
+  if (task.status === "cancelled") return "上传已取消";
+  return task.error || "上传失败，请重试";
+}
+
+function formatFileSize(bytes) {
+  const value = Math.max(0, Number(bytes) || 0);
+  if (value >= 1024 * 1024 * 1024) return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${value} B`;
 }
 
 function renderCompanyVideoManager() {
@@ -2055,8 +2121,8 @@ function renderCompanyVideoEditor(video) {
   const controls = document.createElement("div");
   controls.className = "company-video-editor__actions";
   controls.append(
-    actionButton("保存", () => saveCompanyVideo(video.video_id, { title, sort, status, visible }), "secondary", "tenant.company.write"),
-    actionButton("删除", () => deleteCompanyVideo(video), "danger-lite secondary", "tenant.company.write")
+    actionButton("保存", () => void saveCompanyVideo(video.video_id, { title, sort, status, visible }).catch(() => {}), "secondary", "tenant.company.write"),
+    actionButton("删除", () => void deleteCompanyVideo(video).catch(() => {}), "danger-lite secondary", "tenant.company.write")
   );
   fields.append(title, sort, status, visibleLabel, controls);
   row.append(media, fields);
@@ -2072,25 +2138,82 @@ async function uploadCompanyVideo() {
     notify(`视频不能超过 ${state.videoCapability.effective_limit_mb} MB`, "danger");
     return;
   }
-  await run("上传视频", async () => {
-    const uploaded = await uploadAdminBinary("/admin/uploads/videos", file, { file_name: file.name || "video.mp4" });
-    const title = String(file.name || "企业视频").replace(/\.[^.]+$/, "").slice(0, 255) || "企业视频";
-    const created = await adminRequest("/admin/company-videos", {
-      method: "POST",
-      body: {
-        title,
-        video_url: uploaded.url,
-        duration_seconds: await readVideoDuration(file),
-        sort_order: (sortedCompanyVideos().length + 1) * 10,
-        visible: true,
-        status: "published"
-      }
+  state.videoUpload = { fileName: file.name || "video.mp4", loaded: 0, total: file.size, percent: 0, status: "uploading", error: "", cancel: null };
+  renderVideoPanel();
+  try {
+    await run("上传视频", async () => {
+      const uploaded = await uploadAdminVideoWithProgress(file, (progress) => {
+        if (!state.videoUpload) return;
+        Object.assign(state.videoUpload, progress, { status: progress.percent >= 100 ? "processing" : "uploading" });
+        renderVideoUploadProgress();
+      });
+      if (!state.videoUpload) return null;
+      Object.assign(state.videoUpload, { loaded: file.size, total: file.size, percent: 100, status: "processing", cancel: null });
+      renderVideoUploadProgress();
+      const title = String(file.name || "企业视频").replace(/\.[^.]+$/, "").slice(0, 255) || "企业视频";
+      const created = await adminRequest("/admin/company-videos", {
+        method: "POST",
+        body: {
+          title,
+          video_url: uploaded.url,
+          duration_seconds: await readVideoDuration(file),
+          sort_order: (sortedCompanyVideos().length + 1) * 10,
+          visible: true,
+          status: "published"
+        }
+      });
+      state.companyVideos.push(created);
+      Object.assign(state.videoUpload, { status: "success", cancel: null });
+      renderVideoPanel();
+      renderCompanyEditors();
+      notify(`视频「${created.title}」已上传并发布`);
+      return created;
     });
-    state.companyVideos.push(created);
+  } catch (error) {
+    if (state.videoUpload) {
+      Object.assign(state.videoUpload, {
+        status: error?.name === "AbortError" ? "cancelled" : "error",
+        error: error?.message || "上传失败，请重试",
+        cancel: null
+      });
+    }
     renderVideoPanel();
-    renderCompanyEditors();
-    notify(`视频「${created.title}」已上传并发布`);
-    return created;
+    throw error;
+  }
+}
+
+function uploadAdminVideoWithProgress(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const params = new URLSearchParams({ file_name: file.name || "video.mp4" });
+    const request = new XMLHttpRequest();
+    request.open("POST", `${apiBase()}/admin/uploads/videos?${params.toString()}`);
+    request.responseType = "json";
+    request.setRequestHeader("content-type", file.type || "video/mp4");
+    if (state.adminToken) request.setRequestHeader("authorization", `Bearer ${state.adminToken}`);
+    request.upload.addEventListener("progress", (event) => {
+      const total = event.lengthComputable ? event.total : file.size;
+      const loaded = Math.min(event.loaded, total || event.loaded);
+      onProgress({ loaded, total, percent: total > 0 ? loaded / total * 100 : 0 });
+    });
+    request.addEventListener("load", () => {
+      const body = request.response && typeof request.response === "object" ? request.response : null;
+      if (request.status >= 200 && request.status < 300) {
+        resolve(body && "data" in body ? body.data : body);
+        return;
+      }
+      const error = new Error(body?.message || `视频上传失败 (${request.status || "网络错误"})`);
+      error.status = request.status;
+      reject(error);
+    });
+    request.addEventListener("error", () => reject(new Error("视频上传网络连接失败")));
+    request.addEventListener("abort", () => {
+      const error = new Error("上传已取消");
+      error.name = "AbortError";
+      reject(error);
+    });
+    state.videoUpload.cancel = () => request.abort();
+    renderVideoUploadProgress();
+    request.send(file);
   });
 }
 

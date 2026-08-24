@@ -255,6 +255,18 @@ If the admin UI is not deployed yet, keep the final admin domain blank until it 
 
 For local file storage, `STORAGE_LOCAL_ROOT` is optional. If it is empty or missing, the backend stores uploaded files under `storage/uploads` relative to the process working directory. In production, set it to a persistent server path and make sure the app process can create and write that directory. `STORAGE_MAX_UPLOAD_BYTES` controls ordinary image/media uploads, and `STORAGE_MAX_VIDEO_UPLOAD_BYTES` controls video uploads; the video API also respects each tenant's enabled video capability and effective size limit.
 
+### Reverse-proxy upload limit
+
+The public reverse proxy must accept at least the same request size as `STORAGE_MAX_VIDEO_UPLOAD_BYTES`. Otherwise Nginx rejects the request with `413 Content Too Large` before it reaches NestJS; because that proxy-generated error does not carry the application's CORS headers, browsers may misleadingly report both a CORS failure and HTTP 413.
+
+For the default 500 MB video limit, add this directive to the `server` block for the backend API site (in BaoTa: Website -> backend site -> Configuration), then reload Nginx:
+
+```nginx
+client_max_body_size 500m;
+```
+
+Keep these three limits aligned: the tenant video capability must not exceed `STORAGE_MAX_VIDEO_UPLOAD_BYTES`, and the Nginx `client_max_body_size` must not be lower than either value. After reloading Nginx, a large unauthenticated probe to `/api/v1/admin/uploads/videos` should reach the application and return `401`, not an Nginx `413`.
+
 ## WeCom Third-Party SaaS Configuration
 
 The `WECOM_*` suite and callback variables in `.env` are provider-level settings for this SaaS application's Enterprise WeChat third-party suite. They are not a customer's CorpID, AgentID, or app secret.
