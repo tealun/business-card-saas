@@ -4737,7 +4737,7 @@ $("#loadHonors").addEventListener("click", () => run("读取荣誉", async () =>
 }));
 $("#addHonor").addEventListener("click", () => {
   syncHonorEditors();
-  state.companyHonors.push({ honor_id: `draft_${Date.now()}`, title: "新荣誉", body: null, sort_order: (state.companyHonors.length + 1) * 10, visible: true, status: "draft", images: [] });
+  state.companyHonors.push({ honor_id: `draft_${Date.now()}`, title: "新荣誉", body: null, sort_order: (state.companyHonors.length + 1) * 10, visible: true, status: "published", images: [] });
   markCompanyDirty();
   renderHonorEditors();
 });

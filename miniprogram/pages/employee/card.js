@@ -4,19 +4,19 @@ const { request } = require("../../utils/api");
 const { DEFAULT_PORTRAIT_PHOTO_URL } = require("../../utils/card-assets");
 const { setPageTheme } = require("../../utils/theme");
 const TEMPLATE_BACKGROUNDS = {
-  tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.webp",
-  tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.webp",
-  tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.webp",
-  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-cubes.webp",
-  tpl_dark: "/assets/card-backgrounds/bg-dark-dot.webp",
-  tpl_campaign: "/assets/card-backgrounds/bg-light-cubes.webp"
+  tpl_horizontal_business: "/assets/card-backgrounds/bg-light-wave.png",
+  tpl_minimal: "/assets/card-backgrounds/bg-light-geometry.png",
+  tpl_brand_image: "/assets/card-backgrounds/bg-blue-dot.png",
+  tpl_portrait_photo: "/assets/card-backgrounds/bg-light-cubes.png",
+  tpl_dark: "/assets/card-backgrounds/bg-dark-dot.png",
+  tpl_campaign: "/assets/card-backgrounds/bg-light-cubes.png"
 };
 const PRESET_BACKGROUNDS = {
-  "light-wave": "/assets/card-backgrounds/bg-light-wave.webp",
-  "light-geometry": "/assets/card-backgrounds/bg-light-geometry.webp",
-  "light-cubes": "/assets/card-backgrounds/bg-light-cubes.webp",
-  "blue-dot": "/assets/card-backgrounds/bg-blue-dot.webp",
-  "dark-dot": "/assets/card-backgrounds/bg-dark-dot.webp"
+  "light-wave": "/assets/card-backgrounds/bg-light-wave.png",
+  "light-geometry": "/assets/card-backgrounds/bg-light-geometry.png",
+  "light-cubes": "/assets/card-backgrounds/bg-light-cubes.png",
+  "blue-dot": "/assets/card-backgrounds/bg-blue-dot.png",
+  "dark-dot": "/assets/card-backgrounds/bg-dark-dot.png"
 };
 
 Page({

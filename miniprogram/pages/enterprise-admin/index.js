@@ -71,11 +71,11 @@ const BACKGROUND_TYPES = {
   webp: "image/webp"
 };
 const BACKGROUND_PRESETS = [
-  { id: "light-wave", name: "浅色波纹", url: "/assets/card-backgrounds/bg-light-wave.webp" },
-  { id: "light-geometry", name: "浅色几何", url: "/assets/card-backgrounds/bg-light-geometry.webp" },
-  { id: "light-cubes", name: "浅色立方", url: "/assets/card-backgrounds/bg-light-cubes.webp" },
-  { id: "blue-dot", name: "蓝色点阵", url: "/assets/card-backgrounds/bg-blue-dot.webp" },
-  { id: "dark-dot", name: "深色点阵", url: "/assets/card-backgrounds/bg-dark-dot.webp" }
+  { id: "light-wave", name: "浅色波纹", url: "/assets/card-backgrounds/bg-light-wave.png" },
+  { id: "light-geometry", name: "浅色几何", url: "/assets/card-backgrounds/bg-light-geometry.png" },
+  { id: "light-cubes", name: "浅色立方", url: "/assets/card-backgrounds/bg-light-cubes.png" },
+  { id: "blue-dot", name: "蓝色点阵", url: "/assets/card-backgrounds/bg-blue-dot.png" },
+  { id: "dark-dot", name: "深色点阵", url: "/assets/card-backgrounds/bg-dark-dot.png" }
 ];
 const TEMPLATE_BACKGROUND_PRESET_IDS = {
   "horizontal-business": ["light-wave", "light-cubes"],
@@ -2192,7 +2192,7 @@ function emptyHonorDraft() {
     images: [],
     sort_order: "",
     visible: true,
-    status: "draft"
+    status: "published"
   };
 }
 
@@ -3293,7 +3293,8 @@ function normalizeTemplateBackgroundConfig(variant, value) {
  * 根据内置背景 URL 反查预设。
  */
 function presetFromUrl(url) {
-  return BACKGROUND_PRESETS.find((item) => item.url === url) || null;
+  const normalized = String(url || "").replace(/\.webp$/i, ".png");
+  return BACKGROUND_PRESETS.find((item) => item.url === normalized) || null;
 }
 
 /**
