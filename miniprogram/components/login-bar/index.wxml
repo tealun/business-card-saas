@@ -1,4 +1,4 @@
-<view class="login-bar">
+<view wx:if="{{showBar}}" class="login-bar">
   <button
     class="login-bar__btn"
     bindtap="openDialog"

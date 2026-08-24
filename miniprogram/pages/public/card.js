@@ -160,6 +160,7 @@ Page({
     visitCount: 269,
     likeCount: 136,
     likedByMe: false,
+    pendingExchange: false,
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
     wechatQrUrl: "",
@@ -567,9 +568,30 @@ Page({
   /**
    * 发起交换名片的前端反馈入口，并记录交换意向。
    */
-  exchangeCard() {
-    this.recordAction("exchange_card");
+  async exchangeCard() {
+    if (!this.data.loggedIn) {
+      this.setData({ pendingExchange: true });
+      const login = this.selectComponent("#exchangeLogin");
+      if (login && typeof login.openDialog === "function") {
+        login.openDialog();
+      }
+      return;
+    }
+    await this.recordAction("exchange_card");
     wx.showToast({ title: "交换名片请求已发起", icon: "success" });
+  },
+
+  async onExchangeLoginSuccess() {
+    this.setData({ loggedIn: true });
+    await this.createVisit();
+    if (this.data.pendingExchange) {
+      this.setData({ pendingExchange: false });
+      await this.exchangeCard();
+    }
+  },
+
+  onExchangeLoginFail() {
+    this.setData({ pendingExchange: false });
   },
 
   /**

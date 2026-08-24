@@ -77,7 +77,11 @@ Page({
     codeCardInitial: "名",
     codeCardSubtitle: "",
     savingCardCode: false,
+    savingPoster: false,
+    posterImageUrl: "",
     shareImageUrl: "",
+    sharePath: "",
+    sharePreparing: false,
     personalWechatQr: "",
     selfService: {
       allow_privacy_edit: true,
@@ -270,6 +274,7 @@ Page({
       const background = activeTemplateBackground(layout, templateId, preview.template && preview.template.background_url);
       this.setData({
         card: Object.assign({ status: preview.status, fields: {} }, preview.card, {
+          public_id: preview.public_id,
           show_avatar: preview.show_avatar !== false,
           share_title: preview.share_title || ""
         }),
@@ -298,6 +303,7 @@ Page({
         recentVisitors: []
       });
       this.prepareShareImage();
+      this.prepareNativeShare({ silent: true });
       this.loadStats();
       this.checkWecomSensitiveAuthorization({ auto: true });
     } catch (error) {
@@ -613,6 +619,22 @@ Page({
     this.setTabBarHidden(true);
   },
 
+  async prepareNativeShare(options = {}) {
+    if (this.data.sharePreparing) return;
+    this.setData({ sharePreparing: true, sharePath: "" });
+    try {
+      const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
+      app.globalData.shareId = share.share_id;
+      this.setData({ sharePath: share.path || `/pages/public/card?card=${share.public_id}&share=${share.share_id}` });
+    } catch (error) {
+      if (!options.silent) {
+        wx.showToast({ title: error.message || "分享准备失败", icon: "none" });
+      }
+    } finally {
+      this.setData({ sharePreparing: false });
+    }
+  },
+
   /**
    * 关闭发名片面板，并恢复 tabBar。
    */
@@ -631,6 +653,7 @@ Page({
       previewTitle: "",
       previewPath: "",
       previewQrUrl: "",
+      posterImageUrl: "",
       previewFullscreen: false,
       previewQrLoading: false,
       previewError: ""
@@ -836,7 +859,13 @@ Page({
       }
       const path = share.path || `pages/public/card?card=${share.public_id}`;
       if (openImmediately) {
-        this.setData({ previewPath: path, previewQrUrl: qrUrl, previewQrLoading: false, previewError: "" });
+        if (mode === "poster") {
+          this.setData({ previewPath: path, previewQrUrl: qrUrl, previewQrLoading: true, previewError: "" });
+          const posterImageUrl = await this.buildPosterImage(qrUrl);
+          this.setData({ posterImageUrl, previewQrLoading: false, previewError: posterImageUrl ? "" : "名片海报生成失败" });
+        } else {
+          this.setData({ previewPath: path, previewQrUrl: qrUrl, previewQrLoading: false, previewError: "" });
+        }
       } else {
         this.showPreview({ mode, title, path, qrUrl });
       }
@@ -849,6 +878,35 @@ Page({
       }
     } finally {
       this.setData({ submitting: false });
+    }
+  },
+
+  async buildPosterImage(qrUrl) {
+    const { buildCardPosterImage } = require("../../utils/card-poster-image");
+    return buildCardPosterImage(this, {
+      card: this.data.card,
+      qrUrl,
+      logoUrl: this.data.cardLogoUrl,
+      backgroundUrl: this.data.cardBackgroundUrl,
+      backgroundOpacity: this.data.cardBackgroundOpacity,
+      templateClass: this.data.cardTemplateClass,
+      theme: {
+        brand: this.data.themeBrand,
+        brandDeep: this.data.themeBrandDeep
+      }
+    });
+  },
+
+  async savePosterImage() {
+    if (!this.data.posterImageUrl || this.data.savingPoster) return;
+    this.setData({ savingPoster: true });
+    try {
+      await saveImageToAlbum(this.data.posterImageUrl);
+      wx.showToast({ title: "海报已保存", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    } finally {
+      this.setData({ savingPoster: false });
     }
   },
 
@@ -865,6 +923,7 @@ Page({
       previewTitle: title,
       previewPath: path || "",
       previewQrUrl: qrUrl || "",
+      posterImageUrl: "",
       previewFullscreen: mode === "poster",
       previewQrLoading: Boolean(loading),
       previewError: error || "",
@@ -951,32 +1010,6 @@ Page({
   },
 
   /**
-   * 创建一次可追踪分享并跳转到公域名片页预览。
-   */
-  async createShare() {
-    if (!this.ensureLoggedIn("请先登录后发名片")) {
-      return;
-    }
-    if (this.data.submitting) {
-      return;
-    }
-    this.setData({ submitting: true });
-    try {
-      const share = await request("/employee/cards/current/share", { method: "POST", data: {} });
-      app.globalData.shareId = share.share_id;
-      this.setData({ sheetVisible: false });
-      this.setTabBarHidden(false);
-      wx.navigateTo({
-        url: `/pages/public/card?card=${share.public_id}&share=${share.share_id}`
-      });
-    } catch (error) {
-      wx.showToast({ title: error.message || "分享失败", icon: "none" });
-    } finally {
-      this.setData({ submitting: false });
-    }
-  },
-
-  /**
    * 创建分享记录后复制小程序路径，用于用户手动转发或测试访问链路。
    */
   async copyLink() {
@@ -1018,9 +1051,15 @@ Page({
   /**
    * 提供微信原生转发配置，优先使用已生成的分享封面图。
    */
-  onShareAppMessage() {
+  onShareAppMessage(event) {
     const card = this.data.card;
     const message = { title: card.share_title || `${card.display_name || "我的"}的数字名片` };
+    const currentDataset = event && event.currentTarget && event.currentTarget.dataset;
+    const targetDataset = event && event.target && event.target.dataset;
+    const dataset = (currentDataset && currentDataset.share ? currentDataset : targetDataset) || {};
+    if (dataset.share === "current-card") {
+      message.path = this.data.sharePath || `/pages/public/card?card=${card.public_id || ""}`;
+    }
     if (this.data.shareImageUrl) {
       message.imageUrl = this.data.shareImageUrl;
     }

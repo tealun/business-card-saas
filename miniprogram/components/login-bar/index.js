@@ -7,6 +7,10 @@ Component({
     text: {
       type: String,
       value: "开始使用"
+    },
+    showBar: {
+      type: Boolean,
+      value: true
     }
   },
 

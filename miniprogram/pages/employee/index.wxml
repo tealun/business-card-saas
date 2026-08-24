@@ -89,16 +89,16 @@
           <text>名片样式</text>
         </view>
         <view class="quick-bar__sep"></view>
-        <view class="quick-bar__item" bindtap="openIdentitySheet">
-          <view class="icon icon-switch"></view>
-          <text>切换名片</text>
+        <view class="quick-bar__item" bindtap="goWallet">
+          <view class="icon icon-contact"></view>
+          <text>访客记录</text>
         </view>
       </view>
 
-      <view class="btn btn--primary btn--block send-btn" bindtap="openSheet">
+      <button class="btn btn--primary btn--block send-btn send-share-button" open-type="share" data-share="current-card" bindtap="prepareShareImage" disabled="{{sharePreparing}}">
         <view class="icon icon-send icon--sm"></view>
-        <text>发名片</text>
-      </view>
+        <text>{{sharePreparing ? "正在准备" : "发名片"}}</text>
+      </button>
 
       <view class="card tool-grid">
         <view class="tool-grid__item" bindtap="choosePaperCardImage">
@@ -192,7 +192,7 @@
   <view class="sheet {{sheetVisible ? 'sheet--show' : ''}}">
     <view class="sheet__grab"></view>
     <view class="row-between sheet__head">
-      <text class="card__title">发名片</text>
+      <text class="card__title">更多工具</text>
       <view class="icon icon-close icon--sm" catchtap="closeSheet"></view>
     </view>
     <view class="sheet__thumb share-current-card">
@@ -210,12 +210,6 @@
       <view class="share-current-card__tag">当前名片</view>
     </view>
     <view class="sheet__grid sheet__grid--share">
-      <view class="sheet__cell sheet__cell--primary" bindtap="createShare">
-        <view class="icon icon-forward"></view>
-        <view class="sheet__cell-title">转发给好友/群</view>
-        <view class="sheet__cell-desc">微信内直接送达</view>
-        <text>转发给好友/群</text>
-      </view>
       <view class="sheet__cell sheet__cell--primary" bindtap="showPoster">
         <view class="icon icon-poster"></view>
         <view class="sheet__cell-title">名片海报</view>
@@ -278,9 +272,7 @@
     </block>
     <view class="poster-preview poster-preview--stack" wx:else>
       <view class="poster-card poster-card--large" wx:if="{{previewMode === 'poster'}}">
-        <view class="poster-card__top">{{card.company || "名片"}}</view>
-        <view class="poster-card__name">{{card.display_name || "我的名片"}}</view>
-        <image wx:if="{{previewQrUrl && !previewQrLoading}}" class="poster-card__qr-img" src="{{previewQrUrl}}" mode="aspectFit" />
+        <image wx:if="{{posterImageUrl && !previewQrLoading}}" class="poster-card__image" src="{{posterImageUrl}}" mode="widthFix" />
         <view wx:else class="poster-card__qr-state {{previewError ? 'poster-card__qr-state--error' : ''}}">
           <view wx:if="{{previewQrLoading}}" class="preview-spinner"></view>
           <text>{{previewQrLoading ? "生成中" : "生成失败"}}</text>
@@ -303,6 +295,7 @@
         <view class="f12 t-secondary" wx:elif="{{previewMode === 'wechat'}}">长按识别加微信</view>
         <view class="f12 t-secondary" wx:else>扫描直达当前名片访客展示页</view>
         <view class="share-note__path" wx:if="{{previewPath}}">{{previewPath}}</view>
+        <button wx:if="{{previewMode === 'poster' && posterImageUrl}}" class="btn btn--primary poster-preview__btn" bindtap="savePosterImage" loading="{{savingPoster}}" disabled="{{savingPoster}}">{{savingPoster ? "保存中" : "保存海报"}}</button>
       </view>
     </view>
   </view>
@@ -345,4 +338,5 @@
 
   <canvas id="shareCardCanvas" type="2d" class="share-card-canvas"></canvas>
   <canvas id="cardCodeCanvas" type="2d" class="share-card-canvas share-card-canvas--code"></canvas>
+  <canvas id="cardPosterCanvas" type="2d" class="share-card-canvas share-card-canvas--poster"></canvas>
 </view>

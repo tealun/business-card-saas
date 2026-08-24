@@ -2,6 +2,7 @@
   "navigationStyle": "custom",
   "navigationBarTitleText": "名片",
   "usingComponents": {
-    "company-module": "/components/company-module/company-module"
+    "company-module": "/components/company-module/company-module",
+    "login-bar": "/components/login-bar/index"
   }
 }
