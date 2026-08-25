@@ -107,7 +107,7 @@ describe("LocalEnterpriseRepository",()=>{
     const db=new FakeDatabase();db.localAdminCandidates=true;
     const repository=new LocalEnterpriseRepository(db as never);
     await expect(repository.listLocalAdminsForAccount("10")).resolves.toEqual([{
-      tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"
+      tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner",creationSource:undefined,openCorpid:undefined,authStatus:undefined,memberCount:0,lastLoginAt:null
     }]);
     expect(db.sql[0]).toContain("set_config('app.account_id'");
     expect(db.sql[1]).toContain("FROM account_identity_bindings b JOIN tenants t");

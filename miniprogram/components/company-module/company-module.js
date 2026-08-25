@@ -7,7 +7,8 @@ Component({
   },
   data: {
     profileExpanded: false,
-    activeVideoKey: ""
+    activeVideoKey: "",
+    failedMedia: {}
   },
   methods: {
     toggleProfile() {
@@ -28,7 +29,9 @@ Component({
       this.triggerEvent("preview", { url, urls: Array.isArray(urls) ? urls : [url] });
     },
     onMediaError(event) {
-      this.triggerEvent("mediaerror", { message: (event.detail && event.detail.errMsg) || "媒体资源加载失败" });
+      const url=String(event.currentTarget.dataset.url||"");
+      if(url)this.setData({failedMedia:{...this.data.failedMedia,[url]:true}});
+      this.triggerEvent("mediaerror", { url, message: (event.detail && event.detail.errMsg) || "媒体资源加载失败" });
     }
   }
 });

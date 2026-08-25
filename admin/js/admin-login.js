@@ -64,7 +64,7 @@
       localChallenge=result.challenge_token;
       if(!result.qr_code_data_url) throw new Error("后端未返回实际微信小程序登录码");
       image.src=result.qr_code_data_url;image.classList.remove("hidden");hint.textContent="请使用微信扫描，并在智云名片小程序中确认登录";
-      const poll=async()=>{if(!localChallenge)return;try{const status=await request(`/admin/auth/local-scan/challenges/${encodeURIComponent(localChallenge)}`,{auth:false});if(status.status==="approved"){stopLocalScan();completeLogin(status.access_token,status.admin);return;}if(status.status==="expired"||status.status==="consumed"||status.status==="revoked"){stopLocalScan();hint.textContent="登录码已失效，请刷新后重试";refresh.disabled=false;return;}}catch(error){gateError.textContent=error.message||"登录状态查询失败";}localScanTimer=setTimeout(poll,2000);};
+      const poll=async()=>{if(!localChallenge)return;try{const status=await request(`/admin/auth/local-scan/challenges/${encodeURIComponent(localChallenge)}`,{auth:false});if(status.status==="approved"){stopLocalScan();completeLogin(status.access_token,status.admin);return;}if(status.status==="rejected"){stopLocalScan();hint.textContent="本次登录已在手机端拒绝";refresh.disabled=false;return;}if(status.status==="expired"||status.status==="consumed"||status.status==="revoked"){stopLocalScan();hint.textContent="登录码已失效，请刷新后重试";refresh.disabled=false;return;}}catch(error){gateError.textContent=error.message||"登录状态查询失败";}localScanTimer=setTimeout(poll,2000);};
       localScanTimer=setTimeout(poll,1500);
     }catch(error){gateError.textContent=error.message||"微信登录码生成失败";hint.textContent="无法生成登录码";}
     finally{refresh.disabled=false;}

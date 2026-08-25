@@ -98,6 +98,8 @@ describe("LocalEnterpriseService", () => {
   it("creates and consumes a one-time local admin scan challenge",async()=>{
     const repository={
       createAdminScanChallenge:jest.fn(async()=>undefined),
+      getAdminScanChallenge:jest.fn(async()=>({status:"pending",expires_at:new Date(Date.now()+120000),created_at:new Date(),client_device:"Chrome · Windows",client_location:"广东 深圳",client_ip:"113.88.1.2"})),
+      rejectAdminScanChallenge:jest.fn(async()=>undefined),
       listLocalAdminsForAccount:jest.fn(async()=>[{tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"}]),
       approveAdminScanChallenge:jest.fn(async()=>undefined),
       consumeAdminScanChallenge:jest.fn(async()=>({status:"approved",tenantId:"20",tenantName:"本地企业",memberId:"30",openUserid:"account:10",role:"owner"}))
@@ -106,7 +108,9 @@ describe("LocalEnterpriseService", () => {
     const service=new LocalEnterpriseService(repository as never,tokens as never,audit as never,joinQr as never,config as never);
     const challenge=await service.createAdminScanChallenge();
     expect(challenge.challenge_token).toHaveLength(32);
-    await expect(service.confirmAdminScan(employee,challenge.challenge_token)).resolves.toEqual(expect.objectContaining({approved:true,tenant_id:"20"}));
+    await expect(service.confirmAdminScan(employee,challenge.challenge_token)).resolves.toEqual(expect.objectContaining({requires_selection:true,device:"Chrome · Windows",ip:"113.88.*.*"}));
+    await expect(service.confirmAdminScan(employee,challenge.challenge_token,"20")).resolves.toEqual(expect.objectContaining({approved:true,tenant_id:"20"}));
+    await expect(service.confirmAdminScan(employee,challenge.challenge_token,undefined,"reject")).resolves.toEqual({rejected:true});
     await expect(service.pollAdminScanChallenge(challenge.challenge_token)).resolves.toEqual(expect.objectContaining({status:"approved",access_token:"admin-token"}));
   });
 });

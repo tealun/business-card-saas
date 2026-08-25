@@ -165,6 +165,7 @@ Page({
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
     wechatQrUrl: "",
+    savingWechatQr: false,
     canCall: false,
     canEmail: false,
     canOpenMap: false,
@@ -636,11 +637,11 @@ Page({
       return;
     }
     this.recordAction("copy_email");
-    if (typeof wx.openUrl === "function") {
-      wx.openUrl({ url: `mailto:${encodeURIComponent(email)}`, fail: (error) => showError(error, "无法调起邮件程序") });
-      return;
-    }
-    showRestriction("当前微信版本不支持直接调起邮件程序，请升级微信后重试");
+    wx.setClipboardData({
+      data: email,
+      success() { wx.showToast({ title: "邮箱已复制", icon: "success" }); },
+      fail(error) { showError(error, "邮箱复制失败"); }
+    });
   },
 
   /**
@@ -675,11 +676,22 @@ Page({
     this.setData({ wechatSheetVisible: true, wechatQrUrl: qrUrl });
   },
 
+  async saveWechatQr() {
+    if (!this.data.wechatQrUrl || this.data.savingWechatQr) return;
+    this.setData({ savingWechatQr: true });
+    try {
+      const filePath = await downloadImage(this.data.wechatQrUrl);
+      await saveImageToAlbum(filePath);
+      wx.showModal({ title: "二维码已保存", content: "请返回微信，打开扫一扫并从相册选择这张二维码图片。", showCancel: false, confirmText: "知道了" });
+    } catch (error) {
+      showError(error, "二维码保存失败");
+    } finally {
+      this.setData({ savingWechatQr: false });
+    }
+  },
+
   onCompanyMediaError(event) {
-    const now = Date.now();
-    if (now - Number(this._lastMediaErrorAt || 0) < 1500) return;
-    this._lastMediaErrorAt = now;
-    showError(event.detail, "媒体资源加载失败，请检查网络后重试");
+    console.warn("company media unavailable", event.detail || {});
   },
 
   /**
@@ -1209,4 +1221,45 @@ function visitorFingerprint() {
   } catch (_error) {
     return "";
   }
+}
+
+function downloadImage(url) {
+  return new Promise((resolve, reject) => {
+    if (/^wxfile:\/\//i.test(url)) {
+      resolve(url);
+      return;
+    }
+    if (!/^(wxfile|https?):\/\//i.test(url)) {
+      reject(new Error("二维码地址无效"));
+      return;
+    }
+    wx.downloadFile({
+      url,
+      success(result) {
+        if (result.statusCode >= 200 && result.statusCode < 300 && result.tempFilePath) resolve(result.tempFilePath);
+        else reject(new Error(`二维码下载失败（${result.statusCode || 0}）`));
+      },
+      fail: reject
+    });
+  });
+}
+
+function saveImageToAlbum(filePath) {
+  return new Promise((resolve, reject) => {
+    if (typeof wx.saveImageToPhotosAlbum !== "function") {
+      reject(new Error("当前微信版本暂不支持保存图片"));
+      return;
+    }
+    wx.saveImageToPhotosAlbum({
+      filePath,
+      success: resolve,
+      fail(error) {
+        const message = String((error && error.errMsg) || "");
+        if (/auth deny|authorize/i.test(message) && typeof wx.openSetting === "function") {
+          wx.showModal({ title: "需要相册权限", content: "请允许保存二维码到相册。", confirmText: "去设置", success(result) { if (result.confirm) wx.openSetting({}); } });
+        }
+        reject(new Error(message || "保存到相册失败"));
+      }
+    });
+  });
 }

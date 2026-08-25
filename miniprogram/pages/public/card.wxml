@@ -125,7 +125,8 @@
     </view>
     <view class="wechat-qr">
       <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="aspectFit" webp="{{true}}" />
-      <view class="wechat-qr__tip" wx:if="{{wechatQrUrl}}">长按识别加微信</view>
+      <view class="wechat-qr__tip" wx:if="{{wechatQrUrl}}">保存二维码后，返回微信使用扫一扫从相册添加</view>
+      <button wx:if="{{wechatQrUrl}}" class="wechat-qr__save" loading="{{savingWechatQr}}" disabled="{{savingWechatQr}}" catchtap="saveWechatQr">保存二维码</button>
     </view>
   </view>
 

@@ -40,7 +40,7 @@ export class LocalEnterpriseController {
   /**
    * 小程序确认后台扫码登录。
    */
-  @Post("admin-scan/confirm") @Throttle({default:{ttl:60_000,limit:20}}) confirmAdminScan(@Req() req:EmployeeRequest,@Body() body:unknown){const input=localAdminScanConfirmSchema.parse(body);return this.service.confirmAdminScan(req.employeeSession!,input.challenge_token,input.tenant_id);}
+  @Post("admin-scan/confirm") @Throttle({default:{ttl:60_000,limit:20}}) confirmAdminScan(@Req() req:EmployeeRequest,@Body() body:unknown){const input=localAdminScanConfirmSchema.parse(body);return this.service.confirmAdminScan(req.employeeSession!,input.challenge_token,input.tenant_id,input.decision);}
 }
 
 @Controller("admin/auth/local-scan")
@@ -49,7 +49,7 @@ export class LocalEnterpriseScanLoginController {
   /**
    * 创建后台扫码登录挑战。
    */
-  @Post("challenges") @Throttle({default:{ttl:60_000,limit:10}}) create(){return this.service.createAdminScanChallenge();}
+  @Post("challenges") @Throttle({default:{ttl:60_000,limit:10}}) create(@Req() req:{ip?:string;headers:{"user-agent"?:string}}){return this.service.createAdminScanChallenge({...req.ip?{ip:req.ip}:{},...req.headers["user-agent"]?{userAgent:req.headers["user-agent"]}:{}});}
   /**
    * 轮询后台扫码登录挑战。
    */

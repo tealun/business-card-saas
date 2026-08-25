@@ -45,11 +45,11 @@ export class LocalEnterpriseService {
    *
    * 挑战 5 分钟内有效，小程序扫码确认后，后台轮询接口才能换取管理 token。
    */
-  async createAdminScanChallenge(){
+  async createAdminScanChallenge(client:{ip?:string;userAgent?:string;location?:string}={}){
     const token=randomToken("adm",21);
     const expiresAt=new Date(Date.now()+5*60*1000);
     const qrCodeDataUrl=await this.joinQr.generateScene(token,"pages/admin-login/index");
-    await this.repository.createAdminScanChallenge(this.hash(token),expiresAt);
+    await this.repository.createAdminScanChallenge({tokenHash:this.hash(token),expiresAt,clientIp:client.ip??"",clientDevice:describeDevice(client.userAgent??""),clientLocation:client.location??""});
     return {challenge_token:token,status:"pending",expires_at:expiresAt.toISOString(),qr_code_data_url:qrCodeDataUrl,miniprogram_path:`pages/admin-login/index?scene=${encodeURIComponent(token)}`};
   }
 
@@ -58,13 +58,16 @@ export class LocalEnterpriseService {
    *
    * 如果当前微信账号管理多个本地企业且未指定 tenantId，则要求用户先选择企业。
    */
-  async confirmAdminScan(session:EmployeeSession,token:string,tenantId?:string){
+  async confirmAdminScan(session:EmployeeSession,token:string,tenantId?:string,decision:"approve"|"reject"="approve"){
+    const tokenHash=this.hash(token);
+    if(decision==="reject"){await this.repository.rejectAdminScanChallenge(tokenHash);return {rejected:true};}
+    const challenge=await this.repository.getAdminScanChallenge(tokenHash);
     const admins=await this.repository.listLocalAdminsForAccount(session.accountId);
     if(!admins.length) throw new ForbiddenException("当前微信账号不是本地企业管理员");
-    if(!tenantId&&admins.length>1) return {requires_selection:true,tenants:admins.map(item=>({tenant_id:item.tenantId,tenant_name:item.tenantName,role:item.role}))};
+    if(!tenantId) return {requires_selection:true,expires_at:new Date(challenge.expires_at).toISOString(),created_at:new Date(challenge.created_at).toISOString(),device:challenge.client_device||"电脑浏览器",location:challenge.client_location||"未知地点",ip:maskIp(challenge.client_ip||""),tenants:admins.map(item=>({tenant_id:item.tenantId,tenant_name:item.tenantName,role:item.role,member_count:item.memberCount??0,last_login_at:item.lastLoginAt??null}))};
     const selected=admins.find(item=>item.tenantId===(tenantId??admins[0]!.tenantId));
     if(!selected) throw new ForbiddenException("当前微信账号无权管理所选企业");
-    await this.repository.approveAdminScanChallenge({tokenHash:this.hash(token),accountId:session.accountId,admin:selected});
+    await this.repository.approveAdminScanChallenge({tokenHash,accountId:session.accountId,admin:selected});
     return {requires_selection:false,approved:true,tenant_id:selected.tenantId,tenant_name:selected.tenantName};
   }
 
@@ -195,3 +198,6 @@ export class LocalEnterpriseService {
    */
   private hash(token:string){return createHash("sha256").update(token).digest("hex");}
 }
+
+function describeDevice(userAgent:string){const browser=/Edg\//.test(userAgent)?"Edge":/Chrome\//.test(userAgent)?"Chrome":/Firefox\//.test(userAgent)?"Firefox":/Safari\//.test(userAgent)?"Safari":"浏览器";const system=/Windows/i.test(userAgent)?"Windows":/Mac OS/i.test(userAgent)?"macOS":/Linux/i.test(userAgent)?"Linux":"电脑";return `${browser} · ${system}`;}
+function maskIp(ip:string){if(!ip)return "";if(ip.includes(":"))return `${ip.split(":").slice(0,2).join(":")}:****`;const parts=ip.split(".");return parts.length===4?`${parts[0]}.${parts[1]}.*.*`:ip;}

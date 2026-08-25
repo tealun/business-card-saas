@@ -17,7 +17,7 @@ export const claimLocalEnterpriseSchema = z.object({
 });
 export const reviewJoinRequestSchema = z.object({ decision: z.enum(["approved","rejected"]) });
 export const joinNotificationSubscriptionSchema = z.object({ template_id:z.string().min(1).max(128) });
-export const localAdminScanConfirmSchema = z.object({ challenge_token:z.string().length(32),tenant_id:z.string().regex(/^\d+$/).optional() });
+export const localAdminScanConfirmSchema = z.object({ challenge_token:z.string().length(32),tenant_id:z.string().regex(/^\d+$/).optional(),decision:z.enum(["approve","reject"]).default("approve") });
 export type CreateLocalEnterprise = z.infer<typeof createLocalEnterpriseSchema>;
 export type CreateLocalEnterpriseAdminSession = z.infer<typeof createLocalEnterpriseAdminSessionSchema>;
 export type CreateMemberInvitation = z.infer<typeof createMemberInvitationSchema>;

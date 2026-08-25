@@ -463,6 +463,18 @@
 .wechat-qr__tip {
   font-size: 26rpx;
   color: var(--text-secondary);
+  line-height: 1.55;
+  text-align: center;
+}
+
+.wechat-qr__save {
+  width: 360rpx;
+  height: 82rpx;
+  border-radius: 16rpx;
+  color: #fff;
+  background: var(--brand);
+  font-size: 28rpx;
+  line-height: 82rpx;
 }
 
 .receive-panel {

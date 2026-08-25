@@ -290,6 +290,9 @@ CREATE TABLE "member_join_requests" (
     "account_id" BIGINT NOT NULL,
     "display_name" VARCHAR(128) NOT NULL,
     "status" VARCHAR(16) NOT NULL DEFAULT 'pending',
+    "client_ip" VARCHAR(64),
+    "client_device" VARCHAR(128),
+    "client_location" VARCHAR(128),
     "reviewed_by_admin_id" BIGINT,
     "reviewed_at" TIMESTAMPTZ(6),
     "notification_template_id" VARCHAR(128),
@@ -311,7 +314,7 @@ CREATE TABLE "local_admin_login_challenges" (
     "consumed_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
     CONSTRAINT "local_admin_login_challenges_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "local_admin_login_challenges_status_check" CHECK ("status" IN ('pending','approved','consumed'))
+    CONSTRAINT "local_admin_login_challenges_status_check" CHECK ("status" IN ('pending','approved','consumed','rejected'))
 );
 
 -- CreateTable

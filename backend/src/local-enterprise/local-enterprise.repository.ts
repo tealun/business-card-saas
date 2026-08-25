@@ -8,9 +8,9 @@ import type { EmployeeSession } from "../session/employee-session.js";
 interface IdRow extends QueryResultRow { id: string | number | bigint; }
 interface InviteRow extends QueryResultRow { tenant_id: string | number | bigint; member_identity_id: string | number | bigint; name: string; }
 interface JoinRequestRow extends QueryResultRow { id:string|number|bigint; tenant_id:string|number|bigint; account_id:string|number|bigint; display_name:string; status:"pending"|"approved"|"rejected"|"cancelled"; created_at:Date|string; }
-interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; creation_source?:"local"|"wecom"|null; open_corpid?:string|null; auth_status?:string|null; }
+interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; creation_source?:"local"|"wecom"|null; open_corpid?:string|null; auth_status?:string|null; member_count?:string|number; last_login_at?:Date|string|null; }
 interface LocalAdminCandidateRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; creation_source:"local"|"wecom"|null; open_corpid:string|null; auth_status:string|null; }
-interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bigint|null; tenant_id:string|number|bigint|null; member_identity_id:string|number|bigint|null; status:"pending"|"approved"|"consumed"; expires_at:Date|string; }
+interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bigint|null; tenant_id:string|number|bigint|null; member_identity_id:string|number|bigint|null; status:"pending"|"approved"|"consumed"|"rejected"; expires_at:Date|string; created_at:Date|string; client_ip:string|null; client_device:string|null; client_location:string|null; }
 interface JoinPreviewRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; company_name:string|null; company_short_name:string|null; logo_url:string|null; website_url:string|null; address:string|null; public_id:string|null; }
 
 @Injectable()
@@ -105,12 +105,12 @@ export class LocalEnterpriseRepository {
     return this.database.transaction(async tx=>{
       await tx.query("SELECT set_config('app.account_id',$1,true)",[accountId]);
       const candidates=await tx.query<LocalAdminCandidateRow>(`SELECT b.tenant_id,t.name AS tenant_name,b.member_identity_id,t.creation_source,t.open_corpid,t.auth_status FROM account_identity_bindings b JOIN tenants t ON t.id=b.tenant_id WHERE b.account_id=$1 AND t.creation_source='local' ORDER BY t.name,b.tenant_id`,[accountId]);
-      const admins=[] as Array<{tenantId:string;tenantName:string;memberId:string;openUserid:string;role:"owner"|"admin"|"operator"|"auditor";creationSource:"local"|"wecom"|null;openCorpid:string|null;authStatus:string|null}>;
+      const admins=[] as Array<{tenantId:string;tenantName:string;memberId:string;openUserid:string;role:"owner"|"admin"|"operator"|"auditor";creationSource:"local"|"wecom"|null;openCorpid:string|null;authStatus:string|null;memberCount:number;lastLoginAt:string|null}>;
       for(const candidate of candidates.rows){
         const tenantId=String(candidate.tenant_id);const memberId=String(candidate.member_identity_id);
         await tx.query("SELECT set_config('app.tenant_id',$1,true)",[tenantId]);
-        const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,$3::text AS tenant_name,a.member_identity_id,a.open_userid,a.role FROM tenant_admins a WHERE a.tenant_id=$1 AND a.member_identity_id=$2 AND a.status='active' LIMIT 1`,[tenantId,memberId,candidate.tenant_name]);
-        const row=result.rows[0];if(row)admins.push({tenantId,tenantName:row.tenant_name,memberId,openUserid:row.open_userid,role:row.role,creationSource:candidate.creation_source,openCorpid:candidate.open_corpid,authStatus:candidate.auth_status});
+        const result=await tx.query<LocalAdminRow>(`SELECT a.tenant_id,$3::text AS tenant_name,a.member_identity_id,a.open_userid,a.role,a.last_login_at,(SELECT count(*)::text FROM member_identities m WHERE m.tenant_id=a.tenant_id AND m.status='active') AS member_count FROM tenant_admins a WHERE a.tenant_id=$1 AND a.member_identity_id=$2 AND a.status='active' LIMIT 1`,[tenantId,memberId,candidate.tenant_name]);
+        const row=result.rows[0];if(row)admins.push({tenantId,tenantName:row.tenant_name,memberId,openUserid:row.open_userid,role:row.role,creationSource:candidate.creation_source,openCorpid:candidate.open_corpid,authStatus:candidate.auth_status,memberCount:Number(row.member_count??0),lastLoginAt:row.last_login_at?new Date(row.last_login_at).toISOString():null});
       }
       return admins;
     });
@@ -119,8 +119,20 @@ export class LocalEnterpriseRepository {
   /**
    * 创建后台扫码登录挑战记录。
    */
-  async createAdminScanChallenge(tokenHash:string,expiresAt:Date){
-    await this.database.query(`INSERT INTO local_admin_login_challenges(token_hash,status,expires_at,created_at) VALUES($1,'pending',$2,now())`,[tokenHash,expiresAt]);
+  async createAdminScanChallenge(input:{tokenHash:string;expiresAt:Date;clientIp:string;clientDevice:string;clientLocation:string}){
+    await this.database.query(`INSERT INTO local_admin_login_challenges(token_hash,status,expires_at,client_ip,client_device,client_location,created_at) VALUES($1,'pending',$2,$3,$4,$5,now())`,[input.tokenHash,input.expiresAt,input.clientIp,input.clientDevice,input.clientLocation]);
+  }
+
+  async getAdminScanChallenge(tokenHash:string){
+    const result=await this.database.query<AdminChallengeRow>(`SELECT account_id,tenant_id,member_identity_id,status,expires_at,created_at,client_ip,client_device,client_location FROM local_admin_login_challenges WHERE token_hash=$1`,[tokenHash]);
+    const row=result.rows[0];
+    if(!row||row.status!=="pending"||new Date(row.expires_at).getTime()<=Date.now()) throw new ConflictException("login challenge is invalid or expired");
+    return row;
+  }
+
+  async rejectAdminScanChallenge(tokenHash:string){
+    const result=await this.database.query(`UPDATE local_admin_login_challenges SET status='rejected' WHERE token_hash=$1 AND status IN ('pending','approved') AND expires_at>now()`,[tokenHash]);
+    if(result.rowCount!==1) throw new ConflictException("login challenge can no longer be rejected");
   }
 
   /**
