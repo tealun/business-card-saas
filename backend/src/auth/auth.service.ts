@@ -76,9 +76,14 @@ export class AuthService {
    * 当前身份来自会话，身份列表来自账号维度绑定关系；返回前统一转换为前端摘要结构。
    */
   async listIdentities(session: EmployeeSession) {
+    const preferred = await this.personalIdentities.preferredAccountIdentity(
+      session.accountId,
+      session.memberIdentityId
+    );
+    const current = preferred.current ?? sessionToIdentity(session);
     return {
-      current_identity: this.repository.toSummary(sessionToIdentity(session)),
-      identities: (await this.personalIdentities.listAccountIdentities(session.accountId)).map((identity) =>
+      current_identity: this.repository.toSummary(current),
+      identities: preferred.identities.map((identity) =>
         this.repository.toSummary(identity)
       )
     };

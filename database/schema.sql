@@ -292,6 +292,9 @@ CREATE TABLE "member_join_requests" (
     "status" VARCHAR(16) NOT NULL DEFAULT 'pending',
     "reviewed_by_admin_id" BIGINT,
     "reviewed_at" TIMESTAMPTZ(6),
+    "notification_template_id" VARCHAR(128),
+    "notified_at" TIMESTAMPTZ(6),
+    "notification_error" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
     CONSTRAINT "member_join_requests_status_check" CHECK ("status" IN ('pending','approved','rejected','cancelled'))
 );

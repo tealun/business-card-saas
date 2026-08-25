@@ -35,7 +35,7 @@ export class LocalEnterpriseController {
   /**
    * 提交本地企业加入申请。
    */
-  @Post("join-requests") join(@Req() req:EmployeeRequest,@Body() body:unknown){const input=submitJoinRequestSchema.parse(body);return this.service.submitJoinRequest(req.employeeSession!,input.join_token,input.display_name);}
+  @Post("join-requests") join(@Req() req:EmployeeRequest,@Body() body:unknown){const input=submitJoinRequestSchema.parse(body);return this.service.submitJoinRequest(req.employeeSession!,input.join_token,input.display_name,input.notification_template_id);}
   @Post("join-requests/:id/notification-subscription") subscribe(@Req() req:EmployeeRequest,@Param("id") id:string,@Body() body:unknown){const input=joinNotificationSubscriptionSchema.parse(body);return this.service.subscribeJoinReview(req.employeeSession!,id,input.template_id);}
   /**
    * 小程序确认后台扫码登录。

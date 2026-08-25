@@ -42,6 +42,10 @@ export class DatabaseService implements OnModuleDestroy {
     return this.getPool().query<T>(text, values);
   }
 
+  isConfigured(): boolean {
+    return this.pool !== null;
+  }
+
   /**
    * 使用同一个 PostgreSQL 连接执行事务回调。
    *

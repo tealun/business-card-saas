@@ -216,6 +216,8 @@ Page({
    * 只在名片已就绪或停用态执行，避免 loading 阶段重复渲染 canvas。
    */
   onShow() {
+    const loggedIn=Boolean(app.globalData.token);
+    if(loggedIn!==this.data.loggedIn)this.setData({loggedIn});
     if (this.data.uiState === "ready" || this.data.uiState === "disabled") {
       this.prepareShareImage();
     }
@@ -232,6 +234,7 @@ Page({
     } catch (error) {
       this.setData({ uiState: "error" });
       wx.showToast({ title: error.message || "名片加载失败", icon: "none" });
+      throw error;
     }
   },
 
@@ -391,6 +394,7 @@ Page({
       await this.prepareDerivedShare();
     } catch (error) {
       console.error("create visit failed", error);
+      if(!app.globalData.token&&this.data.loggedIn)this.setData({loggedIn:false});
       wx.showToast({ title: "访问记录未上报", icon: "none" });
     }
   },

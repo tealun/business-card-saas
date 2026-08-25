@@ -1,8 +1,12 @@
 import { ServiceUnavailableException } from "@nestjs/common";
-import { WechatJoinQrService } from "./wechat-join-qr.service.js";
+import { formatWechatTime, WechatJoinQrService } from "./wechat-join-qr.service.js";
 
 describe("WechatJoinQrService",()=>{
   afterEach(()=>jest.restoreAllMocks());
+
+  it("formats notification timestamps in China Standard Time",()=>{
+    expect(formatWechatTime(new Date("2026-08-25T16:04:00.000Z"))).toBe("2026-08-26 00:04");
+  });
 
   it("returns a data URL from the official Mini Program code API",async()=>{
     const fetchMock=jest.spyOn(global,"fetch")
@@ -13,10 +17,12 @@ describe("WechatJoinQrService",()=>{
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0]![0])).toContain("/cgi-bin/stable_token");
     expect(fetchMock.mock.calls[0]![1]).toEqual(expect.objectContaining({method:"POST"}));
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
     expect(String((fetchMock.mock.calls[0]![1] as RequestInit).body)).toContain('"force_refresh":false');
     const qrCall=fetchMock.mock.calls[1]!;
     expect(String(qrCall[0])).toContain("getwxacodeunlimit");
     expect(String((qrCall[1] as RequestInit).body)).toContain('"page":"pages/enterprise-join/index"');
+    expect((qrCall[1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 
   it("returns a data URL from the official Mini Program path code API",async()=>{

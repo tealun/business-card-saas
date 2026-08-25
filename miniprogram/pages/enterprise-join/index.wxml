@@ -7,11 +7,11 @@
     </view>
     <view class="join-form"><view class="join-row"><text class="join-label">姓名</text><input placeholder="请输入真实姓名" value="{{displayName}}" bindinput="onNameInput" maxlength="128" /></view></view>
     <view class="join-notice"><view class="join-notice__icon">i</view><text>提交后不会立即加入，企业管理员审核通过后，系统才会为你创建企业名片。</text></view>
-    <view wx:if="{{error}}" class="join-error">{{error}}</view>
-    <view class="join-footer"><button class="join-button" loading="{{submitting}}" disabled="{{submitting||loading||error}}" bindtap="submit">提交申请</button><view>仅企业管理员可见你的申请信息</view></view>
+    <view wx:if="{{error}}" class="join-error">{{error}}<text wx:if="{{!previewReady&&!loading&&token}}" bindtap="loadPreview">重新加载</text></view>
+    <view class="join-footer"><button class="join-button" loading="{{submitting}}" disabled="{{submitting||loading||!previewReady}}" bindtap="submit">提交申请</button><view>仅企业管理员可见你的申请信息</view></view>
   </block>
   <block wx:else>
-    <view class="success-card"><view class="success-clock"><view></view></view><view class="success-title">申请已提交</view><view class="success-desc">已通知「{{company.name}}」管理员，审核通过后会用微信服务通知提醒你，并自动创建企业名片。</view></view>
+    <view class="success-card"><view class="success-clock"><view></view></view><view class="success-title">申请已提交</view><view class="success-desc">已通知「{{company.name}}」管理员。{{notificationAccepted?'审核结果会通过微信服务通知提醒你，并自动创建企业名片。':'请稍后返回小程序查看审核结果，审核通过后会自动创建企业名片。'}}</view></view>
     <view class="company-link {{company.publicId?'':'company-link--disabled'}}" bindtap="openCompany"><view class="company-link-logo">{{company.initial}}</view><view class="company-link-copy"><view>先看看{{company.shortName||company.name}}主页</view><text>了解团队、产品与联系方式</text></view><text>›</text></view>
     <view class="join-footer"><button class="withdraw-button" bindtap="withdraw">返回修改</button></view>
   </block>

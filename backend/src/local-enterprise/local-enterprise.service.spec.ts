@@ -53,6 +53,13 @@ describe("LocalEnterpriseService", () => {
     expect(repository.markJoinNotification).toHaveBeenCalledWith("9",null);
   });
 
+  it("returns the committed review when notification lookup and status persistence fail",async()=>{
+    const repository={reviewJoinRequest:jest.fn(async()=>({status:"approved",memberId:"32"})),getJoinNotificationTarget:jest.fn(async()=>{throw new Error("database read failed");}),markJoinNotification:jest.fn(async()=>{throw new Error("database write failed");})};
+    const service=new LocalEnterpriseService(repository as never,{} as never,audit as never,joinQr as never,config as never);
+    await expect(service.reviewJoinRequest(owner,"9","approved")).resolves.toEqual({status:"approved",memberId:"32"});
+    expect(repository.markJoinNotification).toHaveBeenCalledWith("9","database read failed");
+  });
+
   it("keeps the join invitation usable when Mini Program code generation fails", async () => {
     const repository={createJoinCode:jest.fn()};
     const failingJoinQr={...joinQr,generate:jest.fn(async()=>{throw new Error("WeChat code failed");})};

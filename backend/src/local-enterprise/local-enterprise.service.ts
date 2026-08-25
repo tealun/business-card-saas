@@ -150,7 +150,10 @@ export class LocalEnterpriseService {
   /**
    * 普通微信用户提交本地企业加入申请。
    */
-  submitJoinRequest(session:EmployeeSession,token:string,displayName:string) { return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName}); }
+  submitJoinRequest(session:EmployeeSession,token:string,displayName:string,notificationTemplateId?:string) {
+    if(notificationTemplateId&&notificationTemplateId!==this.config.wechatJoinReviewTemplateId) throw new ForbiddenException("join review notification template is unavailable");
+    return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName,...(notificationTemplateId?{notificationTemplateId}:{})});
+  }
   /** 返回加入页展示所需的最小公开企业摘要。 */
   async getJoinPreview(token:string) { return {...await this.repository.getJoinPreview(token),notificationTemplateId:this.config.wechatJoinReviewTemplateId}; }
   subscribeJoinReview(session:EmployeeSession,requestId:string,templateId:string){
@@ -169,10 +172,17 @@ export class LocalEnterpriseService {
   async reviewJoinRequest(session:AdminSession,requestId:string,decision:"approved"|"rejected") { requireTenantAdminRole(session,"admin"); const result=await this.repository.reviewJoinRequest({tenantId:session.tenantId,requestId,adminId:session.memberIdentityId,decision}); await this.audit.record({session,action:`local_join_request.${decision}`,targetType:"member_join_request",targetId:requestId,detail:{member_id:result.memberId}}); await this.notifyJoinReview(requestId,decision); return result; }
 
   private async notifyJoinReview(requestId:string,decision:"approved"|"rejected"){
-    const target=await this.repository.getJoinNotificationTarget(requestId);
-    if(!target?.openid||!target.templateId) return;
-    try{await this.joinQr.sendJoinReviewMessage({openid:target.openid,templateId:target.templateId,companyName:target.companyName,decision});await this.repository.markJoinNotification(requestId,null);}
-    catch(error){const message=error instanceof Error?error.message:"unknown error";this.logger.warn(`Join review notification ${requestId} failed: ${message}`);await this.repository.markJoinNotification(requestId,message.slice(0,1000));}
+    try{
+      const target=await this.repository.getJoinNotificationTarget(requestId);
+      if(!target?.openid||!target.templateId) return;
+      await this.joinQr.sendJoinReviewMessage({openid:target.openid,templateId:target.templateId,companyName:target.companyName,decision});
+      await this.repository.markJoinNotification(requestId,null);
+    } catch(error) {
+      const message=error instanceof Error?error.message:"unknown error";
+      this.logger.warn(`Join review notification ${requestId} failed: ${message}`);
+      try { await this.repository.markJoinNotification(requestId,message.slice(0,1000)); }
+      catch (persistError) { this.logger.warn(`Join review notification status ${requestId} failed: ${persistError instanceof Error ? persistError.message : "unknown error"}`); }
+    }
   }
 
   /**

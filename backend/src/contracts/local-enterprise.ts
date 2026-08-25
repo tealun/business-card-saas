@@ -4,7 +4,7 @@ export const createLocalEnterpriseSchema = z.object({ name: z.string().trim().mi
 export const createLocalEnterpriseAdminSessionSchema = z.object({ tenant_id: z.string().regex(/^\d+$/) });
 export const createMemberInvitationSchema = z.object({ display_name: z.string().trim().min(1).max(128) });
 export const acceptMemberInvitationSchema = z.object({ invitation_token: z.string().min(32).max(256) });
-export const submitJoinRequestSchema = z.object({ join_token: z.string().min(32).max(256), display_name: z.string().trim().min(1).max(128) });
+export const submitJoinRequestSchema = z.object({ join_token: z.string().min(32).max(256), display_name: z.string().trim().min(1).max(128), notification_template_id:z.string().min(1).max(128).optional() });
 export const joinPreviewTokenSchema = z.string().min(32).max(256);
 export const claimLocalEnterpriseSchema = z.object({
   claim_token: z

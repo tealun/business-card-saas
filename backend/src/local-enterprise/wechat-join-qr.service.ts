@@ -30,6 +30,7 @@ export class WechatJoinQrService {
         fetch(`https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${encodeURIComponent(accessToken)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
+          signal: this.timeoutSignal(),
           body: JSON.stringify({ scene, page, check_path: false, env_version: "release", width: 430 })
         }),
       "WeChat Mini Program code"
@@ -43,6 +44,7 @@ export class WechatJoinQrService {
         fetch(`https://api.weixin.qq.com/wxa/getwxacode?access_token=${encodeURIComponent(accessToken)}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
+          signal: this.timeoutSignal(),
           body: JSON.stringify({ path: path.replace(/^\/+/, ""), check_path: false, env_version: "release", width: 430 })
         }),
       "WeChat Mini Program code"
@@ -53,7 +55,7 @@ export class WechatJoinQrService {
     this.ensureCredentials();
     for(let attempt=0;attempt<2;attempt+=1){
       const accessToken=await this.accessToken(attempt>0);
-      const response=await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(accessToken)}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({touser:input.openid,template_id:input.templateId,page:"pages/employee/index",miniprogram_state:this.config.isProduction?"formal":"developer",lang:"zh_CN",data:{thing1:{value:input.companyName.slice(0,20)},phrase2:{value:input.decision==="approved"?"审核通过":"审核拒绝"},time3:{value:formatWechatTime(new Date())},thing4:{value:input.decision==="approved"?"已为你创建企业名片":"请联系企业管理员了解详情"}}})});
+      const response=await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(accessToken)}`,{method:"POST",headers:{"content-type":"application/json"},signal:this.timeoutSignal(),body:JSON.stringify({touser:input.openid,template_id:input.templateId,page:"pages/employee/index",miniprogram_state:this.config.isProduction?"formal":"developer",lang:"zh_CN",data:{thing1:{value:input.companyName.slice(0,20)},phrase2:{value:input.decision==="approved"?"审核通过":"审核拒绝"},time3:{value:formatWechatTime(new Date())},thing4:{value:input.decision==="approved"?"已为你创建企业名片":"请联系企业管理员了解详情"}}})});
       if(!response.ok) throw new ServiceUnavailableException(`WeChat subscribe message HTTP ${response.status}`);
       const payload=(await response.json()) as WechatApiPayload;
       if(!payload.errcode) return;
@@ -89,6 +91,7 @@ export class WechatJoinQrService {
     const response = await fetch("https://api.weixin.qq.com/cgi-bin/stable_token", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      signal: this.timeoutSignal(),
       body: JSON.stringify({
         grant_type: "client_credential",
         appid: this.config.wechatMiniProgramAppId,
@@ -114,6 +117,8 @@ export class WechatJoinQrService {
     }
   }
 
+  private timeoutSignal():AbortSignal{return AbortSignal.timeout(this.config.wechatHttpTimeoutMs||10_000);}
+
   private async imageResponseDataUrl(response: Response, context: string): Promise<string> {
     if (!response.ok) throw new ServiceUnavailableException(`${context} HTTP ${response.status}`);
     const contentType = response.headers.get("content-type") || "";
@@ -129,4 +134,8 @@ export class WechatJoinQrService {
   }
 }
 
-function formatWechatTime(value:Date):string{return value.toISOString().slice(0,16).replace("T"," ");}
+export function formatWechatTime(value:Date):string{
+  const parts=new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(value);
+  const read=(type:Intl.DateTimeFormatPartTypes)=>parts.find((part)=>part.type===type)?.value??"";
+  return `${read("year")}-${read("month")}-${read("day")} ${read("hour")}:${read("minute")}`;
+}

@@ -6,7 +6,8 @@ import type { EmployeeSession } from "./employee-session.js";
 
 describe("EmployeeAuthGuard", () => {
   const service = new SessionTokenService();
-  const guard = new EmployeeAuthGuard(service);
+  const database = { isConfigured: jest.fn(() => false), transaction: jest.fn() };
+  const guard = new EmployeeAuthGuard(service, database as never);
 
   const session: EmployeeSession = {
     accountId: "acct-001",
@@ -26,16 +27,30 @@ describe("EmployeeAuthGuard", () => {
     } as ExecutionContext;
   }
 
-  it("allows requests with a valid bearer token", () => {
+  it("allows requests with a valid bearer token", async () => {
     const token = service.sign(session);
-    expect(guard.canActivate(context(`Bearer ${token}`))).toBe(true);
+    await expect(guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
   });
 
-  it("throws when the authorization header is missing", () => {
-    expect(() => guard.canActivate(context())).toThrow(UnauthorizedException);
+  it("throws when the authorization header is missing", async () => {
+    await expect(guard.canActivate(context())).rejects.toThrow(UnauthorizedException);
   });
 
-  it("throws when the token is malformed", () => {
-    expect(() => guard.canActivate(context("Bearer not-a-token"))).toThrow(UnauthorizedException);
+  it("throws when the token is malformed", async () => {
+    await expect(guard.canActivate(context("Bearer not-a-token"))).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("rejects a signed token after its member identity is disabled", async () => {
+    database.isConfigured.mockReturnValueOnce(true);
+    database.transaction.mockImplementationOnce(async(callback)=>callback({query:jest.fn(async(sql:string)=>({rows:[],rowCount:sql.includes("SELECT 1 FROM accounts")?0:null}))}));
+    const token=service.sign(session);
+    await expect(guard.canActivate(context(`Bearer ${token}`))).rejects.toThrow("employee identity is inactive");
+  });
+
+  it("preserves access for an active bound identity", async () => {
+    database.isConfigured.mockReturnValueOnce(true);
+    database.transaction.mockImplementationOnce(async(callback)=>callback({query:jest.fn(async(sql:string)=>({rows:sql.includes("SELECT 1 FROM accounts")?[{one:1}]:[],rowCount:sql.includes("SELECT 1 FROM accounts")?1:null}))}));
+    const token=service.sign(session);
+    await expect(guard.canActivate(context(`Bearer ${token}`))).resolves.toBe(true);
   });
 });

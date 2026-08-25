@@ -228,7 +228,7 @@ export class LocalEnterpriseRepository {
    *
    * 有效加入码决定目标租户；同一账号在同一租户已有 pending 申请时更新展示名而不是重复插入。
    */
-  async submitJoinRequest(input:{accountId:string;rawToken:string;displayName:string}) {
+  async submitJoinRequest(input:{accountId:string;rawToken:string;displayName:string;notificationTemplateId?:string}) {
     const hash=createHash("sha256").update(input.rawToken).digest("hex");
     return this.database.transaction(async tx=>{
       const code=await tx.query<{tenant_id:string|number|bigint}>(`SELECT tenant_id FROM tenant_join_codes WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()`,[hash]);
@@ -237,7 +237,7 @@ export class LocalEnterpriseRepository {
       await this.context(tx,input.accountId,tenantId);
       const existing=await tx.query(`SELECT 1 FROM account_identity_bindings WHERE tenant_id=$1 AND account_id=$2 LIMIT 1`,[tenantId,input.accountId]);
       if(existing.rows[0]) throw new ConflictException("account is already a member of this enterprise");
-      const result=await tx.query<IdRow>(`INSERT INTO member_join_requests (tenant_id,account_id,display_name) VALUES ($1,$2,$3) ON CONFLICT (tenant_id,account_id) WHERE status='pending' DO UPDATE SET display_name=EXCLUDED.display_name RETURNING id`,[tenantId,input.accountId,input.displayName]);
+      const result=await tx.query<IdRow>(`INSERT INTO member_join_requests (tenant_id,account_id,display_name,notification_template_id) VALUES ($1,$2,$3,$4) ON CONFLICT (tenant_id,account_id) WHERE status='pending' DO UPDATE SET display_name=EXCLUDED.display_name,notification_template_id=COALESCE(EXCLUDED.notification_template_id,member_join_requests.notification_template_id) RETURNING id`,[tenantId,input.accountId,input.displayName,input.notificationTemplateId??null]);
       return {requestId:String(result.rows[0]!.id),tenantId};
     });
   }

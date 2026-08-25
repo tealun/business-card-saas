@@ -42,6 +42,13 @@ describe("LocalEnterpriseRepository",()=>{
     expect(db.sql.some(sql=>sql.includes("INSERT INTO member_join_requests"))).toBe(false);
   });
 
+  it("persists an accepted notification template atomically with the join request",async()=>{
+    const db=new FakeDatabase();
+    const repository=new LocalEnterpriseRepository(db as never);
+    await repository.submitJoinRequest({accountId:"10",rawToken:"join_token",displayName:"王五",notificationTemplateId:"review-template"});
+    expect(db.sql.find(sql=>sql.includes("INSERT INTO member_join_requests"))).toContain("notification_template_id");
+  });
+
   it("rotates join codes inside one transaction and serializes concurrent rotations",async()=>{
     const db=new FakeDatabase();
     const repository=new LocalEnterpriseRepository(db as never);
