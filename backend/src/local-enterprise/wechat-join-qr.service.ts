@@ -49,6 +49,19 @@ export class WechatJoinQrService {
     );
   }
 
+  async sendJoinReviewMessage(input:{openid:string;templateId:string;companyName:string;decision:"approved"|"rejected"}):Promise<void>{
+    this.ensureCredentials();
+    for(let attempt=0;attempt<2;attempt+=1){
+      const accessToken=await this.accessToken(attempt>0);
+      const response=await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(accessToken)}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({touser:input.openid,template_id:input.templateId,page:"pages/employee/index",miniprogram_state:this.config.isProduction?"formal":"developer",lang:"zh_CN",data:{thing1:{value:input.companyName.slice(0,20)},phrase2:{value:input.decision==="approved"?"审核通过":"审核拒绝"},time3:{value:formatWechatTime(new Date())},thing4:{value:input.decision==="approved"?"已为你创建企业名片":"请联系企业管理员了解详情"}}})});
+      if(!response.ok) throw new ServiceUnavailableException(`WeChat subscribe message HTTP ${response.status}`);
+      const payload=(await response.json()) as WechatApiPayload;
+      if(!payload.errcode) return;
+      if(REFRESHABLE_TOKEN_ERRORS.has(payload.errcode)&&attempt===0) continue;
+      throw new BadGatewayException(`WeChat subscribe message failed: ${payload.errcode} ${payload.errmsg??""}`.trim());
+    }
+  }
+
   private async generateCode(request: (accessToken: string) => Promise<Response>, context: string): Promise<string> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const accessToken = await this.accessToken(attempt > 0);
@@ -115,3 +128,5 @@ export class WechatJoinQrService {
     return `data:${contentType || "image/png"};base64,${bytes.toString("base64")}`;
   }
 }
+
+function formatWechatTime(value:Date):string{return value.toISOString().slice(0,16).replace("T"," ");}

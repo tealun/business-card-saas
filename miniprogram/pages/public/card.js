@@ -156,6 +156,7 @@ Page({
     isDemo: false,
     canShare: true,
     loggedIn: false,
+    companyMode: false,
     viewCount: 269,
     visitCount: 269,
     likeCount: 136,
@@ -191,11 +192,12 @@ Page({
    * 支持直接 card/share 参数和扫码 scene 参数；缺少真实 publicId 时展示演示名片。
    */
   async onLoad(query) {
+    const companyMode = query.company === "1";
     const isDemoRoute = query.demo === "1";
     const scene = decodeSceneParam(query.scene);
     const publicId = query.card || query.public_id || scene.card || "";
     const shareId = query.share || scene.share || "";
-    this.setData({ publicId, shareId, loggedIn: Boolean(app.globalData.token) });
+    this.setData({ publicId, shareId, companyMode, loggedIn: Boolean(app.globalData.token) });
     if (isDemoRoute || !publicId) {
       this.applyPublicCard(demoPublicCard, true);
       wx.showToast({ title: "当前展示演示名片", icon: "none" });
@@ -254,7 +256,7 @@ Page({
       card,
       ...theme,
       themeStyle: themeStyle(theme),
-      navTitle: publicNavTitle(card, cardMeta),
+      navTitle: this.data.companyMode ? (cardMeta.companyShortName || cardMeta.companyName || "企业主页") : publicNavTitle(card, cardMeta),
       cardLogoUrl: cardMeta.logoUrl,
       cardCompanyName: cardMeta.companyName,
       cardCompanyShortName: cardMeta.companyShortName,
@@ -721,9 +723,10 @@ Page({
     const shareId = this.data.nextShareId || this.data.shareId;
     this.recordAction("view_site");
     const shareParam = shareId ? `&share=${shareId}` : "";
-    const cardParam = this.data.publicId ? `?card=${this.data.publicId}${shareParam}` : "";
+    const companyParam = this.data.companyMode ? "&company=1" : "";
+    const cardParam = this.data.publicId ? `?card=${this.data.publicId}${shareParam}${companyParam}` : "";
     const message = {
-      title: this.data.card.share_title || `${this.data.card.card.display_name || "名片"}的名片`,
+      title: this.data.companyMode ? (this.data.cardCompanyName || "企业主页") : (this.data.card.share_title || `${this.data.card.card.display_name || "名片"}的名片`),
       path: `/pages/public/card${cardParam}`
     };
     if (this.data.shareImageUrl) {

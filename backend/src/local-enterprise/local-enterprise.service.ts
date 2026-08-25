@@ -9,12 +9,13 @@ import { LocalEnterpriseRepository } from "./local-enterprise.repository.js";
 import { AdminOperationLogService } from "../admin-operation-log/admin-operation-log.service.js";
 import { WechatJoinQrService } from "./wechat-join-qr.service.js";
 import { adminCapabilities } from "../admin-auth/admin-permissions.js";
+import { AppConfig } from "../config/app-config.js";
 
 @Injectable()
 export class LocalEnterpriseService {
   private readonly logger = new Logger(LocalEnterpriseService.name);
 
-  constructor(private readonly repository: LocalEnterpriseRepository, private readonly adminTokens: AdminSessionTokenService, private readonly audit: AdminOperationLogService, private readonly joinQr:WechatJoinQrService) {}
+  constructor(private readonly repository: LocalEnterpriseRepository, private readonly adminTokens: AdminSessionTokenService, private readonly audit: AdminOperationLogService, private readonly joinQr:WechatJoinQrService, private readonly config:AppConfig) {}
 
   /**
    * 普通微信用户自助创建本地企业，并立即成为该企业 owner。
@@ -150,6 +151,12 @@ export class LocalEnterpriseService {
    * 普通微信用户提交本地企业加入申请。
    */
   submitJoinRequest(session:EmployeeSession,token:string,displayName:string) { return this.repository.submitJoinRequest({accountId:session.accountId,rawToken:token,displayName}); }
+  /** 返回加入页展示所需的最小公开企业摘要。 */
+  async getJoinPreview(token:string) { return {...await this.repository.getJoinPreview(token),notificationTemplateId:this.config.wechatJoinReviewTemplateId}; }
+  subscribeJoinReview(session:EmployeeSession,requestId:string,templateId:string){
+    if(!this.config.wechatJoinReviewTemplateId||templateId!==this.config.wechatJoinReviewTemplateId) throw new ForbiddenException("join review notification template is unavailable");
+    return this.repository.subscribeJoinReview({accountId:session.accountId,requestId,templateId});
+  }
   /**
    * 列出当前本地企业待审核加入申请。
    */
@@ -159,7 +166,14 @@ export class LocalEnterpriseService {
    *
    * 审核通过会在 repository 内创建成员身份；服务层负责权限和审计日志。
    */
-  async reviewJoinRequest(session:AdminSession,requestId:string,decision:"approved"|"rejected") { requireTenantAdminRole(session,"admin"); const result=await this.repository.reviewJoinRequest({tenantId:session.tenantId,requestId,adminId:session.memberIdentityId,decision}); await this.audit.record({session,action:`local_join_request.${decision}`,targetType:"member_join_request",targetId:requestId,detail:{member_id:result.memberId}}); return result; }
+  async reviewJoinRequest(session:AdminSession,requestId:string,decision:"approved"|"rejected") { requireTenantAdminRole(session,"admin"); const result=await this.repository.reviewJoinRequest({tenantId:session.tenantId,requestId,adminId:session.memberIdentityId,decision}); await this.audit.record({session,action:`local_join_request.${decision}`,targetType:"member_join_request",targetId:requestId,detail:{member_id:result.memberId}}); await this.notifyJoinReview(requestId,decision); return result; }
+
+  private async notifyJoinReview(requestId:string,decision:"approved"|"rejected"){
+    const target=await this.repository.getJoinNotificationTarget(requestId);
+    if(!target?.openid||!target.templateId) return;
+    try{await this.joinQr.sendJoinReviewMessage({openid:target.openid,templateId:target.templateId,companyName:target.companyName,decision});await this.repository.markJoinNotification(requestId,null);}
+    catch(error){const message=error instanceof Error?error.message:"unknown error";this.logger.warn(`Join review notification ${requestId} failed: ${message}`);await this.repository.markJoinNotification(requestId,message.slice(0,1000));}
+  }
 
   /**
    * 判断本地企业是否已经绑定有效企业微信授权。

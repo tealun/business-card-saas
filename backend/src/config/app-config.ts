@@ -80,6 +80,7 @@ const appConfigSchema = z
     WECHAT_MINIPROGRAM_APPID: z.string().min(1).optional().or(z.literal("")),
     WECHAT_MINIPROGRAM_SECRET: z.string().min(1).optional().or(z.literal("")),
     WECHAT_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+    WECHAT_JOIN_REVIEW_TEMPLATE_ID: z.string().min(1).optional().or(z.literal("")),
 
     STORAGE_DRIVER: z.enum(["local", "aliyun_oss", "s3"]).default("local"),
     STORAGE_LOCAL_ROOT: z.string().min(1).optional().or(z.literal("")),
@@ -265,6 +266,10 @@ export class AppConfig {
 
   get wechatHttpTimeoutMs(): number {
     return this.values.WECHAT_HTTP_TIMEOUT_MS;
+  }
+
+  get wechatJoinReviewTemplateId(): string {
+    return this.values.WECHAT_JOIN_REVIEW_TEMPLATE_ID ?? "";
   }
 
   get metricsToken(): string {

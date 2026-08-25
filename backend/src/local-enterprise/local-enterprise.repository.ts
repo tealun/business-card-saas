@@ -11,6 +11,7 @@ interface JoinRequestRow extends QueryResultRow { id:string|number|bigint; tenan
 interface LocalAdminRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; open_userid:string; role:"owner"|"admin"|"operator"|"auditor"; creation_source?:"local"|"wecom"|null; open_corpid?:string|null; auth_status?:string|null; }
 interface LocalAdminCandidateRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; member_identity_id:string|number|bigint; creation_source:"local"|"wecom"|null; open_corpid:string|null; auth_status:string|null; }
 interface AdminChallengeRow extends QueryResultRow { account_id:string|number|bigint|null; tenant_id:string|number|bigint|null; member_identity_id:string|number|bigint|null; status:"pending"|"approved"|"consumed"; expires_at:Date|string; }
+interface JoinPreviewRow extends QueryResultRow { tenant_id:string|number|bigint; tenant_name:string; company_name:string|null; company_short_name:string|null; logo_url:string|null; website_url:string|null; address:string|null; public_id:string|null; }
 
 @Injectable()
 export class LocalEnterpriseRepository {
@@ -207,6 +208,21 @@ export class LocalEnterpriseRepository {
     });
   }
 
+  /** 读取有效加入码对应的公开企业摘要，不返回租户内部信息。 */
+  async getJoinPreview(rawToken:string) {
+    const hash=createHash("sha256").update(rawToken).digest("hex");
+    const result=await this.database.transaction(async tx=>{
+      const code=await tx.query<{tenant_id:string|number|bigint}>(`SELECT tenant_id FROM tenant_join_codes WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at>now()`,[hash]);
+      if(!code.rows[0]) throw new UnauthorizedException("invalid or expired enterprise join code");
+      const tenantId=String(code.rows[0].tenant_id);
+      await this.context(tx,null,tenantId);
+      return tx.query<JoinPreviewRow>(`SELECT t.id AS tenant_id,t.name AS tenant_name,p.display_name AS company_name,p.short_name AS company_short_name,p.logo_url,p.website_url,p.address,(SELECT c.public_id FROM cards c JOIN public_card_directory d ON d.card_id=c.id AND d.tenant_id=c.tenant_id WHERE c.tenant_id=t.id AND c.status='active' AND d.status='active' ORDER BY c.created_at ASC LIMIT 1) AS public_id FROM tenants t LEFT JOIN company_profiles p ON p.tenant_id=t.id AND p.deleted_at IS NULL AND p.visible=true AND p.status='published' WHERE t.id=$1 AND t.deleted_at IS NULL AND t.status='active'`,[tenantId]);
+    });
+    const row=result.rows[0];
+    if(!row) throw new UnauthorizedException("enterprise is unavailable");
+    return {tenantId:String(row.tenant_id),name:row.company_name||row.tenant_name,shortName:row.company_short_name||"",logoUrl:row.logo_url||"",websiteUrl:row.website_url||"",address:row.address||"",publicId:row.public_id||""};
+  }
+
   /**
    * 提交加入企业申请。
    *
@@ -225,6 +241,20 @@ export class LocalEnterpriseRepository {
       return {requestId:String(result.rows[0]!.id),tenantId};
     });
   }
+
+  async subscribeJoinReview(input:{accountId:string;requestId:string;templateId:string}){
+    const result=await this.database.query(`UPDATE member_join_requests SET notification_template_id=$3 WHERE id=$1 AND account_id=$2 AND status='pending' RETURNING id`,[input.requestId,input.accountId,input.templateId]);
+    if(!result.rows[0]) throw new ConflictException("join request is not pending");
+    return {subscribed:true};
+  }
+
+  async getJoinNotificationTarget(requestId:string){
+    const result=await this.database.query<{primary_wx_openid:string|null;notification_template_id:string|null;tenant_name:string}>(`SELECT a.primary_wx_openid,r.notification_template_id,t.name AS tenant_name FROM member_join_requests r JOIN accounts a ON a.id=r.account_id JOIN tenants t ON t.id=r.tenant_id WHERE r.id=$1`,[requestId]);
+    const row=result.rows[0];
+    return row?{openid:row.primary_wx_openid||"",templateId:row.notification_template_id||"",companyName:row.tenant_name}:null;
+  }
+
+  markJoinNotification(requestId:string,error:string|null){return this.database.query(`UPDATE member_join_requests SET notified_at=CASE WHEN $2::text IS NULL THEN now() ELSE notified_at END,notification_error=$2 WHERE id=$1`,[requestId,error]);}
 
   /**
    * 列出本地企业加入申请。
@@ -252,6 +282,7 @@ export class LocalEnterpriseRepository {
       const memberId=String(member.rows[0]!.id);
       await tx.query(`INSERT INTO account_identity_bindings (account_id,tenant_id,member_identity_id,bind_source,created_at) VALUES ($1,$2,$3,'join_request',now())`,[String(request.account_id),input.tenantId,memberId]);
       await this.createCard(tx,input.tenantId,memberId,request.display_name);
+      await tx.query(`INSERT INTO account_preferences (account_id,default_member_identity_id,last_member_identity_id,updated_at) VALUES ($1,$2,$2,now()) ON CONFLICT (account_id) DO UPDATE SET last_member_identity_id=EXCLUDED.last_member_identity_id,updated_at=now()`,[String(request.account_id),memberId]);
       await tx.query(`UPDATE member_join_requests SET status='approved',reviewed_by_admin_id=$2,reviewed_at=now() WHERE id=$1`,[input.requestId,input.adminId]);
       return {status:"approved" as const,memberId};
     });

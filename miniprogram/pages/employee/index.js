@@ -128,6 +128,7 @@ Page({
       this.setTabBarHidden(this.data.sheetVisible || this.data.previewSheetVisible || this.data.paperCardSheetVisible || this.data.identitySheetVisible);
     }
     if (this.data.loggedIn && app.globalData.token) {
+      await this.refreshIdentitiesOnResume();
       await this.loadPreview();
       return;
     }
@@ -168,6 +169,7 @@ Page({
       });
       return;
     }
+    await this.refreshIdentitiesOnResume();
     this.syncIdentityState({
       currentIdentity: app.globalData.currentIdentity,
       identities: app.globalData.identities || []
@@ -622,6 +624,16 @@ Page({
     }
     this.setData({ sheetVisible: true });
     this.setTabBarHidden(true);
+  },
+
+  async refreshIdentitiesOnResume(){
+    try{
+      const previousId=app.globalData.currentIdentity&&app.globalData.currentIdentity.member_identity_id;
+      const session=await refreshSessionIdentities();
+      const preferred=session.currentIdentity;
+      const next=preferred&&preferred.member_identity_id&&preferred.member_identity_id!==previousId?await switchIdentity(preferred.member_identity_id):session;
+      this.syncIdentityState(next);
+    }catch(_error){}
   },
 
   async prepareNativeShare(options = {}) {

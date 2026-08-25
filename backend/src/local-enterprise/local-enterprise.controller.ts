@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/comm
 import { Throttle } from "@nestjs/throttler";
 import { AdminAuthGuard, type AdminRequest } from "../admin-auth/admin-auth.guard.js";
 import { requireAdminSession } from "../admin-auth/admin-session.util.js";
-import { acceptMemberInvitationSchema, claimLocalEnterpriseSchema, createLocalEnterpriseAdminSessionSchema, createLocalEnterpriseSchema, createMemberInvitationSchema, localAdminScanConfirmSchema, reviewJoinRequestSchema, submitJoinRequestSchema } from "../contracts/local-enterprise.js";
+import { acceptMemberInvitationSchema, claimLocalEnterpriseSchema, createLocalEnterpriseAdminSessionSchema, createLocalEnterpriseSchema, createMemberInvitationSchema, joinNotificationSubscriptionSchema, joinPreviewTokenSchema, localAdminScanConfirmSchema, reviewJoinRequestSchema, submitJoinRequestSchema } from "../contracts/local-enterprise.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { LocalEnterpriseService } from "./local-enterprise.service.js";
 
@@ -30,10 +30,13 @@ export class LocalEnterpriseController {
    * 列出当前微信账号可管理的本地企业。
    */
   @Get("admin-tenants") adminTenants(@Req() req: EmployeeRequest) { return this.service.listAdminTenants(req.employeeSession!); }
+  /** 读取有效加入码对应的公开企业摘要。 */
+  @Get("join-preview/:token") preview(@Param("token") token:string){return this.service.getJoinPreview(joinPreviewTokenSchema.parse(token));}
   /**
    * 提交本地企业加入申请。
    */
   @Post("join-requests") join(@Req() req:EmployeeRequest,@Body() body:unknown){const input=submitJoinRequestSchema.parse(body);return this.service.submitJoinRequest(req.employeeSession!,input.join_token,input.display_name);}
+  @Post("join-requests/:id/notification-subscription") subscribe(@Req() req:EmployeeRequest,@Param("id") id:string,@Body() body:unknown){const input=joinNotificationSubscriptionSchema.parse(body);return this.service.subscribeJoinReview(req.employeeSession!,id,input.template_id);}
   /**
    * 小程序确认后台扫码登录。
    */

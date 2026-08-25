@@ -7,12 +7,14 @@ class FakeDatabase {
   localAdminCandidates=false;
   claimTokenRow:{tenant_id:string;tenant_name:string}|null={tenant_id:"20",tenant_name:"本地企业"};
   claimedOwnerExists=false;
+  joinPreviewRow:{tenant_id:string;tenant_name:string;company_name:string;company_short_name:string;logo_url:string;website_url:string;address:string;public_id:string}|null={tenant_id:"20",tenant_name:"本地企业",company_name:"测试企业",company_short_name:"测试",logo_url:"https://example.com/logo.png",website_url:"https://example.com",address:"深圳",public_id:"pub_test"};
   async transaction<T>(callback:(tx:{query:FakeDatabase["query"]})=>Promise<T>){return callback({query:this.query.bind(this)});}
   async query<T>(text:string,_values?:unknown[]):Promise<{rows:T[]}>{
     this.sql.push(text.replace(/\s+/g," ").trim());
     if(text.includes("INSERT INTO member_identities")) return {rows:[{id:"31"} as T]};
     if(text.includes("INSERT INTO cards")) return {rows:[{id:"41"} as T]};
     if(text.includes("FROM tenant_join_codes")) return {rows:[{tenant_id:"20"} as T]};
+    if(text.includes("SELECT t.id AS tenant_id")) return {rows:(this.joinPreviewRow?[this.joinPreviewRow as T]:[])};
     if(text.includes("FROM admin_claim_tokens c")) return {rows:(this.claimTokenRow?[this.claimTokenRow as T]:[])};
     if(text.includes("FROM tenant_admins WHERE tenant_id=$1 AND role='owner'")) return {rows:(this.claimedOwnerExists?[{exists:1} as T]:[])};
     if(text.includes("FROM account_identity_bindings") && this.existingBinding) return {rows:[{exists:1} as T]};
@@ -47,6 +49,15 @@ describe("LocalEnterpriseRepository",()=>{
     expect(db.sql[0]).toContain("pg_advisory_xact_lock");
     expect(db.sql[1]).toContain("UPDATE tenant_join_codes");
     expect(db.sql[2]).toContain("INSERT INTO tenant_join_codes");
+  });
+
+  it("resolves a join code before setting tenant context and returns public company fields only",async()=>{
+    const db=new FakeDatabase();
+    const repository=new LocalEnterpriseRepository(db as never);
+    await expect(repository.getJoinPreview("join_"+"a".repeat(27))).resolves.toEqual({tenantId:"20",name:"测试企业",shortName:"测试",logoUrl:"https://example.com/logo.png",websiteUrl:"https://example.com",address:"深圳",publicId:"pub_test"});
+    expect(db.sql[0]).toContain("FROM tenant_join_codes");
+    expect(db.sql[1]).toContain("set_config('app.tenant_id'");
+    expect(db.sql[2]).toContain("p.status='published'");
   });
 
   it("resolves the claim token before setting any RLS tenant context (99_74-P0-1 regression guard)",async()=>{
