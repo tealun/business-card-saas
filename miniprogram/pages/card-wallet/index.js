@@ -118,7 +118,13 @@ Page({
     try {
       const [stats, exchangeData] = await Promise.all([
         request("/employee/cards/current/stats"),
-        request("/employee/card-exchanges?limit=50&offset=0")
+        request("/employee/card-exchanges?limit=50&offset=0").catch(() => ({
+          requests: [],
+          unread_count: 0,
+          accepted_count: 0,
+          next_offset: null,
+          notification_template_id: ""
+        }))
       ]);
       const cardLabel = buildVisitedCardLabel(app.globalData.currentCard, app.globalData.currentIdentity);
       const visitors = mapRecentVisitors(stats.recent_visitors, { cardLabel });
@@ -127,7 +133,7 @@ Page({
         visitorItems: visitors,
         visitorCount: stats.visitor_count,
         acceptedCount: exchangeData.accepted_count || 0,
-        nextExchangeOffset: exchangeData.next_offset,
+        nextExchangeOffset: typeof exchangeData.next_offset === "number" ? exchangeData.next_offset : null,
         notificationTemplateId: exchangeData.notification_template_id || ""
       });
       this.rebuildWalletGroups();

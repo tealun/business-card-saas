@@ -135,7 +135,11 @@ export class EmployeeCardRepository {
         `
           SELECT
             count(*)::text AS visit_count,
-            count(DISTINCT COALESCE(visitor_account_id::text, anon_id))::text AS visitor_count
+            count(DISTINCT COALESCE(
+              'employee:' || visitor_employee_account_id::text,
+              'visitor:' || visitor_account_id::text,
+              anon_id
+            ))::text AS visitor_count
           FROM card_visits
           WHERE tenant_id = $1 AND member_identity_id = $2
         `,
@@ -159,18 +163,35 @@ export class EmployeeCardRepository {
         `
           SELECT
             CASE
-              WHEN card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user'
+              WHEN card_visits.visitor_employee_account_id IS NULL
+                AND card_visits.visitor_account_id IS NULL
+                AND card_visits.trust_level <> 'authenticated_user'
                 THEN 'anonymous'
-              ELSE COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text)
+              ELSE COALESCE(
+                'employee:' || card_visits.visitor_employee_account_id::text,
+                'visitor:' || card_visits.visitor_account_id::text,
+                card_visits.anon_id,
+                card_visits.id::text
+              )
             END AS visitor_key,
             max(visitor_accounts.nickname) AS visitor_label,
             max(visitor_accounts.avatar) AS visitor_avatar_url,
-            count(DISTINCT COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text))::text AS visitor_count,
+            count(DISTINCT COALESCE(
+              'employee:' || card_visits.visitor_employee_account_id::text,
+              'visitor:' || card_visits.visitor_account_id::text,
+              card_visits.anon_id,
+              card_visits.id::text
+            ))::text AS visitor_count,
             count(*)::text AS visit_count,
-            bool_and(card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user') AS is_anonymous,
+            bool_and(
+              card_visits.visitor_employee_account_id IS NULL
+              AND card_visits.visitor_account_id IS NULL
+              AND card_visits.trust_level <> 'authenticated_user'
+            ) AS is_anonymous,
             card_visits.card_id,
             cards.public_id,
-            (array_agg(card_visits.visitor_public_id ORDER BY card_visits.created_at DESC))[1] AS visitor_public_id,
+            (array_agg(card_visits.visitor_public_id ORDER BY card_visits.created_at DESC)
+              FILTER (WHERE card_visits.visitor_public_id IS NOT NULL))[1] AS visitor_public_id,
             COALESCE(cards.display_name, '名片') AS card_name,
             (array_agg(card_visits.trust_level ORDER BY card_visits.created_at DESC))[1] AS trust_level,
             (array_agg(card_visits.channel ORDER BY card_visits.created_at DESC))[1] AS channel,
@@ -186,9 +207,16 @@ export class EmployeeCardRepository {
             cards.public_id,
             cards.display_name,
             CASE
-              WHEN card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user'
+              WHEN card_visits.visitor_employee_account_id IS NULL
+                AND card_visits.visitor_account_id IS NULL
+                AND card_visits.trust_level <> 'authenticated_user'
                 THEN 'anonymous'
-              ELSE COALESCE(card_visits.visitor_account_id::text, card_visits.anon_id, card_visits.id::text)
+              ELSE COALESCE(
+                'employee:' || card_visits.visitor_employee_account_id::text,
+                'visitor:' || card_visits.visitor_account_id::text,
+                card_visits.anon_id,
+                card_visits.id::text
+              )
             END
           ORDER BY max(card_visits.created_at) DESC
           LIMIT 50

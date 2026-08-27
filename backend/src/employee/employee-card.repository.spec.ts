@@ -855,6 +855,7 @@ describe("EmployeeCardRepository", () => {
                 is_anonymous: true,
                 card_id: "card-001",
                 public_id: "pub_owner001",
+                visitor_public_id: null,
                 card_name: "Owner Name",
                 trust_level: "anonymous_client",
                 channel: "share",
@@ -869,6 +870,7 @@ describe("EmployeeCardRepository", () => {
                 is_anonymous: false,
                 card_id: "card-001",
                 public_id: "pub_owner001",
+                visitor_public_id: "pub_visitor01",
                 card_name: "Owner Name",
                 trust_level: "authenticated_user",
                 channel: null,
@@ -921,7 +923,7 @@ describe("EmployeeCardRepository", () => {
             is_anonymous: false,
             card_id: "card-001",
             public_id: "pub_owner001",
-            visitor_public_id: null,
+            visitor_public_id: "pub_visitor01",
             card_name: "Owner Name",
             visitor_avatar_url: "https://example.com/avatar.png",
             trust_level: "authenticated_user",
@@ -931,6 +933,8 @@ describe("EmployeeCardRepository", () => {
         ]
       });
       expect(queries.every((query) => query.values.join(",").includes("member-001"))).toBe(true);
+      expect(queries.every((query) => query.text.includes("visitor_employee_account_id"))).toBe(true);
+      expect(queries[1]?.text).toContain("FILTER (WHERE card_visits.visitor_public_id IS NOT NULL)");
     } finally {
       if (originalDatabaseUrl) {
         process.env.DATABASE_URL = originalDatabaseUrl;
