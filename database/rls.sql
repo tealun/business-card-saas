@@ -26,6 +26,10 @@ DROP POLICY IF EXISTS tenant_isolation_card_shares ON card_shares;
 CREATE POLICY tenant_isolation_card_shares ON card_shares
   USING (tenant_id = current_setting('app.tenant_id', true)::bigint);
 
+-- Exchanges can cross tenants. Repository queries require both participant account and
+-- current identity, so applying a single tenant policy here would break valid exchanges.
+ALTER TABLE card_exchange_requests DISABLE ROW LEVEL SECURITY;
+
 ALTER TABLE tenant_admins ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation_tenant_admins ON tenant_admins;
 CREATE POLICY tenant_isolation_tenant_admins ON tenant_admins

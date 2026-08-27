@@ -139,6 +139,7 @@ export const employeeCardStatsResponseSchema = z.object({
       is_anonymous: z.boolean(),
       card_id: z.string(),
       public_id: publicIdSchema,
+      visitor_public_id: publicIdSchema.nullable(),
       card_name: z.string(),
       visitor_avatar_url: imageSourceSchema.nullable().optional(),
       trust_level: z.string().nullable().optional(),

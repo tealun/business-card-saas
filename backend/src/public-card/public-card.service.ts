@@ -81,11 +81,21 @@ export class PublicCardService {
       userAgent?: string;
       ipHash?: string;
       trustLevel?: string;
+      visitorAccountId?: string;
+      visitorTenantId?: string;
+      visitorMemberIdentityId?: string;
+      visitorPublicId?: string;
     } = {
       publicId,
       anonId,
       trustLevel: session ? "authenticated_user" : "anonymous_client"
     };
+    if (session) {
+      visitInput.visitorAccountId = session.accountId;
+      visitInput.visitorTenantId = session.tenantId;
+      visitInput.visitorMemberIdentityId = session.memberIdentityId;
+      if (session.publicId) visitInput.visitorPublicId = session.publicId;
+    }
     if (request.user_agent) {
       visitInput.userAgent = request.user_agent;
     }

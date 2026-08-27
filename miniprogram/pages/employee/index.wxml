@@ -89,9 +89,10 @@
           <text>名片样式</text>
         </view>
         <view class="quick-bar__sep"></view>
-        <view class="quick-bar__item" bindtap="goWallet">
+        <view class="quick-bar__item quick-bar__item--badge" bindtap="goWallet">
           <view class="icon icon-contact"></view>
-          <text>访客记录</text>
+          <text>交换名片</text>
+          <text class="quick-bar__badge" wx:if="{{exchangeUnreadCount}}">{{exchangeUnreadCount > 99 ? "99+" : exchangeUnreadCount}}</text>
         </view>
       </view>
 
@@ -138,8 +139,7 @@
             <view class="f14 medium">{{item.name}}</view>
             <view class="f12 t-secondary">{{item.title}}</view>
           </view>
-          <view class="btn btn--sm btn--muted" data-id="{{item.id}}" catchtap="ignoreRequest">忽略</view>
-          <view class="btn btn--sm btn--primary" data-id="{{item.id}}" catchtap="acceptRequest">同意</view>
+          <view class="btn btn--sm btn--primary" catchtap="goWallet">查看请求</view>
         </view>
       </view>
 

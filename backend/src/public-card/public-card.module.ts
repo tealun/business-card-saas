@@ -12,6 +12,6 @@ import { CompanyVideoFeatureModule } from "../company-video-feature/company-vide
   imports: [CompanyVideoFeatureModule],
   controllers: [PublicCardController],
   providers: [PublicCardRepository, PublicCardService, VisitTokenService, AnonIdService, CardFieldCipherService, SessionTokenService],
-  exports: [PublicCardRepository]
+  exports: [PublicCardRepository, VisitTokenService]
 })
 export class PublicCardModule {}

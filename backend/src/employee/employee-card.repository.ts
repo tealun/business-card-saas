@@ -150,6 +150,7 @@ export class EmployeeCardRepository {
         is_anonymous: boolean;
         card_id: string | number | bigint;
         public_id: string;
+        visitor_public_id: string | null;
         card_name: string;
         trust_level: string | null;
         channel: string | null;
@@ -169,6 +170,7 @@ export class EmployeeCardRepository {
             bool_and(card_visits.visitor_account_id IS NULL AND card_visits.trust_level <> 'authenticated_user') AS is_anonymous,
             card_visits.card_id,
             cards.public_id,
+            (array_agg(card_visits.visitor_public_id ORDER BY card_visits.created_at DESC))[1] AS visitor_public_id,
             COALESCE(cards.display_name, '名片') AS card_name,
             (array_agg(card_visits.trust_level ORDER BY card_visits.created_at DESC))[1] AS trust_level,
             (array_agg(card_visits.channel ORDER BY card_visits.created_at DESC))[1] AS channel,
@@ -204,6 +206,7 @@ export class EmployeeCardRepository {
           is_anonymous: row.is_anonymous,
           card_id: String(row.card_id),
           public_id: row.public_id,
+          visitor_public_id: row.visitor_public_id ?? null,
           card_name: row.card_name,
           visitor_avatar_url: row.visitor_avatar_url,
           trust_level: row.trust_level,

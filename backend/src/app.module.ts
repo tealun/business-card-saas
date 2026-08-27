@@ -27,6 +27,7 @@ import { AdminOperationLogModule } from "./admin-operation-log/admin-operation-l
 import { AdminAnalyticsModule } from "./admin-analytics/admin-analytics.module.js";
 import { AdminCommercialModule } from "./admin-commercial/admin-commercial.module.js";
 import { LocalEnterpriseModule } from "./local-enterprise/local-enterprise.module.js";
+import { CardExchangeModule } from "./card-exchange/card-exchange.module.js";
 
 @Module({
   imports: [
@@ -92,7 +93,8 @@ import { LocalEnterpriseModule } from "./local-enterprise/local-enterprise.modul
     AdminOperationLogModule,
     CompanyVideoFeatureModule,
     PlatformTenantModule,
-    LocalEnterpriseModule
+    LocalEnterpriseModule,
+    CardExchangeModule
   ],
   controllers: [HealthController, MetricsController],
   providers: [

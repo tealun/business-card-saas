@@ -167,6 +167,10 @@ CREATE TABLE "card_visits" (
     "card_id" BIGINT NOT NULL,
     "member_identity_id" BIGINT NOT NULL,
     "visitor_account_id" BIGINT,
+    "visitor_employee_account_id" BIGINT,
+    "visitor_tenant_id" BIGINT,
+    "visitor_member_identity_id" BIGINT,
+    "visitor_public_id" VARCHAR(32),
     "share_id" VARCHAR(64),
     "visit_id" VARCHAR(64),
     "anon_id" VARCHAR(128),
@@ -211,6 +215,33 @@ CREATE TABLE "card_shares" (
     "created_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "card_shares_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "card_exchange_requests" (
+    "id" BIGSERIAL NOT NULL,
+    "request_id" VARCHAR(64) NOT NULL,
+    "sender_account_id" BIGINT NOT NULL,
+    "sender_tenant_id" BIGINT NOT NULL,
+    "sender_member_identity_id" BIGINT NOT NULL,
+    "sender_card_id" BIGINT NOT NULL,
+    "sender_card_snapshot" JSONB NOT NULL,
+    "recipient_account_id" BIGINT NOT NULL,
+    "recipient_tenant_id" BIGINT NOT NULL,
+    "recipient_member_identity_id" BIGINT NOT NULL,
+    "recipient_card_id" BIGINT NOT NULL,
+    "recipient_card_snapshot" JSONB NOT NULL,
+    "source_visit_id" VARCHAR(64) NOT NULL,
+    "status" VARCHAR(16) NOT NULL DEFAULT 'pending',
+    "recipient_read_at" TIMESTAMPTZ(6),
+    "responded_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+
+    CONSTRAINT "card_exchange_requests_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "card_exchange_requests_request_id_key" UNIQUE ("request_id"),
+    CONSTRAINT "card_exchange_requests_status_check" CHECK ("status" IN ('pending','accepted','ignored')),
+    CONSTRAINT "card_exchange_requests_distinct_identity_check" CHECK ("sender_member_identity_id" <> "recipient_member_identity_id" OR "sender_tenant_id" <> "recipient_tenant_id")
 );
 
 -- CreateTable
@@ -672,6 +703,7 @@ CREATE INDEX "idx_visit_card" ON "card_visits"("tenant_id", "card_id");
 
 -- CreateIndex
 CREATE INDEX "idx_visit_share" ON "card_visits"("tenant_id", "share_id");
+CREATE INDEX "idx_card_visits_visitor_identity" ON "card_visits"("visitor_employee_account_id", "visitor_member_identity_id");
 
 -- CreateIndex
 CREATE INDEX "idx_visit_created" ON "card_visits"("created_at");
@@ -687,6 +719,10 @@ CREATE UNIQUE INDEX "uk_action_idem" ON "card_actions"("visit_id", "action_type"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "uk_public_share_id" ON "card_shares"("public_share_id");
+
+CREATE UNIQUE INDEX "uk_card_exchange_pending_pair" ON "card_exchange_requests"("sender_member_identity_id", "recipient_member_identity_id") WHERE "status" = 'pending';
+CREATE INDEX "idx_card_exchange_recipient_inbox" ON "card_exchange_requests"("recipient_account_id", "recipient_member_identity_id", "status", "created_at" DESC);
+CREATE INDEX "idx_card_exchange_sender_outbox" ON "card_exchange_requests"("sender_account_id", "sender_member_identity_id", "created_at" DESC);
 
 -- CreateIndex
 CREATE INDEX "idx_share_card" ON "card_shares"("tenant_id", "card_id");
@@ -803,12 +839,19 @@ ALTER TABLE "cards" ADD CONSTRAINT "cards_tenant_id_member_identity_id_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "card_visits" ADD CONSTRAINT "card_visits_tenant_id_card_id_fkey" FOREIGN KEY ("tenant_id", "card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "card_visits" ADD CONSTRAINT "card_visits_visitor_employee_account_fkey" FOREIGN KEY ("visitor_employee_account_id") REFERENCES "accounts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "card_visits" ADD CONSTRAINT "card_visits_visitor_identity_fkey" FOREIGN KEY ("visitor_tenant_id", "visitor_member_identity_id") REFERENCES "member_identities"("tenant_id", "id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "card_actions" ADD CONSTRAINT "card_actions_tenant_id_card_id_fkey" FOREIGN KEY ("tenant_id", "card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "card_shares" ADD CONSTRAINT "card_shares_tenant_id_card_id_fkey" FOREIGN KEY ("tenant_id", "card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_sender_account_fkey" FOREIGN KEY ("sender_account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_recipient_account_fkey" FOREIGN KEY ("recipient_account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_sender_card_fkey" FOREIGN KEY ("sender_tenant_id", "sender_card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_recipient_card_fkey" FOREIGN KEY ("recipient_tenant_id", "recipient_card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

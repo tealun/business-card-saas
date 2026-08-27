@@ -105,7 +105,8 @@ Page({
     // 初始为未登录演示态；bootstrap/登录成功后按登录态切换。
     requests: demoRequests,
     stats: demoStats,
-    recentVisitors: demoRecentVisitors
+    recentVisitors: demoRecentVisitors,
+    exchangeUnreadCount: 0
   },
 
   /**
@@ -354,9 +355,14 @@ Page({
    */
   async loadStats() {
     try {
-      const stats = await request("/employee/cards/current/stats");
+      const [stats, exchanges] = await Promise.all([
+        request("/employee/cards/current/stats"),
+        request("/employee/card-exchanges").catch(() => ({ unread_count: 0, requests: [] }))
+      ]);
       this.setData({
         stats: { visitors: stats.visitor_count, viewed: 0, friends: 0 },
+        exchangeUnreadCount: exchanges.unread_count || 0,
+        requests: (exchanges.requests || []).filter((item) => item.direction === "incoming" && item.status === "pending").map(mapExchangeRequest),
         recentVisitors: mapRecentVisitors(stats.recent_visitors, {
           cardLabel: buildVisitedCardLabel(this.data.card, this.data.currentIdentity)
         })
@@ -1325,6 +1331,16 @@ function cardBackgroundStyle(url, opacity = 100, templateId = "", presetId = "")
     ? `rgba(0,0,0,${(alpha * 0.48).toFixed(2)})`
     : `rgba(255,255,255,${alpha.toFixed(2)})`;
   return `background: linear-gradient(${overlay}, ${overlay});`;
+}
+
+function mapExchangeRequest(item) {
+  const card = item.counterpart || {};
+  return {
+    id: item.request_id,
+    name: card.display_name || "微信用户",
+    title: [card.title, card.company].filter(Boolean).join(" · "),
+    avatarUrl: card.avatar_url || ""
+  };
 }
 
 function imageMimeFromPath(path) {

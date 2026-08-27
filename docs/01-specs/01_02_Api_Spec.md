@@ -71,6 +71,11 @@
 | POST `/api/v1/employee/cards/current/poster` | JWT | 生成海报（含小程序码，scene 放 share_id） |
 | GET `/api/v1/employee/cards/current/stats` | JWT | 本名片统计（按 trust_level 分层 §32） |
 | POST `/api/v1/employee/cards/current/share` | JWT | 签发 `share_id`（写 `card_shares`，§6.3） |
+| POST `/api/v1/employee/card-exchanges` | JWT + `visit_token` | 当前身份向已访问的公开名片发起交换请求；同一方向待处理请求幂等 |
+| GET `/api/v1/employee/card-exchanges` | JWT | 当前身份的收件/发件请求、未读数和待处理数 |
+| POST `/api/v1/employee/card-exchanges/read` | JWT | 标记当前身份收到的待处理请求为已读 |
+| POST `/api/v1/employee/card-exchanges/:requestId/accept` | JWT | 接收方接受请求；重复接受幂等 |
+| POST `/api/v1/employee/card-exchanges/:requestId/ignore` | JWT | 接收方忽略请求；重复忽略幂等 |
 
 ### 3.3 公开访问（Public，无登录）
 

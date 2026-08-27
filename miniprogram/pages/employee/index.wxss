@@ -124,6 +124,7 @@
 }
 
 .quick-bar__item {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -140,6 +141,22 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18rpx 12rpx;
+}
+
+.quick-bar__badge {
+  position: absolute;
+  top: -10rpx;
+  left: calc(50% + 18rpx);
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 8rpx;
+  border-radius: 17rpx;
+  background: var(--danger);
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .tool-grid__item {

@@ -39,9 +39,9 @@ function mapRecentVisitors(recentVisitors, options = {}) {
       visitCount,
       peopleCount,
       isAnonymous,
-      canExchange: !isAnonymous,
+      canExchange: !isAnonymous && Boolean(item.visitor_public_id),
       cardId: item.card_id || "",
-      publicId: item.public_id || ""
+      publicId: item.visitor_public_id || ""
     });
   });
 

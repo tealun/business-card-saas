@@ -46,7 +46,10 @@ Page({
       viewed: demoViewed,
       friends: demoFriends,
       offline: []
-    }
+    },
+    selectedRequest: null,
+    requestSheetVisible: false,
+    responding: false
   },
 
   /**
@@ -100,25 +103,39 @@ Page({
     });
 
     try {
-      const stats = await request("/employee/cards/current/stats");
+      const [stats, exchangeData] = await Promise.all([
+        request("/employee/cards/current/stats"),
+        request("/employee/card-exchanges")
+      ]);
       const cardLabel = buildVisitedCardLabel(app.globalData.currentCard, app.globalData.currentIdentity);
       const visitors = mapRecentVisitors(stats.recent_visitors, { cardLabel });
+      const exchangeItems = (exchangeData.requests || []).map(mapExchangeItem);
+      const pending = exchangeItems.filter((item) => item.direction === "incoming" && item.state === "pending");
+      const outgoingPending = exchangeItems.filter((item) => item.direction === "outgoing" && item.state === "pending");
+      const accepted = exchangeItems.filter((item) => item.state === "exchanged");
+      const visitorGroups = [];
+      if (pending.length) visitorGroups.push({ title: "待处理请求", items: pending });
+      if (outgoingPending.length) visitorGroups.push({ title: "已发出的请求", items: outgoingPending });
+      if (visitors.length) visitorGroups.push({ title: "最近访客", items: visitors });
       const tabGroups = {
-        visitors: visitors.length ? [{ title: "最近访客", items: visitors }] : [],
+        visitors: visitorGroups,
         viewed: [],
-        friends: [],
+        friends: accepted.length ? [{ title: "已交换名片", items: accepted }] : [],
         offline: []
       };
       this.setData({
         tabs: [
           { key: "visitors", label: "我的访客", count: stats.visitor_count },
           { key: "viewed", label: "我看过的", count: 0 },
-          { key: "friends", label: "好友名片", count: 0 },
+          { key: "friends", label: "好友名片", count: accepted.length },
           { key: "offline", label: "线下名片", count: 0 }
         ],
         tabGroups
       });
       this.refreshActiveGroups();
+      if (exchangeData.unread_count) {
+        request("/employee/card-exchanges/read", { method: "POST", data: {} }).catch(() => {});
+      }
     } catch (_error) {
       this.refreshActiveGroups();
     }
@@ -152,12 +169,38 @@ Page({
    * 处理名片交换动作。
    * 匿名访客或不可交换条目会直接忽略，避免展示无效操作反馈。
    */
-  exchange(event) {
+  async exchange(event) {
     const item = findItem(this.data.groups, event.currentTarget.dataset.id);
     if (!item || item.isAnonymous || item.canExchange === false) {
       return;
     }
-    wx.showToast({ title: "名片交换功能即将上线", icon: "none" });
+    if (item.requestId) {
+      this.setData({ selectedRequest: item, requestSheetVisible: true });
+      return;
+    }
+    if (!item.publicId) return;
+    wx.navigateTo({ url: `/pages/public/card?card=${item.publicId}` });
+  },
+
+  closeRequestSheet() {
+    if (!this.data.responding) this.setData({ requestSheetVisible: false, selectedRequest: null });
+  },
+
+  async respondToRequest(event) {
+    const item = this.data.selectedRequest;
+    const action = event.currentTarget.dataset.action;
+    if (!item || this.data.responding || !["accept", "ignore"].includes(action)) return;
+    this.setData({ responding: true });
+    try {
+      await request(`/employee/card-exchanges/${item.requestId}/${action}`, { method: "POST", data: {} });
+      wx.showToast({ title: action === "accept" ? "已接受交换" : "已忽略请求", icon: "success" });
+      this.setData({ requestSheetVisible: false, selectedRequest: null });
+      await this.loadStats();
+    } catch (error) {
+      wx.showToast({ title: error.message || "请求处理失败", icon: "none" });
+    } finally {
+      this.setData({ responding: false });
+    }
   },
 
   /**
@@ -203,4 +246,29 @@ function findItem(groups, id) {
     }
   }
   return null;
+}
+
+function mapExchangeItem(item) {
+  const card = item.counterpart || {};
+  const incomingPending = item.direction === "incoming" && item.status === "pending";
+  return {
+    id: `exchange:${item.request_id}`,
+    requestId: item.request_id,
+    direction: item.direction,
+    name: card.display_name || "微信用户",
+    title: [card.title, card.company].filter(Boolean).join(" · "),
+    meta: incomingPending ? "对方希望与你交换名片" : (item.direction === "outgoing" && item.status === "pending" ? "等待对方接受" : "双方已交换名片"),
+    state: item.status === "accepted" ? "exchanged" : item.status,
+    time: formatExchangeTime(item.created_at),
+    avatarUrl: card.avatar_url || "",
+    publicId: card.public_id || "",
+    canExchange: incomingPending,
+    actionLabel: incomingPending ? "查看请求" : ""
+  };
+}
+
+function formatExchangeTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }

@@ -175,6 +175,10 @@ export class PublicCardRepository {
     userAgent?: string;
     ipHash?: string;
     trustLevel?: string;
+    visitorAccountId?: string;
+    visitorTenantId?: string;
+    visitorMemberIdentityId?: string;
+    visitorPublicId?: string;
   }): Promise<CardVisitRecord> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(input.publicId);
@@ -193,9 +197,13 @@ export class PublicCardRepository {
               trust_level,
               user_agent,
               ip_hash,
+              visitor_employee_account_id,
+              visitor_tenant_id,
+              visitor_member_identity_id,
+              visitor_public_id,
               created_at
             )
-            SELECT tenant_id, id, member_identity_id, $3, $4, $5, $6, $7, $8, now()
+            SELECT tenant_id, id, member_identity_id, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now()
             FROM cards
             WHERE tenant_id = $1 AND id = $2
             RETURNING visit_id, share_id, anon_id, created_at
@@ -208,7 +216,11 @@ export class PublicCardRepository {
             input.anonId,
             input.trustLevel ?? "anonymous_client",
             input.userAgent ?? null,
-            input.ipHash ?? null
+            input.ipHash ?? null,
+            input.visitorAccountId ?? null,
+            input.visitorTenantId ?? null,
+            input.visitorMemberIdentityId ?? null,
+            input.visitorPublicId ?? null
           ]
         )
       );

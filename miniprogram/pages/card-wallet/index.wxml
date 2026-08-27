@@ -64,13 +64,32 @@
         </view>
         <view class="wallet-item__side">
           <text class="badge badge--success" wx:if="{{card.state === 'exchanged'}}">已交换</text>
-          <text class="badge badge--warning" wx:elif="{{card.state === 'pending'}}">待通过</text>
+          <view class="btn btn--sm btn--ghost" wx:elif="{{card.state === 'pending' && card.direction === 'incoming'}}" data-id="{{card.id}}" bindtap="exchange">查看请求</view>
+          <text class="badge badge--warning" wx:elif="{{card.state === 'pending'}}">等待接受</text>
           <view class="btn btn--sm btn--ghost" wx:elif="{{card.canExchange !== false && !card.isAnonymous}}" data-id="{{card.id}}" bindtap="exchange">交换</view>
           <text class="wallet-item__time">{{card.time}}</text>
         </view>
       </view>
     </view>
   </block>
+
+  <view class="sheet-mask {{requestSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeRequestSheet"></view>
+  <view class="exchange-sheet {{requestSheetVisible ? 'exchange-sheet--show' : ''}}" wx:if="{{selectedRequest}}">
+    <view class="sheet__grab"></view>
+    <view class="exchange-sheet__title">交换名片请求</view>
+    <view class="exchange-card-preview">
+      <view class="exchange-card-preview__avatar">
+        <image wx:if="{{selectedRequest.avatarUrl}}" src="{{selectedRequest.avatarUrl}}" mode="aspectFill" class="avatar-img" />
+        <view wx:else class="avatar-placeholder"></view>
+      </view>
+      <view class="exchange-card-preview__name">{{selectedRequest.name}}</view>
+      <view class="exchange-card-preview__title">{{selectedRequest.title}}</view>
+    </view>
+    <view class="exchange-sheet__actions">
+      <view class="btn btn--muted" data-action="ignore" catchtap="respondToRequest">忽略</view>
+      <view class="btn btn--primary" data-action="accept" catchtap="respondToRequest">{{responding ? "处理中" : "接受"}}</view>
+    </view>
+  </view>
 
   <login-bar wx:if="{{!loggedIn}}" text="开始使用" bind:success="onLoginSuccess" />
 </view>

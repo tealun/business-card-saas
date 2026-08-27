@@ -163,6 +163,8 @@ Page({
     likedByMe: false,
     likeSubmitting: false,
     pendingExchange: false,
+    exchangeSubmitting: false,
+    exchangeStatus: "",
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
     wechatQrUrl: "",
@@ -606,8 +608,24 @@ Page({
       }
       return;
     }
-    await this.recordAction("exchange_card");
-    wx.showToast({ title: "交换名片请求已发起", icon: "success" });
+    if (!app.globalData.visitToken) {
+      wx.showToast({ title: "访问记录准备中，请稍后重试", icon: "none" });
+      return;
+    }
+    if (this.data.exchangeSubmitting || this.data.exchangeStatus === "pending") return;
+    this.setData({ exchangeSubmitting: true });
+    try {
+      const result = await request("/employee/card-exchanges", {
+        method: "POST",
+        data: { recipient_public_id: this.data.publicId, visit_token: app.globalData.visitToken }
+      });
+      this.setData({ exchangeStatus: result.request.status });
+      wx.showToast({ title: result.idempotent ? "请求已发送，请等待对方处理" : "交换请求已发送", icon: "success" });
+    } catch (error) {
+      showError(error, "交换请求发送失败");
+    } finally {
+      this.setData({ exchangeSubmitting: false });
+    }
   },
 
   async onExchangeLoginSuccess() {
