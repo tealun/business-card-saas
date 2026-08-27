@@ -40,6 +40,8 @@ Page({
     activeTab: "visitors",
     tabs: demoTabs,
     keyword: "",
+    companyFilter: "",
+    notificationTemplateId: "",
     groups: demoVisitors,
     tabGroups: {
       visitors: demoVisitors,
@@ -130,7 +132,8 @@ Page({
           { key: "friends", label: "好友名片", count: accepted.length },
           { key: "offline", label: "线下名片", count: 0 }
         ],
-        tabGroups
+        tabGroups,
+        notificationTemplateId: exchangeData.notification_template_id || ""
       });
       this.refreshActiveGroups();
       if (exchangeData.unread_count) {
@@ -154,15 +157,68 @@ Page({
    */
   refreshActiveGroups() {
     const tabGroups = this.data.tabGroups || {};
-    this.setData({ groups: tabGroups[this.data.activeTab] || [] });
+    const keyword = String(this.data.keyword || "").trim().toLowerCase();
+    const company = this.data.companyFilter || "";
+    const groups = (tabGroups[this.data.activeTab] || []).map((group) => ({
+      ...group,
+      items: (group.items || []).filter((item) => {
+        const haystack = [item.name, item.title, item.company].join(" ").toLowerCase();
+        return (!keyword || haystack.includes(keyword)) && (!company || item.company === company);
+      })
+    })).filter((group) => group.items.length);
+    this.setData({ groups });
   },
 
   /**
    * 更新搜索关键词。
-   * 当前搜索仅保留输入态，实际筛选能力后续接入。
    */
   onSearch(event) {
     this.setData({ keyword: event.detail.value });
+    this.refreshActiveGroups();
+  },
+
+  chooseCompanyFilter() {
+    const companySet = new Set();
+    const tabGroups = this.data.tabGroups || {};
+    Object.keys(tabGroups).forEach((key) => {
+      (tabGroups[key] || []).forEach((group) => {
+        (group.items || []).forEach((item) => {
+          if (item.company) companySet.add(item.company);
+        });
+      });
+    });
+    const companies = Array.from(companySet);
+    if (!companies.length) {
+      wx.showToast({ title: "暂无可筛选的公司", icon: "none" });
+      return;
+    }
+    const itemList = ["全部公司", ...companies];
+    wx.showActionSheet({
+      itemList,
+      success: ({ tapIndex }) => {
+        this.setData({ companyFilter: tapIndex === 0 ? "" : companies[tapIndex - 1] });
+        this.refreshActiveGroups();
+      }
+    });
+  },
+
+  async enableExchangeNotifications() {
+    const templateId = this.data.notificationTemplateId;
+    if (!templateId || typeof wx.requestSubscribeMessage !== "function") {
+      wx.showToast({ title: "交换通知暂未配置", icon: "none" });
+      return;
+    }
+    try {
+      const result = await new Promise((resolve, reject) => wx.requestSubscribeMessage({ tmplIds: [templateId], success: resolve, fail: reject }));
+      if (!result || result[templateId] !== "accept") return;
+      await request("/employee/card-exchanges/notifications/subscribe", {
+        method: "POST",
+        data: { event_type: "request_received", template_id: templateId }
+      });
+      wx.showToast({ title: "已开启下一次交换提醒", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "通知开启失败", icon: "none" });
+    }
   },
 
   /**
@@ -182,6 +238,14 @@ Page({
     wx.navigateTo({ url: `/pages/public/card?card=${item.publicId}` });
   },
 
+  openCardDetails(event) {
+    const item = findItem(this.data.groups, event.currentTarget.dataset.id);
+    if (!item || item.isAnonymous) return;
+    if (item.requestId && (item.state === "pending" || item.state === "exchanged")) {
+      this.setData({ selectedRequest: item, requestSheetVisible: true });
+    }
+  },
+
   closeRequestSheet() {
     if (!this.data.responding) this.setData({ requestSheetVisible: false, selectedRequest: null });
   },
@@ -189,11 +253,11 @@ Page({
   async respondToRequest(event) {
     const item = this.data.selectedRequest;
     const action = event.currentTarget.dataset.action;
-    if (!item || this.data.responding || !["accept", "ignore"].includes(action)) return;
+    if (!item || this.data.responding || !["accept", "ignore", "withdraw"].includes(action)) return;
     this.setData({ responding: true });
     try {
       await request(`/employee/card-exchanges/${item.requestId}/${action}`, { method: "POST", data: {} });
-      wx.showToast({ title: action === "accept" ? "已接受交换" : "已忽略请求", icon: "success" });
+      wx.showToast({ title: action === "accept" ? "已接受交换" : (action === "withdraw" ? "已撤回请求" : "已忽略请求"), icon: "success" });
       this.setData({ requestSheetVisible: false, selectedRequest: null });
       await this.loadStats();
     } catch (error) {
@@ -201,6 +265,11 @@ Page({
     } finally {
       this.setData({ responding: false });
     }
+  },
+
+  openSelectedCard() {
+    const item = this.data.selectedRequest;
+    if (item && item.publicId) wx.navigateTo({ url: `/pages/public/card?card=${item.publicId}` });
   },
 
   /**
@@ -257,6 +326,7 @@ function mapExchangeItem(item) {
     direction: item.direction,
     name: card.display_name || "微信用户",
     title: [card.title, card.company].filter(Boolean).join(" · "),
+    company: card.company || "",
     meta: incomingPending ? "对方希望与你交换名片" : (item.direction === "outgoing" && item.status === "pending" ? "等待对方接受" : "双方已交换名片"),
     state: item.status === "accepted" ? "exchanged" : item.status,
     time: formatExchangeTime(item.created_at),

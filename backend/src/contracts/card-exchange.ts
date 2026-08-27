@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { publicIdSchema } from "./public-card.js";
 
-export const exchangeStatusSchema = z.enum(["pending", "accepted", "ignored"]);
+export const exchangeStatusSchema = z.enum(["pending", "accepted", "ignored", "withdrawn"]);
+export const exchangeNotificationEventSchema = z.enum(["request_received", "request_accepted"]);
 
 export const exchangeCardSnapshotSchema = z.object({
   public_id: publicIdSchema,
@@ -29,12 +30,19 @@ export const exchangeRequestSchema = z.object({
 export const exchangeListResponseSchema = z.object({
   unread_count: z.number().int().nonnegative(),
   pending_count: z.number().int().nonnegative(),
-  requests: z.array(exchangeRequestSchema)
+  requests: z.array(exchangeRequestSchema),
+  notification_template_id: z.string()
 });
 
 export const exchangeMutationResponseSchema = z.object({
   request: exchangeRequestSchema,
-  idempotent: z.boolean()
+  idempotent: z.boolean(),
+  auto_accepted: z.boolean().default(false)
+});
+
+export const subscribeExchangeNotificationSchema = z.object({
+  event_type: exchangeNotificationEventSchema,
+  template_id: z.string().min(1)
 });
 
 export type CreateExchangeRequest = z.infer<typeof createExchangeRequestSchema>;

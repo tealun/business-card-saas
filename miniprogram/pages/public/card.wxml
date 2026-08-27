@@ -87,7 +87,7 @@
         <view wx:if="{{isOwnCard}}" class="btn btn--primary public-cta-card__item" bindtap="editMyCard">修改信息</view>
         <view wx:elif="{{!loggedIn}}" class="btn btn--primary public-cta-card__item" bindtap="makeMyCard">我也做一个</view>
         <view wx:elif="{{isDemo}}" class="btn btn--primary public-cta-card__item" bindtap="openContactService">联系开通</view>
-        <view wx:else class="btn btn--primary public-cta-card__item {{exchangeSubmitting || exchangeStatus === 'pending' ? 'btn--disabled' : ''}}" bindtap="exchangeCard">{{exchangeSubmitting ? "发送中" : (exchangeStatus === "pending" ? "等待对方接受" : "交换名片")}}</view>
+        <view wx:else class="btn btn--primary public-cta-card__item {{exchangeSubmitting || exchangeStatus === 'pending' || exchangeStatus === 'accepted' ? 'btn--disabled' : ''}}" bindtap="exchangeCard">{{exchangeSubmitting ? "发送中" : (exchangeStatus === "pending" ? "等待对方接受" : (exchangeStatus === "accepted" ? "已交换名片" : "交换名片"))}}</view>
         <view class="btn btn--soft public-cta-card__item" bindtap="saveContact">保存到通讯录</view>
       </view>
 

@@ -72,4 +72,24 @@ describe("WechatJoinQrService",()=>{
     await expect(Promise.all([first,second])).resolves.toEqual(["data:image/png;base64,AQ==","data:image/png;base64,AQ=="]);
     expect(fetchMock.mock.calls.filter(([url])=>String(url).includes("stable_token"))).toHaveLength(1);
   });
+
+  it("sends a card exchange subscription message to the wallet page",async()=>{
+    const fetchMock=jest.spyOn(global,"fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({access_token:"wx-token",expires_in:7200}),{headers:{"content-type":"application/json"}}))
+      .mockResolvedValueOnce(new Response(JSON.stringify({errcode:0,errmsg:"ok"}),{headers:{"content-type":"application/json"}}));
+    const service=new WechatJoinQrService({wechatMiniProgramAppId:"app-id",wechatMiniProgramSecret:"secret",isProduction:true} as never);
+
+    await service.sendCardExchangeMessage({
+      openid:"openid-1",templateId:"template-1",counterpartName:"张三",eventType:"request_received"
+    });
+
+    const messageCall=fetchMock.mock.calls[1]!;
+    const body=JSON.parse(String((messageCall[1] as RequestInit).body));
+    expect(String(messageCall[0])).toContain("message/subscribe/send");
+    expect(body).toEqual(expect.objectContaining({
+      touser:"openid-1",template_id:"template-1",page:"pages/card-wallet/index",miniprogram_state:"formal"
+    }));
+    expect(body.data.thing1.value).toBe("张三");
+    expect(body.data.phrase2.value).toBe("收到交换请求");
+  });
 });

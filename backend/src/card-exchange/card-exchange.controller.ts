@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { z } from "zod";
-import { createExchangeRequestSchema } from "../contracts/card-exchange.js";
+import { createExchangeRequestSchema, subscribeExchangeNotificationSchema } from "../contracts/card-exchange.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { CardExchangeService } from "./card-exchange.service.js";
 
@@ -32,6 +32,17 @@ export class CardExchangeController {
   @Post(":requestId/ignore")
   ignore(@Req() request: EmployeeRequest, @Param("requestId") requestId: string) {
     return this.exchanges.respond(this.session(request), z.string().min(1).parse(requestId), "ignored");
+  }
+
+  @Post(":requestId/withdraw")
+  withdraw(@Req() request: EmployeeRequest, @Param("requestId") requestId: string) {
+    return this.exchanges.withdraw(this.session(request), z.string().min(1).parse(requestId));
+  }
+
+  @Post("notifications/subscribe")
+  subscribe(@Req() request: EmployeeRequest, @Body() body: unknown) {
+    const parsed = subscribeExchangeNotificationSchema.parse(body);
+    return this.exchanges.subscribeNotification(this.session(request), parsed.event_type, parsed.template_id);
   }
 
   private session(request: EmployeeRequest) {

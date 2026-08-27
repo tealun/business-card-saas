@@ -21,7 +21,8 @@
       <view class="icon icon-search icon--sm"></view>
       <input value="{{keyword}}" bindinput="onSearch" placeholder="搜索姓名/公司/职位" />
     </view>
-    <view class="filter-btn"><view class="icon icon-filter icon--sm"></view></view>
+    <view class="filter-btn {{companyFilter ? 'filter-btn--active' : ''}}" bindtap="chooseCompanyFilter"><view class="icon icon-filter icon--sm"></view></view>
+    <view class="notification-btn" wx:if="{{notificationTemplateId}}" bindtap="enableExchangeNotifications"><view class="icon icon-mail icon--sm"></view></view>
   </view>
 
   <view class="offline-tools" wx:if="{{activeTab === 'offline'}}">
@@ -52,7 +53,7 @@
   <block wx:for="{{groups}}" wx:key="title">
     <view class="group-title">{{item.title}}</view>
     <view class="card wallet-list">
-      <view class="wallet-item" wx:for="{{item.items}}" wx:for-item="card" wx:key="id">
+      <view class="wallet-item" wx:for="{{item.items}}" wx:for-item="card" wx:key="id" data-id="{{card.id}}" bindtap="openCardDetails">
         <view class="wallet-item__avatar wallet-item__avatar--{{card.state}}">
           <image wx:if="{{card.avatarUrl}}" src="{{card.avatarUrl}}" mode="aspectFill" class="avatar-img" webp="{{true}}" />
           <view wx:else class="avatar-placeholder"></view>
@@ -64,9 +65,9 @@
         </view>
         <view class="wallet-item__side">
           <text class="badge badge--success" wx:if="{{card.state === 'exchanged'}}">已交换</text>
-          <view class="btn btn--sm btn--ghost" wx:elif="{{card.state === 'pending' && card.direction === 'incoming'}}" data-id="{{card.id}}" bindtap="exchange">查看请求</view>
+          <view class="btn btn--sm btn--ghost" wx:elif="{{card.state === 'pending' && card.direction === 'incoming'}}" data-id="{{card.id}}" catchtap="exchange">查看请求</view>
           <text class="badge badge--warning" wx:elif="{{card.state === 'pending'}}">等待接受</text>
-          <view class="btn btn--sm btn--ghost" wx:elif="{{card.canExchange !== false && !card.isAnonymous}}" data-id="{{card.id}}" bindtap="exchange">交换</view>
+          <view class="btn btn--sm btn--ghost" wx:elif="{{card.canExchange !== false && !card.isAnonymous}}" data-id="{{card.id}}" catchtap="exchange">交换</view>
           <text class="wallet-item__time">{{card.time}}</text>
         </view>
       </view>
@@ -76,7 +77,7 @@
   <view class="sheet-mask {{requestSheetVisible ? 'sheet-mask--show' : ''}}" catchtap="closeRequestSheet"></view>
   <view class="exchange-sheet {{requestSheetVisible ? 'exchange-sheet--show' : ''}}" wx:if="{{selectedRequest}}">
     <view class="sheet__grab"></view>
-    <view class="exchange-sheet__title">交换名片请求</view>
+    <view class="exchange-sheet__title">{{selectedRequest.state === "exchanged" ? "好友名片" : "交换名片请求"}}</view>
     <view class="exchange-card-preview">
       <view class="exchange-card-preview__avatar">
         <image wx:if="{{selectedRequest.avatarUrl}}" src="{{selectedRequest.avatarUrl}}" mode="aspectFill" class="avatar-img" />
@@ -85,9 +86,16 @@
       <view class="exchange-card-preview__name">{{selectedRequest.name}}</view>
       <view class="exchange-card-preview__title">{{selectedRequest.title}}</view>
     </view>
-    <view class="exchange-sheet__actions">
+    <view class="exchange-sheet__actions" wx:if="{{selectedRequest.state === 'pending' && selectedRequest.direction === 'incoming'}}">
       <view class="btn btn--muted" data-action="ignore" catchtap="respondToRequest">忽略</view>
       <view class="btn btn--primary" data-action="accept" catchtap="respondToRequest">{{responding ? "处理中" : "接受"}}</view>
+    </view>
+    <view class="exchange-sheet__actions exchange-sheet__actions--single" wx:elif="{{selectedRequest.state === 'pending'}}">
+      <view class="btn btn--muted" data-action="withdraw" catchtap="respondToRequest">撤回请求</view>
+    </view>
+    <view class="exchange-sheet__actions" wx:else>
+      <view class="btn btn--muted" catchtap="closeRequestSheet">关闭</view>
+      <view class="btn btn--primary" catchtap="openSelectedCard">查看完整名片</view>
     </view>
   </view>
 

@@ -64,6 +64,20 @@ export class WechatJoinQrService {
     }
   }
 
+  async sendCardExchangeMessage(input:{openid:string;templateId:string;counterpartName:string;eventType:"request_received"|"request_accepted"}):Promise<void>{
+    this.ensureCredentials();
+    for(let attempt=0;attempt<2;attempt+=1){
+      const accessToken=await this.accessToken(attempt>0);
+      const received=input.eventType==="request_received";
+      const response=await fetch(`https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${encodeURIComponent(accessToken)}`,{method:"POST",headers:{"content-type":"application/json"},signal:this.timeoutSignal(),body:JSON.stringify({touser:input.openid,template_id:input.templateId,page:"pages/card-wallet/index",miniprogram_state:this.config.isProduction?"formal":"developer",lang:"zh_CN",data:{thing1:{value:input.counterpartName.slice(0,20)},phrase2:{value:received?"收到交换请求":"交换请求已接受"},time3:{value:formatWechatTime(new Date())},thing4:{value:received?"请进入名片夹查看并处理":"对方已接受你的名片交换请求"}}})});
+      if(!response.ok) throw new ServiceUnavailableException(`WeChat subscribe message HTTP ${response.status}`);
+      const payload=(await response.json()) as WechatApiPayload;
+      if(!payload.errcode) return;
+      if(REFRESHABLE_TOKEN_ERRORS.has(payload.errcode)&&attempt===0) continue;
+      throw new BadGatewayException(`WeChat subscribe message failed: ${payload.errcode} ${payload.errmsg??""}`.trim());
+    }
+  }
+
   private async generateCode(request: (accessToken: string) => Promise<Response>, context: string): Promise<string> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const accessToken = await this.accessToken(attempt > 0);

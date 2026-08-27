@@ -100,4 +100,30 @@ describe("CardExchangeRepository", () => {
     expect(queries.some((sql) => sql.includes("ON CONFLICT") && sql.includes("DO NOTHING"))).toBe(true);
     expect(queries.every((sql) => !sql.includes("bindings.is_default"))).toBe(true);
   });
+
+  it("auto-accepts when the other identity already sent a pending request", async () => {
+    const repo = repository();
+    await repo.create(sender, senderCard, recipientCard, "visit-1");
+    const reverse = await repo.create(recipient, recipientCard, senderCard, "visit-2");
+    expect(reverse.auto_accepted).toBe(true);
+    expect(reverse.request.status).toBe("accepted");
+    await expect(repo.list(sender)).resolves.toMatchObject({ pending_count: 0 });
+    await expect(repo.list(recipient)).resolves.toMatchObject({ pending_count: 0 });
+  });
+
+  it("enforces a seven-day retry cooldown after ignore", async () => {
+    const repo = repository();
+    const created = await repo.create(sender, senderCard, recipientCard, "visit-1");
+    await repo.respond(recipient, created.request.request_id, "ignored");
+    await expect(repo.create(sender, senderCard, recipientCard, "visit-2")).rejects.toThrow("cooling down until");
+  });
+
+  it("allows only the sender identity to withdraw a pending request", async () => {
+    const repo = repository();
+    const created = await repo.create(sender, senderCard, recipientCard, "visit-1");
+    await expect(repo.withdraw(recipient, created.request.request_id)).rejects.toThrow("not found");
+    const withdrawn = await repo.withdraw(sender, created.request.request_id);
+    expect(withdrawn.request.status).toBe("withdrawn");
+    await expect(repo.withdraw(sender, created.request.request_id)).resolves.toMatchObject({ idempotent: true });
+  });
 });

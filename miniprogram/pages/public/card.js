@@ -224,6 +224,43 @@ Page({
     if(loggedIn!==this.data.loggedIn)this.setData({loggedIn});
     if (this.data.uiState === "ready" || this.data.uiState === "disabled") {
       this.prepareShareImage();
+      if (loggedIn && this.data.publicId && !this.data.isOwnCard) {
+        this.refreshExchangeStatus();
+      }
+    }
+  },
+
+  async refreshExchangeStatus() {
+    try {
+      const result = await request("/employee/card-exchanges");
+      const matches = (result.requests || []).filter((item) =>
+        item.counterpart && item.counterpart.public_id === this.data.publicId
+      );
+      const accepted = matches.find((item) => item.status === "accepted");
+      const pending = matches.find((item) => item.status === "pending");
+      this.setData({ exchangeStatus: accepted ? "accepted" : (pending ? "pending" : "") });
+    } catch (_error) {
+      // Exchange state is supplementary and must not prevent viewing a public card.
+    }
+  },
+
+  async requestExchangeNotification(eventType) {
+    if (typeof wx.requestSubscribeMessage !== "function") return;
+    try {
+      const exchangeData = await request("/employee/card-exchanges");
+      const templateId = exchangeData.notification_template_id;
+      if (!templateId) return;
+      const result = await new Promise((resolve, reject) => wx.requestSubscribeMessage({
+        tmplIds: [templateId], success: resolve, fail: reject
+      }));
+      if (result && result[templateId] === "accept") {
+        await request("/employee/card-exchanges/notifications/subscribe", {
+          method: "POST",
+          data: { event_type: eventType, template_id: templateId }
+        });
+      }
+    } catch (_error) {
+      // Subscription refusal or setup failure must not block the exchange itself.
     }
   },
 
@@ -612,15 +649,19 @@ Page({
       wx.showToast({ title: "访问记录准备中，请稍后重试", icon: "none" });
       return;
     }
-    if (this.data.exchangeSubmitting || this.data.exchangeStatus === "pending") return;
+    if (this.data.exchangeSubmitting || ["pending", "accepted"].includes(this.data.exchangeStatus)) return;
     this.setData({ exchangeSubmitting: true });
     try {
+      await this.requestExchangeNotification("request_accepted");
       const result = await request("/employee/card-exchanges", {
         method: "POST",
         data: { recipient_public_id: this.data.publicId, visit_token: app.globalData.visitToken }
       });
       this.setData({ exchangeStatus: result.request.status });
-      wx.showToast({ title: result.idempotent ? "请求已发送，请等待对方处理" : "交换请求已发送", icon: "success" });
+      const title = result.auto_accepted
+        ? "双方已交换名片"
+        : (result.idempotent ? "请求已发送，请等待对方处理" : "交换请求已发送");
+      wx.showToast({ title, icon: "success" });
     } catch (error) {
       showError(error, "交换请求发送失败");
     } finally {

@@ -240,8 +240,40 @@ CREATE TABLE "card_exchange_requests" (
 
     CONSTRAINT "card_exchange_requests_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "card_exchange_requests_request_id_key" UNIQUE ("request_id"),
-    CONSTRAINT "card_exchange_requests_status_check" CHECK ("status" IN ('pending','accepted','ignored')),
+    CONSTRAINT "card_exchange_requests_status_check" CHECK ("status" IN ('pending','accepted','ignored','withdrawn')),
     CONSTRAINT "card_exchange_requests_distinct_identity_check" CHECK ("sender_member_identity_id" <> "recipient_member_identity_id" OR "sender_tenant_id" <> "recipient_tenant_id")
+);
+
+-- CreateTable
+CREATE TABLE "card_exchange_notification_subscriptions" (
+    "id" BIGSERIAL NOT NULL,
+    "account_id" BIGINT NOT NULL,
+    "event_type" VARCHAR(32) NOT NULL,
+    "template_id" VARCHAR(128) NOT NULL,
+    "granted_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "consumed_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "card_exchange_notification_subscriptions_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "card_exchange_notification_subscriptions_event_check" CHECK ("event_type" IN ('request_received','request_accepted'))
+);
+
+-- CreateTable
+CREATE TABLE "card_exchange_notification_deliveries" (
+    "id" BIGSERIAL NOT NULL,
+    "request_id" VARCHAR(64) NOT NULL,
+    "event_type" VARCHAR(32) NOT NULL,
+    "recipient_account_id" BIGINT NOT NULL,
+    "template_id" VARCHAR(128),
+    "status" VARCHAR(16) NOT NULL,
+    "attempts" SMALLINT NOT NULL DEFAULT 0,
+    "error" TEXT,
+    "sent_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT now(),
+    CONSTRAINT "card_exchange_notification_deliveries_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "uk_card_exchange_delivery" UNIQUE ("request_id","event_type","recipient_account_id"),
+    CONSTRAINT "card_exchange_notification_deliveries_event_check" CHECK ("event_type" IN ('request_received','request_accepted')),
+    CONSTRAINT "card_exchange_notification_deliveries_status_check" CHECK ("status" IN ('pending','sent','skipped','failed'))
 );
 
 -- CreateTable
@@ -723,6 +755,8 @@ CREATE UNIQUE INDEX "uk_public_share_id" ON "card_shares"("public_share_id");
 CREATE UNIQUE INDEX "uk_card_exchange_pending_pair" ON "card_exchange_requests"("sender_member_identity_id", "recipient_member_identity_id") WHERE "status" = 'pending';
 CREATE INDEX "idx_card_exchange_recipient_inbox" ON "card_exchange_requests"("recipient_account_id", "recipient_member_identity_id", "status", "created_at" DESC);
 CREATE INDEX "idx_card_exchange_sender_outbox" ON "card_exchange_requests"("sender_account_id", "sender_member_identity_id", "created_at" DESC);
+CREATE UNIQUE INDEX "uk_card_exchange_subscription_active" ON "card_exchange_notification_subscriptions"("account_id","event_type") WHERE "consumed_at" IS NULL;
+CREATE INDEX "idx_card_exchange_delivery_status" ON "card_exchange_notification_deliveries"("status","created_at");
 
 -- CreateIndex
 CREATE INDEX "idx_share_card" ON "card_shares"("tenant_id", "card_id");
@@ -852,6 +886,9 @@ ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_send
 ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_recipient_account_fkey" FOREIGN KEY ("recipient_account_id") REFERENCES "accounts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_sender_card_fkey" FOREIGN KEY ("sender_tenant_id", "sender_card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "card_exchange_requests" ADD CONSTRAINT "card_exchange_requests_recipient_card_fkey" FOREIGN KEY ("recipient_tenant_id", "recipient_card_id") REFERENCES "cards"("tenant_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_notification_subscriptions" ADD CONSTRAINT "card_exchange_notification_subscriptions_account_fkey" FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_notification_deliveries" ADD CONSTRAINT "card_exchange_notification_deliveries_request_fkey" FOREIGN KEY ("request_id") REFERENCES "card_exchange_requests"("request_id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "card_exchange_notification_deliveries" ADD CONSTRAINT "card_exchange_notification_deliveries_account_fkey" FOREIGN KEY ("recipient_account_id") REFERENCES "accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "tenant_admins" ADD CONSTRAINT "tenant_admins_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

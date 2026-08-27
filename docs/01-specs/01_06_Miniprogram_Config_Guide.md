@@ -322,11 +322,14 @@ WECOM_SENSITIVE_REDIRECT_URI=https://wecomcard.yuanyin.design/api/v1/wecom/membe
 WECHAT_MINIPROGRAM_APPID=...
 WECHAT_MINIPROGRAM_SECRET=...
 WECHAT_JOIN_REVIEW_TEMPLATE_ID=...
+WECHAT_CARD_EXCHANGE_TEMPLATE_ID=...
 ```
 
 小程序请求不走浏览器 CORS，但管理后台会走 CORS，所以 `CORS_ORIGINS` 至少包含管理后台域名。`WECHAT_MINIPROGRAM_SECRET` 是后端密钥，不能写进小程序 `config.js` 或任何前端包。
 
 `WECHAT_JOIN_REVIEW_TEMPLATE_ID` 对应小程序后台配置的一次性“加入企业审核结果”订阅模板。模板字段需依次配置为企业名称 `thing1`、审核结果 `phrase2`、审核时间 `time3`、结果说明 `thing4`；留空时加入和审核流程正常工作，但不会请求或发送审核通知。
+
+`WECHAT_CARD_EXCHANGE_TEMPLATE_ID` 对应一次性“名片交换动态”订阅模板。模板字段需配置为对方姓名 `thing1`、交换动态 `phrase2`、发生时间 `time3`、处理提示 `thing4`。留空时交换请求、站内角标和名片夹处理流程仍正常工作，只跳过微信订阅消息。微信的一次性授权每次只覆盖下一条对应事件，用户可在名片夹开启下一次“收到请求”提醒，发起交换时可授权下一次“对方接受”提醒。
 
 企业微信头像和员工个人二维码使用第三方应用 `snsapi_privateinfo` 手动授权链路。服务商应用必须勾选“成员敏感信息”中的头像和二维码，第三方应用可信域名与 `WECOM_SENSITIVE_REDIRECT_URI` 的域名必须完全一致。微信小程序后台还需把 `wecomcard.yuanyin.design` 配置为业务域名。用户在企业名片首页点击“同步企微资料”后，后端依次调用 `getuserinfo3rd` 和 `getuserdetail3rd`，校验 CorpID/open_userid 后将图片缓存到租户存储；用户拒绝授权时不会覆盖现有名片资料。
 
