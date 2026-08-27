@@ -83,6 +83,7 @@ describe("CardExchangeRepository", () => {
         if (sql.includes("FROM cards\n       WHERE public_id")) return { rows: [{ card_id: "card-sender", tenant_id: sender.tenantId, member_identity_id: sender.memberIdentityId }] };
         if (sql.includes("FROM public_card_directory")) return { rows: [{ tenant_id: "tenant-recipient", card_id: "card-recipient" }] };
         if (sql.includes("FROM cards JOIN account_identity_bindings")) return { rows: [{ account_id: "account-recipient", tenant_id: "tenant-recipient", card_id: "card-recipient", member_identity_id: "identity-recipient" }] };
+        if (sql.includes("status='accepted'")) return { rows: [] };
         if (sql.includes("SELECT * FROM card_exchange_requests")) {
           pendingReads += 1;
           return { rows: pendingReads === 1 ? [] : [row] };
@@ -125,5 +126,40 @@ describe("CardExchangeRepository", () => {
     const withdrawn = await repo.withdraw(sender, created.request.request_id);
     expect(withdrawn.request.status).toBe("withdrawn");
     await expect(repo.withdraw(sender, created.request.request_id)).resolves.toMatchObject({ idempotent: true });
+  });
+
+  it("does not create another request after the pair has exchanged cards", async () => {
+    const repo = repository();
+    const created = await repo.create(sender, senderCard, recipientCard, "visit-1");
+    await repo.respond(recipient, created.request.request_id, "accepted");
+
+    const repeated = await repo.create(sender, senderCard, recipientCard, "visit-2");
+    const reverse = await repo.create(recipient, recipientCard, senderCard, "visit-3");
+
+    expect(repeated).toMatchObject({ idempotent: true, request: { status: "accepted" } });
+    expect(reverse).toMatchObject({ idempotent: true, request: { status: "accepted" } });
+    await expect(repo.list(sender)).resolves.toMatchObject({ accepted_count: 1 });
+  });
+
+  it("returns full counts independently from the requested page", async () => {
+    const repo = repository();
+    for (let index = 1; index <= 3; index += 1) {
+      const otherSender = {
+        ...sender,
+        accountId: `account-sender-${index}`,
+        tenantId: `tenant-sender-${index}`,
+        memberIdentityId: `identity-sender-${index}`,
+        publicId: `pub_sender00${index}`
+      };
+      await repo.create(otherSender, { ...senderCard, public_id: otherSender.publicId }, recipientCard, `visit-${index}`);
+    }
+
+    await expect(repo.list(recipient, { limit: 1, offset: 0 })).resolves.toMatchObject({
+      unread_count: 3,
+      pending_count: 3,
+      accepted_count: 0,
+      next_offset: 1,
+      requests: [{ status: "pending" }]
+    });
   });
 });

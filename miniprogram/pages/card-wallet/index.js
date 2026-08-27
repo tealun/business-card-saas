@@ -42,6 +42,12 @@ Page({
     keyword: "",
     companyFilter: "",
     notificationTemplateId: "",
+    exchangeRequests: [],
+    visitorItems: [],
+    visitorCount: 0,
+    acceptedCount: 0,
+    nextExchangeOffset: null,
+    exchangeLoadingMore: false,
     groups: demoVisitors,
     tabGroups: {
       visitors: demoVisitors,
@@ -101,46 +107,83 @@ Page({
         { key: "offline", label: "线下名片", count: 0 }
       ],
       tabGroups: emptyGroups,
-      groups: []
+      groups: [],
+      exchangeRequests: [],
+      visitorItems: [],
+      visitorCount: 0,
+      acceptedCount: 0,
+      nextExchangeOffset: null
     });
 
     try {
       const [stats, exchangeData] = await Promise.all([
         request("/employee/cards/current/stats"),
-        request("/employee/card-exchanges")
+        request("/employee/card-exchanges?limit=50&offset=0")
       ]);
       const cardLabel = buildVisitedCardLabel(app.globalData.currentCard, app.globalData.currentIdentity);
       const visitors = mapRecentVisitors(stats.recent_visitors, { cardLabel });
-      const exchangeItems = (exchangeData.requests || []).map(mapExchangeItem);
-      const pending = exchangeItems.filter((item) => item.direction === "incoming" && item.state === "pending");
-      const outgoingPending = exchangeItems.filter((item) => item.direction === "outgoing" && item.state === "pending");
-      const accepted = exchangeItems.filter((item) => item.state === "exchanged");
-      const visitorGroups = [];
-      if (pending.length) visitorGroups.push({ title: "待处理请求", items: pending });
-      if (outgoingPending.length) visitorGroups.push({ title: "已发出的请求", items: outgoingPending });
-      if (visitors.length) visitorGroups.push({ title: "最近访客", items: visitors });
-      const tabGroups = {
-        visitors: visitorGroups,
-        viewed: [],
-        friends: accepted.length ? [{ title: "已交换名片", items: accepted }] : [],
-        offline: []
-      };
       this.setData({
-        tabs: [
-          { key: "visitors", label: "我的访客", count: stats.visitor_count },
-          { key: "viewed", label: "我看过的", count: 0 },
-          { key: "friends", label: "好友名片", count: accepted.length },
-          { key: "offline", label: "线下名片", count: 0 }
-        ],
-        tabGroups,
+        exchangeRequests: exchangeData.requests || [],
+        visitorItems: visitors,
+        visitorCount: stats.visitor_count,
+        acceptedCount: exchangeData.accepted_count || 0,
+        nextExchangeOffset: exchangeData.next_offset,
         notificationTemplateId: exchangeData.notification_template_id || ""
       });
-      this.refreshActiveGroups();
+      this.rebuildWalletGroups();
       if (exchangeData.unread_count) {
         request("/employee/card-exchanges/read", { method: "POST", data: {} }).catch(() => {});
       }
     } catch (_error) {
       this.refreshActiveGroups();
+    }
+  },
+
+  rebuildWalletGroups() {
+    const exchangeItems = (this.data.exchangeRequests || []).map(mapExchangeItem);
+    const pending = exchangeItems.filter((item) => item.direction === "incoming" && item.state === "pending");
+    const outgoingPending = exchangeItems.filter((item) => item.direction === "outgoing" && item.state === "pending");
+    const accepted = exchangeItems.filter((item) => item.state === "exchanged");
+    const visitorGroups = [];
+    if (pending.length) visitorGroups.push({ title: "待处理请求", items: pending });
+    if (outgoingPending.length) visitorGroups.push({ title: "已发出的请求", items: outgoingPending });
+    if (this.data.visitorItems.length) visitorGroups.push({ title: "最近访客", items: this.data.visitorItems });
+    const tabGroups = {
+      visitors: visitorGroups,
+      viewed: [],
+      friends: accepted.length ? [{ title: "已交换名片", items: accepted }] : [],
+      offline: []
+    };
+    this.setData({
+      tabs: [
+        { key: "visitors", label: "我的访客", count: this.data.visitorCount },
+        { key: "viewed", label: "我看过的", count: 0 },
+        { key: "friends", label: "好友名片", count: this.data.acceptedCount },
+        { key: "offline", label: "线下名片", count: 0 }
+      ],
+      tabGroups
+    });
+    this.refreshActiveGroups();
+  },
+
+  async onReachBottom() {
+    const offset = this.data.nextExchangeOffset;
+    if (offset === null || this.data.exchangeLoadingMore || !this.data.loggedIn) return;
+    this.setData({ exchangeLoadingMore: true });
+    try {
+      const exchangeData = await request(`/employee/card-exchanges?limit=50&offset=${offset}`);
+      const byId = new Map((this.data.exchangeRequests || []).map((item) => [item.request_id, item]));
+      (exchangeData.requests || []).forEach((item) => byId.set(item.request_id, item));
+      this.setData({
+        exchangeRequests: Array.from(byId.values()),
+        acceptedCount: typeof exchangeData.accepted_count === "number" ? exchangeData.accepted_count : this.data.acceptedCount,
+        nextExchangeOffset: exchangeData.next_offset
+      });
+      this.rebuildWalletGroups();
+    } catch (error) {
+      wx.showToast({ title: error.message || "更多名片加载失败", icon: "none" });
+    } finally {
+      this.setData({ exchangeLoadingMore: false });
     }
   },
 

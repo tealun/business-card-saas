@@ -753,6 +753,7 @@ CREATE UNIQUE INDEX "uk_action_idem" ON "card_actions"("visit_id", "action_type"
 CREATE UNIQUE INDEX "uk_public_share_id" ON "card_shares"("public_share_id");
 
 CREATE UNIQUE INDEX "uk_card_exchange_pending_pair" ON "card_exchange_requests"("sender_member_identity_id", "recipient_member_identity_id") WHERE "status" = 'pending';
+CREATE UNIQUE INDEX "uk_card_exchange_accepted_pair" ON "card_exchange_requests"(LEAST("sender_member_identity_id","recipient_member_identity_id"),GREATEST("sender_member_identity_id","recipient_member_identity_id")) WHERE "status" = 'accepted';
 CREATE INDEX "idx_card_exchange_recipient_inbox" ON "card_exchange_requests"("recipient_account_id", "recipient_member_identity_id", "status", "created_at" DESC);
 CREATE INDEX "idx_card_exchange_sender_outbox" ON "card_exchange_requests"("sender_account_id", "sender_member_identity_id", "created_at" DESC);
 CREATE UNIQUE INDEX "uk_card_exchange_subscription_active" ON "card_exchange_notification_subscriptions"("account_id","event_type") WHERE "consumed_at" IS NULL;

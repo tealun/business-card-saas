@@ -3,7 +3,8 @@ import {
   exchangeListResponseSchema,
   exchangeMutationResponseSchema,
   type CreateExchangeRequest,
-  type ExchangeCardSnapshot
+  type ExchangeCardSnapshot,
+  type ExchangeListQuery
 } from "../contracts/card-exchange.js";
 import type { z } from "zod";
 import { exchangeNotificationEventSchema } from "../contracts/card-exchange.js";
@@ -46,11 +47,15 @@ export class CardExchangeService {
     return result;
   }
 
-  async list(session: EmployeeSession) {
+  async list(session: EmployeeSession, query: ExchangeListQuery) {
     return exchangeListResponseSchema.parse({
-      ...await this.repository.list(session),
+      ...await this.repository.list(session, query),
       notification_template_id: this.config.wechatCardExchangeTemplateId
     });
+  }
+
+  relationship(session: EmployeeSession, counterpartPublicId: string) {
+    return this.repository.relationship(session, counterpartPublicId);
   }
 
   markIncomingRead(session: EmployeeSession) {
@@ -75,8 +80,15 @@ export class CardExchangeService {
   }
 
   private async notify(requestId: string, eventType: ExchangeNotificationEvent) {
-    const delivery = await this.repository.prepareNotification(requestId, eventType);
+    let delivery: Awaited<ReturnType<CardExchangeRepository["prepareNotification"]>>;
+    try {
+      delivery = await this.repository.prepareNotification(requestId, eventType);
+    } catch (error) {
+      this.logNotificationFailure(requestId, "prepare", error);
+      return;
+    }
     if (!delivery) return;
+    let deliveryError: string | null = null;
     try {
       await this.messaging.sendCardExchangeMessage({
         openid: delivery.openid,
@@ -84,12 +96,20 @@ export class CardExchangeService {
         counterpartName: delivery.counterpartName,
         eventType
       });
-      await this.repository.completeNotification(delivery.deliveryId, null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown notification error";
-      this.logger.warn(`Card exchange notification ${delivery.deliveryId} failed: ${message}`);
-      await this.repository.completeNotification(delivery.deliveryId, message.slice(0, 1000));
+      deliveryError = error instanceof Error ? error.message.slice(0, 1000) : "unknown notification error";
+      this.logNotificationFailure(delivery.deliveryId, "send", error);
     }
+    try {
+      await this.repository.completeNotification(delivery.deliveryId, deliveryError);
+    } catch (error) {
+      this.logNotificationFailure(delivery.deliveryId, "persist", error);
+    }
+  }
+
+  private logNotificationFailure(reference: string, stage: string, error: unknown) {
+    const message = error instanceof Error ? error.message : "unknown notification error";
+    this.logger.warn(`Card exchange notification ${reference} ${stage} failed: ${message}`);
   }
 }
 

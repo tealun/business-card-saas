@@ -3,6 +3,7 @@ import type { QueryResultRow } from "pg";
 import { randomToken } from "../common/id.js";
 import type {
   ExchangeCardSnapshot,
+  ExchangeListQuery,
   ExchangeListResponse,
   ExchangeMutationResponse,
   ExchangeRequestItem
@@ -56,6 +57,18 @@ export class CardExchangeRepository {
         `${recipientMeta.tenantId}/${recipientMeta.memberIdentityId}`
       ].sort().join(":");
       await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [pairKey]);
+
+      const accepted = await tx.query<ExchangeRow>(
+        `SELECT * FROM card_exchange_requests
+         WHERE status='accepted' AND (
+           (sender_account_id=$1 AND sender_member_identity_id=$2 AND recipient_account_id=$3 AND recipient_member_identity_id=$4)
+           OR
+           (sender_account_id=$3 AND sender_member_identity_id=$4 AND recipient_account_id=$1 AND recipient_member_identity_id=$2)
+         )
+         ORDER BY responded_at DESC NULLS LAST LIMIT 1`,
+        [session.accountId, session.memberIdentityId, recipientMeta.accountId, recipientMeta.memberIdentityId]
+      );
+      if (accepted.rows[0]) return { request: this.toItem(accepted.rows[0], session), idempotent: true, auto_accepted: false };
 
       const existing = await tx.query<ExchangeRow>(
         `SELECT * FROM card_exchange_requests
@@ -115,23 +128,91 @@ export class CardExchangeRepository {
     });
   }
 
-  async list(session: EmployeeSession): Promise<Omit<ExchangeListResponse, "notification_template_id">> {
-    const rows = this.database.isConfigured()
+  async list(
+    session: EmployeeSession,
+    query: ExchangeListQuery = { limit: 50, offset: 0 }
+  ): Promise<Omit<ExchangeListResponse, "notification_template_id">> {
+    let rows: ExchangeRow[];
+    let unreadCount: number;
+    let pendingCount: number;
+    let acceptedCount: number;
+    let total: number;
+    if (this.database.isConfigured()) {
+      const [countResult, rowResult] = await Promise.all([
+        this.database.query<{ unread_count: string; pending_count: string; accepted_count: string; total: string }>(
+          `SELECT
+             COUNT(*) FILTER (WHERE recipient_account_id=$1 AND status='pending' AND recipient_read_at IS NULL) AS unread_count,
+             COUNT(*) FILTER (WHERE recipient_account_id=$1 AND status='pending') AS pending_count,
+             COUNT(*) FILTER (WHERE status='accepted') AS accepted_count,
+             COUNT(*) AS total
+           FROM card_exchange_requests
+           WHERE status IN ('pending','accepted') AND (
+             (recipient_account_id=$1 AND recipient_member_identity_id=$2)
+             OR (sender_account_id=$1 AND sender_member_identity_id=$2)
+           )`,
+          [session.accountId, session.memberIdentityId]
+        ),
+        this.database.query<ExchangeRow>(
+          `SELECT * FROM card_exchange_requests
+           WHERE status IN ('pending','accepted') AND (
+             (recipient_account_id=$1 AND recipient_member_identity_id=$2)
+             OR (sender_account_id=$1 AND sender_member_identity_id=$2)
+           )
+           ORDER BY CASE WHEN recipient_account_id=$1 AND status='pending' THEN 0 ELSE 1 END, created_at DESC, request_id DESC
+           LIMIT $3 OFFSET $4`,
+          [session.accountId, session.memberIdentityId, query.limit, query.offset]
+        )
+      ]);
+      const counts = countResult.rows[0]!;
+      rows = rowResult.rows;
+      unreadCount = Number(counts.unread_count);
+      pendingCount = Number(counts.pending_count);
+      acceptedCount = Number(counts.accepted_count);
+      total = Number(counts.total);
+    } else {
+      const all = [...this.memory.values()]
+        .filter((row) => this.isParticipant(row, session) && (row.status === "pending" || row.status === "accepted"))
+        .sort((left, right) => {
+          const leftPriority = this.isRecipient(left, session) && left.status === "pending" ? 0 : 1;
+          const rightPriority = this.isRecipient(right, session) && right.status === "pending" ? 0 : 1;
+          return leftPriority - rightPriority || new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+        });
+      total = all.length;
+      unreadCount = all.filter((row) => this.isRecipient(row, session) && row.status === "pending" && !row.recipient_read_at).length;
+      pendingCount = all.filter((row) => this.isRecipient(row, session) && row.status === "pending").length;
+      acceptedCount = all.filter((row) => row.status === "accepted").length;
+      rows = all.slice(query.offset, query.offset + query.limit);
+    }
+    const requests = rows.map((row) => this.toItem(row, session));
+    const nextOffset = query.offset + requests.length;
+    return {
+      unread_count: unreadCount,
+      pending_count: pendingCount,
+      accepted_count: acceptedCount,
+      requests,
+      next_offset: nextOffset < total ? nextOffset : null
+    };
+  }
+
+  async relationship(session: EmployeeSession, counterpartPublicId: string): Promise<{ request: ExchangeRequestItem | null }> {
+    const row = this.database.isConfigured()
       ? (await this.database.query<ExchangeRow>(
           `SELECT * FROM card_exchange_requests
-           WHERE (recipient_account_id=$1 AND recipient_member_identity_id=$2)
-              OR (sender_account_id=$1 AND sender_member_identity_id=$2)
-           ORDER BY CASE WHEN recipient_account_id=$1 AND status='pending' THEN 0 ELSE 1 END, created_at DESC
-           LIMIT 100`,
-          [session.accountId, session.memberIdentityId]
-        )).rows
-      : [...this.memory.values()].filter((row) => this.isParticipant(row, session));
-    const requests = rows.map((row) => this.toItem(row, session));
-    return {
-      unread_count: requests.filter((item) => item.direction === "incoming" && item.unread).length,
-      pending_count: requests.filter((item) => item.direction === "incoming" && item.status === "pending").length,
-      requests
-    };
+           WHERE status IN ('pending','accepted') AND (
+             (sender_account_id=$1 AND sender_member_identity_id=$2 AND recipient_card_snapshot->>'public_id'=$3)
+             OR (recipient_account_id=$1 AND recipient_member_identity_id=$2 AND sender_card_snapshot->>'public_id'=$3)
+           )
+           ORDER BY CASE WHEN status='accepted' THEN 0 ELSE 1 END, created_at DESC LIMIT 1`,
+          [session.accountId, session.memberIdentityId, counterpartPublicId]
+        )).rows[0]
+      : [...this.memory.values()]
+          .filter((candidate) =>
+            this.isParticipant(candidate, session) &&
+            (candidate.status === "pending" || candidate.status === "accepted") &&
+            (this.isRecipient(candidate, session) ? candidate.sender_card_snapshot.public_id : candidate.recipient_card_snapshot.public_id) === counterpartPublicId
+          )
+          .sort((left, right) => Number(right.status === "accepted") - Number(left.status === "accepted"))[0];
+    return { request: row ? this.toItem(row, session) : null };
   }
 
   async markIncomingRead(session: EmployeeSession): Promise<{ updated: number }> {
@@ -329,6 +410,13 @@ export class CardExchangeRepository {
 
   private createInMemory(session: EmployeeSession, sender: ExchangeCardSnapshot, recipient: ExchangeCardSnapshot, sourceVisitId: string) {
     if (sender.public_id === recipient.public_id) throw new ConflictException("cannot exchange with your own card");
+    const accepted = [...this.memory.values()].find((row) =>
+      row.status === "accepted" && (
+        (row.sender_card_snapshot.public_id === sender.public_id && row.recipient_card_snapshot.public_id === recipient.public_id) ||
+        (row.sender_card_snapshot.public_id === recipient.public_id && row.recipient_card_snapshot.public_id === sender.public_id)
+      )
+    );
+    if (accepted) return { request: this.toItem(accepted, session), idempotent: true, auto_accepted: false };
     const existing = [...this.memory.values()].find((row) =>
       row.sender_account_id === session.accountId && row.sender_member_identity_id === session.memberIdentityId &&
       row.recipient_card_snapshot.public_id === recipient.public_id && row.status === "pending"

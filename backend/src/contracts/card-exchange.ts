@@ -30,8 +30,19 @@ export const exchangeRequestSchema = z.object({
 export const exchangeListResponseSchema = z.object({
   unread_count: z.number().int().nonnegative(),
   pending_count: z.number().int().nonnegative(),
+  accepted_count: z.number().int().nonnegative(),
   requests: z.array(exchangeRequestSchema),
+  next_offset: z.number().int().nonnegative().nullable(),
   notification_template_id: z.string()
+});
+
+export const exchangeListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0)
+});
+
+export const exchangeRelationshipResponseSchema = z.object({
+  request: exchangeRequestSchema.nullable()
 });
 
 export const exchangeMutationResponseSchema = z.object({
@@ -49,4 +60,5 @@ export type CreateExchangeRequest = z.infer<typeof createExchangeRequestSchema>;
 export type ExchangeCardSnapshot = z.infer<typeof exchangeCardSnapshotSchema>;
 export type ExchangeRequestItem = z.infer<typeof exchangeRequestSchema>;
 export type ExchangeListResponse = z.infer<typeof exchangeListResponseSchema>;
+export type ExchangeListQuery = z.infer<typeof exchangeListQuerySchema>;
 export type ExchangeMutationResponse = z.infer<typeof exchangeMutationResponseSchema>;

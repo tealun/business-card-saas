@@ -72,7 +72,8 @@
 | GET `/api/v1/employee/cards/current/stats` | JWT | 本名片统计（按 trust_level 分层 §32） |
 | POST `/api/v1/employee/cards/current/share` | JWT | 签发 `share_id`（写 `card_shares`，§6.3） |
 | POST `/api/v1/employee/card-exchanges` | JWT + `visit_token` | 当前身份向已访问的公开名片发起交换请求；同向待处理请求幂等，存在反向待处理请求时自动完成交换；被忽略后 7 天内不能重复发起 |
-| GET `/api/v1/employee/card-exchanges` | JWT | 当前身份的收件/发件请求、未读数、待处理数和可选通知模板 ID |
+| GET `/api/v1/employee/card-exchanges?limit=&offset=` | JWT | 当前身份的收件/发件请求分页、准确的未读/待处理/已交换总数、下一页偏移量和可选通知模板 ID |
+| GET `/api/v1/employee/card-exchanges/status/:counterpartPublicId` | JWT | 查询当前身份与指定公开名片之间的待处理或已交换关系 |
 | POST `/api/v1/employee/card-exchanges/read` | JWT | 标记当前身份收到的待处理请求为已读 |
 | POST `/api/v1/employee/card-exchanges/:requestId/accept` | JWT | 接收方接受请求；重复接受幂等 |
 | POST `/api/v1/employee/card-exchanges/:requestId/ignore` | JWT | 接收方忽略请求；重复忽略幂等 |

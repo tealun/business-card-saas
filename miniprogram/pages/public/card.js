@@ -165,6 +165,7 @@ Page({
     pendingExchange: false,
     exchangeSubmitting: false,
     exchangeStatus: "",
+    visitToken: "",
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
     wechatQrUrl: "",
@@ -210,6 +211,9 @@ Page({
     try {
       await this.loadPublicCard();
       await this.createVisit();
+      if (this.data.loggedIn && !this.data.isOwnCard) {
+        await this.refreshExchangeStatus();
+      }
     } catch (_error) {
       this.setData({ uiState: "error" });
     }
@@ -232,13 +236,8 @@ Page({
 
   async refreshExchangeStatus() {
     try {
-      const result = await request("/employee/card-exchanges");
-      const matches = (result.requests || []).filter((item) =>
-        item.counterpart && item.counterpart.public_id === this.data.publicId
-      );
-      const accepted = matches.find((item) => item.status === "accepted");
-      const pending = matches.find((item) => item.status === "pending");
-      this.setData({ exchangeStatus: accepted ? "accepted" : (pending ? "pending" : "") });
+      const result = await request(`/employee/card-exchanges/status/${this.data.publicId}`);
+      this.setData({ exchangeStatus: result.request ? result.request.status : "" });
     } catch (_error) {
       // Exchange state is supplementary and must not prevent viewing a public card.
     }
@@ -400,8 +399,7 @@ Page({
       return;
     }
     if (this.data.isOwnCard) {
-      app.globalData.visitToken = "";
-      this.setData({ visitId: "" });
+      this.setData({ visitId: "", visitToken: "" });
       return;
     }
     try {
@@ -420,16 +418,13 @@ Page({
         options.auth = false;
       }
       const visit = await request(`/public/cards/${this.data.publicId}/visit`, options);
-      app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
       storeAnonId(visit.anon_id);
       this.setData({
         visitId: visit.visit_id,
+        visitToken: visit.is_owner ? "" : visit.visit_token,
         isOwnCard: Boolean(visit.is_owner) || this.data.isOwnCard
       });
-      if (visit.is_owner) {
-        app.globalData.visitToken = "";
-      }
       if (visit.stats) {
         this.applyStats(visit.stats);
       } else {
@@ -451,14 +446,14 @@ Page({
    * 这样访客二次转发时仍能保留来源链路，失败则退回原分享 ID。
    */
   async prepareDerivedShare() {
-    if (!this.data.canShare || !app.globalData.visitToken || !this.data.shareId) {
+    if (!this.data.canShare || !this.data.visitToken || !this.data.shareId) {
       return;
     }
     try {
       const derived = await request(`/public/cards/${this.data.publicId}/shares/derive`, {
         method: "POST",
         auth: false,
-        header: { authorization: `Bearer ${app.globalData.visitToken}` },
+        header: { authorization: `Bearer ${this.data.visitToken}` },
         data: { parent_share_id: this.data.shareId }
       });
       this.setData({ nextShareId: derived.share_id });
@@ -476,14 +471,14 @@ Page({
     if (this.data.isOwnCard) {
       return;
     }
-    if (!app.globalData.visitToken || !this.data.publicId) {
+    if (!this.data.visitToken || !this.data.publicId) {
       return;
     }
     try {
       await request(`/public/cards/${this.data.publicId}/actions`, {
         method: "POST",
         auth: false,
-        header: { authorization: `Bearer ${app.globalData.visitToken}` },
+        header: { authorization: `Bearer ${this.data.visitToken}` },
         data: { action_type: actionType }
       });
     } catch (error) {
@@ -544,7 +539,7 @@ Page({
     if (this.data.likedByMe || this.data.likeSubmitting) {
       return;
     }
-    if (!app.globalData.visitToken) {
+    if (!this.data.visitToken) {
       wx.showToast({ title: "访问记录准备中", icon: "none" });
       return;
     }
@@ -553,7 +548,7 @@ Page({
       const result = await request(`/public/cards/${this.data.publicId}/actions`, {
         method: "POST",
         auth: false,
-        header: { authorization: `Bearer ${app.globalData.visitToken}` },
+        header: { authorization: `Bearer ${this.data.visitToken}` },
         data: { action_type: "like_card" }
       });
       this.setData({
@@ -645,7 +640,7 @@ Page({
       }
       return;
     }
-    if (!app.globalData.visitToken) {
+    if (!this.data.visitToken) {
       wx.showToast({ title: "访问记录准备中，请稍后重试", icon: "none" });
       return;
     }
@@ -655,7 +650,7 @@ Page({
       await this.requestExchangeNotification("request_accepted");
       const result = await request("/employee/card-exchanges", {
         method: "POST",
-        data: { recipient_public_id: this.data.publicId, visit_token: app.globalData.visitToken }
+        data: { recipient_public_id: this.data.publicId, visit_token: this.data.visitToken }
       });
       this.setData({ exchangeStatus: result.request.status });
       const title = result.auto_accepted

@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { z } from "zod";
-import { createExchangeRequestSchema, subscribeExchangeNotificationSchema } from "../contracts/card-exchange.js";
+import { createExchangeRequestSchema, exchangeListQuerySchema, subscribeExchangeNotificationSchema } from "../contracts/card-exchange.js";
+import { publicIdSchema } from "../contracts/public-card.js";
 import { EmployeeAuthGuard, type EmployeeRequest } from "../session/employee-auth.guard.js";
 import { CardExchangeService } from "./card-exchange.service.js";
 
@@ -15,8 +16,13 @@ export class CardExchangeController {
   }
 
   @Get()
-  list(@Req() request: EmployeeRequest) {
-    return this.exchanges.list(this.session(request));
+  list(@Req() request: EmployeeRequest, @Query() query: unknown) {
+    return this.exchanges.list(this.session(request), exchangeListQuerySchema.parse(query));
+  }
+
+  @Get("status/:counterpartPublicId")
+  status(@Req() request: EmployeeRequest, @Param("counterpartPublicId") counterpartPublicId: string) {
+    return this.exchanges.relationship(this.session(request), publicIdSchema.parse(counterpartPublicId));
   }
 
   @Post("read")
