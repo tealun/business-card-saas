@@ -520,6 +520,7 @@ function refreshPermissionControls() {
   applyPermissionState("#runDatabaseMigrations", "platform.database.migrate");
   applyPermissionState("#createPlatformAccount", "platform.account.write");
   applyPermissionState("#createLocalEnterprise", "platform.tenant.write");
+  applyPermissionState("#openCreateTenantAdmin", "tenant.admin.write");
 }
 
 function renderNav() {
@@ -3291,7 +3292,77 @@ function tenantAdminActionCell(item) {
   const isSelf = self && ((self.member_identity_id && item.member_identity_id === self.member_identity_id) || (self.open_userid && item.open_userid === self.open_userid));
   if (isSelf) return "";
   const next = item.status === "active" ? "disabled" : "active";
-  return linkButton(item.status === "active" ? "停用" : "恢复", () => updateTenantAdminStatus(item, next), item.status === "active" ? "link-btn danger-link" : "link-btn");
+  const wrap = document.createElement("div");
+  wrap.className = "row-actions";
+  wrap.append(linkButton("调整角色", () => updateTenantAdminRole(item)));
+  wrap.append(linkButton(item.status === "active" ? "停用" : "恢复", () => updateTenantAdminStatus(item, next), item.status === "active" ? "link-btn danger-link" : "link-btn"));
+  return wrap;
+}
+
+async function openCreateTenantAdminDialog() {
+  if (!requirePermission("tenant.admin.write")) return;
+  const [members, admins] = await Promise.all([
+    adminRequest("/admin/members?status=active&limit=100&offset=0"),
+    adminRequest("/admin/admins?status=all")
+  ]);
+  const existing = new Set((admins.items || []).map((item) => String(item.member_identity_id || "")));
+  const candidates = (members.items || []).filter((item) => item.open_userid && !existing.has(String(item.member_identity_id)));
+  const select = $("#tenantAdminMember");
+  select.replaceChildren(...candidates.map((item) => {
+    const option = document.createElement("option");
+    option.value = item.member_identity_id;
+    option.textContent = `${item.display_name || item.open_userid}${item.title ? ` · ${item.title}` : ""}`;
+    return option;
+  }));
+  if (!candidates.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "暂无可添加成员";
+    select.append(option);
+  }
+  $("#tenantAdminRole").value = "admin";
+  $("#tenantAdminDialogError").textContent = candidates.length ? "" : "请先邀请成员绑定微信账号";
+  $("#submitCreateTenantAdmin").disabled = !candidates.length;
+  $("#tenantAdminDialog").showModal();
+}
+
+async function createTenantAdmin() {
+  const memberIdentityId = $("#tenantAdminMember").value;
+  const role = $("#tenantAdminRole").value;
+  if (!memberIdentityId) return;
+  await run("添加企业管理员", () => adminRequest("/admin/admins", {
+    method: "POST",
+    body: { member_identity_id: memberIdentityId, role }
+  }));
+  $("#tenantAdminDialog").close();
+  notify("企业管理员已添加");
+  await loadTenantAdmins();
+}
+
+async function updateTenantAdminRole(item) {
+  const dialog = $("#tenantAdminRoleDialog");
+  dialog.dataset.adminId = item.admin_id;
+  dialog.dataset.currentRole = item.role;
+  $("#tenantAdminRoleMeta").textContent = `${item.display_name || item.open_userid || "该管理员"} · 当前为${tenantAdminRoleLabel(item.role)}`;
+  $("#tenantAdminRoleValue").value = item.role;
+  dialog.showModal();
+}
+
+async function submitTenantAdminRole() {
+  const dialog = $("#tenantAdminRoleDialog");
+  const adminId = dialog.dataset.adminId;
+  const next = $("#tenantAdminRoleValue").value;
+  if (!adminId || next === dialog.dataset.currentRole) {
+    dialog.close();
+    return;
+  }
+  await run("调整管理员角色", () => adminRequest(`/admin/admins/${encodeURIComponent(adminId)}/role`, {
+    method: "PATCH",
+    body: { role: next }
+  }));
+  dialog.close();
+  notify("管理员角色已更新");
+  await loadTenantAdmins();
 }
 
 async function updateTenantAdminStatus(item, status) {
@@ -3894,6 +3965,9 @@ function buildLocalEnterpriseActions(item) {
   wrap.className = "row-actions";
   wrap.append(linkButton("详情", () => openTenantDetail(item.tenant_id)));
   if (hasPermission("platform.tenant.write")) {
+    if (Number(item.admin_count || 0) === 0) {
+      wrap.append(linkButton("再次申请认领", () => createLocalEnterpriseClaimToken(item)));
+    }
     wrap.append(linkButton("改名", () => renameLocalEnterprise(item)));
     if (item.status === "disabled") {
       wrap.append(linkButton("启用", () => toggleLocalEnterprise(item, "enable")));
@@ -4894,6 +4968,11 @@ $$("#analyticsRange button").forEach((button) => {
 $("#loadTenantCommercial").addEventListener("click", () => run("刷新版本额度", loadTenantCommercial));
 $("#billingRenew").addEventListener("click", () => notify("请通过企业微信服务商后台完成购买或续费", "warning"));
 $("#loadTenantAdmins").addEventListener("click", () => run("刷新管理员", loadTenantAdmins));
+$("#openCreateTenantAdmin").addEventListener("click", () => run("读取可添加成员", openCreateTenantAdminDialog));
+$("#cancelCreateTenantAdmin").addEventListener("click", () => $("#tenantAdminDialog").close());
+$("#submitCreateTenantAdmin").addEventListener("click", createTenantAdmin);
+$("#cancelTenantAdminRole").addEventListener("click", () => $("#tenantAdminRoleDialog").close());
+$("#submitTenantAdminRole").addEventListener("click", submitTenantAdminRole);
 $("#searchTenantAdmins").addEventListener("click", () => run("搜索管理员", loadTenantAdmins));
 $("#tenantAdminSearch").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {

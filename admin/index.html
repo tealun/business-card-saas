@@ -294,6 +294,32 @@
       </form>
     </dialog>
 
+    <dialog id="tenantAdminDialog" class="confirm-dialog">
+      <form method="dialog" class="stack-form">
+        <h3>添加企业管理员</h3>
+        <p class="hint">从已绑定微信账号的正常企业成员中选择，并分配后台权限角色。</p>
+        <label><span>企业成员</span><select id="tenantAdminMember"></select></label>
+        <label><span>角色</span><select id="tenantAdminRole"><option value="admin">管理员</option><option value="operator">运营</option><option value="auditor">审计</option></select></label>
+        <p id="tenantAdminDialogError" class="form-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="cancelCreateTenantAdmin" type="button" class="secondary">取消</button>
+          <button id="submitCreateTenantAdmin" type="button">确认添加</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="tenantAdminRoleDialog" class="confirm-dialog">
+      <form method="dialog" class="stack-form">
+        <h3>调整管理员角色</h3>
+        <p id="tenantAdminRoleMeta" class="hint"></p>
+        <label><span>角色</span><select id="tenantAdminRoleValue"><option value="admin">管理员</option><option value="operator">运营</option><option value="auditor">审计</option></select></label>
+        <div class="dialog-actions">
+          <button id="cancelTenantAdminRole" type="button" class="secondary">取消</button>
+          <button id="submitTenantAdminRole" type="button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="./config.js"></script>
     <script src="./js/admin-partials.js?v=20260821-template-studio8"></script>
     <script src="./js/admin-login.js?v=20260722-loginux2"></script>

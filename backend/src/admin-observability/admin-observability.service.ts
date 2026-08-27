@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { AdminRole, PlatformAdminRole } from "../contracts/admin-auth.js";
 import type { AdminSession } from "../admin-auth/admin-session.js";
 import { requirePlatformAdminRole, requireTenantAdminRole } from "../admin-auth/admin-rbac.js";
@@ -9,6 +9,7 @@ import {
   type AdminEventListResponse,
   type AdminEventQuery,
   type AdminListQuery,
+  type CreateTenantAdminRequest,
   type PlatformAccountCreateRequest,
   type PlatformAccountDeleteResponse,
   platformAdminListResponseSchema,
@@ -36,6 +37,54 @@ export class AdminObservabilityService {
   async listTenantAdmins(session: AdminSession, query: AdminListQuery): Promise<TenantAdminListResponse> {
     requireTenantAdminRole(session, "owner");
     return tenantAdminListResponseSchema.parse(await this.repository.listTenantAdmins(session, query));
+  }
+
+  async createTenantAdmin(session: AdminSession, input: CreateTenantAdminRequest): Promise<TenantAdminSummary> {
+    requireTenantAdminRole(session, "owner");
+    if (input.member_identity_id === session.memberIdentityId) {
+      throw new ForbiddenException("cannot add own admin role");
+    }
+    const created = await this.repository.createTenantAdmin(session, input.member_identity_id, input.role);
+    if (created === "member_not_found") {
+      throw new BadRequestException("请选择当前企业中已绑定微信账号的正常成员");
+    }
+    if (created === "already_admin") {
+      throw new ConflictException("该成员已经是企业管理员");
+    }
+    const summary = tenantAdminSummarySchema.parse(created);
+    await this.operationLogs?.record({
+      session,
+      action: "admin.create",
+      targetType: "tenant_admin",
+      targetId: summary.admin_id,
+      detail: { member_identity_id: input.member_identity_id, role: input.role }
+    });
+    return summary;
+  }
+
+  async updateTenantAdminRole(
+    session: AdminSession,
+    adminId: string,
+    role: "admin" | "operator" | "auditor"
+  ): Promise<TenantAdminSummary> {
+    requireTenantAdminRole(session, "owner");
+    const target = await this.repository.getTenantAdmin(session, adminId);
+    if (!target) throw new NotFoundException("tenant admin not found");
+    if (target.role === "owner") throw new ForbiddenException("cannot change owner admin role");
+    if (target.open_userid === session.openUserid || target.member_identity_id === session.memberIdentityId) {
+      throw new ForbiddenException("cannot change own admin role");
+    }
+    const updated = await this.repository.updateTenantAdminRole(session, adminId, role);
+    if (!updated) throw new ConflictException("管理员角色已变化，请刷新后重试");
+    const summary = tenantAdminSummarySchema.parse(updated);
+    await this.operationLogs?.record({
+      session,
+      action: "admin.role.update",
+      targetType: "tenant_admin",
+      targetId: adminId,
+      detail: { previous_role: target.role, role }
+    });
+    return summary;
   }
 
   async updateTenantAdminStatus(session: AdminSession, adminId: string, status: "active" | "disabled"): Promise<TenantAdminSummary> {

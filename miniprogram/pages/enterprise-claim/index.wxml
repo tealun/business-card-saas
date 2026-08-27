@@ -13,7 +13,7 @@
     <view class="claim-form-card">
       <view class="claim-label">认领码</view>
       <view class="claim-input-shell {{inputFocused ? 'claim-input-shell--focus' : ''}}">
-        <view class="claim-code-mark">&lt;/&gt;</view>
+        <text class="claim-code-mark" decode="{{true}}">&lt;/&gt;</text>
         <input
           class="claim-input"
           value="{{claimCode}}"

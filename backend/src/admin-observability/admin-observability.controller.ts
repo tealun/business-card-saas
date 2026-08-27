@@ -5,9 +5,11 @@ import { requireAdminSession } from "../admin-auth/admin-session.util.js";
 import {
   adminEventQuerySchema,
   adminListQuerySchema,
+  createTenantAdminRequestSchema,
   platformAccountCreateRequestSchema,
   platformAccountRoleUpdateRequestSchema,
   updatePlatformAdminStatusRequestSchema,
+  updateTenantAdminRoleRequestSchema,
   updateTenantAdminStatusRequestSchema
 } from "../contracts/admin-observability.js";
 import { AdminObservabilityService } from "./admin-observability.service.js";
@@ -27,11 +29,25 @@ export class AdminObservabilityController {
     return this.observability.listTenantAuditEvents(requireAdminSession(request), adminEventQuerySchema.parse(query));
   }
 
+  @Post("admins")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  createTenantAdmin(@Req() request: AdminRequest, @Body() body: unknown) {
+    const input = createTenantAdminRequestSchema.parse(body);
+    return this.observability.createTenantAdmin(requireAdminSession(request), input);
+  }
+
   @Patch("admins/:adminId")
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   updateTenantAdminStatus(@Req() request: AdminRequest, @Param("adminId") adminId: string, @Body() body: unknown) {
     const input = updateTenantAdminStatusRequestSchema.parse(body);
     return this.observability.updateTenantAdminStatus(requireAdminSession(request), adminId, input.status);
+  }
+
+  @Patch("admins/:adminId/role")
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  updateTenantAdminRole(@Req() request: AdminRequest, @Param("adminId") adminId: string, @Body() body: unknown) {
+    const input = updateTenantAdminRoleRequestSchema.parse(body);
+    return this.observability.updateTenantAdminRole(requireAdminSession(request), adminId, input.role);
   }
 
   @Get("platform/accounts")

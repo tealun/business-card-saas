@@ -70,7 +70,51 @@ describe("AdminObservabilityRepository", () => {
 
     await expect(repository.updateTenantAdminStatus(session, "target-admin-002", "disabled")).resolves.toBeNull();
   });
+
+  it("creates an administrator only from an active bound member in the session tenant", async () => {
+    const transaction = new FakeAdminMutationTransaction();
+    const tenantTx = new FakeTenantTx(transaction as never);
+    const repository = new AdminObservabilityRepository(tenantTx as unknown as TenantTx);
+    await repository.createTenantAdmin(session, "member-002", "operator");
+    expect(tenantTx.tenantId).toBe(session.tenantId);
+    expect(transaction.memberQuery?.text).toContain("tenant_id = $1 AND id = $2 AND status = 'active'");
+    expect(transaction.memberQuery?.values).toEqual([session.tenantId, "member-002"]);
+    expect(transaction.insertQuery?.text).toContain("ON CONFLICT (tenant_id, open_userid) DO NOTHING");
+    expect(transaction.insertQuery?.values).toEqual([session.tenantId, "member-002", "ou-member-002", "operator"]);
+  });
+
+  it("re-asserts tenant, owner, and self protections when updating a role", async () => {
+    const transaction = new FakeAdminMutationTransaction();
+    const tenantTx = new FakeTenantTx(transaction as never);
+    const repository = new AdminObservabilityRepository(tenantTx as unknown as TenantTx);
+    await repository.updateTenantAdminRole(session, "target-admin-002", "auditor");
+    expect(transaction.roleQuery?.text).toContain("WHERE tenant_id = $1 AND id = $2");
+    expect(transaction.roleQuery?.text).toContain("AND role <> 'owner'");
+    expect(transaction.roleQuery?.values).toEqual([session.tenantId, "target-admin-002", "auditor", session.openUserid, session.memberIdentityId]);
+  });
 });
+
+class FakeAdminMutationTransaction {
+  memberQuery?: { text: string; values: unknown[] };
+  insertQuery?: { text: string; values: unknown[] };
+  roleQuery?: { text: string; values: unknown[] };
+  async query<T>(text: string, values: unknown[] = []): Promise<{ rows: T[] }> {
+    if (text.includes("SELECT open_userid FROM member_identities")) {
+      this.memberQuery = { text, values };
+      return { rows: [{ open_userid: "ou-member-002" } as T] };
+    }
+    if (text.includes("INSERT INTO tenant_admins")) {
+      this.insertQuery = { text, values };
+      return { rows: [{ id: "admin-002" } as T] };
+    }
+    if (text.includes("UPDATE tenant_admins") && text.includes("SET role")) {
+      this.roleQuery = { text, values };
+      return { rows: [{ id: values[1] } as T] };
+    }
+    if (text.includes("SELECT")) return { rows: [{ admin_id: "admin-002", member_identity_id: "member-002", display_name: "Member Two", open_userid: "ou-member-002", userid: "member-two", role: values[2] || "operator", status: "active", created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as T] };
+    return { rows: [] };
+  }
+}
 
 class FakeTenantTx {
   tenantId = "";

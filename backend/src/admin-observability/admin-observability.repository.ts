@@ -105,6 +105,56 @@ export class AdminObservabilityRepository {
     return this.tenantTx!.run(session.tenantId, (tx) => this.findTenantAdmin(tx, session.tenantId, adminId));
   }
 
+  async createTenantAdmin(
+    session: AdminSession,
+    memberIdentityId: string,
+    role: "admin" | "operator" | "auditor"
+  ): Promise<TenantAdminSummary | "member_not_found" | "already_admin"> {
+    if (!this.hasTenantDatabase()) return "member_not_found";
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const member = await tx.query<{ open_userid: string | null }>(
+        `SELECT open_userid FROM member_identities
+         WHERE tenant_id = $1 AND id = $2 AND status = 'active' AND open_userid IS NOT NULL
+         LIMIT 1`,
+        [session.tenantId, memberIdentityId]
+      );
+      const openUserid = member.rows[0]?.open_userid;
+      if (!openUserid) return "member_not_found";
+      const inserted = await tx.query<{ id: string | number | bigint }>(
+        `INSERT INTO tenant_admins (
+           tenant_id, member_identity_id, open_userid, role, status, auth_source, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, 'active', 'local_account', now(), now())
+         ON CONFLICT (tenant_id, open_userid) DO NOTHING
+         RETURNING id`,
+        [session.tenantId, memberIdentityId, openUserid, role]
+      );
+      if (!inserted.rows[0]) return "already_admin";
+      return (await this.findTenantAdmin(tx, session.tenantId, String(inserted.rows[0].id)))!;
+    });
+  }
+
+  async updateTenantAdminRole(
+    session: AdminSession,
+    adminId: string,
+    role: "admin" | "operator" | "auditor"
+  ): Promise<TenantAdminSummary | null> {
+    if (!this.hasTenantDatabase()) return null;
+    return this.tenantTx!.run(session.tenantId, async (tx) => {
+      const updated = await tx.query(
+        `UPDATE tenant_admins
+         SET role = $3, updated_at = now()
+         WHERE tenant_id = $1 AND id = $2
+           AND role <> 'owner'
+           AND open_userid IS DISTINCT FROM $4
+           AND member_identity_id::text IS DISTINCT FROM $5
+         RETURNING id`,
+        [session.tenantId, adminId, role, session.openUserid, session.memberIdentityId]
+      );
+      if (!updated.rows[0]) return null;
+      return this.findTenantAdmin(tx, session.tenantId, adminId);
+    });
+  }
+
   async updateTenantAdminStatus(
     session: AdminSession,
     adminId: string,

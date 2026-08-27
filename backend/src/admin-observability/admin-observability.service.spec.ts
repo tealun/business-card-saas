@@ -38,6 +38,35 @@ describe("AdminObservabilityService", () => {
     );
   });
 
+  it("lets a tenant owner add an existing bound member as a non-owner administrator", async () => {
+    const created = tenantAdminRow({ admin_id: "3", member_identity_id: "30", role: "operator" });
+    const repository = { createTenantAdmin: jest.fn().mockResolvedValue(created) };
+    const operationLogs = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = new AdminObservabilityService(repository as never, platformAdminsStub() as never, operationLogs as never);
+
+    await expect(service.createTenantAdmin(tenantOwner, { member_identity_id: "30", role: "operator" })).resolves.toMatchObject({
+      admin_id: "3",
+      role: "operator"
+    });
+    expect(repository.createTenantAdmin).toHaveBeenCalledWith(tenantOwner, "30", "operator");
+    expect(operationLogs.record).toHaveBeenCalledWith(expect.objectContaining({
+      action: "admin.create",
+      targetId: "3",
+      detail: { member_identity_id: "30", role: "operator" }
+    }));
+  });
+
+  it("rejects adding administrators by non-owners, adding self, invalid members, and duplicates", async () => {
+    const repository = { createTenantAdmin: jest.fn() };
+    const service = new AdminObservabilityService(repository as never, platformAdminsStub() as never);
+    await expect(service.createTenantAdmin(tenantAdmin, { member_identity_id: "30", role: "admin" })).rejects.toThrow(ForbiddenException);
+    await expect(service.createTenantAdmin(tenantOwner, { member_identity_id: "10", role: "admin" })).rejects.toThrow(ForbiddenException);
+    repository.createTenantAdmin.mockResolvedValueOnce("member_not_found");
+    await expect(service.createTenantAdmin(tenantOwner, { member_identity_id: "404", role: "auditor" })).rejects.toThrow("请选择当前企业");
+    repository.createTenantAdmin.mockResolvedValueOnce("already_admin");
+    await expect(service.createTenantAdmin(tenantOwner, { member_identity_id: "30", role: "admin" })).rejects.toThrow("已经是企业管理员");
+  });
+
   it("lists platform accounts only for platform owners", async () => {
     const repository = {
       listPlatformAdmins: jest.fn().mockResolvedValue({ items: [], total: 0 })
@@ -169,6 +198,22 @@ describe("AdminObservabilityService", () => {
     });
     expect(repository.updateTenantAdminStatus).toHaveBeenCalledWith(tenantOwner, "2", "disabled");
     expect(repository.updateTenantAdminStatus).toHaveBeenCalledWith(tenantOwner, "2", "active");
+  });
+
+  it("lets owners change a non-owner role and protects owner and self rows", async () => {
+    const target = tenantAdminRow();
+    const repository = {
+      getTenantAdmin: jest.fn().mockResolvedValue(target),
+      updateTenantAdminRole: jest.fn().mockResolvedValue({ ...target, role: "auditor" })
+    };
+    const service = new AdminObservabilityService(repository as never, platformAdminsStub() as never);
+    await expect(service.updateTenantAdminRole(tenantOwner, "2", "auditor")).resolves.toMatchObject({ role: "auditor" });
+    expect(repository.updateTenantAdminRole).toHaveBeenCalledWith(tenantOwner, "2", "auditor");
+
+    repository.getTenantAdmin.mockResolvedValueOnce(tenantAdminRow({ role: "owner" }));
+    await expect(service.updateTenantAdminRole(tenantOwner, "2", "admin")).rejects.toThrow(ForbiddenException);
+    repository.getTenantAdmin.mockResolvedValueOnce(tenantAdminRow({ member_identity_id: "10" }));
+    await expect(service.updateTenantAdminRole(tenantOwner, "2", "admin")).rejects.toThrow(ForbiddenException);
   });
 
   it("records an operation log after changing a tenant admin status", async () => {

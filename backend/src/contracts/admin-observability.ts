@@ -103,6 +103,17 @@ export const updateTenantAdminStatusRequestSchema = z.object({
   status: z.enum(["active", "disabled"])
 });
 
+export const assignableTenantAdminRoleSchema = z.enum(["admin", "operator", "auditor"]);
+
+export const createTenantAdminRequestSchema = z.object({
+  member_identity_id: z.string().min(1),
+  role: assignableTenantAdminRoleSchema
+});
+
+export const updateTenantAdminRoleRequestSchema = z.object({
+  role: assignableTenantAdminRoleSchema
+});
+
 export type AdminListQuery = z.infer<typeof adminListQuerySchema>;
 export type AdminEventQuery = z.infer<typeof adminEventQuerySchema>;
 export type TenantAdminSummary = z.infer<typeof tenantAdminSummarySchema>;
@@ -113,3 +124,4 @@ export type PlatformAdminSummary = z.infer<typeof platformAdminSummarySchema>;
 export type PlatformAccountCreateRequest = z.infer<typeof platformAccountCreateRequestSchema>;
 export type PlatformAccountRoleUpdateRequest = z.infer<typeof platformAccountRoleUpdateRequestSchema>;
 export type PlatformAccountDeleteResponse = z.infer<typeof platformAccountDeleteResponseSchema>;
+export type CreateTenantAdminRequest = z.infer<typeof createTenantAdminRequestSchema>;
