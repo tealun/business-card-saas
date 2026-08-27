@@ -215,7 +215,8 @@ describe("PublicCardController", () => {
       headers: { "x-forwarded-for": "203.0.113.10" },
       payload: { fingerprint: "ios|iphone15|390x844" }
     });
-    const firstVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(first.body);
+    const firstVisit = dataOf<{ is_owner: boolean; stats: { visitor_count: number; visit_count: number } }>(first.body);
+    expect(firstVisit.is_owner).toBe(false);
 
     const second = await app.inject({
       method: "POST",
@@ -223,7 +224,8 @@ describe("PublicCardController", () => {
       headers: { "x-forwarded-for": "203.0.113.10" },
       payload: { fingerprint: "ios|iphone15|390x844" }
     });
-    const secondVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(second.body);
+    const secondVisit = dataOf<{ is_owner: boolean; stats: { visitor_count: number; visit_count: number } }>(second.body);
+    expect(secondVisit.is_owner).toBe(false);
 
     expect(secondVisit.stats.visitor_count).toBe(firstVisit.stats.visitor_count + 1);
     expect(secondVisit.stats.visit_count).toBe(firstVisit.stats.visit_count + 1);
@@ -244,7 +246,8 @@ describe("PublicCardController", () => {
       headers: { authorization: `Bearer ${ownerToken}` },
       payload: {}
     });
-    const firstVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(first.body);
+    const firstVisit = dataOf<{ is_owner: boolean; stats: { visitor_count: number; visit_count: number } }>(first.body);
+    expect(firstVisit.is_owner).toBe(true);
 
     const second = await app.inject({
       method: "POST",
@@ -252,7 +255,8 @@ describe("PublicCardController", () => {
       headers: { authorization: `Bearer ${ownerToken}` },
       payload: {}
     });
-    const secondVisit = dataOf<{ stats: { visitor_count: number; visit_count: number } }>(second.body);
+    const secondVisit = dataOf<{ is_owner: boolean; stats: { visitor_count: number; visit_count: number } }>(second.body);
+    expect(secondVisit.is_owner).toBe(true);
 
     expect(secondVisit.stats).toEqual(firstVisit.stats);
   });

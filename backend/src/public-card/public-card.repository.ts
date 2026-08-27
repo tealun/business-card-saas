@@ -325,11 +325,13 @@ export class PublicCardRepository {
   async recordAction(publicId: string, visitId: string, actionType: string): Promise<{ idempotent: boolean }> {
     if (this.hasDatabase()) {
       const directory = await this.resolveDirectory(publicId);
-      const result = await this.tenantTx!.run(directory.tenantId, (tx) =>
-        actionType === "like_card"
-          ? this.recordUniqueVisitorAction(tx, directory, visitId, actionType)
-          : this.recordVisitAction(tx, directory, visitId, actionType)
-      );
+      const result = await this.tenantTx!.run(directory.tenantId, async (tx) => {
+        if (actionType === "like_card") {
+          await this.lockUniqueVisitorAction(tx, directory, visitId);
+          return this.recordUniqueVisitorAction(tx, directory, visitId, actionType);
+        }
+        return this.recordVisitAction(tx, directory, visitId, actionType);
+      });
       return { idempotent: result.rowCount === 0 };
     }
 
@@ -839,6 +841,32 @@ export class PublicCardRepository {
         ON CONFLICT (visit_id, action_type) DO NOTHING
       `,
       [directory.tenantId, directory.cardId, visitId, actionType]
+    );
+  }
+
+  /**
+   * 串行化同一名片、同一访客的点赞，下一条查重语句会取得锁释放后的新快照。
+   */
+  private lockUniqueVisitorAction(
+    tx: TenantTransactionClient,
+    directory: { tenantId: string; cardId: string },
+    visitId: string
+  ) {
+    return tx.query(
+      `
+        SELECT pg_advisory_xact_lock(
+          hashtextextended(
+            $1::text || ':' || $2::text || ':' ||
+            COALESCE(visitor_account_id::text, anon_id, id::text),
+            0
+          )
+        )
+        FROM card_visits
+        WHERE tenant_id = $1
+          AND card_id = $2
+          AND visit_id = $3
+      `,
+      [directory.tenantId, directory.cardId, visitId]
     );
   }
 

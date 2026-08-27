@@ -68,6 +68,7 @@ export class PublicCardService {
         visit_id: visitId,
         visit_token: visitToken,
         anon_id: anonId,
+        is_owner: true,
         expires_in: this.visitTokens.expiresIn,
         stats
       });
@@ -107,6 +108,7 @@ export class PublicCardService {
       visit_id: visit.visitId,
       visit_token: visitToken,
       anon_id: visit.anonId,
+      is_owner: false,
       expires_in: this.visitTokens.expiresIn,
       stats
     });

@@ -72,7 +72,7 @@ function request(path, options = {}) {
           resolve(sanitizeApiData(payload, baseUrl));
           return;
         }
-        if (response.statusCode === 401) {
+        if (response.statusCode === 401 && options.auth !== false) {
           // 任一鉴权 API 返回 401，都说明本地身份缓存不再可信；在传输层清理，避免页面继续渲染旧租户/成员。
           clearSessionState();
         }

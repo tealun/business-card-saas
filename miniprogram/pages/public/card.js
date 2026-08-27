@@ -161,6 +161,7 @@ Page({
     visitCount: 269,
     likeCount: 136,
     likedByMe: false,
+    likeSubmitting: false,
     pendingExchange: false,
     visitorAvatarSlots: [{ avatarUrl: "" }],
     wechatSheetVisible: false,
@@ -383,7 +384,13 @@ Page({
       app.globalData.visitToken = visit.visit_token;
       app.globalData.anonId = visit.anon_id;
       storeAnonId(visit.anon_id);
-      this.setData({ visitId: visit.visit_id });
+      this.setData({
+        visitId: visit.visit_id,
+        isOwnCard: Boolean(visit.is_owner) || this.data.isOwnCard
+      });
+      if (visit.is_owner) {
+        app.globalData.visitToken = "";
+      }
       if (visit.stats) {
         this.applyStats(visit.stats);
       } else {
@@ -492,15 +499,17 @@ Page({
    */
   async likeCard() {
     if (this.data.isOwnCard) {
+      wx.showToast({ title: "不能给自己的名片点靠谱", icon: "none" });
       return;
     }
-    if (this.data.likedByMe) {
+    if (this.data.likedByMe || this.data.likeSubmitting) {
       return;
     }
     if (!app.globalData.visitToken) {
       wx.showToast({ title: "访问记录准备中", icon: "none" });
       return;
     }
+    this.setData({ likeSubmitting: true });
     try {
       const result = await request(`/public/cards/${this.data.publicId}/actions`, {
         method: "POST",
@@ -516,7 +525,9 @@ Page({
       });
     } catch (error) {
       console.error("like card failed", error);
-      wx.showToast({ title: "操作失败，请稍后重试", icon: "none" });
+      wx.showToast({ title: error.message || "操作失败，请稍后重试", icon: "none" });
+    } finally {
+      this.setData({ likeSubmitting: false });
     }
   },
 

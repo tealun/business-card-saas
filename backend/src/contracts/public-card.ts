@@ -133,6 +133,7 @@ export const visitResponseSchema = z.object({
   visit_id: visitIdSchema,
   visit_token: z.string().min(32),
   anon_id: anonIdSchema,
+  is_owner: z.boolean(),
   expires_in: z.number().int().positive(),
   stats: publicCardStatsSchema
 });
