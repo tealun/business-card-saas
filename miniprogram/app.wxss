@@ -39,6 +39,24 @@ button {
 
 button::after { border: none; }
 
+/* Keep native buttons centered and separated in the fixed admin-login footer. */
+.scan-page .action-footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-page .primary-action,
+.scan-page .secondary-action,
+.scan-page .text-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+
+.scan-page .action-footer > button + button { margin-top: 12rpx; }
+
 .page {
   min-height: 100vh;
   padding: 24rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
