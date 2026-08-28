@@ -1356,8 +1356,9 @@ function companyTabStatus(key) {
     return count ? { text: "可展示", tone: "success", summary: `${count} 个已发布视频` } : { text: "待选择", tone: "warning", summary: "暂无已发布视频" };
   }
   const honors = state.companyHonors || [];
-  if (!honors.length) return { text: "缺内容", tone: "warning", summary: "未配置荣誉" };
-  return { text: "已完善", tone: "success", summary: `${honors.length} 项荣誉` };
+  const published = honors.filter((item) => item.visible !== false && item.status === "published");
+  if (!published.length) return { text: "不可展示", tone: "warning", summary: honors.length ? "荣誉均为草稿或已隐藏" : "未配置荣誉" };
+  return { text: "可展示", tone: "success", summary: `${published.length} 项已发布荣誉` };
 }
 
 function renderCompanyLogoPreview() {
@@ -1925,7 +1926,8 @@ function companyMissingItems(profile) {
   if (state.videoCapability?.enabled && !hasVideo) missing.push("视频介绍未配置");
   const honors = state.companyHonors || [];
   if (!honors.length) missing.push("荣誉资质未配置");
-  else if (!honors.some((honor) => (honor.images || []).length)) missing.push("荣誉资质图片未上传");
+  else if (!honors.some((honor) => honor.visible !== false && honor.status === "published")) missing.push("荣誉资质尚未发布或已隐藏");
+  else if (!honors.some((honor) => honor.visible !== false && honor.status === "published" && (honor.images || []).length)) missing.push("已发布荣誉资质图片未上传");
   return missing;
 }
 

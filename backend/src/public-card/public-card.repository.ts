@@ -47,6 +47,7 @@ interface PublicCardRow extends QueryResultRow {
   fields_encrypted: string | null;
   privacy_json: unknown;
   card_status: PublicCardResponse["status"];
+  company_profile_id: string | number | bigint | null;
   company_name: string | null;
   company_short_name: string | null;
   company_logo_url: string | null;
@@ -480,6 +481,7 @@ export class PublicCardRepository {
           cards.fields_encrypted,
           cards.privacy_json,
           cards.status AS card_status,
+          company_profiles.id AS company_profile_id,
           company_profiles.display_name AS company_name,
           company_profiles.short_name AS company_short_name,
           company_profiles.logo_url AS company_logo_url,
@@ -535,10 +537,13 @@ export class PublicCardRepository {
     if (!row || row.card_status !== "active") {
       throw new NotFoundException("card not found or disabled");
     }
+    const companyHomePublished = row.company_profile_id !== null && row.company_profile_id !== undefined;
+    const publicModules = companyHomePublished ? parseDisplayModules(row.display_modules_json, true) : [];
+    const honorsModuleVisible = publicModules.some((module) => module.key === "honors" && module.visible);
     const videoCapability = await this.videoFeatures?.capability(directory.tenantId);
     const [videos, honors, stats] = await Promise.all([
-      videoCapability?.enabled ? this.readVideos(tx, directory.tenantId) : Promise.resolve([]),
-      this.readHonors(tx, directory.tenantId),
+      companyHomePublished && videoCapability?.enabled ? this.readVideos(tx, directory.tenantId) : Promise.resolve([]),
+      honorsModuleVisible ? this.readHonors(tx, directory.tenantId) : Promise.resolve([]),
       this.readStats(tx, directory)
     ]);
     return this.toPublicCard(row, videos, honors, stats);

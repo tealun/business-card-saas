@@ -2527,6 +2527,7 @@ function buildHomeModules(profile = {}, honors = [], videos = [], videoFeature =
   const blocks = profile.intro_blocks || [];
   const services = profile.service_items || [];
   const publishedVideos = publishedCompanyVideos(videos);
+  const publishedHonors = publishedCompanyHonors(honors);
   return [
     {
       key: "base",
@@ -2571,10 +2572,10 @@ function buildHomeModules(profile = {}, honors = [], videos = [], videoFeature =
     {
       key: "honors",
       title: "荣誉资质",
-      desc: honors.length ? `${honors.length} 项荣誉` : "证书、奖项与资质图片",
+      desc: publishedHonors.length ? `${publishedHonors.length} 项已发布荣誉` : (honors.length ? "荣誉均为草稿或已隐藏" : "证书、奖项与资质图片"),
       action: "编辑",
-      statusLabel: honors.length ? "已完善" : "待完善",
-      statusClass: honors.length ? "badge--success" : "badge--warning",
+      statusLabel: publishedHonors.length ? "可展示" : "待完善",
+      statusClass: publishedHonors.length ? "badge--success" : "badge--warning",
       icon: "icon-paper",
       section: "honors"
     }
@@ -2596,7 +2597,7 @@ function homeCompleteness(profile = {}, honors = [], videos = [], videoFeature =
   const done = checks.filter(Boolean).length;
   const warnings = [];
   if (videoFeature && videoFeature.enabled && !publishedCompanyVideos(videos).length) warnings.push("企业视频待选择");
-  if (!honors.length) warnings.push("荣誉资质待完善");
+  if (!publishedCompanyHonors(honors).length) warnings.push(honors.length ? "荣誉资质尚未发布或已隐藏" : "荣誉资质待完善");
   return {
     done,
     total: checks.length,
@@ -2610,6 +2611,13 @@ function homeCompleteness(profile = {}, honors = [], videos = [], videoFeature =
  */
 function publishedCompanyVideos(videos = []) {
   return cloneArray(videos).filter((item) => item.visible !== false && item.status === "published");
+}
+
+/**
+ * 只统计访客端实际具备展示资格的荣誉。
+ */
+function publishedCompanyHonors(honors = []) {
+  return cloneArray(honors).filter((item) => item.visible !== false && item.status === "published");
 }
 
 function introSectionTitle(section) {

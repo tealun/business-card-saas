@@ -61,6 +61,7 @@ describe("PublicCardRepository", () => {
                 }),
                 privacy_json: { show_mobile: true, show_email: true, show_wechat: false, show_paper_card: false, allow_forward: true },
                 card_status: "active",
+                company_profile_id: "profile-001",
                 company_name: "Admin Corp",
                 company_short_name: "Admin",
                 company_logo_url: "/api/v1/storage/tenant/tenant-001/logos/enterprise.png",
@@ -124,6 +125,90 @@ describe("PublicCardRepository", () => {
       } else {
         delete process.env.DATABASE_URL;
       }
+    }
+  });
+
+  it.each([
+    { name: "the company home is unpublished", companyProfileId: null, honorsVisible: true, expectedHonors: 0 },
+    { name: "the honors module is hidden", companyProfileId: "profile-001", honorsVisible: false, expectedHonors: 0 },
+    { name: "the company home and honors module are published", companyProfileId: "profile-001", honorsVisible: true, expectedHonors: 1 }
+  ])("gates real honors when $name", async ({ companyProfileId, honorsVisible, expectedHonors }) => {
+    const originalDatabaseUrl = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = "postgres://test";
+    const database = {
+      query: async () => ({ rows: [{ tenant_id: "tenant-001", card_id: "card-001", status: "active" }] })
+    };
+    const modules = [
+      { key: "services", title: "产品与服务", visible: true, sort_order: 10, layout: "graphic" },
+      { key: "profile", title: "企业简介", visible: true, sort_order: 20, layout: "carousel" },
+      { key: "videos", title: "企业视频", visible: false, sort_order: 30, layout: "carousel" },
+      { key: "honors", title: "荣誉资质", visible: honorsVisible, sort_order: 40, layout: "carousel" }
+    ];
+    let honorQueryCount = 0;
+    const fakeTx = {
+      query: async (query: string) => {
+        if (query.includes("FROM cards") && query.includes("company_profiles.display_name")) {
+          return {
+            rows: [{
+              card_id: "card-001",
+              member_identity_id: "member-001",
+              public_id: "pub_001",
+              display_name: "Ada",
+              title: "Sales",
+              avatar_url: null,
+              fields_encrypted: "{}",
+              privacy_json: {},
+              card_status: "active",
+              company_profile_id: companyProfileId,
+              company_name: companyProfileId ? "Admin Corp" : null,
+              company_short_name: null,
+              company_logo_url: null,
+              website_url: null,
+              address: null,
+              intro_json: [],
+              service_items_json: [],
+              display_modules_json: companyProfileId ? modules : null,
+              tenant_type: "enterprise",
+              background_url: null,
+              color_scheme_json: {},
+              layout_json: {},
+              default_template_background_url: null,
+              default_template_logo_url: null,
+              default_template_color_scheme_json: {},
+              default_template_layout_json: {}
+            }]
+          };
+        }
+        if (query.includes("FROM company_honors")) {
+          honorQueryCount += 1;
+          return {
+            rows: [{
+              id: "honor-001",
+              title: "真实荣誉",
+              body: "来自当前租户的已发布内容",
+              image_url: "/api/v1/storage/tenant/tenant-001/honors/real.webp",
+              image_title: null,
+              image_caption: null
+            }]
+          };
+        }
+        if (query.includes("COUNT(*)")) return { rows: [{ visit_count: "0", visitor_count: "0", like_count: "0" }] };
+        return { rows: [] };
+      }
+    };
+    const tenantTx = {
+      run: async (_tenantId: string, callback: (tx: typeof fakeTx) => Promise<unknown>) => callback(fakeTx)
+    };
+    try {
+      const repository = new PublicCardRepository(database as never, tenantTx as never);
+      const card = await repository.findPublicCard("pub_001");
+
+      expect(card.honors).toHaveLength(expectedHonors);
+      expect(honorQueryCount).toBe(expectedHonors ? 1 : 0);
+      if (expectedHonors) expect(card.honors[0]?.title).toBe("真实荣誉");
+    } finally {
+      if (originalDatabaseUrl) process.env.DATABASE_URL = originalDatabaseUrl;
+      else delete process.env.DATABASE_URL;
     }
   });
 });
