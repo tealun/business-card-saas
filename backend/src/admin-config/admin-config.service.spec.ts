@@ -120,8 +120,6 @@ describe("AdminConfigService", () => {
       ]
     });
     const updated = await service.updateCompanyHonor(adminSession(), created.honor_id, {
-      status: "published",
-      visible: true,
       images: [{ image_url: "https://example.com/iso-published.jpg", title: null, caption: null, sort_order: 10 }]
     });
     const list = await service.listCompanyHonors(adminSession());
@@ -134,9 +132,7 @@ describe("AdminConfigService", () => {
   it("deletes company honors from the tenant list", async () => {
     const service = createService();
     const created = await service.createCompanyHonor(adminSession(), {
-      title: "待删除荣誉",
-      status: "published",
-      visible: true
+      title: "待删除荣誉"
     });
 
     await service.deleteCompanyHonor(adminSession(), created.honor_id);

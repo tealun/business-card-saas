@@ -1579,32 +1579,6 @@ Page({
   },
 
   /**
-   * 更新荣誉可见性。
-   */
-  onHonorVisible(event) {
-    this.setData({
-      introDraft: {
-        ...this.data.introDraft,
-        honorDraft: { ...this.data.introDraft.honorDraft, visible: event.detail.value }
-      },
-      panelDirty: true
-    });
-  },
-
-  /**
-   * 更新荣誉发布状态。
-   */
-  setHonorStatus(event) {
-    this.setData({
-      introDraft: {
-        ...this.data.introDraft,
-        honorDraft: { ...this.data.introDraft.honorDraft, status: event.currentTarget.dataset.status || "draft" }
-      },
-      panelDirty: true
-    });
-  },
-
-  /**
    * 批量上传荣誉图片并追加到草稿。
    */
   uploadHonorImages() {
@@ -2189,9 +2163,7 @@ function emptyHonorDraft() {
     title: "",
     body: "",
     images: [],
-    sort_order: "",
-    visible: true,
-    status: "published"
+    sort_order: ""
   };
 }
 
@@ -2463,9 +2435,7 @@ function honorDraftFromItem(item) {
     title: item.title || "",
     body: item.body || "",
     images: normalizeHonorImages(item.images || []),
-    sort_order: item.sort_order || "",
-    visible: item.visible !== false,
-    status: item.status || "draft"
+    sort_order: item.sort_order || ""
   };
 }
 
@@ -2488,8 +2458,6 @@ function buildHonorPayload(draft) {
     title,
     body: textOrNull(draft.body),
     sort_order: numberOrDefault(draft.sort_order, 0),
-    visible: draft.visible !== false,
-    status: draft.status === "published" ? "published" : "draft",
     images: resequenceHonorImages(images)
   };
 }
@@ -2505,17 +2473,14 @@ function decorateHonors(items) {
       return {
         ...item,
         _cover: images[0] && images[0].image_url ? images[0].image_url : "",
-        _summary: item.body || `${images.length} 张图片`,
-        statusLabel: item.status === "published" ? "已发布" : "草稿",
-        statusClass: item.status === "published" ? "badge--success" : "badge--warning",
-        _visibleLabel: item.visible === false ? "隐藏" : "展示"
+        _summary: item.body || `${images.length} 张图片`
       };
     });
 }
 
 function stripHonorRuntime(items) {
   return cloneArray(items).filter((item) => item && typeof item === "object").map((item) => {
-    const { _cover, _summary, statusLabel, statusClass, _visibleLabel, ...rest } = item;
+    const { _cover, _summary, ...rest } = item;
     return rest;
   });
 }
@@ -2527,7 +2492,6 @@ function buildHomeModules(profile = {}, honors = [], videos = [], videoFeature =
   const blocks = profile.intro_blocks || [];
   const services = profile.service_items || [];
   const publishedVideos = publishedCompanyVideos(videos);
-  const publishedHonors = publishedCompanyHonors(honors);
   return [
     {
       key: "base",
@@ -2572,10 +2536,10 @@ function buildHomeModules(profile = {}, honors = [], videos = [], videoFeature =
     {
       key: "honors",
       title: "荣誉资质",
-      desc: publishedHonors.length ? `${publishedHonors.length} 项已发布荣誉` : (honors.length ? "荣誉均为草稿或已隐藏" : "证书、奖项与资质图片"),
+      desc: honors.length ? `${honors.length} 项荣誉` : "证书、奖项与资质图片",
       action: "编辑",
-      statusLabel: publishedHonors.length ? "可展示" : "待完善",
-      statusClass: publishedHonors.length ? "badge--success" : "badge--warning",
+      statusLabel: honors.length ? "可展示" : "待完善",
+      statusClass: honors.length ? "badge--success" : "badge--warning",
       icon: "icon-paper",
       section: "honors"
     }
@@ -2597,7 +2561,7 @@ function homeCompleteness(profile = {}, honors = [], videos = [], videoFeature =
   const done = checks.filter(Boolean).length;
   const warnings = [];
   if (videoFeature && videoFeature.enabled && !publishedCompanyVideos(videos).length) warnings.push("企业视频待选择");
-  if (!publishedCompanyHonors(honors).length) warnings.push(honors.length ? "荣誉资质尚未发布或已隐藏" : "荣誉资质待完善");
+  if (!honors.length) warnings.push("荣誉资质待完善");
   return {
     done,
     total: checks.length,
@@ -2611,13 +2575,6 @@ function homeCompleteness(profile = {}, honors = [], videos = [], videoFeature =
  */
 function publishedCompanyVideos(videos = []) {
   return cloneArray(videos).filter((item) => item.visible !== false && item.status === "published");
-}
-
-/**
- * 只统计访客端实际具备展示资格的荣誉。
- */
-function publishedCompanyHonors(honors = []) {
-  return cloneArray(honors).filter((item) => item.visible !== false && item.status === "published");
 }
 
 function introSectionTitle(section) {

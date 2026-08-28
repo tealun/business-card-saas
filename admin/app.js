@@ -1304,9 +1304,9 @@ function publishCheckRows() {
         : "视频能力未开通，自动跳过。"
     },
     {
-      ok: (state.companyHonors || []).some((item) => item.visible !== false && item.status === "published"),
+      ok: (state.companyHonors || []).length > 0,
       title: "荣誉资质",
-      detail: `${(state.companyHonors || []).filter((item) => item.visible !== false).length} 项荣誉。`
+      detail: `${(state.companyHonors || []).length} 项荣誉。`
     }
   ];
   return checks;
@@ -1356,9 +1356,8 @@ function companyTabStatus(key) {
     return count ? { text: "可展示", tone: "success", summary: `${count} 个已发布视频` } : { text: "待选择", tone: "warning", summary: "暂无已发布视频" };
   }
   const honors = state.companyHonors || [];
-  const published = honors.filter((item) => item.visible !== false && item.status === "published");
-  if (!published.length) return { text: "不可展示", tone: "warning", summary: honors.length ? "荣誉均为草稿或已隐藏" : "未配置荣誉" };
-  return { text: "可展示", tone: "success", summary: `${published.length} 项已发布荣誉` };
+  if (!honors.length) return { text: "缺内容", tone: "warning", summary: "未配置荣誉" };
+  return { text: "可展示", tone: "success", summary: `${honors.length} 项荣誉` };
 }
 
 function renderCompanyLogoPreview() {
@@ -1829,7 +1828,7 @@ function previewModule(module, textBlock) {
       card.append(previewList([], "未选择视频，发布后访客不可见", () => []));
     }
   } else if (module.key === "honors") {
-    const honors = (state.companyHonors || []).filter((item) => item.visible !== false).slice(0, 4);
+    const honors = (state.companyHonors || []).slice(0, 4);
     card.append(previewServices(honors.map((item) => ({
       title: item.title || "荣誉资质",
       description: item.body || item.images?.[0]?.caption || `${(item.images || []).length} 张图片`,
@@ -1926,8 +1925,7 @@ function companyMissingItems(profile) {
   if (state.videoCapability?.enabled && !hasVideo) missing.push("视频介绍未配置");
   const honors = state.companyHonors || [];
   if (!honors.length) missing.push("荣誉资质未配置");
-  else if (!honors.some((honor) => honor.visible !== false && honor.status === "published")) missing.push("荣誉资质尚未发布或已隐藏");
-  else if (!honors.some((honor) => honor.visible !== false && honor.status === "published" && (honor.images || []).length)) missing.push("已发布荣誉资质图片未上传");
+  else if (!honors.some((honor) => (honor.images || []).length)) missing.push("荣誉资质图片未上传");
   return missing;
 }
 
@@ -2304,7 +2302,7 @@ function renderHonorEditors() {
     const row = editorCard({
       type: "荣誉",
       title: honor.title || "未命名荣誉",
-      summary: honor.visible === false ? "对访客隐藏" : `${(honor.images || []).length} 张图片`,
+      summary: `${(honor.images || []).length} 张图片`,
       index,
       actions: [
         actionButton("上移", () => moveCompanyHonor(index, -1), "ghost compact"),
@@ -2322,18 +2320,7 @@ function renderHonorEditors() {
     title.className = "builder-input";
     const body = input(honor.body || "", "body", index, "honor", "荣誉说明", "textarea");
     body.className = "builder-textarea";
-    const visible = input("", "visible", index, "honor", "", "checkbox");
-    visible.checked = honor.visible !== false;
-    const status = document.createElement("select");
-    status.dataset.key = "status";
-    status.dataset.index = index;
-    status.dataset.group = "honor";
-    status.innerHTML = `<option value="draft">草稿</option><option value="published">发布</option>`;
-    status.value = honor.status || "draft";
-    const visibleLabel = document.createElement("label");
-    visibleLabel.className = "check-line";
-    visibleLabel.append(visible, document.createTextNode("对访客展示"));
-    row.append(title, body, honorImagesEditor(honor, index), status, visibleLabel);
+    row.append(title, body, honorImagesEditor(honor, index));
     return row;
   }));
   renderCompanyPreview();
@@ -2598,8 +2585,6 @@ async function saveHonors() {
       title: String(honor.title || "").trim(),
       body: honor.body || null,
       sort_order: Number(honor.sort_order || 0),
-      visible: honor.visible !== false,
-      status: honor.status || "draft",
       images: honor.images || []
     };
     if (String(honor.honor_id).startsWith("draft_")) {
@@ -4809,7 +4794,7 @@ $("#loadHonors").addEventListener("click", () => run("读取荣誉", async () =>
 }));
 $("#addHonor").addEventListener("click", () => {
   syncHonorEditors();
-  state.companyHonors.push({ honor_id: `draft_${Date.now()}`, title: "新荣誉", body: null, sort_order: (state.companyHonors.length + 1) * 10, visible: true, status: "published", images: [] });
+  state.companyHonors.push({ honor_id: `draft_${Date.now()}`, title: "新荣誉", body: null, sort_order: (state.companyHonors.length + 1) * 10, images: [] });
   markCompanyDirty();
   renderHonorEditors();
 });

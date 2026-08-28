@@ -145,6 +145,7 @@ describe("PublicCardRepository", () => {
       { key: "honors", title: "荣誉资质", visible: honorsVisible, sort_order: 40, layout: "carousel" }
     ];
     let honorQueryCount = 0;
+    let honorQuery = "";
     const fakeTx = {
       query: async (query: string) => {
         if (query.includes("FROM cards") && query.includes("company_profiles.display_name")) {
@@ -181,6 +182,7 @@ describe("PublicCardRepository", () => {
         }
         if (query.includes("FROM company_honors")) {
           honorQueryCount += 1;
+          honorQuery = query;
           return {
             rows: [{
               id: "honor-001",
@@ -205,7 +207,11 @@ describe("PublicCardRepository", () => {
 
       expect(card.honors).toHaveLength(expectedHonors);
       expect(honorQueryCount).toBe(expectedHonors ? 1 : 0);
-      if (expectedHonors) expect(card.honors[0]?.title).toBe("真实荣誉");
+      if (expectedHonors) {
+        expect(card.honors[0]?.title).toBe("真实荣誉");
+        expect(honorQuery).not.toContain("company_honors.status");
+        expect(honorQuery).not.toContain("company_honors.visible");
+      }
     } finally {
       if (originalDatabaseUrl) process.env.DATABASE_URL = originalDatabaseUrl;
       else delete process.env.DATABASE_URL;

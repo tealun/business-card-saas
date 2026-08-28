@@ -667,8 +667,6 @@ export class PublicCardRepository {
           AND company_honor_images.honor_id = company_honors.id
           AND company_honor_images.deleted_at IS NULL
         WHERE company_honors.tenant_id = $1
-          AND company_honors.visible = true
-          AND company_honors.status = 'published'
           AND company_honors.deleted_at IS NULL
         ORDER BY company_honors.sort_order ASC, company_honors.id ASC, company_honor_images.sort_order ASC
         LIMIT 50

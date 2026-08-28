@@ -277,8 +277,8 @@ export class AdminConfigRepository {
             request.title,
             request.body ?? null,
             request.sort_order ?? 0,
-            request.visible ?? true,
-            request.status ?? "draft"
+            true,
+            "published"
           ]
         );
         const honorId = String(created.rows[0]!.id);
@@ -294,8 +294,8 @@ export class AdminConfigRepository {
       title: request.title,
       body: request.body ?? null,
       sort_order: request.sort_order ?? (current.length + 1) * 10,
-      visible: request.visible ?? true,
-      status: request.status ?? "draft",
+      visible: true,
+      status: "published",
       images: (request.images ?? []).map((image, index) => ({
         ...image,
         image_id: image.image_id ?? randomToken("himg", 12),
@@ -332,8 +332,8 @@ export class AdminConfigRepository {
             request.title ?? current.title,
             request.body !== undefined ? request.body : current.body,
             request.sort_order ?? current.sort_order,
-            request.visible ?? current.visible,
-            request.status ?? current.status
+            true,
+            "published"
           ]
         );
         if (request.images) {
@@ -355,8 +355,8 @@ export class AdminConfigRepository {
       title: request.title ?? existing.title,
       body: request.body !== undefined ? request.body : existing.body,
       sort_order: request.sort_order ?? existing.sort_order,
-      visible: request.visible ?? existing.visible,
-      status: request.status ?? existing.status,
+      visible: true,
+      status: "published",
       images: (request.images ?? existing.images).map((image, imageIndex) => ({
         ...image,
         image_id: image.image_id ?? randomToken("himg", 12),
@@ -1160,8 +1160,8 @@ function rowsToCompanyHonors(rows: HonorRow[]): AdminCompanyHonor[] {
         title: row.title,
         body: row.body,
         sort_order: Number(row.sort_order),
-        visible: row.visible,
-        status: row.status,
+        visible: true,
+        status: "published",
         images: []
       } satisfies AdminCompanyHonor);
     if (row.image_url) {

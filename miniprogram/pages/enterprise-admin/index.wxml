@@ -498,11 +498,6 @@
             </view>
             <view wx:else class="upload-empty">上传图片后可逐张补充标题和说明</view>
           </view>
-          <view class="switch-row"><text>展示荣誉</text><switch checked="{{introDraft.honorDraft.visible}}" color="#5272d6" bindchange="onHonorVisible" /></view>
-          <view class="seg-row">
-            <view class="{{introDraft.honorDraft.status === 'draft' ? 'seg seg--active' : 'seg'}}" data-status="draft" bindtap="setHonorStatus">草稿</view>
-            <view class="{{introDraft.honorDraft.status === 'published' ? 'seg seg--active' : 'seg'}}" data-status="published" bindtap="setHonorStatus">发布</view>
-          </view>
           <button class="sheet-secondary" loading="{{saving}}" bindtap="saveHonorDraft">{{introDraft.editingHonorId ? '保存荣誉' : '添加荣誉'}}</button>
           <button wx:if="{{introDraft.editingHonorId}}" class="sheet-tertiary" bindtap="cancelHonorEdit">取消编辑</button>
 
@@ -511,9 +506,7 @@
             <view class="content-card__main">
               <view class="content-card__title">{{item.title}}</view>
               <view class="content-card__desc">{{item._summary}}</view>
-              <view class="content-card__meta">{{item._visibleLabel}}</view>
             </view>
-            <view class="badge {{item.statusClass}}">{{item.statusLabel}}</view>
             <view class="content-card__actions content-card__actions--full">
               <button class="mini-btn mini-btn--ghost" data-id="{{item.honor_id}}" bindtap="editHonorItem">编辑</button>
               <button class="mini-btn mini-btn--ghost" data-index="{{index}}" data-direction="up" bindtap="moveHonorItem">上移</button>

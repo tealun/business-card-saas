@@ -172,8 +172,6 @@ export const createAdminCompanyHonorRequestSchema = z.object({
   title: z.string().min(1).max(255),
   body: z.string().max(2000).nullable().optional(),
   sort_order: z.number().int().min(0).max(999).optional(),
-  visible: z.boolean().optional(),
-  status: z.enum(["draft", "published"]).optional(),
   images: z.array(adminCompanyHonorImageSchema).max(12).optional()
 });
 
